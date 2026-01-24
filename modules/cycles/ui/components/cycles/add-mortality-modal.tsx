@@ -25,14 +25,14 @@ const formSchema = z.object({
 });
 
 interface AddMortalityModalProps {
-  farmerId: string;
+  cycleId: string;
   farmerName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export const AddMortalityModal = ({
-  farmerId,
+  cycleId,
   farmerName,
   open,
   onOpenChange,
@@ -59,7 +59,7 @@ export const AddMortalityModal = ({
   );
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    mutation.mutate({ id: farmerId, amount: values.amount });
+    mutation.mutate({ id: cycleId, amount: values.amount });
   };
 
   return (

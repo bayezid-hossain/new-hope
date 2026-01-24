@@ -12,7 +12,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 interface EndCycleModalProps {
-  farmerId: string;
+  cycleId: string;
   farmerName: string;
   open: boolean;
   intake: number;
@@ -20,7 +20,7 @@ interface EndCycleModalProps {
 }
 
 export const EndCycleModal = ({
-  farmerId,
+  cycleId,
   farmerName,
   open,
   intake,
@@ -55,7 +55,7 @@ export const EndCycleModal = ({
     }
 
     endMutation.mutate({
-      id: farmerId,
+      id: cycleId,
       intake: stockValue
     });
   };
@@ -90,7 +90,7 @@ export const EndCycleModal = ({
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Enter the actual number of bags physically left in the shed.
+            Enter the actual number of bags physically eaten.
           </p>
         </div>
 

@@ -19,6 +19,8 @@ import { format } from "date-fns";
 import {
     ArrowRight,
     Bird,
+    Calendar,
+    ChevronRight,
     Loader2,
     Search,
     Users,
@@ -26,7 +28,64 @@ import {
 } from "lucide-react";
 import Link from "next/link"; // Assuming Next.js navigation
 import { useState } from "react";
-// import { useDebounce } from "@/hooks/use-debounce"; // *See Note below if you don't have this
+
+// --- Mobile Farmer Card Component ---
+const MobileFarmerCard = ({ farmer }: { farmer: any }) => (
+    <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
+        <CardContent className="p-4 space-y-4">
+            {/* Header section with Name & Badge */}
+            <div className="flex justify-between items-start">
+                <div className="flex flex-col gap-1">
+                    <Link href={`/farmers/${farmer.id}/history`} className="group flex items-center gap-1.5 focus:outline-none">
+                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{farmer.name}</h3>
+                        <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        Joined {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                    </div>
+                </div>
+
+                {farmer.activeCyclesCount > 0 ? (
+                    <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-600 text-[10px] px-2 py-0 h-5 shadow-sm">Active</Badge>
+                ) : (
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5">Idle</Badge>
+                )}
+            </div>
+
+            {/* Metrics Row */}
+            <div className="grid grid-cols-2 gap-3 py-1">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col gap-1">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                        <Bird className="h-3.5 w-3.5" /> Production
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-slate-900 leading-none">{farmer.activeCyclesCount}</span>
+                        <span className="text-[10px] text-slate-500 font-medium lowercase">Active Cycles</span>
+                    </div>
+                </div>
+
+                <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 flex flex-col gap-1">
+                    <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                        <Wheat className="h-3.5 w-3.5" /> Feed Stock
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-amber-900 leading-none">{farmer.mainStock.toFixed(1)}</span>
+                        <span className="text-[10px] text-amber-700/70 font-medium">bags</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* View Details Button */}
+            <Button variant="outline" className="w-full text-xs font-semibold h-9 rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
+                <Link href={`/farmers/${farmer.id}/history`}>
+                    View History & Details
+                    <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+            </Button>
+        </CardContent>
+    </Card>
+);
 
 export const FarmersListView = () => {
     const { orgId } = useCurrentOrg();
@@ -82,7 +141,8 @@ export const FarmersListView = () => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
@@ -164,6 +224,25 @@ export const FarmersListView = () => {
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
+
+                    {/* Mobile View: Cards */}
+                    <div className="md:hidden space-y-4">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center p-12 text-muted-foreground gap-2">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span className="text-sm font-medium">Loading directory...</span>
+                            </div>
+                        ) : data?.items.map((farmer) => (
+                            <MobileFarmerCard key={farmer.id} farmer={farmer} />
+                        ))}
+
+                        {!isLoading && data?.items.length === 0 && (
+                            <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                                <Search className="h-8 w-8 opacity-20 mb-2" />
+                                <p className="text-sm font-medium">No results for "{searchTerm}"</p>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

@@ -20,9 +20,112 @@ import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
 import LoadingState from "@/components/loading-state";
+import { Card, CardContent } from "@/components/ui/card";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
+import { ChevronRight } from "lucide-react";
+
+// --- Mobile Stock Card Component ---
+const MobileStockCard = ({
+  row,
+  onTransfer,
+  onRestock
+}: {
+  row: any;
+  onTransfer: (data: any) => void;
+  onRestock: (id: string) => void;
+}) => {
+  const consumed = row.totalConsumed || 0;
+  const remainingStock = row.mainStock || 0;
+  const percentUsed = remainingStock > 0 ? (consumed / remainingStock) * 100 : 0;
+  const total = Number(remainingStock) + Number(consumed);
+
+  return (
+    <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
+      <CardContent className="p-4 space-y-4">
+        {/* Header: Name & Quick Stock */}
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-1">
+            <Link href={`/farmers/${row.id}`} className="group flex items-center gap-1.5 focus:outline-none">
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{row.name}</h3>
+              <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          </div>
+          <div className="text-right">
+            <div className={`text-xl font-black tabular-nums leading-none ${row.isLowStock ? "text-red-600" : "text-emerald-600"}`}>
+              {row.remainingStock.toFixed(1)}
+            </div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bags Left</div>
+          </div>
+        </div>
+
+        {/* Active Cycles Badges */}
+        <div className="flex flex-wrap gap-1.5">
+          {row.activeCycles.length > 0 ? (
+            row.activeCycles.map((c: any) => (
+              <Badge key={c.id} variant="secondary" className="bg-slate-100/80 text-slate-600 border-slate-200/60 font-medium text-[10px] px-2 py-0 h-5">
+                Cycle (Age: {c.age})
+              </Badge>
+            ))
+          ) : (
+            <div className="text-[10px] font-medium text-slate-400 italic">No active cycles</div>
+          )}
+        </div>
+
+        {/* Progress Section */}
+        <div className="space-y-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+            <span className="text-slate-500">Stock Usage</span>
+            <span className={percentUsed > 90 ? "text-red-600" : "text-primary"}>{percentUsed.toFixed(0)}% Used</span>
+          </div>
+          <Progress
+            value={percentUsed}
+            className={`h-2 ${percentUsed > 90 ? "bg-red-500" : percentUsed > 75 ? "bg-amber-500" : "bg-primary"}`}
+          />
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">Consumed</span>
+              <span className="text-xs font-bold text-slate-700">{consumed.toFixed(1)}</span>
+            </div>
+            <div className="flex flex-col border-x border-slate-200 px-2">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">Active</span>
+              <span className="text-xs font-bold text-slate-700">{row.activeConsumption.toFixed(1)}</span>
+            </div>
+            <div className="flex flex-col pl-1 text-right">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">Total</span>
+              <span className="text-xs font-bold text-slate-700">{total.toFixed(1)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
+            onClick={() => onTransfer({
+              farmerId: row.id,
+              farmerName: row.name,
+              currentStock: row.remainingStock
+            })}
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Transfer
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 text-xs font-semibold rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
+            onClick={() => onRestock(row.id)}
+          >
+            <Wheat className="h-3.5 w-3.5 mr-2" /> Restock
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
@@ -78,8 +181,8 @@ export default function MainStockPage() {
         </div>
       </div>
 
-      {/* Main Data Table */}
-      <div className="border rounded-md bg-white shadow-sm overflow-hidden">
+      {/* Main Data Table - Desktop */}
+      <div className="hidden sm:block border rounded-md bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -177,6 +280,18 @@ export default function MainStockPage() {
             })}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Main Data Cards - Mobile */}
+      <div className="sm:hidden space-y-4">
+        {data?.items.map((row) => (
+          <MobileStockCard
+            key={row.id}
+            row={row}
+            onTransfer={(transferData) => setTransferModal({ open: true, data: transferData })}
+            onRestock={(farmerId) => setFeedModal({ open: true, farmerId })}
+          />
+        ))}
       </div>
 
       {/* --- DIALOGS --- */}

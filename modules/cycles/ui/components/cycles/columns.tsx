@@ -54,14 +54,14 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
       </DropdownMenu>
 
       <AddMortalityModal
-        farmerId={farmer.id}
+        cycleId={farmer.id}
         farmerName={farmer.name}
         open={showAddMortality}
         onOpenChange={setShowAddMortality}
       />
 
       <EndCycleModal
-        farmerId={farmer.id}
+        cycleId={farmer.id}
         farmerName={farmer.name}
         intake={farmer.intake}
         open={showEndCycle}

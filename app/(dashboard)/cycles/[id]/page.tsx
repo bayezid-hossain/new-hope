@@ -254,7 +254,7 @@ const LogsTabContent = ({ isActive, logs, isMobile }: { isActive: boolean; logs:
                 createdAt: log.createdAt,
                 note: log.note
             }))}
-            height={isMobile ? "h-[350px]" : "h-[300px]"}
+            height={isMobile ? "max-h-[350px]" : "max-h-[300px]"}
         />
     </div>
 );
