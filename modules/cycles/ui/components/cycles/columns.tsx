@@ -27,7 +27,7 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
+          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
             <span className="sr-only">Open menu</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
@@ -36,7 +36,7 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
 
-          <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setShowAddMortality(true) }}>
             <Skull className="mr-2 h-4 w-4" />
             Add Mortality
           </DropdownMenuItem>
@@ -44,7 +44,7 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
-            onClick={() => setShowEndCycle(true)}
+            onClick={(e) => { e.stopPropagation(); setShowEndCycle(true) }}
             className="text-destructive focus:text-destructive"
           >
             <Power className="mr-2 h-4 w-4" />
@@ -89,7 +89,7 @@ export const columns: ColumnDef<Farmer>[] = [
     cell: ({ row }) => (
       // 2. Updated Cell Renderer with Link
       <Link
-        href={`/farmers/${row.original.id}`}
+        href={`/farmers/${row.original.farmerId}`}
         className="text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
       >
         {row.getValue("name")}

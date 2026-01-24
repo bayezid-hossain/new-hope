@@ -47,8 +47,6 @@ export const mainStockRouter = createTRPCRouter({
           // 2. Real Available Stock: Book Balance - Active Consumption
           const remainingStock = f.mainStock - activeConsumption;
 
-          // 3. Lifetime Consumed (Optional Stat): Closed Cycles (DB) + Active Cycles
-          const lifetimeConsumed = (f.totalConsumed || 0) + activeConsumption;
 
           return {
             ...f,
@@ -56,10 +54,12 @@ export const mainStockRouter = createTRPCRouter({
             activeCyclesCount: f.cycles.length,
 
             mainStock: f.mainStock, // Book Balance
-            totalConsumed: lifetimeConsumed, // Lifetime usage (for reporting)
+            totalConsumed: f.totalConsumed,
+            activeConsumption: activeConsumption, // Lifetime usage (for reporting)
             remainingStock: remainingStock, // REAL available stock (for decisions)
 
-            isLowStock: remainingStock < 5
+            isLowStock:
+              remainingStock < 5
           };
         }),
         total: Number(total.count),

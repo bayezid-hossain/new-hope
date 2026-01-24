@@ -25,6 +25,7 @@ interface DataTableProps<TData, TValue> {
   sorting?: SortingState;
   deleteButton?: boolean; // This is the prop we control
   onSortingChange?: OnChangeFn<SortingState>;
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -32,6 +33,7 @@ export function DataTable<TData, TValue>({
   data,
   sorting,
   onSortingChange,
+  onRowClick,
   deleteButton = true, // 2. Default to true (Show actions by default)
 }: DataTableProps<TData, TValue>) {
 
@@ -66,9 +68,9 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 );
               })}
@@ -81,6 +83,8 @@ export function DataTable<TData, TValue>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className={onRowClick ? "cursor-pointer hover:bg-muted/50" : ""}
+                onClick={() => onRowClick?.(row.original)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

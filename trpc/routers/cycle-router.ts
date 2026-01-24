@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, stockLogs } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -39,13 +39,14 @@ export const cyclesRouter = createTRPCRouter({
   getActiveCycles: protectedProcedure
     .input(cycleSearchSchema)
     .query(async ({ ctx, input }) => {
-      const { search, page, pageSize, sortBy, sortOrder, orgId } = input;
+      const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
       const offset = (page - 1) * pageSize;
-
+      console.log(farmerId)
       const whereClause = and(
         eq(cycles.organizationId, orgId),
         eq(cycles.status, "active"),
         eq(farmer.officerId, ctx.user.id), // STRICT: Only farmers managed by current user
+        farmerId ? eq(cycles.farmerId, farmerId) : undefined,
         search ? ilike(cycles.name, `%${search}%`) : undefined,
       );
 
@@ -151,19 +152,7 @@ export const cyclesRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
 
       // A. Check for Duplicates
-      const existing = await ctx.db.query.cycles.findFirst({
-        where: and(
-          eq(cycles.name, input.name),
-          eq(cycles.farmerId, input.farmerId)
-        )
-      });
 
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "A cycle with this name already exists for this farmer."
-        });
-      }
 
       // B. Insert Cycle (No inputFeed logic needed)
       const [newCycle] = await ctx.db.insert(cycles).values({
@@ -229,7 +218,7 @@ export const cyclesRouter = createTRPCRouter({
           .set({ historyId: history.id, cycleId: null })
           .where(eq(cycleLogs.cycleId, activeCycle.id));
 
-        // D. Add Closing Log
+        // D. Add Closing Log and Stock Ledger Entry
         await tx.insert(cycleLogs).values({
           historyId: history.id,
           userId: ctx.user.id,
@@ -237,7 +226,20 @@ export const cyclesRouter = createTRPCRouter({
           valueChange: 0,
           note: `Cycle Ended. Total Consumption: ${(activeCycle.intake || 0).toFixed(2)} bags.`
         });
+
         await tx.update(farmer).set({ updatedAt: new Date(), mainStock: sql`${farmer.mainStock} - ${input.intake || 0}`, totalConsumed: sql`${farmer.totalConsumed} + ${input.intake || 0}` }).where(eq(farmer.id, activeCycle.farmerId));
+
+        // Create Stock Log for Ledger Completeness
+        if (input.intake > 0) {
+          await tx.insert(stockLogs).values({
+            farmerId: activeCycle.farmerId,
+            amount: (-input.intake).toString(), // Negative for deduction
+            type: "CYCLE_CLOSE",
+            referenceId: history.id,
+            note: `Cycle ${activeCycle.name} ended`
+          });
+        }
+
         await tx.delete(cycles).where(eq(cycles.id, input.id));
 
         return { success: true };
