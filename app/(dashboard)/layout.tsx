@@ -10,13 +10,14 @@ interface Props {
 }
 const layout = ({ children }: Props) => {
   return (
-    <OrgGuard><SidebarProvider>
-      <DashboardSidebar />
-      <main className="flex flex-col h-screen w-screen bg-muted bg-white">
-        <DashboardNavbar />
-        {children}
-      </main>
-    </SidebarProvider></OrgGuard>
+    <OrgGuard>
+      <SidebarProvider>
+        <DashboardSidebar />
+        <main className="flex flex-col min-h-screen w-full bg-muted bg-white">
+          <DashboardNavbar />
+          {children}
+        </main>
+      </SidebarProvider></OrgGuard>
   );
 };
 

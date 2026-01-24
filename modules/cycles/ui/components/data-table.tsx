@@ -57,14 +57,14 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="w-full">
-      <Table>
+    <div className="w-full overflow-x-auto rounded-md border shadow-sm scrollbar-thin text-xs sm:text-sm">
+      <Table className="min-w-[600px] md:min-w-full text-inherit">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} className="h-9 px-2 text-[10px] sm:h-11 sm:px-4 sm:text-[11px]">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -87,7 +87,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => onRowClick?.(row.original)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} className="p-2 sm:p-4 text-xs sm:text-sm">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

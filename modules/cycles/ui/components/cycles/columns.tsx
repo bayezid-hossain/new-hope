@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Farmer } from "@/modules/cycles/types";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Power, Skull } from "lucide-react";
+import { ArrowUpDown, Eye, MoreHorizontal, Power, Skull } from "lucide-react";
 import Link from "next/link"; // 1. Import Link
 import { useState } from "react";
 import { AddMortalityModal } from "./add-mortality-modal";
@@ -27,16 +27,16 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" className="h-8 w-8 p-0">
             <span className="sr-only">Open menu</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
 
-
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setShowAddMortality(true) }}>
+          <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
             <Skull className="mr-2 h-4 w-4" />
             Add Mortality
           </DropdownMenuItem>
@@ -44,7 +44,7 @@ const ActionsCell = ({ farmer }: { farmer: Farmer }) => {
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
-            onClick={(e) => { e.stopPropagation(); setShowEndCycle(true) }}
+            onClick={() => setShowEndCycle(true)}
             className="text-destructive focus:text-destructive"
           >
             <Power className="mr-2 h-4 w-4" />
@@ -79,7 +79,7 @@ export const columns: ColumnDef<Farmer>[] = [
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-4 h-8 text-sm font-medium"
+          className="-ml-4 h-8 text-xs sm:text-sm font-medium"
         >
           Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -90,8 +90,7 @@ export const columns: ColumnDef<Farmer>[] = [
       // 2. Updated Cell Renderer with Link
       <Link
         href={`/farmers/${row.original.farmerId}`}
-        onClick={(e) => e.stopPropagation()}
-        className=" p-4 text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
+        className=" p-2 sm:p-4 text-xs sm:text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
       >
         {row.getValue("name")}
       </Link>
@@ -103,7 +102,7 @@ export const columns: ColumnDef<Farmer>[] = [
     cell: ({ row }) => {
       const age = row.getValue("age") as number;
       return (
-        <div className="flex items-center gap-1 text-sm">
+        <div className="flex items-center gap-1 text-xs sm:text-sm">
           <span>{age}</span>
           <span className="text-muted-foreground">{age > 1 ? "days" : "day"}</span>
         </div>
@@ -116,7 +115,7 @@ export const columns: ColumnDef<Farmer>[] = [
     cell: ({ row }) => {
       const amount = parseInt(row.getValue("doc"));
       return (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs sm:text-sm text-muted-foreground">
           {amount.toLocaleString()}
         </div>
       );
@@ -129,7 +128,7 @@ export const columns: ColumnDef<Farmer>[] = [
       const mortality = row.original.mortality;
       return (
         <div
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-sm font-medium
           ${mortality > 0 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}
         >
           {mortality > 0 ? '-' : ""}{mortality}
@@ -140,17 +139,30 @@ export const columns: ColumnDef<Farmer>[] = [
 
   {
     accessorKey: "intake",
-    header: () => <div className="text-right text-sm">Intake (Bags)</div>,
+    header: () => <div className="text-right text-[10px] sm:text-[11px]">Intake (Bags)</div>,
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("intake"));
       return (
-        <div className="text-right text-sm text-muted-foreground">
+        <div className="text-right text-xs sm:text-sm text-muted-foreground">
           {amount.toFixed(2)}
         </div>
       );
     },
   },
 
+  {
+    id: "details",
+    header: () => <div className="text-center text-[10px] sm:text-[11px]">Details</div>,
+    cell: ({ row }) => (
+      <div className="flex justify-center">
+        <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary hover:text-primary/80 hover:bg-primary/10">
+          <Link href={`/cycles/${row.original.id}`}>
+            <Eye className="h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+    ),
+  },
   {
     id: "actions",
     cell: ({ row }) => <ActionsCell farmer={row.original} />,

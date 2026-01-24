@@ -67,17 +67,17 @@ const LogItem = ({ log, isLast }: { log: TimelineLog; isLast: boolean }) => {
                     ) : (
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-mono font-normal">
-                                {log.valueChange >= 0 ? "+" : ""}{log.valueChange.toFixed(2)} {normalizedType === "MORTALITY" ? "Birds" : "Bags"}
+                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(2)} {normalizedType === "MORTALITY" ? "Birds" : "Bags"}
                             </Badge>
                             {log.note && (
-                                <span className="text-muted-foreground text-xs truncate max-w-[200px]">
+                                <span className="text-muted-foreground text-xs">
                                     {isConsumption && !log.note.includes("Consumption") ? "Auto-calculated" : log.note}
                                 </span>
                             )}
                         </div>
                     )}
                 </div>
-                {log.previousValue !== undefined && log.newValue !== undefined && (
+                {log.previousValue !== undefined && log.previousValue !== null && log.newValue !== undefined && log.newValue !== null && (
                     <div className="text-[10px] text-muted-foreground font-mono mt-1">
                         {log.previousValue.toFixed(2)} &rarr; {log.newValue.toFixed(2)}
                     </div>
@@ -100,7 +100,6 @@ export const LogsTimeline = ({ logs, height = "h-[450px]" }: { logs: TimelineLog
         return logs.filter((log) => {
             const normalizedType = log.type.toUpperCase();
             // 1. Category Filter
-            if (filter === "FEED" && !["FEED", "STOCK_IN", "TRANSFER_IN"].includes(normalizedType)) return false;
             if (filter === "MORTALITY" && normalizedType !== "MORTALITY") return false;
             if (filter === "SYSTEM" && !["NOTE", "STOCK_OUT", "TRANSFER_OUT", "CONSUMPTION"].includes(normalizedType)) return false;
 
@@ -184,14 +183,6 @@ export const LogsTimeline = ({ logs, height = "h-[450px]" }: { logs: TimelineLog
                         onClick={() => setFilter("ALL")}
                     >
                         All
-                    </Button>
-                    <Button
-                        variant={filter === "FEED" ? "default" : "outline"}
-                        size="sm"
-                        className={`h-7 text-xs rounded-full px-3 ${filter === "FEED" ? "bg-amber-600 hover:bg-amber-700" : "text-amber-700 border-amber-200 hover:bg-amber-50"}`}
-                        onClick={() => setFilter("FEED")}
-                    >
-                        Feed
                     </Button>
                     <Button
                         variant={filter === "MORTALITY" ? "default" : "outline"}

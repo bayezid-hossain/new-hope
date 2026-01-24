@@ -6,15 +6,11 @@ import { historyColumns } from "@/modules/cycles/ui/components/history/history-c
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 import { FarmerHistory } from "../../types";
-import { CycleDetailsSheet } from "../components/cycles/cycle-details-sheet";
 
 export const CycleHistoryView = () => {
     const { orgId } = useCurrentOrg();
     const trpc = useTRPC();
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     const { data, isLoading, isError } = useQuery(
         trpc.cycles.getPastCycles.queryOptions({
@@ -47,18 +43,9 @@ export const CycleHistoryView = () => {
                     <DataTable
                         columns={historyColumns}
                         data={(data?.items || []) as unknown as FarmerHistory[]}
-                        onRowClick={(row) => {
-                            setSelectedId(row.id);
-                            setIsDetailsOpen(true);
-                        }}
                     />
                 </div>
             </div>
-            <CycleDetailsSheet
-                id={selectedId}
-                open={isDetailsOpen}
-                onOpenChange={setIsDetailsOpen}
-            />
         </div>
     );
 };
