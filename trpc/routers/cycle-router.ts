@@ -41,7 +41,7 @@ export const cyclesRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
       const offset = (page - 1) * pageSize;
-      console.log(farmerId)
+      // console.log(farmerId)
       const whereClause = and(
         eq(cycles.organizationId, orgId),
         eq(cycles.status, "active"),
@@ -236,7 +236,7 @@ export const cyclesRouter = createTRPCRouter({
             amount: (-input.intake).toString(), // Negative for deduction
             type: "CYCLE_CLOSE",
             referenceId: history.id,
-            note: `Cycle ${activeCycle.name} ended`
+            note: `Cycle "${activeCycle.name}" Ended. (Started: ${activeCycle.createdAt.toISOString().split('T')[0]}). Consumed: ${input.intake} bags.`
           });
         }
 

@@ -34,7 +34,7 @@ interface AddFeedModalProps {
 export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient(); // <--- Standard Query Client
-  const orgId = useCurrentOrg(); // <--- Get Current Org ID
+  const { orgId } = useCurrentOrg(); // <--- Get Current Org ID
   const form = useForm<z.infer<typeof addStockSchema>>({
     resolver: zodResolver(addStockSchema),
     defaultValues: {
@@ -51,8 +51,9 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
         // Manual Invalidation without useUtils
         // We invalidate the specific procedures. 
         // Passing an empty filter object often matches the query key structure loosely enough for invalidation.
-        await Promise.all([queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId!.toString() })),
-        queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId!.toString() })),
+        await Promise.all([
+          queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId! })),
+          queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId! })),
         ]);
 
         onOpenChange(false);

@@ -10,6 +10,7 @@ import { SortingState } from "@tanstack/react-table";
 import { PlusIcon, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { CycleDetailsSheet } from "../components/cycles/cycle-details-sheet";
 // 👇 Assuming you have similar hooks/components for Cycles
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCyclesFilters } from "../../hooks/use-cycles-filters";
@@ -22,6 +23,8 @@ const CyclesContent = () => {
     const [filters, setFilters] = useCyclesFilters();
     const [sorting, setSorting] = useState<SortingState>([]);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     // 2. Local state for immediate input feedback
     const [searchTerm, setSearchTerm] = useState(filters.search || "");
@@ -124,6 +127,10 @@ const CyclesContent = () => {
                     columns={columns}
                     sorting={sorting}
                     onSortingChange={setSorting}
+                    onRowClick={(row) => {
+                        setSelectedId(row.id);
+                        setIsDetailsOpen(true);
+                    }}
                 />
             </div>
 
@@ -147,6 +154,11 @@ const CyclesContent = () => {
             </div>
 
             <CreateCycleModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+            <CycleDetailsSheet
+                id={selectedId}
+                open={isDetailsOpen}
+                onOpenChange={setIsDetailsOpen}
+            />
         </div>
     );
 };

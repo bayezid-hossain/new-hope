@@ -1,11 +1,11 @@
 "use client";
 
 import ResponsiveDialog from "@/components/responsive-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Bird, Calendar, FileText, Loader2, Scale } from "lucide-react";
+import { LogsTimeline } from "./logs-timeline";
 
 interface CycleDetailsSheetProps {
     id: string | null;
@@ -59,7 +59,8 @@ export const CycleDetailsSheet = ({ id, open, onOpenChange }: CycleDetailsSheetP
             open={open}
             onOpenChange={onOpenChange}
             title={cycleName}
-            description="Historical record and logs for this cycle."
+            description="Detailed record and logs for this cycle."
+            className="sm:max-w-2xl"
         >
             {isLoading ? (
                 <div className="h-40 flex items-center justify-center"><Loader2 className="animate-spin mr-2" /> Loading...</div>
@@ -95,22 +96,16 @@ export const CycleDetailsSheet = ({ id, open, onOpenChange }: CycleDetailsSheetP
                     {/* Logs List */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4" /> Cycle Logs</h4>
-                        <ScrollArea className="h-[200px] border rounded-md p-2">
-                            <div className="space-y-3">
-                                {data.logs.map((log: any) => (
-                                    <div key={log.id} className="text-sm pb-2 border-b last:border-0 last:pb-0">
-                                        <p className="font-medium">{log.note}</p>
-                                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                            <span>{format(new Date(log.createdAt), "dd MMM HH:mm")}</span>
-                                            {log.valueChange !== 0 && (
-                                                <span>Change: {log.valueChange}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {data.logs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No logs found.</p>}
-                            </div>
-                        </ScrollArea>
+                        <LogsTimeline
+                            logs={data.logs.map((log: any) => ({
+                                id: log.id,
+                                type: log.valueChange > 0 ? "FEED" : (log.note?.includes("Mortality") ? "MORTALITY" : "NOTE"),
+                                valueChange: log.valueChange,
+                                createdAt: log.createdAt,
+                                note: log.note
+                            }))}
+                            height="h-[350px]"
+                        />
                     </div>
                 </div>
             ) : (

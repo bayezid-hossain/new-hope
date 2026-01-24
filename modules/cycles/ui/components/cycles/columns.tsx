@@ -90,7 +90,8 @@ export const columns: ColumnDef<Farmer>[] = [
       // 2. Updated Cell Renderer with Link
       <Link
         href={`/farmers/${row.original.farmerId}`}
-        className="text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
+        onClick={(e) => e.stopPropagation()}
+        className=" p-4 text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
       >
         {row.getValue("name")}
       </Link>

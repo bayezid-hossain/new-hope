@@ -15,19 +15,20 @@ import {
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Wheat } from "lucide-react";
+import { ArrowRightLeft, Plus, RefreshCcw, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
 import LoadingState from "@/components/loading-state";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
+import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 
 export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
   const trpc = useTRPC();
 
-  const { data, isPending } = useQuery(
+  const { data, isPending, refetch, isRefetching } = useQuery(
     trpc.mainstock.getDashboard.queryOptions({
       orgId: orgId!,
       page: 1,
@@ -42,6 +43,14 @@ export default function MainStockPage() {
 
   const [createModal, setCreateModal] = useState(false);
 
+  const [transferModal, setTransferModal] = useState<{
+    open: boolean;
+    data: { farmerId: string; farmerName: string; currentStock: number } | null;
+  }>({
+    open: false,
+    data: null
+  });
+
   if (!orgId) return null;
   if (isPending) return <div className="p-8"><LoadingState title="Stock Information" description="Loading stock information..." /></div>;
 
@@ -53,9 +62,20 @@ export default function MainStockPage() {
           <h1 className="text-2xl font-bold tracking-tight">Main Stock Inventory</h1>
           <p className="text-muted-foreground">Manage centralized feed stock for all farmers.</p>
         </div>
-        <Button onClick={() => setCreateModal(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Register Farmer
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            title="Sync Data"
+          >
+            <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+          </Button>
+          <Button onClick={() => setCreateModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Register Farmer
+          </Button>
+        </div>
       </div>
 
       {/* Main Data Table */}
@@ -128,13 +148,29 @@ export default function MainStockPage() {
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setFeedModal({ open: true, farmerId: row.id })}
-                    >
-                      <Wheat className="h-4 w-4 mr-2" /> Restock
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTransferModal({
+                          open: true,
+                          data: {
+                            farmerId: row.id,
+                            farmerName: row.name,
+                            currentStock: row.remainingStock
+                          }
+                        })}
+                      >
+                        <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setFeedModal({ open: true, farmerId: row.id })}
+                      >
+                        <Wheat className="h-4 w-4 mr-2" /> Restock
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -166,6 +202,16 @@ export default function MainStockPage() {
         open={createModal}
         onOpenChange={setCreateModal}
       />
+
+      {transferModal.data && (
+        <TransferStockModal
+          open={transferModal.open}
+          onOpenChange={(v) => setTransferModal(prev => ({ ...prev, open: v }))}
+          sourceFarmerId={transferModal.data.farmerId}
+          sourceFarmerName={transferModal.data.farmerName}
+          currentStock={transferModal.data.currentStock}
+        />
+      )}
 
     </div>
   );
