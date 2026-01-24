@@ -7,6 +7,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentOrg } from "@/hooks/use-current-org";
@@ -15,7 +16,7 @@ import { FarmerHistory } from "@/modules/cycles/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { Activity, ArrowUpDown, CalendarDays, MoreHorizontal, Trash2 } from "lucide-react";
+import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -59,13 +60,14 @@ const ActionsCell = ({ history }: { history: HistoryRow }) => {
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
                         <span className="sr-only">Open menu</span>
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
                         onClick={() => setShowDeleteModal(true)}
@@ -112,7 +114,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                    className="-ml-4 h-8 text-sm font-medium"
+                    className="-ml-4 h-8 text-xs sm:text-sm font-medium"
                 >
                     Name
                     <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -123,12 +125,10 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
             const isActive = isRowActive(row.original as HistoryRow);
             return (
                 <div className="flex items-center gap-2">
-                    <span className={cn("text-sm font-medium transition-colors hover:underline hover:text-primary", isActive ? "text-primary font-bold underline" : "text-foreground underline")}>
+                    <span className={cn("text-xs sm:text-sm font-medium transition-colors hover:underline hover:text-primary", isActive ? "text-primary font-bold underline" : "text-foreground underline")}>
                         {/* @ts-ignore */}
-                        <Link className=" p-4 text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
-
+                        <Link className=" p-2 sm:p-4 text-xs sm:text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
                             href={`/farmers/${row.original.farmerId}`}
-                            onClick={(e) => e.stopPropagation()}
                         >
                             {row.original.cycleName}
                         </Link>
@@ -148,7 +148,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
         cell: ({ row }) => {
             const amount = parseInt(row.getValue("doc"));
             return (
-                <div className="bg-muted text-muted-foreground w-fit rounded-md px-2 py-0.5 font-mono text-xs font-medium">
+                <div className="bg-muted text-muted-foreground w-fit rounded-md px-1.5 py-0.5 font-mono text-[10px] sm:text-xs font-medium">
                     {amount.toLocaleString()}
                 </div>
             );
@@ -158,7 +158,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
         accessorKey: "age",
         header: "Cycle Age",
         cell: ({ row }) => (
-            <div className="text-sm font-medium">
+            <div className="text-xs sm:text-sm font-medium">
                 <span className="text-muted-foreground font-normal">
                     {row.getValue("age")} {Number(row.getValue("age")) === 1 ? "day" : "days"}</span>
             </div>
@@ -180,12 +180,12 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
         },
     },
     {
-        // Mapped from backend as intake (active) or finalIntake (history -> intake)
         accessorKey: "intake",
-        header: () => <div className="text-right text-sm">Consumed</div>,
+        header: () => <div className="text-right text-[10px] sm:text-[11px]">Consumed</div>,
         cell: ({ row }) => {
-            const val = parseFloat(row.getValue("intake"));
-            return <div className="text-zinc-700 text-right font-mono text-sm font-medium">{val.toFixed(2)}</div>;
+            // @ts-ignore - Handle data source variations
+            const val = parseFloat(row.getValue("intake") || row.original.finalIntake || "0");
+            return <div className="text-zinc-700 text-right font-mono text-xs sm:text-sm font-medium">{val.toFixed(2)}</div>;
         },
     },
     {
@@ -200,7 +200,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
 
             if (isActive) {
                 return (
-                    <div className="bg-primary/10 text-primary flex items-center gap-2 rounded-md px-2 py-1 text-sm">
+                    <div className="bg-primary/10 text-primary flex items-center gap-1 sm:gap-2 rounded-md px-2 py-1 text-xs sm:text-sm">
                         <CalendarDays className="size-4 opacity-50" />
                         <span className="font-medium">Ongoing</span>
                     </div>
@@ -217,7 +217,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
             };
 
             return (
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
                     <CalendarDays className="text-muted-foreground size-4 opacity-50" />
                     <div className="flex flex-col">
                         <span className="font-medium leading-none">
@@ -230,6 +230,19 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
                 </div>
             );
         },
+    },
+    {
+        id: "details",
+        header: () => <div className="text-center text-[10px] sm:text-[11px]">Details</div>,
+        cell: ({ row }) => (
+            <div className="flex justify-center">
+                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary hover:text-primary/80 hover:bg-primary/10">
+                    <Link href={`/cycles/${row.original.id}`}>
+                        <Eye className="h-4 w-4" />
+                    </Link>
+                </Button>
+            </div>
+        ),
     },
     {
         id: "actions",

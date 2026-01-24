@@ -298,12 +298,25 @@ export const cyclesRouter = createTRPCRouter({
           .where(eq(cycleHistory.farmerId, activeCycle.farmerId))
           .orderBy(desc(cycleHistory.endDate));
 
+        const otherActiveCycles = await ctx.db.select().from(cycles)
+          .where(and(eq(cycles.farmerId, activeCycle.farmerId), sql`${cycles.id} != ${activeCycle.id}`))
+          .orderBy(desc(cycles.createdAt));
+
         return {
           type: 'active',
           data: activeCycle,
           logs,
-          history,
-          // Pass Farmer Context specifically for UI (e.g., "Main Stock: 150")
+          history: [
+            ...otherActiveCycles.map(c => ({
+              ...c,
+              cycleName: c.name,
+              startDate: c.createdAt,
+              endDate: null,
+              finalIntake: c.intake,
+              status: 'active'
+            })),
+            ...history.map(h => ({ ...h, status: 'archived' }))
+          ],
           farmerContext: {
             mainStock: activeCycle.farmer.mainStock,
             name: activeCycle.farmer.name
@@ -323,11 +336,31 @@ export const cyclesRouter = createTRPCRouter({
         .where(eq(cycleLogs.historyId, historyRecord.id))
         .orderBy(desc(cycleLogs.createdAt));
 
+      // NEW: Fetch Active Cycles for this farmer to show in "Other Cycles"
+      const activeCycles = await ctx.db.select().from(cycles)
+        .where(eq(cycles.farmerId, historyRecord.farmerId))
+        .orderBy(desc(cycles.createdAt));
+
+      // Fetch other history records
+      const otherHistory = await ctx.db.select().from(cycleHistory)
+        .where(and(eq(cycleHistory.farmerId, historyRecord.farmerId), sql`${cycleHistory.id} != ${historyRecord.id}`))
+        .orderBy(desc(cycleHistory.endDate));
+
       return {
         type: 'history',
         data: historyRecord,
         logs,
-        history: [],
+        history: [
+          ...activeCycles.map(c => ({
+            ...c,
+            cycleName: c.name,
+            startDate: c.createdAt,
+            endDate: null,
+            finalIntake: c.intake,
+            status: 'active'
+          })),
+          ...otherHistory.map(h => ({ ...h, status: 'archived' }))
+        ],
         farmerContext: {
           mainStock: historyRecord.farmer.mainStock,
           name: historyRecord.farmer.name
