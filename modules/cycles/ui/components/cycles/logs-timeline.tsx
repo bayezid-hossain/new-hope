@@ -88,7 +88,7 @@ const LogItem = ({ log, isLast }: { log: TimelineLog; isLast: boolean }) => {
 };
 
 // --- Main Component ---
-export const LogsTimeline = ({ logs, height = "h-[450px]" }: { logs: TimelineLog[], height?: string }) => {
+export const LogsTimeline = ({ logs, height }: { logs: TimelineLog[], height?: string }) => {
     const [filter, setFilter] = useState<"ALL" | "FEED" | "MORTALITY" | "SYSTEM">("ALL");
     const [searchQuery, setSearchQuery] = useState("");
     const [dateQuery, setDateQuery] = useState("");
@@ -204,7 +204,7 @@ export const LogsTimeline = ({ logs, height = "h-[450px]" }: { logs: TimelineLog
             </div>
 
             {/* SCROLLABLE LIST */}
-            <div className={cn("overflow-y-auto pr-3 pl-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent", height)}>
+            <div className={cn("overflow-y-auto pr-3 pl-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent h-auto", height)}>
                 {filteredLogs.length > 0 ? (
                     <div className="pt-2">
                         {filteredLogs.map((log, index) => (

@@ -7,6 +7,8 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { FarmerHistory } from "../../types";
+import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
+
 
 export const CycleHistoryView = () => {
     const { orgId } = useCurrentOrg();
@@ -38,13 +40,23 @@ export const CycleHistoryView = () => {
                 </div>
             </div>
 
-            <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-                <div >
-                    <DataTable
-                        columns={historyColumns}
-                        data={(data?.items || []) as unknown as FarmerHistory[]}
-                    />
-                </div>
+            <div className={`hidden sm:block rounded-xl border bg-card text-card-foreground shadow-sm`}>
+                <DataTable
+                    columns={historyColumns}
+                    data={(data?.items || []) as unknown as FarmerHistory[]}
+                />
+            </div>
+
+            <div className="sm:hidden space-y-3">
+                {data?.items.length ? (
+                    data.items.map((cycle: any) => (
+                        <MobileCycleCard key={cycle.id} cycle={cycle} />
+                    ))
+                ) : (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                        No history found
+                    </div>
+                )}
             </div>
         </div>
     );

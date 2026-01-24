@@ -19,9 +19,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
 import { columns } from "@/modules/cycles/ui/components/cycles/columns";
+import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { historyColumns } from "@/modules/cycles/ui/components/history/history-columns";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
+
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -54,11 +56,24 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
   <div className="space-y-4">
     {isLoading ? (
       <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+    ) : data?.items.length > 0 ? (
+      <>
+        <div className="hidden sm:block">
+          <DataTable
+            columns={columns}
+            data={(data?.items || []) as Farmer[]}
+          />
+        </div>
+        <div className="sm:hidden space-y-3">
+          {data?.items.map((cycle: any) => (
+            <MobileCycleCard key={cycle.id} cycle={cycle} />
+          ))}
+        </div>
+      </>
     ) : (
-      <DataTable
-        columns={columns}
-        data={(data?.items || []) as Farmer[]}
-      />
+      <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+        No active cycles found for this farmer
+      </div>
     )}
   </div>
 );
@@ -69,11 +84,24 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
       <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
     ) : isError ? (
       <div className="text-destructive text-center p-8">Failed to load history</div>
+    ) : data?.items.length > 0 ? (
+      <>
+        <div className="hidden sm:block">
+          <DataTable
+            columns={historyColumns}
+            data={data?.items as any[] || []}
+          />
+        </div>
+        <div className="sm:hidden space-y-3">
+          {data?.items.map((cycle: any) => (
+            <MobileCycleCard key={cycle.id} cycle={cycle} />
+          ))}
+        </div>
+      </>
     ) : (
-      <DataTable
-        columns={historyColumns}
-        data={data?.items as any[] || []}
-      />
+      <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+        No archived history found for this farmer
+      </div>
     )}
   </div>
 );
@@ -227,7 +255,7 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
         <CardDescription className="text-xs">Historical log of feed additions and deductions.</CardDescription>
       </CardHeader>
       <CardContent className="p-0 sm:p-6">
-        <div className="rounded-none sm:rounded-md border-x-0 sm:border mb-auto h-[400px] overflow-auto relative text-sm scrollbar-thin">
+        <div className="rounded-none sm:rounded-md border-x-0 sm:border mb-auto h-auto max-h-[400px] overflow-auto relative text-sm scrollbar-thin">
           <table className="w-full caption-bottom text-xs sm:text-sm">
             <TableHeader className="sticky top-0 z-10 bg-white border-b shadow-sm">
               <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">

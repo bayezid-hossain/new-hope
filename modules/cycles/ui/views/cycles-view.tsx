@@ -10,12 +10,16 @@ import { SortingState } from "@tanstack/react-table";
 import { PlusIcon, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
 // 👇 Assuming you have similar hooks/components for Cycles
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCyclesFilters } from "../../hooks/use-cycles-filters";
 import { columns } from "../components/cycles/columns";
 import { CreateCycleModal } from "../components/cycles/create-cycle-modal";
 import { DataTable } from "../components/data-table";
+
+import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
+
 
 const CyclesContent = () => {
     // 1. Hook State (mirrors useFarmersFilters)
@@ -117,14 +121,30 @@ const CyclesContent = () => {
                 </div>
             </div>
 
-            {/* Table Area - Dims when fetching new search results */}
-            <div className={`transition-opacity duration-200 ${isFetching ? "opacity-60" : "opacity-100"}`}>
+            {/* Table Area - Desktop */}
+            <div className={`hidden sm:block transition-opacity duration-200 ${isFetching ? "opacity-60" : "opacity-100"}`}>
                 <DataTable
                     data={data.items}
                     columns={columns}
                     sorting={sorting}
                     onSortingChange={setSorting}
                 />
+            </div>
+
+            {/* Card Area - Mobile */}
+            <div className={`sm:hidden space-y-3 transition-opacity duration-200 ${isFetching ? "opacity-60" : "opacity-100"}`}>
+                {data.items.length > 0 ? (
+                    data.items.map((cycle) => (
+                        <MobileCycleCard key={cycle.id} cycle={cycle} />
+                    ))
+                ) : (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                        <div className="bg-white p-3 rounded-full shadow-sm mb-2">
+                            <Search className="h-6 w-6 opacity-20" />
+                        </div>
+                        <p className="text-sm font-medium italic">No active cycles found</p>
+                    </div>
+                )}
             </div>
 
             <div className="flex items-center justify-end space-x-2 py-4">
