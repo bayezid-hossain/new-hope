@@ -10,11 +10,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { cn } from "@/lib/utils";
 import { FarmerHistory } from "@/modules/cycles/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { Activity, ArrowUpDown, CalendarDays, MoreHorizontal, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -121,13 +123,19 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
             const isActive = isRowActive(row.original as HistoryRow);
             return (
                 <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${isActive ? 'text-emerald-700 font-bold' : 'text-foreground'}`}>
+                    <span className={cn("text-sm font-medium transition-colors hover:underline hover:text-primary", isActive ? "text-primary font-bold underline" : "text-foreground underline")}>
                         {/* @ts-ignore */}
-                        {row.original.cycleName || row.original.name}
+                        <Link className=" p-4 text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors"
+
+                            href={`/farmers/${row.original.farmerId}`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {row.original.cycleName}
+                        </Link>
                     </span>
                     {isActive && (
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
-                            <Activity className="h-3 w-3" /> Current
+                        <Badge variant="default" className="h-5 gap-1 px-2 text-[10px] uppercase tracking-wider">
+                            <Activity className="size-3" /> Live
                         </Badge>
                     )}
                 </div>
@@ -140,7 +148,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
         cell: ({ row }) => {
             const amount = parseInt(row.getValue("doc"));
             return (
-                <div className="font-mono text-sm text-muted-foreground bg-slate-100 px-2 py-0.5 rounded-md w-fit">
+                <div className="bg-muted text-muted-foreground w-fit rounded-md px-2 py-0.5 font-mono text-xs font-medium">
                     {amount.toLocaleString()}
                 </div>
             );
@@ -164,7 +172,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
             return (
                 <Badge
                     variant={val > 0 ? "destructive" : "secondary"}
-                    className={`text-sm font-normal ${val === 0 ? "bg-slate-100 text-slate-500 hover:bg-slate-200" : ""}`}
+                    className={cn("font-normal", val === 0 && "bg-muted text-muted-foreground hover:bg-muted")}
                 >
                     {val.toLocaleString()}
                 </Badge>
@@ -177,7 +185,7 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
         header: () => <div className="text-right text-sm">Consumed</div>,
         cell: ({ row }) => {
             const val = parseFloat(row.getValue("intake"));
-            return <div className="text-right text-sm font-mono text-zinc-700">{val.toFixed(2)}</div>;
+            return <div className="text-zinc-700 text-right font-mono text-sm font-medium">{val.toFixed(2)}</div>;
         },
     },
     {
@@ -192,8 +200,8 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
 
             if (isActive) {
                 return (
-                    <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50/50 px-2 py-1 rounded-md">
-                        <CalendarDays className="h-4 w-4 opacity-50" />
+                    <div className="bg-primary/10 text-primary flex items-center gap-2 rounded-md px-2 py-1 text-sm">
+                        <CalendarDays className="size-4 opacity-50" />
                         <span className="font-medium">Ongoing</span>
                     </div>
                 )
@@ -210,12 +218,12 @@ export const historyColumns: ColumnDef<FarmerHistory>[] = [
 
             return (
                 <div className="flex items-center gap-2 text-sm">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground opacity-50" />
+                    <CalendarDays className="text-muted-foreground size-4 opacity-50" />
                     <div className="flex flex-col">
                         <span className="font-medium leading-none">
                             {diffDays} {diffDays === 1 ? "day" : "days"}
                         </span>
-                        <span className="text-muted-foreground text-sm mt-0.5">
+                        <span className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">
                             {start.toLocaleDateString('en-US', options)} - {end.toLocaleDateString('en-US', options)}
                         </span>
                     </div>

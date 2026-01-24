@@ -3,6 +3,14 @@
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   Form,
   FormControl,
   FormField,
@@ -11,11 +19,17 @@ import {
   FormMessage
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -49,8 +63,7 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  // State to track if the dropdown should be visible
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createCycleSchema),
@@ -62,37 +75,27 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
     },
   });
 
-  // 1. Watch the name input to trigger search/filtering
-  const watchName = form.watch("farmerName");
-
-  // 2. Fetch Farmers (Optimized to only run when modal is open)
-  // Adjust 'trpc.farmers.getMany' to whatever your search endpoint is
+  // 2. Fetch Active Farmers for Dropdown
   const { data: farmersData, isFetching } = useQuery(
     trpc.farmers.getMany.queryOptions(
       {
         orgId: orgId!,
-        search: watchName, // Pass search term to backend if supported
-        pageSize: 10,      // Limit results
-        status: "active"   // Ensure we only get valid farmers
+        pageSize: 100, // Fetch more for the dropdown list
+        status: "active"
       },
       { enabled: open && !!orgId }
     )
   );
 
-  // 3. Filter/Memoize Suggestions
-  // If your backend handles search, you can just use `farmersData.items` directly.
-  // If backend returns all, filter here:
-  const suggestions = useMemo(() => {
-    if (!farmersData?.items) return [];
-    // If backend search is used, return items. Otherwise filter locally:
-    return farmersData.items;
+  const farmers = useMemo(() => {
+    return farmersData?.items || [];
   }, [farmersData]);
 
   // 4. Handle Selection
   const handleSelectFarmer = (farmer: FarmerSuggestion) => {
     form.setValue("farmerId", farmer.id);
     form.setValue("farmerName", farmer.name);
-    setShowSuggestions(false);
+    setComboboxOpen(false);
 
     // Optional: Reset other fields if needed
     // form.setValue("doc", 0);
@@ -136,70 +139,75 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
 
           {/* --- 1. Farmer Autocomplete --- */}
+          {/* --- 1. Farmer Selection (Combobox) --- */}
           <FormField
             control={form.control}
-            name="farmerName"
+            name="farmerId"
             render={({ field }) => (
-              <FormItem className="relative">
+              <FormItem className="flex flex-col">
                 <FormLabel>Farmer</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      placeholder="Search farmer name..."
-                      {...field}
-                      autoComplete="off"
-                      onFocus={() => setShowSuggestions(true)}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        setShowSuggestions(true);
-                        // Clear ID if user types something new
-                        if (form.getValues("farmerId")) {
-                          form.setValue("farmerId", "");
-                        }
-                      }}
-                    />
-                    {isFetching && (
-                      <div className="absolute right-3 top-2.5">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </FormControl>
-
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute z-50 w-full bg-popover border rounded-md shadow-md max-h-[200px] overflow-y-auto mt-1">
-                    {suggestions.map((f: any) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex justify-between items-center group"
-                        onClick={() => handleSelectFarmer(f)}
+                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={comboboxOpen}
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
                       >
-                        <div>
-                          <div className="font-medium">{f.name}</div>
-                          <div className="text-xs text-muted-foreground">{f.phoneNumber}</div>
-                        </div>
-                        {/* Show available stock in suggestion */}
-                        <div className="text-xs text-muted-foreground group-hover:text-foreground">
-                          Stock: {f.mainStock}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showSuggestions && suggestions.length === 0 && watchName.length > 1 && !isFetching && (
-                  <div className="absolute z-50 w-full bg-popover border rounded-md shadow-md p-3 text-sm text-muted-foreground text-center mt-1">
-                    No farmers found.
-                  </div>
-                )}
+                        {field.value
+                          ? farmers.find((f) => f.id === field.value)?.name
+                          : "Select farmer..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search farmer..." />
+                      <CommandList>
+                        {isFetching ? (
+                          <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Fetching farmer names...
+                          </div>
+                        ) : (
+                          <CommandEmpty>No farmer found.</CommandEmpty>
+                        )}
+                        <CommandGroup>
+                          {farmers.map((farmer) => (
+                            <CommandItem
+                              value={farmer.name} // Search by name
+                              key={farmer.id}
+                              onSelect={() => {
+                                form.setValue("farmerId", farmer.id);
+                                form.setValue("farmerName", farmer.name);
+                                setComboboxOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  farmer.id === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{farmer.name}</span>
+                                <span className="text-xs text-muted-foreground">Stock: {farmer.mainStock}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
-                {/* Hidden ID field error message */}
-                {form.formState.errors.farmerId && (
-                  <p className="text-[0.8rem] font-medium text-destructive mt-1">
-                    {form.formState.errors.farmerId.message}
-                  </p>
-                )}
               </FormItem>
             )}
           />

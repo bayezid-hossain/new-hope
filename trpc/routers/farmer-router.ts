@@ -1,11 +1,11 @@
- 
+
 import { cycles, farmer } from "@/db/schema"; // Ensure 'cycles' is imported if relation exists
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 
 export const farmersRouter = createTRPCRouter({
-  
+
   // --- 1. GET MANY (List, Search, Pagination, Autocomplete) ---
   getMany: protectedProcedure
     .input(
@@ -26,13 +26,13 @@ export const farmersRouter = createTRPCRouter({
       const whereClause = and(
         // Filter by Organization (safety check: default to empty string if undefined)
         eq(farmer.organizationId, orgId ?? ""),
-        
+
         // Search Logic: Matches Name OR Phone Number
         search
           ? or(
-              ilike(farmer.name, `%${search}%`),
-              
-            )
+            ilike(farmer.name, `%${search}%`),
+
+          )
           : undefined
       );
 
@@ -54,10 +54,10 @@ export const farmersRouter = createTRPCRouter({
         },
         // Include relations (Optional: helpful for UI counters)
         with: {
-            cycles: {
-                where: eq(cycles.status, 'active'), // Only fetch active cycles
-                columns: { id: true }
-            }
+          cycles: {
+            where: eq(cycles.status, 'active'), // Only fetch active cycles
+            columns: { id: true }
+          }
         }
       });
 
@@ -79,5 +79,18 @@ export const farmersRouter = createTRPCRouter({
         totalPages: Math.ceil(total / pageSize),
         currentPage: page,
       };
+    }),
+  getFarmer: protectedProcedure
+    .input(
+      z.object({
+        farmerId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { farmerId } = input;
+      const data = await ctx.db.query.farmer.findFirst({
+        where: and(eq(farmer.id, farmerId), eq(farmer.officerId, ctx.session.userId)),
+      });
+      return data;
     }),
 });

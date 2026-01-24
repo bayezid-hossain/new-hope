@@ -21,6 +21,7 @@ interface ResponsiveDialogProps {
   children: React.ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  className?: string;
 }
 
 import React from "react";
@@ -31,6 +32,7 @@ const ResponsiveDialog = ({
   onOpenChange,
   open,
   title,
+  className,
 }: ResponsiveDialogProps) => {
   const isMobile = useIsMobile();
 
@@ -51,7 +53,7 @@ const ResponsiveDialog = ({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className={className}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>

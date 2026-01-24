@@ -6,11 +6,15 @@ import { historyColumns } from "@/modules/cycles/ui/components/history/history-c
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { FarmerHistory } from "../../types";
+import { CycleDetailsSheet } from "../components/cycles/cycle-details-sheet";
 
 export const CycleHistoryView = () => {
     const { orgId } = useCurrentOrg();
     const trpc = useTRPC();
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     const { data, isLoading, isError } = useQuery(
         trpc.cycles.getPastCycles.queryOptions({
@@ -28,17 +32,32 @@ export const CycleHistoryView = () => {
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold tracking-tight">Cycle History</h2>
-                <p className="text-muted-foreground">
-                    A complete archive of all production cycles across the organization.
-                </p>
+        <div className="space-y-6 p-4 md:p-8 pt-6">
+            <div className="flex items-center justify-between space-y-2">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Cycle History</h2>
+                    <p className="text-muted-foreground">
+                        A complete archive of all production cycles across the organization.
+                    </p>
+                </div>
             </div>
 
-            <DataTable
-                columns={historyColumns}
-                data={(data?.items || []) as unknown as FarmerHistory[]}
+            <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+                <div >
+                    <DataTable
+                        columns={historyColumns}
+                        data={(data?.items || []) as unknown as FarmerHistory[]}
+                        onRowClick={(row) => {
+                            setSelectedId(row.id);
+                            setIsDetailsOpen(true);
+                        }}
+                    />
+                </div>
+            </div>
+            <CycleDetailsSheet
+                id={selectedId}
+                open={isDetailsOpen}
+                onOpenChange={setIsDetailsOpen}
             />
         </div>
     );

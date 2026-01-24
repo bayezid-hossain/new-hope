@@ -1,13 +1,13 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
@@ -49,6 +49,7 @@ export default function FarmerDetails() {
 
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
@@ -74,26 +75,35 @@ export default function FarmerDetails() {
     trpc.mainstock.getHistory.queryOptions({ farmerId: farmerId })
   );
 
+  const farmerQuery = useQuery(
+    trpc.farmers.getFarmer.queryOptions({ farmerId: farmerId })
+  );
   return (
     <div className="w-full space-y-6 p-4 md:p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Farmer History & Details</h1>
-        <p className="text-muted-foreground">
-          View active production, past cycles, and detailed stock movements.
-        </p>
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Farmer History & Details</h1>
+          <p className="text-muted-foreground">
+            View active production, past cycles, and detailed stock movements.
+          </p>
+        </div>
+        <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2">
+          <ArrowUpRight className="h-4 w-4" />
+          Transfer Stock
+        </Button>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full max-w-[600px] grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="active">Active Cycles</TabsTrigger>
           <TabsTrigger value="history">Archived Cycles</TabsTrigger>
           <TabsTrigger value="ledger">Stock Ledger</TabsTrigger>
         </TabsList>
 
         {/* TAB 1: ACTIVE CYCLES */}
-        <TabsContent value="active" className="mt-4">
+        <TabsContent value="active" className="mt-6 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-2 duration-500 ease-out">
           {activeQuery.isLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
           ) : (
             <DataTable
               columns={columns}
@@ -107,9 +117,9 @@ export default function FarmerDetails() {
         </TabsContent>
 
         {/* TAB 2: ARCHIVED CYCLES */}
-        <TabsContent value="history" className="mt-4">
+        <TabsContent value="history" className="mt-6 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-2 duration-500 ease-out">
           {historyQuery.isLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
           ) : historyQuery.isError ? (
             <div className="text-destructive text-center p-8">Failed to load history</div>
           ) : (
@@ -118,9 +128,6 @@ export default function FarmerDetails() {
               data={historyQuery.data?.items as any[] || []}
               deleteButton={false} // Hide actions column
               onRowClick={(row) => {
-                // For history, row might be FarmerHistory type.
-                // Assuming it has an ID we can query details for (either historyId or activeId).
-                // Based on cycle-router.ts getDetails, it supports searching CycleHistory by ID too.
                 setSelectedCycleId(row.id);
                 setShowDetails(true);
               }}
@@ -129,16 +136,14 @@ export default function FarmerDetails() {
         </TabsContent>
 
         {/* TAB 3: STOCK LEDGER */}
-        <TabsContent value="ledger" className="mt-4">
+        <TabsContent value="ledger" className="mt-6 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-2 duration-500 ease-out">
           {ledgerQuery.isLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
           ) : (
-            <StockLedgerTable logs={ledgerQuery.data as unknown as StockLog[] || []} />
+            <StockLedgerTable logs={ledgerQuery.data as unknown as StockLog[] || []} mainStock={farmerQuery.data?.mainStock || 0} />
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Detail Sheet */}
       <CycleDetailsSheet
         id={selectedCycleId}
         open={showDetails}
@@ -149,7 +154,7 @@ export default function FarmerDetails() {
 };
 
 // 1. Stock Ledger Table
-const StockLedgerTable = ({ logs }: { logs: StockLog[] }) => {
+const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: number }) => {
   return (
     <Card>
       <CardHeader>
@@ -160,10 +165,10 @@ const StockLedgerTable = ({ logs }: { logs: StockLog[] }) => {
         <CardDescription>A complete log of every feed addition and deduction.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
+        <div className="rounded-md border mb-auto h-[350px] overflow-auto relative text-sm">
+          <table className="w-full caption-bottom text-sm">
+            <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-[120px]">Date</TableHead>
                 <TableHead className="w-[140px]">Type</TableHead>
                 <TableHead>Note</TableHead>
@@ -200,7 +205,14 @@ const StockLedgerTable = ({ logs }: { logs: StockLog[] }) => {
                 <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No history found.</TableCell></TableRow>
               )}
             </TableBody>
-          </Table>
+          </table>
+        </div>
+        <div className="flex items-center justify-end gap-3 pt-4 mb-4">
+          <span className="text-muted-foreground text-sm font-medium uppercase tracking-wider">Current Stock</span>
+          <div className="bg-primary/10 text-primary flex items-baseline gap-1 rounded-lg px-4 py-2 font-mono text-2xl font-bold">
+            {mainStock.toLocaleString()}
+            <span className="text-sm font-normal text-muted-foreground/80 opacity-70">bags</span>
+          </div>
         </div>
       </CardContent>
     </Card>

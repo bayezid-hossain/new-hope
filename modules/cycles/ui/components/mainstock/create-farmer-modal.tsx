@@ -52,9 +52,9 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
     trpc.mainstock.createFarmer.mutationOptions({
       onSuccess: async () => {
         toast.success("Farmer registered successfully");
-        await queryClient.invalidateQueries({
-          queryKey: [["mainstock", "getDashboard"]],
-        });
+        await queryClient.invalidateQueries(
+          trpc.mainstock.getDashboard.queryOptions({ orgId: orgId! })
+        );
         onOpenChange(false);
         form.reset();
       },
@@ -71,7 +71,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
 
     createMutation.mutate({
       name: values.name,
-      initialStock: values.initialStock??0,
+      initialStock: values.initialStock ?? 0,
       orgId: orgId,
     });
   };
@@ -93,10 +93,10 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
               <FormItem>
                 <FormLabel>Full Name</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. John Doe" 
-                    {...field} 
-                    autoComplete="off" 
+                  <Input
+                    placeholder="e.g. John Doe"
+                    {...field}
+                    autoComplete="off"
                   />
                 </FormControl>
                 <FormMessage />

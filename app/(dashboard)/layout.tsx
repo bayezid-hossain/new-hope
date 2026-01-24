@@ -12,7 +12,7 @@ const layout = ({ children }: Props) => {
   return (
     <OrgGuard><SidebarProvider>
       <DashboardSidebar />
-      <main className="flex flex-col h-screen w-screen bg-muted">
+      <main className="flex flex-col h-screen w-screen bg-muted bg-white">
         <DashboardNavbar />
         {children}
       </main>

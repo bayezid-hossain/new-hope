@@ -160,4 +160,79 @@ export const mainStockRouter = createTRPCRouter({
         });
       });
     }),
+
+  // 6. TRANSFER STOCK (Officer to Officer)
+  transferStock: protectedProcedure
+    .input(z.object({
+      sourceFarmerId: z.string(),
+      targetFarmerId: z.string(),
+      amount: z.number().positive(),
+      note: z.string().optional()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Validate Input
+      if (input.sourceFarmerId === input.targetFarmerId) {
+        throw new Error("Cannot transfer to the same farmer.");
+      }
+
+      return await ctx.db.transaction(async (tx) => {
+        // 2. Fetch Source & Target (Verify Ownership)
+        const sourceFarmer = await tx.query.farmer.findFirst({
+          where: and(
+            eq(farmer.id, input.sourceFarmerId),
+            eq(farmer.officerId, ctx.user.id)
+          )
+        });
+
+        const targetFarmer = await tx.query.farmer.findFirst({
+          where: and(
+            eq(farmer.id, input.targetFarmerId),
+            eq(farmer.officerId, ctx.user.id)
+          )
+        });
+
+        if (!sourceFarmer || !targetFarmer) {
+          throw new Error("One or both farmers not found or not managed by you.");
+        }
+
+        // 3. Check Funds
+        if (sourceFarmer.mainStock < input.amount) {
+          throw new Error(`Insufficient funds. Source has ${sourceFarmer.mainStock}, trying to send ${input.amount}.`);
+        }
+
+        // 4. Execute Transfer (Source -> Target)
+
+        // A. Deduct from Source
+        await tx.update(farmer)
+          .set({
+            mainStock: sql`${farmer.mainStock} - ${input.amount}`,
+            updatedAt: new Date()
+          })
+          .where(eq(farmer.id, input.sourceFarmerId));
+
+        await tx.insert(stockLogs).values({
+          farmerId: input.sourceFarmerId,
+          amount: (-input.amount).toString(),
+          type: "TRANSFER_OUT",
+          note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Transferred to ${targetFarmer.name}`,
+        });
+
+        // B. Add to Target
+        await tx.update(farmer)
+          .set({
+            mainStock: sql`${farmer.mainStock} + ${input.amount}`,
+            updatedAt: new Date()
+          })
+          .where(eq(farmer.id, input.targetFarmerId));
+
+        await tx.insert(stockLogs).values({
+          farmerId: input.targetFarmerId,
+          amount: input.amount.toString(),
+          type: "TRANSFER_IN",
+          note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Received from ${sourceFarmer.name}`,
+        });
+
+        return { success: true };
+      });
+    }),
 });
