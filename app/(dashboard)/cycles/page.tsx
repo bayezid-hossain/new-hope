@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { CyclesView } from "@/modules/cycles/ui/views/cycles-view";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,7 +12,7 @@ const Page = async () => {
   if (!session) {
     redirect("/sign-in");
   }
-  return <p>Dashboard Cycles</p>;
+  return <CyclesView/> 
 };
 
 export default Page;

@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  decimal,
   doublePrecision,
   integer,
   pgEnum,
@@ -8,10 +9,14 @@ import {
   real,
   text,
   timestamp,
-  uniqueIndex
+  uniqueIndex,
+  varchar
 } from "drizzle-orm/pg-core";
 
-// --- ENUMS ---
+// =========================================================
+// 1. ENUMS
+// =========================================================
+
 // Global Role: "ADMIN" can create organizations. "USER" is a standard signup.
 export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 
@@ -22,7 +27,9 @@ export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "R
 export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE"]);
 
 
-// --- AUTHENTICATION (Better Auth Standard) ---
+// =========================================================
+// 2. AUTHENTICATION (Better Auth Standard)
+// =========================================================
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -33,7 +40,7 @@ export const user = pgTable("user", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   
-  // Custom Field for your "Admin" logic
+  // Custom Field for Global Admin logic
   globalRole: globalRoleEnum("global_role").default("USER").notNull(), 
 });
 
@@ -74,7 +81,9 @@ export const verification = pgTable("verification", {
 });
 
 
-// --- MULTI-TENANCY (The Hierarchy) ---
+// =========================================================
+// 3. MULTI-TENANCY (Organizations & Members)
+// =========================================================
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -101,14 +110,17 @@ export const member = pgTable("member", {
 ]);
 
 
-// --- DOMAIN (Farmers & Cycles) ---
+// =========================================================
+// 4. DOMAIN (Farmers, Cycles, History, Logs)
+// =========================================================
 
 export const farmer = pgTable("farmer", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-  
+  mainStock: real("main_stock").notNull(),
+  totalConsumed: real("total_consumed").notNull().default(0),
   // STRICT OWNERSHIP: Only the officer who created this farmer can manage them
   officerId: text("officer_id").notNull().references(() => user.id), 
   
@@ -126,7 +138,6 @@ export const cycles = pgTable("cycles", {
 
     // Data
     doc: integer("doc").notNull(), // Day Old Chicks count
-    inputFeed: real("input_feed").notNull(),
     intake: real("intake").notNull().default(0),
     mortality: integer("mortality").notNull().default(0),
     age: integer("age").notNull().default(0),
@@ -134,26 +145,65 @@ export const cycles = pgTable("cycles", {
     
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  }
-);
+});
+
+// ARCHIVE TABLE: Stores completed cycles
+export const cycleHistory = pgTable("cycle_history", {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    
+    cycleName: text("cycle_name").notNull(),
+    farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+    
+    // Snapshot of final stats
+    doc: integer("doc").notNull(),
+    finalIntake: real("final_intake").notNull(),
+    mortality: integer("mortality").notNull(),
+    age: integer("age").notNull(),
+    
+    status: text("status").notNull().default("archived"),
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").defaultNow().notNull(),
+});
 
 export const cycleLogs = pgTable("cycle_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  cycleId: text("cycle_id").notNull().references(() => cycles.id, { onDelete: "cascade" }), 
   
-  // Who made the log?
+  // Can belong to EITHER an active Cycle OR a History record
+  // "Set null" on cycleId allows the log to persist even if the active cycle row is deleted/archived
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }), 
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+
   userId: text("user_id").notNull().references(() => user.id),
   
   type: logTypeEnum("type").notNull(),
   valueChange: doublePrecision("value_change").notNull(),
+  
+  // Audit fields
+  previousValue: doublePrecision("previous_value"), 
+  newValue: doublePrecision("new_value"),
   note: text("note"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// --- RELATIONS ---
+// db/schema.ts
+export const stockLogs = pgTable("stock_logs", {
+   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+   
+  farmerId: text("farmer_id").references(() => farmer.id),
+  amount: decimal("amount").notNull(), // Positive for Add, Negative for Deduct
+  type: varchar("type", { length: 50 }).notNull(), // "RESTOCK", "CYCLE_CLOSE", "CORRECTION", "INITIAL"
+  referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+// =========================================================
+// 5. RELATIONS
+// =========================================================
 
 export const userRelations = relations(user, ({ many }) => ({
-  memberships: many(member), // A user can be in many orgs
+  memberships: many(member),
 }));
 
 export const organizationRelations = relations(organization, ({ many }) => ({
@@ -170,6 +220,7 @@ export const farmerRelations = relations(farmer, ({ one, many }) => ({
   organization: one(organization, { fields: [farmer.organizationId], references: [organization.id] }),
   officer: one(user, { fields: [farmer.officerId], references: [user.id] }),
   cycles: many(cycles),
+  history: many(cycleHistory),
 }));
 
 export const cycleRelations = relations(cycles, ({ one, many }) => ({
@@ -177,7 +228,13 @@ export const cycleRelations = relations(cycles, ({ one, many }) => ({
   logs: many(cycleLogs),
 }));
 
+export const historyRelations = relations(cycleHistory, ({ one, many }) => ({
+  farmer: one(farmer, { fields: [cycleHistory.farmerId], references: [farmer.id] }),
+  logs: many(cycleLogs),
+}));
+
 export const logRelations = relations(cycleLogs, ({ one }) => ({
   cycle: one(cycles, { fields: [cycleLogs.cycleId], references: [cycles.id] }),
+  history: one(cycleHistory, { fields: [cycleLogs.historyId], references: [cycleHistory.id] }),
   editor: one(user, { fields: [cycleLogs.userId], references: [user.id] })
 }));

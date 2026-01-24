@@ -11,7 +11,7 @@ export const officerRouter = createTRPCRouter({
     .input(z.object({
       name: z.string().min(1),
       phone: z.string().min(1),
-      location: z.string().optional(),
+      mainStock: z.number().min(0),
       orgId: z.string() 
     }))
     .mutation(async ({ ctx, input }) => {
@@ -21,7 +21,7 @@ export const officerRouter = createTRPCRouter({
       
       const [newFarmer] = await ctx.db.insert(farmer).values({
         name: input.name,
-        organizationId: input.orgId,
+        organizationId: input.orgId,mainStock:input.mainStock,
         officerId: userId, // Automatically assigned
       }).returning(); // Fixed: Added .returning()
 
@@ -78,7 +78,7 @@ export const officerRouter = createTRPCRouter({
         farmerId: input.farmerId,
         organizationId: input.orgId,
         doc: input.doc,
-        inputFeed: input.inputFeed,
+        
         status: 'active'
       }).returning(); // Fixed: Added .returning()
 

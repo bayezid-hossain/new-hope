@@ -1,18 +1,18 @@
 "use client";
 import { Separator } from "@/components/ui/separator";
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { HistoryIcon, HomeIcon, StarIcon, UsersIcon } from "lucide-react";
+import { HistoryIcon, HomeIcon, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,6 +32,11 @@ const firstSection = [
     icon: HistoryIcon,
     label: "History",
     href: "/history",
+  },
+  {
+    icon: WheatIcon,
+    label: "Main Stock",
+    href: "/mainstock",
   },
 ];
 

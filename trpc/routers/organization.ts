@@ -128,7 +128,7 @@ export const organizationRouter = createTRPCRouter({
   }),
 
   // NEW: Get Current User's Status
-  getMyStatus: protectedProcedure.query(async ({ ctx }) => {
+ getMyStatus: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
     
     const membership = await ctx.db.query.member.findFirst({
@@ -138,10 +138,13 @@ export const organizationRouter = createTRPCRouter({
       }
     });
 
-    if (!membership) return { status: "NO_ORG" as const };
+    if (!membership) return { status: "NO_ORG" as const, orgId: null, role: null };
+
     return { 
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
-      orgName: membership.organization.name 
+      orgName: membership.organization.name,
+      orgId: membership.organizationId, // <--- ADD THIS
+      role: membership.role // <--- Useful for permission checks later
     };
   }),
   getMembers: protectedProcedure
