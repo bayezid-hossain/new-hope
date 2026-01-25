@@ -3,6 +3,7 @@ import {
   boolean,
   decimal,
   doublePrecision,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -106,7 +107,9 @@ export const member = pgTable("member", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
   // A user can only join an org once
-  uniqueIndex("unique_org_member").on(t.userId, t.organizationId)
+  uniqueIndex("unique_org_member").on(t.userId, t.organizationId),
+  index("idx_member_org_id").on(t.organizationId),
+  index("idx_member_user_id").on(t.userId),
 ]);
 
 
@@ -126,7 +129,10 @@ export const farmer = pgTable("farmer", {
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_farmer_org_id").on(t.organizationId),
+  index("idx_farmer_officer_id").on(t.officerId),
+]);
 
 export const cycles = pgTable("cycles", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -145,7 +151,10 @@ export const cycles = pgTable("cycles", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("idx_cycles_org_id").on(t.organizationId),
+  index("idx_cycles_farmer_id").on(t.farmerId),
+]);
 
 // ARCHIVE TABLE: Stores completed cycles
 export const cycleHistory = pgTable("cycle_history", {
@@ -164,7 +173,10 @@ export const cycleHistory = pgTable("cycle_history", {
   status: text("status").notNull().default("archived"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_history_org_id").on(t.organizationId),
+  index("idx_history_farmer_id").on(t.farmerId),
+]);
 
 export const cycleLogs = pgTable("cycle_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -185,7 +197,10 @@ export const cycleLogs = pgTable("cycle_logs", {
   note: text("note"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_logs_cycle_id").on(t.cycleId),
+  index("idx_logs_history_id").on(t.historyId),
+]);
 
 // db/schema.ts
 export const stockLogs = pgTable("stock_logs", {
@@ -197,7 +212,9 @@ export const stockLogs = pgTable("stock_logs", {
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => [
+  index("idx_stock_logs_farmer_id").on(t.farmerId),
+]);
 // =========================================================
 // 5. RELATIONS
 // =========================================================

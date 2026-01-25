@@ -1,0 +1,4 @@
+modules/admin/components/officer-analytics.tsx(35,33): error TS2339: Property 'filter' does not exist on type '() => never'.
+modules/admin/components/officer-analytics.tsx(35,40): error TS7006: Parameter 'a' implicitly has an 'any' type.
+modules/admin/components/officer-analytics.tsx(75,41): error TS7006: Parameter 'officer' implicitly has an 'any' type.
+modules/admin/components/officer-analytics.tsx(127,33): error TS7006: Parameter 'officer' implicitly has an 'any' type.

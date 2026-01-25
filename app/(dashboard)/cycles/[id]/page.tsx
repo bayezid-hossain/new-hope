@@ -423,7 +423,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                         <Tabs defaultValue="logs" className="w-full">
                             <TabsList className="grid w-full grid-cols-3 h-11 bg-slate-100 p-1 rounded-xl">
                                 <TabsTrigger value="logs" className="text-sm data-[state=active]:shadow-sm rounded-lg transition-all">Logs</TabsTrigger>
-                                <TabsTrigger value="history" className="text-sm data-[state=active]:shadow-sm rounded-lg transition-all">Others</TabsTrigger>
+                                <TabsTrigger value="history" className="text-sm data-[state=active]:shadow-sm rounded-lg transition-all">Other Cycles</TabsTrigger>
                                 <TabsTrigger value="analysis" className="text-sm data-[state=active]:shadow-sm rounded-lg transition-all">Analysis</TabsTrigger>
                             </TabsList>
 

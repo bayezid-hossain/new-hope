@@ -101,34 +101,15 @@ export default function ManagementFarmerDetailsPage() {
 
     const [showTransferModal, setShowTransferModal] = useState(false);
 
-    const { data: status } = useQuery(trpc.organization.getMyStatus.queryOptions());
-    const orgId = status?.orgId;
-
-    const { data: farmerData, isLoading: isFarmerLoading } = useQuery(
-        trpc.farmers.getFarmer.queryOptions({ farmerId })
-    );
-    const activeQuery = useQuery(
-        trpc.management.cycles.listActive.queryOptions({
-            orgId: orgId!,
-            farmerId,
-            pageSize: 50,
-        }, { enabled: !!orgId })
+    // Consolidated Fetch
+    const { data: hubData, isLoading } = useQuery(
+        trpc.management.getFarmerManagementHub.queryOptions({ farmerId })
     );
 
-    const historyQuery = useQuery(
-        trpc.management.cycles.listPast.queryOptions({
-            orgId: orgId!,
-            farmerId,
-            pageSize: 50,
-        }, { enabled: !!orgId })
-    );
+    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+    if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
 
-    const ledgerQuery = useQuery(
-        trpc.mainstock.getHistory.queryOptions({ farmerId: farmerId }, { enabled: !!farmerId })
-    );
-
-    if (isFarmerLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!farmerData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
+    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
     return (
         <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-slate-50/50 min-h-screen">
@@ -141,7 +122,7 @@ export default function ManagementFarmerDetailsPage() {
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">{farmerData.name}</h1>
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
-                            {activeQuery.data?.items && activeQuery.data.items.length > 0 ? (
+                            {activeCycles.items && activeCycles.items.length > 0 ? (
                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                             ) : (
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
@@ -189,15 +170,15 @@ export default function ManagementFarmerDetailsPage() {
                             </TabsList>
 
                             <TabsContent value="active" className="mt-0 focus-visible:outline-none">
-                                <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} />
+                                <ActiveCyclesSection isLoading={false} data={activeCycles} />
                             </TabsContent>
 
                             <TabsContent value="history" className="mt-0 focus-visible:outline-none">
-                                <ArchivedCyclesSection isLoading={historyQuery.isLoading} isError={historyQuery.isError} data={historyQuery.data} />
+                                <ArchivedCyclesSection isLoading={false} isError={false} data={history} />
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
-                                <StockLedgerTable logs={ledgerQuery.data as any[] || []} mainStock={farmerData.mainStock} />
+                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -213,7 +194,7 @@ export default function ManagementFarmerDetailsPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} />
+                                    <ActiveCyclesSection isLoading={false} data={activeCycles} />
                                 </AccordionContent>
                             </AccordionItem>
 
@@ -225,7 +206,7 @@ export default function ManagementFarmerDetailsPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <ArchivedCyclesSection isLoading={historyQuery.isLoading} isError={historyQuery.isError} data={historyQuery.data} />
+                                    <ArchivedCyclesSection isLoading={false} isError={false} data={history} />
                                 </AccordionContent>
                             </AccordionItem>
 
@@ -237,7 +218,7 @@ export default function ManagementFarmerDetailsPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <StockLedgerTable logs={ledgerQuery.data as any[] || []} mainStock={farmerData.mainStock} />
+                                    <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>

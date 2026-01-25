@@ -48,7 +48,17 @@ export const managementCyclesRouter = createTRPCRouter({
             );
 
             const data = await ctx.db.select({
-                cycle: cycles,
+                cycle: {
+                    id: cycles.id,
+                    name: cycles.name,
+                    age: cycles.age,
+                    doc: cycles.doc,
+                    intake: cycles.intake,
+                    mortality: cycles.mortality,
+                    status: cycles.status,
+                    createdAt: cycles.createdAt,
+                    farmerId: cycles.farmerId,
+                },
                 farmerName: farmer.name,
             })
                 .from(cycles)
@@ -169,7 +179,16 @@ export const managementCyclesRouter = createTRPCRouter({
             );
 
             const data = await ctx.db.select({
-                history: cycleHistory,
+                history: {
+                    id: cycleHistory.id,
+                    cycleName: cycleHistory.cycleName,
+                    doc: cycleHistory.doc,
+                    finalIntake: cycleHistory.finalIntake,
+                    mortality: cycleHistory.mortality,
+                    startDate: cycleHistory.startDate,
+                    endDate: cycleHistory.endDate,
+                    farmerId: cycleHistory.farmerId,
+                },
                 farmerName: farmer.name
             })
                 .from(cycleHistory)

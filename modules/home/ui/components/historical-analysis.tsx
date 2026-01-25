@@ -15,7 +15,7 @@ export const HistoricalAnalysis = () => {
 
     // Fetch last 100 cycles for broader historical context (Trend + Aggregation)
     const { data } = useSuspenseQuery(
-        trpc.management.cycles.listPast.queryOptions({
+        trpc.officer.cycles.listPast.queryOptions({
             orgId: orgId!,
             page: 1,
             pageSize: 100,

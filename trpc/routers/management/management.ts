@@ -188,4 +188,53 @@ export const managementRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
+    // 7. Consolidated Farmer Hub
+    getFarmerManagementHub: protectedProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const farmerData = await ctx.db.query.farmer.findFirst({
+                where: eq(farmer.id, input.farmerId),
+                with: { officer: true }
+            });
+
+            if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Access Check
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, farmerData.organizationId), eq(member.status, "ACTIVE"))
+                });
+                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            }
+
+            const [activeCyclesData, historyData, stockLogsData] = await Promise.all([
+                ctx.db.select().from(cycles).where(and(eq(cycles.farmerId, input.farmerId), eq(cycles.status, "active"))).orderBy(desc(cycles.createdAt)),
+                ctx.db.select().from(cycleHistory).where(eq(cycleHistory.farmerId, input.farmerId)).orderBy(desc(cycleHistory.endDate)),
+                ctx.db.select().from(stockLogs).where(eq(stockLogs.farmerId, input.farmerId)).orderBy(desc(stockLogs.createdAt)).limit(50)
+            ]);
+
+            return {
+                farmer: {
+                    ...farmerData,
+                    officerName: farmerData.officer.name,
+                },
+                activeCycles: {
+                    items: activeCyclesData.map(c => ({ ...c, farmerName: farmerData.name }))
+                },
+                history: {
+                    items: historyData.map(h => ({
+                        ...h,
+                        name: h.cycleName,
+                        farmerName: farmerData.name,
+                        organizationId: h.organizationId || "",
+                        createdAt: h.startDate,
+                        updatedAt: h.endDate,
+                        intake: h.finalIntake,
+                        status: 'archived' as const
+                    }))
+                },
+                stockLogs: stockLogsData
+            };
+        }),
+
 });
