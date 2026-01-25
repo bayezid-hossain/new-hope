@@ -38,8 +38,8 @@ const firstSection = [
   },
   {
     icon: WheatIcon,
-    label: "Main Stock",
-    href: "/mainstock",
+    label: "Farmers",
+    href: "/farmers",
   },
 ];
 

@@ -96,34 +96,15 @@ export default function AdminFarmerDetailsPage() {
 
     const [showTransferModal, setShowTransferModal] = useState(false);
 
-    // 0. Fetch Farmer Info first to get OrgId
-    const { data: farmerData, isLoading: isFarmerLoading } = useQuery(
-        trpc.management.getFarmerDetails.queryOptions({ farmerId })
+    // Consolidated Fetch
+    const { data: hubData, isLoading } = useQuery(
+        trpc.management.getFarmerManagementHub.queryOptions({ farmerId })
     );
 
-    const orgId = farmerData?.organizationId;
+    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+    if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
 
-    // 1. Fetch Active Cycles
-    const activeQuery = useQuery(
-        trpc.management.getFarmerCycles.queryOptions({
-            farmerId: farmerId,
-        }, { enabled: !!orgId })
-    );
-
-    // 2. Fetch Archived Cycles
-    const historyQuery = useQuery(
-        trpc.management.getFarmerHistory.queryOptions({
-            farmerId: farmerId,
-        }, { enabled: !!orgId })
-    );
-
-    // 3. Fetch Ledger (Stock History)
-    const ledgerQuery = useQuery(
-        trpc.management.getFarmerStockLogs.queryOptions({ farmerId: farmerId }, { enabled: !!farmerId })
-    );
-
-    if (isFarmerLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!farmerData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
+    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
     return (
         <AdminGuard>
@@ -137,7 +118,7 @@ export default function AdminFarmerDetailsPage() {
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{farmerData.name}</h1>
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold">ADMIN VIEW</Badge>
-                                {activeQuery.data?.items && activeQuery.data.items.length > 0 ? (
+                                {activeCycles.items && activeCycles.items.length > 0 ? (
                                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                 ) : (
                                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
@@ -183,15 +164,15 @@ export default function AdminFarmerDetailsPage() {
                             </TabsList>
 
                             <TabsContent value="active" className="mt-0 focus-visible:outline-none">
-                                <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} prefix={`/admin/organizations/${params.id}`} />
+                                <ActiveCyclesSection isLoading={false} data={activeCycles} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="history" className="mt-0 focus-visible:outline-none">
-                                <ArchivedCyclesSection isLoading={historyQuery.isLoading} isError={historyQuery.isError} data={historyQuery.data} prefix={`/admin/organizations/${params.id}`} />
+                                <ArchivedCyclesSection isLoading={false} isError={false} data={history} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
-                                <StockLedgerTable logs={ledgerQuery.data as any[] || []} mainStock={farmerData.mainStock} />
+                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
                             </TabsContent>
                         </Tabs>
                     </div>

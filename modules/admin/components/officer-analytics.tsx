@@ -32,9 +32,9 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
         trpc.management.getOfficerAnalytics.queryOptions({ orgId })
     );
 
-    const filtered = analytics?.filter(a =>
-        a.name.toLowerCase().includes(search.toLowerCase()) ||
-        a.email.toLowerCase().includes(search.toLowerCase())
+    const filtered = (analytics || []).filter(a =>
+        a?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        a?.email?.toLowerCase().includes(search.toLowerCase())
     );
 
     if (isLoading) {
