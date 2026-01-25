@@ -18,7 +18,7 @@ export const mainStockRouter = createTRPCRouter({
 
       const farmersData = await ctx.db.query.farmer.findMany({
         where: and(
-          eq(farmer.organizationId, orgId),
+          eq(farmer.organizationId, orgId), eq(farmer.officerId, ctx.user.id),
           search ? ilike(farmer.name, `%${search}%`) : undefined
         ),
         limit: pageSize,
@@ -179,15 +179,13 @@ export const mainStockRouter = createTRPCRouter({
         // 2. Fetch Source & Target (Verify Ownership)
         const sourceFarmer = await tx.query.farmer.findFirst({
           where: and(
-            eq(farmer.id, input.sourceFarmerId),
-            eq(farmer.officerId, ctx.user.id)
+            eq(farmer.id, input.sourceFarmerId), eq(farmer.officerId, ctx.user.id)
           )
         });
 
         const targetFarmer = await tx.query.farmer.findFirst({
           where: and(
-            eq(farmer.id, input.targetFarmerId),
-            eq(farmer.officerId, ctx.user.id)
+            eq(farmer.id, input.targetFarmerId), eq(farmer.officerId, ctx.user.id)
           )
         });
 

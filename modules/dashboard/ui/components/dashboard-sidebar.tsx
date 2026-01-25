@@ -12,11 +12,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { HistoryIcon, HomeIcon, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { useTRPC } from "@/trpc/client";
+import { useQuery } from "@tanstack/react-query";
+import { HistoryIcon, HomeIcon, Settings, ShieldCheck, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import DashboardUserButton from "./dashboard-user-button";
+
 const firstSection = [
   {
     icon: HomeIcon,
@@ -50,6 +53,17 @@ const secondSection = [
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
+  const trpc = useTRPC();
+
+  // Fetch session for globalRole
+  const { data: sessionData } = useQuery(trpc.auth.getSession.queryOptions());
+
+  // Fetch org status for organization role
+  const { data: orgStatus } = useQuery(trpc.organization.getMyStatus.queryOptions());
+
+  const isAdmin = sessionData?.user?.globalRole === "ADMIN";
+  const isManager = orgStatus?.role === "OWNER" || orgStatus?.role === "MANAGER";
+
   return (
     <Sidebar>
       <SidebarHeader className="text-sidebar-accent-foreground">
@@ -98,6 +112,61 @@ const DashboardSidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {(isAdmin || isManager) && (
+          <>
+            <div className="px-4 py-2">
+              <Separator className="opacity-10 text-[#5D6B68]" />
+            </div>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {isManager && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        className={cn(
+                          "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                          pathname === "/management" &&
+                          "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                        )}
+                        isActive={pathname === "/management"}
+                      >
+                        <Link href="/management">
+                          <Settings className="size-5" />
+                          <span className="text-sm font-medium tracking-tight">
+                            Management
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {isAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        className={cn(
+                          "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                          pathname === "/admin" &&
+                          "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                        )}
+                        isActive={pathname === "/admin"}
+                      >
+                        <Link href="/admin">
+                          <ShieldCheck className="size-5" />
+                          <span className="text-sm font-medium tracking-tight">
+                            System Admin
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+
         <div className="px-4 py-2">
           <Separator className="opacity-10 text-[#5D6B68]" />
         </div>

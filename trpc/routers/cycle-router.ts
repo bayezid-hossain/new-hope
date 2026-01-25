@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, stockLogs } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -18,7 +18,6 @@ const cycleSearchSchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-// REMOVED: inputFeed from creation schema
 const cycleInsertSchema = z.object({
   name: z.string().min(1),
   farmerId: z.string(),
@@ -35,17 +34,37 @@ const addMortalitySchema = z.object({
 
 export const cyclesRouter = createTRPCRouter({
 
-  // 1. Get Active Cycles (Filtered by Officer)
+  // 1. Get Active Cycles (Filtered by Officer/Manager)
   getActiveCycles: protectedProcedure
     .input(cycleSearchSchema)
     .query(async ({ ctx, input }) => {
       const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
       const offset = (page - 1) * pageSize;
-      // console.log(farmerId)
+
+      // Membership check (Always applied, even for Global Admins in this "User View")
+      let memberCheck = undefined;
+
+      const membership = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, ctx.user.id),
+          eq(member.organizationId, orgId),
+          eq(member.status, "ACTIVE")
+        )
+      });
+
+      // If user uses this route, they MUST be a member of the org.
+      // Even Global Admins need to be "in" the org to see "My Cycles" context.
+      if (!membership) throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
+
+      if (membership.role === "OFFICER") {
+        memberCheck = eq(farmer.officerId, ctx.user.id);
+      }
+      // Managers/Owners can see everything in the org
+
       const whereClause = and(
         eq(cycles.organizationId, orgId),
         eq(cycles.status, "active"),
-        eq(farmer.officerId, ctx.user.id), // STRICT: Only farmers managed by current user
+        memberCheck,
         farmerId ? eq(cycles.farmerId, farmerId) : undefined,
         search ? ilike(cycles.name, `%${search}%`) : undefined,
       );
@@ -84,8 +103,26 @@ export const cyclesRouter = createTRPCRouter({
       const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
       const offset = (page - 1) * pageSize;
 
+      // Membership check
+      let memberCheck = undefined;
+
+      const membership = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, ctx.user.id),
+          eq(member.organizationId, orgId),
+          eq(member.status, "ACTIVE")
+        )
+      });
+
+      if (!membership) throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
+
+      if (membership.role === "OFFICER") {
+        memberCheck = eq(farmer.officerId, ctx.user.id);
+      }
+
       const whereClause = and(
         eq(cycleHistory.organizationId, orgId),
+        memberCheck,
         farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
         search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
       );
@@ -187,8 +224,6 @@ export const cyclesRouter = createTRPCRouter({
     .input(z.object({
       id: z.string(),
       intake: z.number().positive(),
-      // REMOVED: remainingStock input. 
-      // In a shared pool, you don't "return" stock, you just stop eating.
     }))
     .mutation(async ({ input, ctx }) => {
       return await ctx.db.transaction(async (tx) => {
@@ -246,7 +281,7 @@ export const cyclesRouter = createTRPCRouter({
       });
     }),
 
-  // REMOVED: addFeed (Use mainStock.addStock instead)
+
 
   // 5. Add Mortality
   addMortality: protectedProcedure

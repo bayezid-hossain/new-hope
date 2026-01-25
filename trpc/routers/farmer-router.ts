@@ -1,5 +1,5 @@
 
-import { cycles, farmer } from "@/db/schema"; // Ensure 'cycles' is imported if relation exists
+import { cycles, farmer, member } from "@/db/schema"; // Ensure 'cycles' is imported if relation exists
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
@@ -22,46 +22,57 @@ export const farmersRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { orgId, search, page, pageSize, sortBy, sortOrder } = input;
 
-      // 1. Build the WHERE clause
+      // 1. Membership Check (Strict - No Global Admin Bypass)
+      let officerFilter = undefined;
+
+      const membership = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, ctx.user.id),
+          eq(member.organizationId, orgId ?? ""),
+          eq(member.status, "ACTIVE")
+        )
+      });
+
+      if (!membership) {
+        // If not a member, return empty or throw. For getMany, returning empty is often safer/UX friendly than throwing.
+        return { items: [], total: 0, totalPages: 0, currentPage: page };
+      }
+
+      // 2. Role-Based Logic
+      // If Officer => Filter by officerId
+      // If Manager/Owner => No filter (See all)
+      if (membership.role === "OFFICER") {
+        officerFilter = eq(farmer.officerId, ctx.user.id);
+      }
+
+      // 3. Build the WHERE clause
       const whereClause = and(
-        // Filter by Organization (safety check: default to empty string if undefined)
         eq(farmer.organizationId, orgId ?? ""),
-
-        // Search Logic: Matches Name OR Phone Number
-        search
-          ? or(
-            ilike(farmer.name, `%${search}%`),
-
-          )
-          : undefined
+        officerFilter,
+        search ? or(ilike(farmer.name, `%${search}%`)) : undefined
       );
 
-      // 2. Fetch Data
+      // 4. Fetch Data
       const data = await ctx.db.query.farmer.findMany({
         where: whereClause,
         limit: pageSize,
         offset: (page - 1) * pageSize,
         orderBy: (table, { asc, desc }) => {
-          // Dynamic sorting
           if (sortBy && sortOrder) {
             const column = table[sortBy as keyof typeof table];
-            if (column) {
-              return sortOrder === "desc" ? desc(column) : asc(column);
-            }
+            if (column) return sortOrder === "desc" ? desc(column) : asc(column);
           }
-          // Default sort: Newest first
           return desc(table.createdAt);
         },
-        // Include relations (Optional: helpful for UI counters)
         with: {
           cycles: {
-            where: eq(cycles.status, 'active'), // Only fetch active cycles
+            where: eq(cycles.status, 'active'),
             columns: { id: true }
           }
         }
       });
 
-      // 3. Get Total Count (for pagination)
+      // 5. Get Total Count
       const [totalResult] = await ctx.db
         .select({ count: sql<number>`count(*)` })
         .from(farmer)
@@ -72,7 +83,6 @@ export const farmersRouter = createTRPCRouter({
       return {
         items: data.map((f) => ({
           ...f,
-          // Add computed active cycle count for the UI
           activeCyclesCount: f.cycles.length
         })),
         total,
@@ -81,16 +91,31 @@ export const farmersRouter = createTRPCRouter({
       };
     }),
   getFarmer: protectedProcedure
-    .input(
-      z.object({
-        farmerId: z.string(),
-      })
-    )
+    .input(z.object({ farmerId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { farmerId } = input;
-      const data = await ctx.db.query.farmer.findFirst({
-        where: and(eq(farmer.id, farmerId), eq(farmer.officerId, ctx.session.userId)),
+
+      const targetFarmer = await ctx.db.query.farmer.findFirst({
+        where: eq(farmer.id, farmerId),
       });
-      return data;
+
+      if (!targetFarmer) return null;
+
+      // 1. Direct Officer check (Fast path)
+      if (targetFarmer.officerId === ctx.user.id) return targetFarmer;
+
+      // 2. Manager/Owner check (Must be ACTIVE member in SAME organization)
+      const membership = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, ctx.user.id),
+          eq(member.organizationId, targetFarmer.organizationId),
+          eq(member.status, "ACTIVE"),
+          or(eq(member.role, "MANAGER"), eq(member.role, "OWNER"))
+        )
+      });
+
+      if (membership) return targetFarmer;
+
+      return null;
     }),
 });
