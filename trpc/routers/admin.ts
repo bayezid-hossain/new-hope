@@ -1,8 +1,9 @@
-import { cycleHistory, cycles, farmer, member, organization, stockLogs, user } from "@/db/schema";
+import { cycleHistory, cycles, farmer, organization, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
+import { fetchOfficerAnalytics } from "./utils";
 
 // 1. Define the Admin Procedure explicitly here
 const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
@@ -115,87 +116,7 @@ export const adminRouter = createTRPCRouter({
   getOfficerAnalytics: adminProcedure
     .input(z.object({ orgId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // 1. Get all members of the organization who are OFFICERS, MANAGERS, or OWNERS (as they can all manage farmers)
-      const officers = await ctx.db.query.member.findMany({
-        where: and(
-          eq(member.organizationId, input.orgId),
-          eq(member.status, "ACTIVE")
-        ),
-        with: {
-          user: true
-        }
-      });
-
-      const analytics = await Promise.all(officers.map(async (m) => {
-        // Fetch farmers managed by this officer in this org
-        const managedFarmers = await ctx.db.query.farmer.findMany({
-          where: and(
-            eq(farmer.officerId, m.userId),
-            eq(farmer.organizationId, input.orgId)
-          )
-        });
-
-        const farmerIds = managedFarmers.map(f => f.id);
-
-        if (farmerIds.length === 0) {
-          return {
-            officerId: m.userId,
-            name: m.user.name,
-            email: m.user.email,
-            role: m.role,
-            farmersCount: 0,
-            activeCycles: 0,
-            pastCycles: 0,
-            totalDoc: 0,
-            totalIntake: 0,
-            totalMortality: 0
-          };
-        }
-
-        const activeBatch = await ctx.db.select({
-          totalDoc: sql<number>`sum(${cycles.doc})`,
-          totalIntake: sql<number>`sum(${cycles.intake})`,
-          totalMortality: sql<number>`sum(${cycles.mortality})`,
-          count: sql<number>`count(*)`
-        })
-          .from(cycles)
-          .where(
-            and(
-              eq(cycles.organizationId, input.orgId),
-              sql`${cycles.farmerId} IN ${farmerIds}`,
-              eq(cycles.status, "active")
-            )
-          );
-
-        const pastBatch = await ctx.db.select({
-          totalDoc: sql<number>`sum(${cycleHistory.doc})`,
-          totalIntake: sql<number>`sum(${cycleHistory.finalIntake})`,
-          totalMortality: sql<number>`sum(${cycleHistory.mortality})`,
-          count: sql<number>`count(*)`
-        })
-          .from(cycleHistory)
-          .where(
-            and(
-              eq(cycleHistory.organizationId, input.orgId),
-              sql`${cycleHistory.farmerId} IN ${farmerIds}`
-            )
-          );
-
-        return {
-          officerId: m.userId,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role,
-          farmersCount: managedFarmers.length,
-          activeCycles: Number(activeBatch[0]?.count || 0),
-          pastCycles: Number(pastBatch[0]?.count || 0),
-          totalDoc: Number(activeBatch[0]?.totalDoc || 0) + Number(pastBatch[0]?.totalDoc || 0),
-          totalIntake: Number(activeBatch[0]?.totalIntake || 0) + Number(pastBatch[0]?.totalIntake || 0),
-          totalMortality: Number(activeBatch[0]?.totalMortality || 0) + Number(pastBatch[0]?.totalMortality || 0)
-        };
-      }));
-
-      return analytics;
+      return await fetchOfficerAnalytics(ctx.db, input.orgId);
     }),
 
   // Create Organization

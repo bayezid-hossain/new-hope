@@ -18,7 +18,6 @@ const cycleSearchSchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-// REMOVED: inputFeed from creation schema
 const cycleInsertSchema = z.object({
   name: z.string().min(1),
   farmerId: z.string(),
@@ -225,8 +224,6 @@ export const cyclesRouter = createTRPCRouter({
     .input(z.object({
       id: z.string(),
       intake: z.number().positive(),
-      // REMOVED: remainingStock input. 
-      // In a shared pool, you don't "return" stock, you just stop eating.
     }))
     .mutation(async ({ input, ctx }) => {
       return await ctx.db.transaction(async (tx) => {
@@ -284,7 +281,7 @@ export const cyclesRouter = createTRPCRouter({
       });
     }),
 
-  // REMOVED: addFeed (Use mainStock.addStock instead)
+
 
   // 5. Add Mortality
   addMortality: protectedProcedure
