@@ -48,11 +48,11 @@ const CyclesContent = () => {
     }, [searchTerm, filters.search, setFilters]);
 
     // 4. Query with placeholderData
-    const { data, isPending, isFetching, refetch } = useQuery({
-        ...trpc.cycles.getActiveCycles.queryOptions({
-            ...filters,
-            // status: "active", // Implied by procedure
+    const { data, isLoading, isError, isFetching, refetch } = useQuery({
+        ...trpc.officer.cycles.listActive.queryOptions({
+            ...filters, // Keep filters spread for pagination/search
             orgId: orgId!,
+            // status: "active", // Implied by procedure
             sortOrder: sorting[0]?.desc ? "desc" : "asc"
         }),
         placeholderData: keepPreviousData,
@@ -60,13 +60,13 @@ const CyclesContent = () => {
 
     // 5. Manual Refresh Handler (Replaces specific Sync mutation if not needed)
     const handleRefresh = async () => {
-        await queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId?.toString()! }));
+        await queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
         await refetch();
         toast.success("Cycles refreshed");
     };
 
     // Initial Loading State
-    if (isPending) {
+    if (isLoading) {
         return <LoadingState title="Loading" description="Loading cycles..." />;
     }
 

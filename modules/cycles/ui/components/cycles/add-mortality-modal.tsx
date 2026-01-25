@@ -47,10 +47,10 @@ export const AddMortalityModal = ({
   });
 
   const mutation = useMutation(
-    trpc.cycles.addMortality.mutationOptions({
-      onSuccess: async () => {
-        toast.success(`Mortality recorded for ${farmerName}`);
-        await queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId! }));
+    trpc.officer.cycles.addMortality.mutationOptions({
+      onSuccess: () => {
+        toast.success("Mortality recorded");
+        queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
         onOpenChange(false);
         form.reset();
       },

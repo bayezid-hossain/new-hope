@@ -92,11 +92,13 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
     const { orgId } = useCurrentOrg();
 
     const deleteMutation = useMutation(
-        trpc.cycles.deleteHistory.mutationOptions({
+        trpc.admin.cycles.deleteHistory.mutationOptions({
             onSuccess: async () => {
                 toast.success("Record deleted successfully");
-                // Invalidate both potential queries (org-wide and farmer-specific)
-                await queryClient.invalidateQueries(trpc.cycles.getPastCycles.queryOptions({ orgId: orgId! }));
+                // Invalidate across potential routers if necessary, but history is usually org-wide
+                await queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions({ orgId: orgId! }));
+                await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
+                await queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions({ orgId: orgId! }));
                 setShowDeleteModal(false);
             },
             onError: (err: any) => {

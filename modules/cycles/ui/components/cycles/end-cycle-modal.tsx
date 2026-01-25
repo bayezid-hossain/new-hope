@@ -33,12 +33,12 @@ export const EndCycleModal = ({
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
 
   const endMutation = useMutation(
-    trpc.cycles.end.mutationOptions({
+    trpc.officer.cycles.end.mutationOptions({
       onSuccess: async () => {
-        toast.success(`${farmerName} moved to history`);
+        toast.success("Cycle ended successfully");
         // Invalidate both Active (removed) and Past (added) queries
-        await queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId?.toString()! }));
-        await queryClient.invalidateQueries(trpc.cycles.getPastCycles.queryOptions({ orgId: orgId?.toString()! }));
+        await queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
+        await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
       },

@@ -19,7 +19,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
 
     // Use the management router which allows seeing ALL cycles in the org
     const { data, isLoading } = useQuery({
-        ...trpc.management.getOrgActiveCycles.queryOptions({
+        ...trpc.management.cycles.listActive.queryOptions({
             orgId,
             search: debouncedSearch,
             pageSize: 100

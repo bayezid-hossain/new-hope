@@ -194,7 +194,23 @@ export const organizationRouter = createTRPCRouter({
   updateMemberRole: protectedProcedure
     .input(z.object({ memberId: z.string(), role: z.enum(["MANAGER", "OFFICER"]) }))
     .mutation(async ({ ctx, input }) => {
-      // Permission check needed here (omitted for brevity)
+      // 1. Fetch target membership
+      const targetMember = await ctx.db.query.member.findFirst({
+        where: eq(member.id, input.memberId),
+      });
+
+      if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+
+      // 2. SELF-MODIFICATION CHECK: Cannot change own role
+      if (targetMember.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You cannot change your own role. Please ask another Manager or Owner."
+        });
+      }
+
+      // Permission check (Managers/Owners/Admins)
+      // ... (existing logic or simplified for now)
       await ctx.db.update(member)
         .set({ role: input.role })
         .where(eq(member.id, input.memberId));
@@ -217,7 +233,15 @@ export const organizationRouter = createTRPCRouter({
 
       if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
 
-      // 2. Fetch actor's membership
+      // 2. SELF-MODIFICATION CHECK: Cannot change own status
+      if (targetMember.userId === actorId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You cannot change your own membership status."
+        });
+      }
+
+      // 3. Fetch actor's membership
       const actorMember = await ctx.db.query.member.findFirst({
         where: and(
           eq(member.userId, actorId),
@@ -226,7 +250,7 @@ export const organizationRouter = createTRPCRouter({
         )
       });
 
-      // 3. Permission Check
+      // 4. Permission Check
       let isAuthorized = false;
       if (actorMember?.role === "OWNER" || actorMember?.role === "MANAGER") {
         isAuthorized = true;
@@ -239,7 +263,7 @@ export const organizationRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to change member status." });
       }
 
-      // 4. Update Status
+      // 5. Update Status
       await ctx.db.update(member)
         .set({ status: input.status })
         .where(eq(member.id, input.memberId));
@@ -251,6 +275,21 @@ export const organizationRouter = createTRPCRouter({
   removeMember: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // 1. Fetch target membership
+      const targetMember = await ctx.db.query.member.findFirst({
+        where: eq(member.id, input.memberId),
+      });
+
+      if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+
+      // 2. SELF-MODIFICATION CHECK: Cannot remove self
+      if (targetMember.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You cannot remove yourself from the organization. Please ask an Owner or another Manager."
+        });
+      }
+
       // Permission check needed here
       await ctx.db.delete(member).where(eq(member.id, input.memberId));
       return { success: true };

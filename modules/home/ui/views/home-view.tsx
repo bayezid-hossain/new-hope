@@ -25,9 +25,8 @@ const OperationsContent = ({ orgId }: { orgId: string }) => {
 
   // Fetch Active Cycles
   const { data } = useSuspenseQuery(
-    trpc.cycles.getActiveCycles.queryOptions({
+    trpc.officer.cycles.listActive.queryOptions({
       orgId,
-      status: "active",
       page: 1,
       pageSize: 100
     })

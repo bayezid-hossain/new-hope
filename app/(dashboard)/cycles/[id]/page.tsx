@@ -284,7 +284,7 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
 
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
-    const { data, isLoading, error } = useQuery(trpc.cycles.getDetails.queryOptions({ id }));
+    const { data, isLoading, error } = useQuery(trpc.officer.cycles.getDetails.queryOptions({ id }));
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {

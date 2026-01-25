@@ -125,7 +125,7 @@ export default function FarmerDetails() {
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
-    trpc.cycles.getActiveCycles.queryOptions({
+    trpc.officer.cycles.listActive.queryOptions({
       orgId: orgId!,
       farmerId: farmerId,
       pageSize: 50,
@@ -134,7 +134,7 @@ export default function FarmerDetails() {
 
   // 2. Fetch Archived Cycles
   const historyQuery = useQuery(
-    trpc.cycles.getPastCycles.queryOptions({
+    trpc.officer.cycles.listPast.queryOptions({
       orgId: orgId!,
       farmerId: farmerId,
       pageSize: 50,

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
+import { adminCyclesRouter } from "./cycles";
 
 // 1. Define the Admin Procedure explicitly here
 const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
@@ -17,6 +18,7 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 });
 
 export const adminRouter = createTRPCRouter({
+  cycles: adminCyclesRouter,
   // ... existing stats/create procedures ...
 
   // 1. Delete Organization

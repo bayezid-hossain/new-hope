@@ -103,15 +103,15 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
 
   // 5. Mutation
   const createMutation = useMutation(
-    trpc.cycles.create.mutationOptions({
+    trpc.officer.cycles.create.mutationOptions({
       onSuccess: async () => {
         toast.success("Cycle started successfully");
-        await queryClient.invalidateQueries(trpc.cycles.getActiveCycles.queryOptions({ orgId: orgId?.toString()! }));
+        await queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
         // Also invalidate mainstock as feed might be deducted
         await queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId?.toString()! }));
 
-        form.reset();
         onOpenChange(false);
+        form.reset();
       },
       onError: (error) => toast.error(error.message),
     })

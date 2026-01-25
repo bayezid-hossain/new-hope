@@ -50,10 +50,10 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
     const { orgId } = useCurrentOrg();
 
     const deleteMutation = useMutation(
-        trpc.cycles.deleteHistory.mutationOptions({
+        trpc.officer.cycles.deleteHistory.mutationOptions({
             onSuccess: async () => {
                 toast.success("Record deleted successfully");
-                await queryClient.invalidateQueries(trpc.cycles.getPastCycles.queryOptions({ orgId: orgId! }));
+                await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
                 setShowDeleteModal(false);
             },
             onError: (err: any) => {
