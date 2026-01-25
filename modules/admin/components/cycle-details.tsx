@@ -61,7 +61,7 @@ const AnalysisContent = ({
     const historicalAvgFeedPerBird = history.length > 0
         ? history.reduce((acc: number, h: any) => {
             const hLive = (h.doc || 0) - (h.mortality || 0);
-            const hIntake = h.finalIntake || h.intake || 0;
+            const hIntake = h.intake || h.finalIntake || 0;
             return acc + (hLive > 0 ? hIntake / hLive : 0);
         }, 0) / history.length
         : 0;
@@ -240,7 +240,11 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
     const router = useRouter();
     const { orgId } = useCurrentOrg()
     const { data: response, isLoading } = useQuery(
-        trpc.cycles.getDetails.queryOptions({ id: cycleId })
+        isAdmin
+            ? trpc.admin.cycles.getDetails.queryOptions({ id: cycleId })
+            : isManagement
+                ? trpc.management.cycles.getDetails.queryOptions({ id: cycleId })
+                : trpc.officer.cycles.getDetails.queryOptions({ id: cycleId })
     );
 
     const normalizedCycle = useMemo(() => {
@@ -252,7 +256,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             mortality: (cycle as any).mortality,
             age: (cycle as any).age,
             intake: type === 'active' ? (cycle as any).intake : (cycle as any).finalIntake,
-            createdAt: type === 'active' ? (cycle as any).createdAt : (cycle as any).startDate,
+            createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
             status: type === 'active' ? 'active' : 'archived'
         };

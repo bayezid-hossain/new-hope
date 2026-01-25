@@ -15,7 +15,7 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
     const trpc = useTRPC();
 
     const { data, isLoading, isError } = useQuery(
-        trpc.cycles.getPastCycles.queryOptions({
+        trpc.officer.cycles.listPast.queryOptions({
             orgId: orgId!,
             pageSize: 50,
         })

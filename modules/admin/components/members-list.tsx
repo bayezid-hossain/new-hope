@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Power, Trash2, Users } from "lucide-react";
@@ -37,6 +38,8 @@ import { toast } from "sonner";
 export function MembersList({ orgId }: { orgId: string }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const session = authClient.useSession();
+  const currentUserId = session.data?.user.id;
 
   // Track which member is being deleted for loading states
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -134,7 +137,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                         memberId: member.id,
                         role: val as "MANAGER" | "OFFICER"
                       })}
-                      disabled={member.role === "OWNER"}
+                      disabled={member.role === "OWNER" || member.userId === currentUserId}
                     >
                       <SelectTrigger className="w-[110px] h-7 text-[11px] bg-slate-50 border-slate-200">
                         <SelectValue />
@@ -168,12 +171,12 @@ export function MembersList({ orgId }: { orgId: string }) {
                             ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
                             : "text-amber-600 hover:text-emerald-600 hover:bg-emerald-50"
                             } h-7 w-7 p-0 flex-shrink-0`}
-                          title={member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member"}
+                          title={member.userId === currentUserId ? "You cannot deactivate yourself" : (member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member")}
                           onClick={() => statusMutation.mutate({
                             memberId: member.id,
                             status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
                           })}
-                          disabled={statusMutation.isPending}
+                          disabled={statusMutation.isPending || member.userId === currentUserId}
                         >
                           {statusMutation.isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -190,7 +193,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                             size="sm"
                             variant="ghost"
                             className="text-slate-400 hover:text-destructive hover:bg-destructive/5 h-7 w-7 p-0 flex-shrink-0"
-                            disabled={member.role === "OWNER" || deletingId === member.id}
+                            disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
+                            title={member.userId === currentUserId ? "You cannot remove yourself" : ""}
                           >
                             {deletingId === member.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -264,7 +268,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                       memberId: member.id,
                       role: val as "MANAGER" | "OFFICER"
                     })}
-                    disabled={member.role === "OWNER"}
+                    disabled={member.role === "OWNER" || member.userId === currentUserId}
                   >
                     <SelectTrigger className="w-full h-8 text-xs bg-slate-50 border-slate-200">
                       <SelectValue />
@@ -302,7 +306,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                         memberId: member.id,
                         status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
                       })}
-                      disabled={statusMutation.isPending}
+                      disabled={statusMutation.isPending || member.userId === currentUserId}
                     >
                       {statusMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -319,7 +323,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                         size="sm"
                         variant="outline"
                         className="text-destructive border-red-100 hover:bg-red-50 h-8 w-8 p-0"
-                        disabled={member.role === "OWNER" || deletingId === member.id}
+                        disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
                       >
                         {deletingId === member.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />

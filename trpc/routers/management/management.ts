@@ -1,9 +1,10 @@
 import { cycleHistory, cycles, farmer, member, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { fetchOfficerAnalytics } from "../utils";
+import { managementCyclesRouter } from "./cycles";
 
 // Middleware: Check if user is Manager/Owner of the Org OR Global Admin
 const managementProcedure = protectedProcedure.input(z.object({ orgId: z.string().optional() })).use(async ({ ctx, next, input }) => {
@@ -27,6 +28,7 @@ const managementProcedure = protectedProcedure.input(z.object({ orgId: z.string(
 });
 
 export const managementRouter = createTRPCRouter({
+    cycles: managementCyclesRouter,
 
     // 1. Get Farmers for an Org
     getOrgFarmers: protectedProcedure
@@ -56,76 +58,6 @@ export const managementRouter = createTRPCRouter({
                 activeCyclesCount: f.cycles.length,
                 pastCyclesCount: f.history.length
             }));
-        }),
-
-    // 1.b Get Active Cycles for an Org (Admin/Management View)
-    getOrgActiveCycles: protectedProcedure
-        .input(z.object({
-            orgId: z.string(),
-            search: z.string().optional(),
-            pageSize: z.number().optional().default(100) // Default to large page for dashboard
-        }))
-        .query(async ({ ctx, input }) => {
-            // Access Check
-
-            const data = await ctx.db.select({
-                cycle: cycles,
-                farmerName: farmer.name,
-            })
-                .from(cycles)
-                .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
-                .where(and(
-                    eq(cycles.organizationId, input.orgId),
-                    eq(cycles.status, "active"),
-                    input.search ? ilike(cycles.name, `%${input.search}%`) : undefined
-                ))
-                .orderBy(desc(cycles.createdAt))
-                .limit(input.pageSize);
-
-            return { items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })) };
-        }),
-
-    // 1.c Get Past Cycles for an Org (History)
-    getOrgPastCycles: protectedProcedure
-        .input(z.object({
-            orgId: z.string(),
-            search: z.string().optional(),
-            pageSize: z.number().optional().default(100)
-        }))
-        .query(async ({ ctx, input }) => {
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
-
-            const data = await ctx.db.select({
-                history: cycleHistory,
-                farmerName: farmer.name
-            })
-                .from(cycleHistory)
-                .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
-                .where(and(
-                    eq(cycleHistory.organizationId, input.orgId),
-                    input.search ? ilike(cycleHistory.cycleName, `%${input.search}%`) : undefined
-                ))
-                .orderBy(desc(cycleHistory.endDate))
-                .limit(input.pageSize);
-
-            return {
-                items: data.map(d => ({
-                    ...d.history,
-                    name: d.history.cycleName,
-                    farmerName: d.farmerName,
-                    organizationId: d.history.organizationId || "",
-                    createdAt: d.history.startDate,
-                    updatedAt: d.history.endDate,
-                    intake: d.history.finalIntake,
-                    status: 'archived'
-                }))
-            };
         }),
 
 
