@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init"; // Use your init file
 
 export const organizationRouter = createTRPCRouter({
-  
+
   // 1. Admin Creates Org (And automatically becomes the OWNER)
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1), slug: z.string().min(1) }))
@@ -39,8 +39,8 @@ export const organizationRouter = createTRPCRouter({
 
   // 2. User Requests to Join an Organization
   join: protectedProcedure
-    .input(z.object({ 
-      orgId: z.string(), 
+    .input(z.object({
+      orgId: z.string(),
       role: z.enum(["MANAGER", "OFFICER"]) // User requests a specific role
     }))
     .mutation(async ({ ctx, input }) => {
@@ -71,7 +71,7 @@ export const organizationRouter = createTRPCRouter({
 
   // 3. Approval System (The "Smart" Logic)
   approveMember: protectedProcedure
-    .input(z.object({ 
+    .input(z.object({
       memberId: z.string() // We approve a specific membership request ID
     }))
     .mutation(async ({ ctx, input }) => {
@@ -121,16 +121,16 @@ export const organizationRouter = createTRPCRouter({
 
       return updatedMember;
     }),
-    getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: protectedProcedure.query(async ({ ctx }) => {
     return await ctx.db.query.organization.findMany({
       columns: { id: true, name: true, slug: true },
     });
   }),
 
   // NEW: Get Current User's Status
- getMyStatus: protectedProcedure.query(async ({ ctx }) => {
+  getMyStatus: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
-    
+
     const membership = await ctx.db.query.member.findFirst({
       where: eq(member.userId, userId),
       with: {
@@ -140,7 +140,7 @@ export const organizationRouter = createTRPCRouter({
 
     if (!membership) return { status: "NO_ORG" as const, orgId: null, role: null };
 
-    return { 
+    return {
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
       orgName: membership.organization.name,
       orgId: membership.organizationId, // <--- ADD THIS
@@ -152,7 +152,7 @@ export const organizationRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       // Security: Check if user is Admin or Manager of this Org
       // (For brevity, assuming Global Admin or Manager check passed)
-      
+
       return await ctx.db.select({
         id: member.id, // The Membership ID
         userId: user.id,
@@ -163,9 +163,9 @@ export const organizationRouter = createTRPCRouter({
         status: member.status,
         joinedAt: member.createdAt
       })
-      .from(member)
-      .innerJoin(user, eq(member.userId, user.id))
-      .where(eq(member.organizationId, input.orgId));
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .where(eq(member.organizationId, input.orgId));
     }),
 
   // 2. Update Member Role (Promote/Demote)
@@ -179,12 +179,58 @@ export const organizationRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Update Member Status (Active/Inactive)
+  updateMemberStatus: protectedProcedure
+    .input(z.object({
+      memberId: z.string(),
+      status: z.enum(["ACTIVE", "INACTIVE"])
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const actorId = ctx.user.id;
+
+      // 1. Fetch target membership
+      const targetMember = await ctx.db.query.member.findFirst({
+        where: eq(member.id, input.memberId),
+      });
+
+      if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+
+      // 2. Fetch actor's membership
+      const actorMember = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, actorId),
+          eq(member.organizationId, targetMember.organizationId),
+          eq(member.status, "ACTIVE")
+        )
+      });
+
+      // 3. Permission Check
+      let isAuthorized = false;
+      if (actorMember?.role === "OWNER" || actorMember?.role === "MANAGER") {
+        isAuthorized = true;
+      }
+      else if (ctx.user.globalRole === "ADMIN") {
+        isAuthorized = true;
+      }
+
+      if (!isAuthorized) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to change member status." });
+      }
+
+      // 4. Update Status
+      await ctx.db.update(member)
+        .set({ status: input.status })
+        .where(eq(member.id, input.memberId));
+
+      return { success: true };
+    }),
+
   // 3. Remove/Kick Member
   removeMember: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-       // Permission check needed here
-       await ctx.db.delete(member).where(eq(member.id, input.memberId));
-       return { success: true };
+      // Permission check needed here
+      await ctx.db.delete(member).where(eq(member.id, input.memberId));
+      return { success: true };
     }),
 });
