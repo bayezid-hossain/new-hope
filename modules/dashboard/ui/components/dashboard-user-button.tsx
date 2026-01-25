@@ -1,25 +1,9 @@
-import { authClient } from "@/lib/auth-client";
-import React from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { GeneratedAvatar } from "@/components/generated-avatar";
 import {
   Avatar,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { GeneratedAvatar } from "@/components/generated-avatar";
-import {
-  ChevronDownIcon,
-  CreditCardIcon,
-  LogOutIcon,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerContent,
@@ -29,7 +13,22 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { authClient } from "@/lib/auth-client";
+import {
+  ChevronDownIcon,
+  CreditCardIcon,
+  LogOutIcon,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 const DashboardUserButton = () => {
   const { data, isPending } = authClient.useSession();
   const isMobile = useIsMobile();
@@ -80,7 +79,7 @@ const DashboardUserButton = () => {
             </DrawerDescription>
           </DrawerHeader>
           <DrawerFooter>
-            <Button variant={"outline"} onClick={() => {}}>
+            <Button variant={"outline"} onClick={() => { }}>
               <CreditCardIcon className="size-4 text-black" />
               Billing
             </Button>

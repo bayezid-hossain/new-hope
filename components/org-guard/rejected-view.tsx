@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { XCircle } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { LogOut, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface RejectedStateProps {
@@ -9,9 +11,21 @@ interface RejectedStateProps {
 }
 
 export const RejectedState = ({ orgName }: RejectedStateProps) => {
+    const router = useRouter();
+
+    const onLogout = () => {
+        authClient.signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    router.push("/sign-in");
+                },
+            },
+        });
+    };
+
     return (
         <div className="h-screen w-full flex items-center justify-center bg-muted/10 p-4">
-             <div className="bg-card p-8 rounded-xl border shadow-sm max-w-md text-center space-y-6">
+            <div className="bg-card p-8 rounded-xl border shadow-sm max-w-md text-center space-y-6">
                 <div className="bg-red-100 p-4 rounded-full w-fit mx-auto ring-8 ring-red-50">
                     <XCircle className="h-8 w-8 text-red-600" />
                 </div>
@@ -23,17 +37,21 @@ export const RejectedState = ({ orgName }: RejectedStateProps) => {
                     </p>
                 </div>
 
-                <Button 
-                    variant="destructive" 
-                    className="w-full"
-                    onClick={() => {
-                        toast.info("Please contact your administrator.");
-                        // Optional: Add logic here to leave the org and try again 
-                        // if you have a 'leaveOrganization' mutation
-                    }}
-                >
-                    Contact Support
-                </Button>
+                <div className="flex flex-col gap-2">
+                    <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => {
+                            toast.info("Please contact your administrator.");
+                        }}
+                    >
+                        Contact Support
+                    </Button>
+                    <Button variant="ghost" onClick={onLogout} className="w-full text-muted-foreground">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                    </Button>
+                </div>
             </div>
         </div>
     );

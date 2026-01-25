@@ -15,17 +15,30 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"; // Import TanStack hooks
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export const NoOrgState = () => {
     const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-    
+    const router = useRouter();
+
     const trpc = useTRPC();
     const queryClient = useQueryClient();
+
+    const onLogout = () => {
+        authClient.signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    router.push("/sign-in");
+                },
+            },
+        });
+    };
 
     // FIXED: Use standard useQuery + queryOptions
     const { data: orgs, isPending: isLoadingOrgs } = useQuery(
@@ -50,9 +63,9 @@ export const NoOrgState = () => {
 
     const handleJoin = () => {
         if (!selectedOrgId) return;
-        joinMutation.mutate({ 
-            orgId: selectedOrgId, 
-            role: "OFFICER" 
+        joinMutation.mutate({
+            orgId: selectedOrgId,
+            role: "OFFICER"
         });
     };
 
@@ -72,10 +85,10 @@ export const NoOrgState = () => {
                             <label className="text-sm font-medium text-foreground">
                                 Select Organization
                             </label>
-                            
-                            <Select 
-                                onValueChange={setSelectedOrgId} 
-                                value={selectedOrgId} 
+
+                            <Select
+                                onValueChange={setSelectedOrgId}
+                                value={selectedOrgId}
                                 disabled={isLoadingOrgs || joinMutation.isPending}
                             >
                                 <SelectTrigger>
@@ -96,20 +109,26 @@ export const NoOrgState = () => {
                             </Select>
                         </div>
 
-                        <Button 
-                            onClick={handleJoin}
-                            disabled={!selectedOrgId || joinMutation.isPending}
-                            className="w-full"
-                        >
-                            {joinMutation.isPending ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Sending Request...
-                                </>
-                            ) : (
-                                "Request to Join"
-                            )}
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                            <Button
+                                onClick={handleJoin}
+                                disabled={!selectedOrgId || joinMutation.isPending}
+                                className="w-full"
+                            >
+                                {joinMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Sending Request...
+                                    </>
+                                ) : (
+                                    "Request to Join"
+                                )}
+                            </Button>
+                            <Button variant="ghost" onClick={onLogout} className="w-full text-muted-foreground">
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Logout
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
