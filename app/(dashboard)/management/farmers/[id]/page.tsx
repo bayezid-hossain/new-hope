@@ -10,13 +10,13 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAdminCycleColumns, getAdminHistoryColumns } from "@/modules/admin/components/admin-columns";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 
 import { Badge } from "@/components/ui/badge";
+import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -39,7 +39,7 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
             <>
                 <div className="hidden sm:block">
                     <DataTable
-                        columns={getAdminCycleColumns({ prefix: "/management" })}
+                        columns={getCycleColumns({ prefix: "/management" })}
                         data={(data?.items || []) as Farmer[]}
                     />
                 </div>
@@ -67,7 +67,7 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
             <>
                 <div className="hidden sm:block">
                     <DataTable
-                        columns={getAdminHistoryColumns({ prefix: "/management" })}
+                        columns={getHistoryColumns({ prefix: "/management" })}
                         data={data?.items as any[] || []}
                     />
                 </div>
