@@ -17,7 +17,8 @@ const layout = ({ children }: Props) => {
           <DashboardNavbar />
           {children}
         </main>
-      </SidebarProvider></OrgGuard>
+      </SidebarProvider>
+    </OrgGuard>
   );
 };
 
