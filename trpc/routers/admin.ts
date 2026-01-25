@@ -1,4 +1,4 @@
-import { cycleHistory, cycles, farmer, member, organization, user } from "@/db/schema";
+import { cycleHistory, cycles, farmer, member, organization, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -79,13 +79,15 @@ export const adminRouter = createTRPCRouter({
         with: {
           cycles: {
             where: eq(cycles.status, 'active'),
-          }
+          },
+          history: true
         },
         orderBy: [desc(farmer.createdAt)]
       });
       return data.map(f => ({
         ...f,
-        activeCyclesCount: f.cycles.length
+        activeCyclesCount: f.cycles.length,
+        pastCyclesCount: f.history.length
       }));
     }),
 
@@ -209,5 +211,80 @@ export const adminRouter = createTRPCRouter({
       }).returning();
 
       return newOrg;
+    }),
+
+  // Get Farmer Details for Admin Dashboard (No restriction)
+  getFarmerDetails: adminProcedure
+    .input(z.object({ farmerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const data = await ctx.db.query.farmer.findFirst({
+        where: eq(farmer.id, input.farmerId),
+        with: {
+          cycles: {
+            where: eq(cycles.status, 'active')
+          },
+          history: true,
+          officer: true
+        }
+      });
+      return data;
+    }),
+
+  // active cycles for specific farmer (admin view)
+  getFarmerCycles: adminProcedure
+    .input(z.object({ farmerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const data = await ctx.db.select({
+        cycle: cycles,
+        farmerName: farmer.name,
+      })
+        .from(cycles)
+        .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+        .where(
+          and(
+            eq(cycles.farmerId, input.farmerId),
+            eq(cycles.status, "active")
+          )
+        )
+        .orderBy(desc(cycles.createdAt));
+
+      return { items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })) };
+    }),
+
+  // history for specific farmer (admin view)
+  getFarmerHistory: adminProcedure
+    .input(z.object({ farmerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const data = await ctx.db.select({
+        history: cycleHistory,
+        farmerName: farmer.name
+      })
+        .from(cycleHistory)
+        .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+        .where(eq(cycleHistory.farmerId, input.farmerId))
+        .orderBy(desc(cycleHistory.endDate));
+
+      return {
+        items: data.map(d => ({
+          ...d.history,
+          name: d.history.cycleName,
+          farmerName: d.farmerName,
+          organizationId: d.history.organizationId || "",
+          createdAt: d.history.startDate, // legacy mapping if needed
+          updatedAt: d.history.endDate,
+          intake: d.history.finalIntake,
+          status: 'archived'
+        }))
+      };
+    }),
+
+  getFarmerStockLogs: adminProcedure
+    .input(z.object({ farmerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Ensure 'stockLogs' is exported from your schema file!
+      return await ctx.db.select()
+        .from(stockLogs) // Ensure this is imported in this file
+        .where(eq(stockLogs.farmerId, input.farmerId))
+        .orderBy(desc(stockLogs.createdAt));
     }),
 });

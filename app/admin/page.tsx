@@ -77,7 +77,7 @@ function AdminStats() {
     return (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {items.map((item) => (
-                <Card key={item.label} className="border-none shadow-sm overflow-hidden relative group">
+                <Card key={item.label} className=" py-2 border-none shadow-sm overflow-hidden relative group">
                     <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.gradient}`} />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-slate-500">{item.label}</CardTitle>

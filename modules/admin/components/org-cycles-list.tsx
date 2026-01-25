@@ -11,7 +11,7 @@ import { ArrowRight, Bird, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-export const OrgCyclesList = ({ orgId }: { orgId: string }) => {
+export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string; isAdmin?: boolean; isManagement?: boolean }) => {
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
 
@@ -68,7 +68,11 @@ export const OrgCyclesList = ({ orgId }: { orgId: string }) => {
                                 {filteredCycles.map((cycle) => (
                                     <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
                                         <TableCell className="font-bold text-slate-900 px-6">{cycle.name}</TableCell>
-                                        <TableCell className="text-slate-600 font-medium">{cycle.farmerName}</TableCell>
+                                        <TableCell className="text-slate-600 font-medium">
+                                            <Link href={isAdmin ? `/admin/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer">
+                                                {cycle.farmerName}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell>
                                             <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                         </TableCell>
@@ -88,7 +92,7 @@ export const OrgCyclesList = ({ orgId }: { orgId: string }) => {
                                         </TableCell>
                                         <TableCell className="px-6">
                                             <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity" asChild>
-                                                <Link href={`/cycles/${cycle.id}`}>
+                                                <Link href={isAdmin ? `/admin/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                                                     <ArrowRight className="h-4 w-4 text-slate-400" />
                                                 </Link>
                                             </Button>
@@ -102,7 +106,7 @@ export const OrgCyclesList = ({ orgId }: { orgId: string }) => {
                     {/* Mobile Cards */}
                     <div className="md:hidden space-y-3">
                         {filteredCycles.map((cycle) => (
-                            <Link href={`/cycles/${cycle.id}`} key={cycle.id} className="block">
+                            <Link href={isAdmin ? `/admin/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} key={cycle.id} className="block">
                                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="space-y-0.5">

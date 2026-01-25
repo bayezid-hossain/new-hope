@@ -10,11 +10,13 @@ import { MembersList } from "@/modules/admin/components/members-list";
 import { OfficerAnalytics } from "@/modules/admin/components/officer-analytics";
 import { OrgCyclesList } from "@/modules/admin/components/org-cycles-list";
 import { OrgFarmersList } from "@/modules/admin/components/org-farmers-list";
+import { ProductionTree } from "@/modules/admin/components/production-tree";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
     ArrowLeft,
+    Bird,
     Building2,
     LayoutDashboard,
     Loader2,
@@ -93,9 +95,13 @@ export default function OrganizationDetailsPage() {
                                     <Wheat className="h-4 w-4" />
                                     Farmers
                                 </TabsTrigger>
-                                <TabsTrigger value="cycles" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                <TabsTrigger value="production" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
                                     <Activity className="h-4 w-4" />
-                                    Cycles
+                                    Production Tree
+                                </TabsTrigger>
+                                <TabsTrigger value="cycles" className="hidden sm:flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                    <Bird className="h-4 w-4" />
+                                    Active Records
                                 </TabsTrigger>
                                 <TabsTrigger value="officers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
                                     <UserCircle2 className="h-4 w-4" />
@@ -105,7 +111,20 @@ export default function OrganizationDetailsPage() {
                         </div>
 
                         <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
-                            <OrgOverview org={org} />
+                            <Card className="border-none shadow-sm overflow-hidden bg-white">
+                                <CardContent className="p-6">
+                                    <OfficerAnalytics orgId={org.id} isManagement={false} />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="production" className="mt-0 focus-visible:outline-none">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <h2 className="text-xl font-bold text-slate-900">Production Hierarchy</h2>
+                                </div>
+                                <ProductionTree orgId={org.id} isAdmin={true} />
+                            </div>
                         </TabsContent>
 
                         <TabsContent value="members" className="mt-0 focus-visible:outline-none">
@@ -119,7 +138,7 @@ export default function OrganizationDetailsPage() {
                         <TabsContent value="farmers" className="mt-0 focus-visible:outline-none">
                             <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
                                 <CardContent className="p-0 sm:p-6">
-                                    <OrgFarmersList orgId={org.id} />
+                                    <OrgFarmersList orgId={org.id} isAdmin={true} />
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -127,7 +146,7 @@ export default function OrganizationDetailsPage() {
                         <TabsContent value="cycles" className="mt-0 focus-visible:outline-none">
                             <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
                                 <CardContent className="p-0 sm:p-6">
-                                    <OrgCyclesList orgId={org.id} />
+                                    <OrgCyclesList orgId={org.id} isAdmin={true} />
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -135,7 +154,7 @@ export default function OrganizationDetailsPage() {
                         <TabsContent value="officers" className="mt-0 focus-visible:outline-none">
                             <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
                                 <CardContent className="p-0 sm:p-6">
-                                    <OfficerAnalytics orgId={org.id} />
+                                    <OfficerAnalytics orgId={org.id} isManagement={false} />
                                 </CardContent>
                             </Card>
                         </TabsContent>

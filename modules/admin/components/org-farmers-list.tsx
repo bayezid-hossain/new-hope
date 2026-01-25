@@ -7,11 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
+import { Activity, Archive, ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
+interface OrgFarmersListProps {
+    orgId: string;
+    isManagement?: boolean;
+    isAdmin?: boolean;
+}
+
+export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListProps) => {
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
 
@@ -22,6 +28,12 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
     const filteredFarmers = farmers?.filter(f =>
         f.name.toLowerCase().includes(search.toLowerCase())
     );
+
+    const getFarmerLink = (farmerId: string) => {
+        if (isAdmin) return `/admin/farmers/${farmerId}`;
+        if (isManagement) return `/management/farmers/${farmerId}`;
+        return `/farmers/${farmerId}`;
+    };
 
     if (isLoading) {
         return (
@@ -56,7 +68,7 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
                                 <TableRow>
                                     <TableHead className="font-semibold px-6">Farmer Name</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Active Cycles</TableHead>
+                                    <TableHead className="font-semibold">Cycles</TableHead>
                                     <TableHead className="font-semibold">Stock</TableHead>
                                     <TableHead className="font-semibold">Joined</TableHead>
                                     <TableHead className="w-[50px] px-6"></TableHead>
@@ -74,9 +86,15 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                                                <Bird className="h-4 w-4 text-primary/40" />
-                                                {farmer.activeCyclesCount}
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-xs">
+                                                    <Activity className="h-3 w-3" />
+                                                    {farmer.activeCyclesCount} Active
+                                                </div>
+                                                <div className="flex items-center gap-1.5 font-medium text-slate-400 text-[10px]">
+                                                    <Archive className="h-3 w-3" />
+                                                    {farmer.pastCyclesCount} Past
+                                                </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -90,7 +108,7 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
                                         </TableCell>
                                         <TableCell className="px-6">
                                             <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity" asChild>
-                                                <Link href={`/farmers/${farmer.id}`}>
+                                                <Link href={getFarmerLink(farmer.id)}>
                                                     <ArrowRight className="h-4 w-4 text-slate-400" />
                                                 </Link>
                                             </Button>
@@ -104,7 +122,7 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
                     {/* Mobile Cards */}
                     <div className="md:hidden space-y-3">
                         {filteredFarmers.map((farmer) => (
-                            <Link href={`/farmers/${farmer.id}`} key={farmer.id} className="block">
+                            <Link href={getFarmerLink(farmer.id)} key={farmer.id} className="block">
                                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="space-y-0.5">
@@ -125,8 +143,12 @@ export const OrgFarmersList = ({ orgId }: { orgId: string }) => {
                                                 <Bird className="h-3.5 w-3.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Cycles</span>
-                                                <span className="text-sm font-bold text-slate-900">{farmer.activeCyclesCount} Active</span>
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Production</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-emerald-600">{farmer.activeCyclesCount} Active</span>
+                                                    <span className="text-slate-300">•</span>
+                                                    <span className="text-xs font-medium text-slate-500">{farmer.pastCyclesCount} Past</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">

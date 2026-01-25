@@ -7,9 +7,10 @@ import { MembersList } from "@/modules/admin/components/members-list";
 import { OfficerAnalytics } from "@/modules/admin/components/officer-analytics";
 import { OrgCyclesList } from "@/modules/admin/components/org-cycles-list";
 import { OrgFarmersList } from "@/modules/admin/components/org-farmers-list";
+import { ProductionTree } from "@/modules/admin/components/production-tree";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Building2, Users, Wheat } from "lucide-react";
+import { Activity, Bird, Building2, Scale, Users, Wheat } from "lucide-react";
 
 export default function ManagementPage() {
     const trpc = useTRPC();
@@ -73,8 +74,12 @@ export default function ManagementPage() {
                             <Wheat className="h-4 w-4" />
                             Farmers
                         </TabsTrigger>
+                        <TabsTrigger value="production" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                            <Scale className="h-4 w-4" />
+                            Production Tree
+                        </TabsTrigger>
                         <TabsTrigger value="cycles" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
-                            <Activity className="h-4 w-4" />
+                            <Bird className="h-4 w-4" />
                             Active Cycles
                         </TabsTrigger>
                     </TabsList>
@@ -91,21 +96,28 @@ export default function ManagementPage() {
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold text-slate-900">Officer Performance</h2>
                     </div>
-                    <OfficerAnalytics orgId={statusData.orgId} />
+                    <OfficerAnalytics orgId={statusData.orgId} isManagement={true} />
                 </TabsContent>
 
                 <TabsContent value="farmers" className="space-y-4 focus-visible:outline-none focus-visible:ring-0">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-slate-900">Farmer Directory</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Farmer Network</h2>
                     </div>
-                    <OrgFarmersList orgId={statusData.orgId} />
+                    <OrgFarmersList orgId={statusData.orgId} isManagement={true} />
+                </TabsContent>
+
+                <TabsContent value="production" className="space-y-4 focus-visible:outline-none focus-visible:ring-0">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-slate-900">Production Hierarchy</h2>
+                    </div>
+                    <ProductionTree orgId={statusData.orgId} isManagement={true} />
                 </TabsContent>
 
                 <TabsContent value="cycles" className="space-y-4 focus-visible:outline-none focus-visible:ring-0">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold text-slate-900">Current Production</h2>
                     </div>
-                    <OrgCyclesList orgId={statusData.orgId} />
+                    <OrgCyclesList orgId={statusData.orgId} isManagement={true} />
                 </TabsContent>
             </Tabs>
         </div>

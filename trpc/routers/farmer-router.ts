@@ -1,5 +1,5 @@
 
-import { cycles, farmer } from "@/db/schema"; // Ensure 'cycles' is imported if relation exists
+import { cycles, farmer, member } from "@/db/schema"; // Ensure 'cycles' is imported if relation exists
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
@@ -25,7 +25,7 @@ export const farmersRouter = createTRPCRouter({
       // 1. Build the WHERE clause
       const whereClause = and(
         // Filter by Organization (safety check: default to empty string if undefined)
-        eq(farmer.organizationId, orgId ?? ""),
+        eq(farmer.organizationId, orgId ?? ""), eq(farmer.officerId, ctx.user.id),
 
         // Search Logic: Matches Name OR Phone Number
         search
@@ -88,12 +88,29 @@ export const farmersRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { farmerId } = input;
-      const data = await ctx.db.query.farmer.findFirst({
-        where: and(
-          eq(farmer.id, farmerId),
-          ctx.user.globalRole === "ADMIN" ? undefined : eq(farmer.officerId, ctx.user.id)
-        ),
+
+      const targetFarmer = await ctx.db.query.farmer.findFirst({
+        where: eq(farmer.id, farmerId),
       });
-      return data;
+
+      if (!targetFarmer) return null;
+
+
+      // 2. Direct Officer check
+      if (targetFarmer.officerId === ctx.user.id) return targetFarmer;
+
+      // 3. Manager/Owner check (Must be ACTIVE member in SAME organization)
+      const membership = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, ctx.user.id),
+          eq(member.organizationId, targetFarmer.organizationId),
+          eq(member.status, "ACTIVE"),
+          or(eq(member.role, "MANAGER"), eq(member.role, "OWNER"))
+        )
+      });
+
+      if (membership) return targetFarmer;
+
+      return null;
     }),
 });

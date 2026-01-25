@@ -1,6 +1,7 @@
 "use client";
 
 import ResponsiveDialog from "@/components/responsive-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -34,9 +35,12 @@ import { EndCycleModal } from "./end-cycle-modal";
 
 interface MobileCycleCardProps {
     cycle: any;
+    prefix?: string;
+    currentId?: string;
 }
 
-export const MobileCycleCard = ({ cycle }: MobileCycleCardProps) => {
+export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardProps) => {
+    const isCurrent = cycle.id === currentId;
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -67,13 +71,16 @@ export const MobileCycleCard = ({ cycle }: MobileCycleCardProps) => {
     const createdAt = cycle.startDate || cycle.createdAt;
 
     return (
-        <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
+        <Card className={`border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors ${isCurrent ? 'ring-2 ring-primary border-primary/20 bg-primary/5' : ''}`}>
             <CardContent className="p-4 space-y-4">
                 {/* Top Section: Header & Status */}
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col gap-1">
-                        <Link href={`/farmers/${cycle.farmerId}`} className="group flex items-center gap-1.5 focus:outline-none">
+                        <Link href={`${prefix || ""}/farmers/${cycle.farmerId}`} className="group flex items-center gap-1.5 focus:outline-none">
                             <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{cycleName}</h3>
+                            {isCurrent && (
+                                <Badge variant="outline" className="text-[8px] h-4 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
+                            )}
                             <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                         </Link>
                     </div>
@@ -175,7 +182,7 @@ export const MobileCycleCard = ({ cycle }: MobileCycleCardProps) => {
 
                 {/* View Details Button */}
                 <Button variant="outline" className="w-full text-xs font-semibold h-9 rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
-                    <Link href={`/cycles/${cycle.id}`}>
+                    <Link href={`${prefix || ""}/cycles/${cycle.id}`}>
                         View Details
                         <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                     </Link>
