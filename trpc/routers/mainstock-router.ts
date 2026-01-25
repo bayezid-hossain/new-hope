@@ -180,14 +180,14 @@ export const mainStockRouter = createTRPCRouter({
         const sourceFarmer = await tx.query.farmer.findFirst({
           where: and(
             eq(farmer.id, input.sourceFarmerId),
-            eq(farmer.officerId, ctx.user.id)
+            ctx.user.globalRole === "ADMIN" ? undefined : eq(farmer.officerId, ctx.user.id)
           )
         });
 
         const targetFarmer = await tx.query.farmer.findFirst({
           where: and(
             eq(farmer.id, input.targetFarmerId),
-            eq(farmer.officerId, ctx.user.id)
+            ctx.user.globalRole === "ADMIN" ? undefined : eq(farmer.officerId, ctx.user.id)
           )
         });
 

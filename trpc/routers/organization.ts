@@ -1,12 +1,33 @@
-// src/server/routers/organization.ts
-import { member, organization, user } from "@/db/schema";
+import { cycleHistory, cycles, farmer, member, organization, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init"; // Use your init file
 
 export const organizationRouter = createTRPCRouter({
-  
+  // NEW: Get Stats for a specific organization
+  getOrgStats: protectedProcedure
+    .input(z.object({ orgId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [memberCount] = await ctx.db.select({ count: count() })
+        .from(member)
+        .where(eq(member.organizationId, input.orgId));
+
+      const [farmerCount] = await ctx.db.select({ count: count() })
+        .from(farmer)
+        .where(eq(farmer.organizationId, input.orgId));
+
+      const [activeCycles] = await ctx.db.select({ count: count() })
+        .from(cycles)
+        .where(and(eq(cycles.organizationId, input.orgId), eq(cycles.status, "active")));
+
+      return {
+        members: memberCount.count,
+        farmers: farmerCount.count,
+        activeCycles: activeCycles.count
+      };
+    }),
+
   // 1. Admin Creates Org (And automatically becomes the OWNER)
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1), slug: z.string().min(1) }))
@@ -39,8 +60,8 @@ export const organizationRouter = createTRPCRouter({
 
   // 2. User Requests to Join an Organization
   join: protectedProcedure
-    .input(z.object({ 
-      orgId: z.string(), 
+    .input(z.object({
+      orgId: z.string(),
       role: z.enum(["MANAGER", "OFFICER"]) // User requests a specific role
     }))
     .mutation(async ({ ctx, input }) => {
@@ -71,7 +92,7 @@ export const organizationRouter = createTRPCRouter({
 
   // 3. Approval System (The "Smart" Logic)
   approveMember: protectedProcedure
-    .input(z.object({ 
+    .input(z.object({
       memberId: z.string() // We approve a specific membership request ID
     }))
     .mutation(async ({ ctx, input }) => {
@@ -121,16 +142,16 @@ export const organizationRouter = createTRPCRouter({
 
       return updatedMember;
     }),
-    getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: protectedProcedure.query(async ({ ctx }) => {
     return await ctx.db.query.organization.findMany({
       columns: { id: true, name: true, slug: true },
     });
   }),
 
   // NEW: Get Current User's Status
- getMyStatus: protectedProcedure.query(async ({ ctx }) => {
+  getMyStatus: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
-    
+
     const membership = await ctx.db.query.member.findFirst({
       where: eq(member.userId, userId),
       with: {
@@ -140,7 +161,7 @@ export const organizationRouter = createTRPCRouter({
 
     if (!membership) return { status: "NO_ORG" as const, orgId: null, role: null };
 
-    return { 
+    return {
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
       orgName: membership.organization.name,
       orgId: membership.organizationId, // <--- ADD THIS
@@ -152,7 +173,7 @@ export const organizationRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       // Security: Check if user is Admin or Manager of this Org
       // (For brevity, assuming Global Admin or Manager check passed)
-      
+
       return await ctx.db.select({
         id: member.id, // The Membership ID
         userId: user.id,
@@ -163,9 +184,9 @@ export const organizationRouter = createTRPCRouter({
         status: member.status,
         joinedAt: member.createdAt
       })
-      .from(member)
-      .innerJoin(user, eq(member.userId, user.id))
-      .where(eq(member.organizationId, input.orgId));
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .where(eq(member.organizationId, input.orgId));
     }),
 
   // 2. Update Member Role (Promote/Demote)
@@ -179,12 +200,142 @@ export const organizationRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Update Member Status (Active/Inactive)
+  updateMemberStatus: protectedProcedure
+    .input(z.object({
+      memberId: z.string(),
+      status: z.enum(["ACTIVE", "INACTIVE"])
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const actorId = ctx.user.id;
+
+      // 1. Fetch target membership
+      const targetMember = await ctx.db.query.member.findFirst({
+        where: eq(member.id, input.memberId),
+      });
+
+      if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+
+      // 2. Fetch actor's membership
+      const actorMember = await ctx.db.query.member.findFirst({
+        where: and(
+          eq(member.userId, actorId),
+          eq(member.organizationId, targetMember.organizationId),
+          eq(member.status, "ACTIVE")
+        )
+      });
+
+      // 3. Permission Check
+      let isAuthorized = false;
+      if (actorMember?.role === "OWNER" || actorMember?.role === "MANAGER") {
+        isAuthorized = true;
+      }
+      else if (ctx.user.globalRole === "ADMIN") {
+        isAuthorized = true;
+      }
+
+      if (!isAuthorized) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to change member status." });
+      }
+
+      // 4. Update Status
+      await ctx.db.update(member)
+        .set({ status: input.status })
+        .where(eq(member.id, input.memberId));
+
+      return { success: true };
+    }),
+
   // 3. Remove/Kick Member
   removeMember: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-       // Permission check needed here
-       await ctx.db.delete(member).where(eq(member.id, input.memberId));
-       return { success: true };
+      // Permission check needed here
+      await ctx.db.delete(member).where(eq(member.id, input.memberId));
+      return { success: true };
+    }),
+
+  getOfficerAnalytics: protectedProcedure
+    .input(z.object({ orgId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const officers = await ctx.db.query.member.findMany({
+        where: and(
+          eq(member.organizationId, input.orgId),
+          eq(member.status, "ACTIVE")
+        ),
+        with: {
+          user: true
+        }
+      });
+
+      const analytics = await Promise.all(officers.map(async (m) => {
+        const managedFarmers = await ctx.db.query.farmer.findMany({
+          where: and(
+            eq(farmer.officerId, m.userId),
+            eq(farmer.organizationId, input.orgId)
+          )
+        });
+
+        const farmerIds = managedFarmers.map(f => f.id);
+
+        if (farmerIds.length === 0) {
+          return {
+            officerId: m.userId,
+            name: m.user.name,
+            email: m.user.email,
+            role: m.role,
+            farmersCount: 0,
+            activeCycles: 0,
+            pastCycles: 0,
+            totalDoc: 0,
+            totalIntake: 0,
+            totalMortality: 0
+          };
+        }
+
+        const activeBatch = await ctx.db.select({
+          totalDoc: sql<number>`sum(${cycles.doc})`,
+          totalIntake: sql<number>`sum(${cycles.intake})`,
+          totalMortality: sql<number>`sum(${cycles.mortality})`,
+          count: sql<number>`count(*)`
+        })
+          .from(cycles)
+          .where(
+            and(
+              eq(cycles.organizationId, input.orgId),
+              sql`${cycles.farmerId} IN ${farmerIds}`,
+              eq(cycles.status, "active")
+            )
+          );
+
+        const pastBatch = await ctx.db.select({
+          totalDoc: sql<number>`sum(${cycleHistory.doc})`,
+          totalIntake: sql<number>`sum(${cycleHistory.finalIntake})`,
+          totalMortality: sql<number>`sum(${cycleHistory.mortality})`,
+          count: sql<number>`count(*)`
+        })
+          .from(cycleHistory)
+          .where(
+            and(
+              eq(cycleHistory.organizationId, input.orgId),
+              sql`${cycleHistory.farmerId} IN ${farmerIds}`
+            )
+          );
+
+        return {
+          officerId: m.userId,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.role,
+          farmersCount: managedFarmers.length,
+          activeCycles: Number(activeBatch[0]?.count || 0),
+          pastCycles: Number(pastBatch[0]?.count || 0),
+          totalDoc: Number(activeBatch[0]?.totalDoc || 0) + Number(pastBatch[0]?.totalDoc || 0),
+          totalIntake: Number(activeBatch[0]?.totalIntake || 0) + Number(pastBatch[0]?.totalIntake || 0),
+          totalMortality: Number(activeBatch[0]?.totalMortality || 0) + Number(pastBatch[0]?.totalMortality || 0)
+        };
+      }));
+
+      return analytics;
     }),
 });

@@ -23,7 +23,7 @@ export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 // Org Role: "OWNER" (The Admin who made it), "MANAGER" (Approver), "OFFICER" (Worker)
 export const orgRoleEnum = pgEnum("org_role", ["OWNER", "MANAGER", "OFFICER"]);
 
-export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED"]);
+export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED", "INACTIVE"]);
 export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE"]);
 
 
@@ -39,9 +39,9 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  
+
   // Custom Field for Global Admin logic
-  globalRole: globalRoleEnum("global_role").default("USER").notNull(), 
+  globalRole: globalRoleEnum("global_role").default("USER").notNull(),
 });
 
 export const session = pgTable("session", {
@@ -97,11 +97,11 @@ export const member = pgTable("member", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-  
+
   // ROLE & STATUS
   role: orgRoleEnum("role").notNull().default("OFFICER"),
   status: memberStatusEnum("status").notNull().default("PENDING"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
@@ -117,80 +117,80 @@ export const member = pgTable("member", {
 export const farmer = pgTable("farmer", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  
+
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   mainStock: real("main_stock").notNull(),
   totalConsumed: real("total_consumed").notNull().default(0),
   // STRICT OWNERSHIP: Only the officer who created this farmer can manage them
-  officerId: text("officer_id").notNull().references(() => user.id), 
-  
+  officerId: text("officer_id").notNull().references(() => user.id),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const cycles = pgTable("cycles", {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()), 
-    name: text("name").notNull(), // e.g., "Batch-2024-A"
-    
-    // Ownership
-    farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(), // e.g., "Batch-2024-A"
 
-    // Data
-    doc: integer("doc").notNull(), // Day Old Chicks count
-    intake: real("intake").notNull().default(0),
-    mortality: integer("mortality").notNull().default(0),
-    age: integer("age").notNull().default(0),
-    status: text("status").notNull().default("active"),
-    
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  // Ownership
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+
+  // Data
+  doc: integer("doc").notNull(), // Day Old Chicks count
+  intake: real("intake").notNull().default(0),
+  mortality: integer("mortality").notNull().default(0),
+  age: integer("age").notNull().default(0),
+  status: text("status").notNull().default("active"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // ARCHIVE TABLE: Stores completed cycles
 export const cycleHistory = pgTable("cycle_history", {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    
-    cycleName: text("cycle_name").notNull(),
-    farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
-    
-    // Snapshot of final stats
-    doc: integer("doc").notNull(),
-    finalIntake: real("final_intake").notNull(),
-    mortality: integer("mortality").notNull(),
-    age: integer("age").notNull(),
-    
-    status: text("status").notNull().default("archived"),
-    startDate: timestamp("start_date").notNull(),
-    endDate: timestamp("end_date").defaultNow().notNull(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
+  cycleName: text("cycle_name").notNull(),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+
+  // Snapshot of final stats
+  doc: integer("doc").notNull(),
+  finalIntake: real("final_intake").notNull(),
+  mortality: integer("mortality").notNull(),
+  age: integer("age").notNull(),
+
+  status: text("status").notNull().default("archived"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").defaultNow().notNull(),
 });
 
 export const cycleLogs = pgTable("cycle_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  
+
   // Can belong to EITHER an active Cycle OR a History record
   // "Set null" on cycleId allows the log to persist even if the active cycle row is deleted/archived
-  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }), 
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }),
   historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
 
   userId: text("user_id").notNull().references(() => user.id),
-  
+
   type: logTypeEnum("type").notNull(),
   valueChange: doublePrecision("value_change").notNull(),
-  
+
   // Audit fields
-  previousValue: doublePrecision("previous_value"), 
+  previousValue: doublePrecision("previous_value"),
   newValue: doublePrecision("new_value"),
   note: text("note"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // db/schema.ts
 export const stockLogs = pgTable("stock_logs", {
-   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-   
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
   farmerId: text("farmer_id").references(() => farmer.id),
   amount: decimal("amount").notNull(), // Positive for Add, Negative for Deduct
   type: varchar("type", { length: 50 }).notNull(), // "RESTOCK", "CYCLE_CLOSE", "CORRECTION", "INITIAL"

@@ -83,8 +83,12 @@ const DashboardUserButton = () => {
               <CreditCardIcon className="size-4 text-black" />
               Billing
             </Button>
-            <Button onClick={onLogout} variant={"outline"}>
-              <LogOutIcon className="size-4 text-black" />
+            <Button
+              onClick={onLogout}
+              variant={"destructive"}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider h-11 shadow-sm"
+            >
+              <LogOutIcon className="size-4 text-white" />
               Logout
             </Button>
           </DrawerFooter>
@@ -138,9 +142,9 @@ const DashboardUserButton = () => {
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={onLogout}
-          className="cursor-pointer flex items-center justify-between"
+          className="cursor-pointer flex items-center justify-between text-white bg-red-600 hover:bg-red-700 focus:bg-red-700 focus:text-white mt-1 font-bold rounded-lg transition-colors px-3 py-2"
         >
-          Logout <LogOutIcon className="size-4" />
+          Logout <LogOutIcon className="size-4 text-white" />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -89,7 +89,10 @@ export const farmersRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { farmerId } = input;
       const data = await ctx.db.query.farmer.findFirst({
-        where: and(eq(farmer.id, farmerId), eq(farmer.officerId, ctx.session.userId)),
+        where: and(
+          eq(farmer.id, farmerId),
+          ctx.user.globalRole === "ADMIN" ? undefined : eq(farmer.officerId, ctx.user.id)
+        ),
       });
       return data;
     }),

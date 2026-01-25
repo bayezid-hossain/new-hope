@@ -45,7 +45,7 @@ export const cyclesRouter = createTRPCRouter({
       const whereClause = and(
         eq(cycles.organizationId, orgId),
         eq(cycles.status, "active"),
-        eq(farmer.officerId, ctx.user.id), // STRICT: Only farmers managed by current user
+        ctx.user.globalRole === "ADMIN" ? undefined : eq(farmer.officerId, ctx.user.id), // STRICT: Only farmers managed by current user (unless Admin)
         farmerId ? eq(cycles.farmerId, farmerId) : undefined,
         search ? ilike(cycles.name, `%${search}%`) : undefined,
       );
