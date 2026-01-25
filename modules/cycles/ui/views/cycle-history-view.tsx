@@ -10,7 +10,7 @@ import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
 import { getHistoryColumns } from "../components/shared/columns-factory";
 
 
-export const CycleHistoryView = ({ activeCycleId }: { activeCycleId: string }) => {
+export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) => {
     const { orgId } = useCurrentOrg();
     const trpc = useTRPC();
 
