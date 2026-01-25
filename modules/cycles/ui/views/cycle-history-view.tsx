@@ -2,15 +2,15 @@
 
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
-import { historyColumns } from "@/modules/cycles/ui/components/history/history-columns";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { FarmerHistory } from "../../types";
 import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
+import { getHistoryColumns } from "../components/shared/columns-factory";
 
 
-export const CycleHistoryView = () => {
+export const CycleHistoryView = ({ activeCycleId }: { activeCycleId: string }) => {
     const { orgId } = useCurrentOrg();
     const trpc = useTRPC();
 
@@ -42,7 +42,7 @@ export const CycleHistoryView = () => {
 
             <div className={`hidden sm:block rounded-xl border bg-card text-card-foreground shadow-sm`}>
                 <DataTable
-                    columns={historyColumns}
+                    columns={getHistoryColumns({ enableActions: true, currentId: activeCycleId })}
                     data={(data?.items || []) as unknown as FarmerHistory[]}
                 />
             </div>

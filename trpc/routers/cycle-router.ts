@@ -76,6 +76,7 @@ export const cyclesRouter = createTRPCRouter({
       const data = await ctx.db.select({
         cycle: cycles,
         farmerName: farmer.name,
+        farmerMainStock: farmer.mainStock,
       })
         .from(cycles)
         .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
@@ -90,7 +91,11 @@ export const cyclesRouter = createTRPCRouter({
         .where(whereClause);
 
       return {
-        items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })),
+        items: data.map(d => ({
+          ...d.cycle,
+          farmerName: d.farmerName,
+          farmerMainStock: d.farmerMainStock
+        })),
         total: total.count,
         totalPages: Math.ceil(total.count / pageSize)
       };

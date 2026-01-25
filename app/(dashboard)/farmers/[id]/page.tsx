@@ -18,11 +18,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
-import { columns } from "@/modules/cycles/ui/components/cycles/columns";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
-import { historyColumns } from "@/modules/cycles/ui/components/history/history-columns";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
+import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -60,7 +59,7 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
       <>
         <div className="hidden sm:block">
           <DataTable
-            columns={columns}
+            columns={getCycleColumns({ enableActions: true })}
             data={(data?.items || []) as Farmer[]}
           />
         </div>
@@ -88,7 +87,7 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
       <>
         <div className="hidden sm:block">
           <DataTable
-            columns={historyColumns}
+            columns={getHistoryColumns({ enableActions: true })}
             data={data?.items as any[] || []}
           />
         </div>

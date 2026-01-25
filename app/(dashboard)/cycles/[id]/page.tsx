@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
-import { historyColumns } from "@/modules/cycles/ui/components/history/history-columns";
+import { getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -269,7 +269,7 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
         )}
         {history && history.filter((h: any) => h.id !== cycleId).length > 0 ? (
             <DataTable
-                columns={historyColumns}
+                columns={getHistoryColumns({ enableActions: true, currentId: cycleId })}
                 data={history.filter((h: any) => h.id !== cycleId)}
             />
         ) : (

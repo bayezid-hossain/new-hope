@@ -14,11 +14,11 @@ import { toast } from "sonner";
 // 👇 Assuming you have similar hooks/components for Cycles
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCyclesFilters } from "../../hooks/use-cycles-filters";
-import { columns } from "../components/cycles/columns";
 import { CreateCycleModal } from "../components/cycles/create-cycle-modal";
 import { DataTable } from "../components/data-table";
 
 import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
+import { getCycleColumns } from "../components/shared/columns-factory";
 
 
 const CyclesContent = () => {
@@ -125,7 +125,7 @@ const CyclesContent = () => {
             <div className={`hidden sm:block transition-opacity duration-200 ${isFetching ? "opacity-60" : "opacity-100"}`}>
                 <DataTable
                     data={data.items}
-                    columns={columns}
+                    columns={getCycleColumns({ enableActions: true })}
                     sorting={sorting}
                     onSortingChange={setSorting}
                 />

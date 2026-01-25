@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
+import { getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -27,7 +28,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { getAdminHistoryColumns } from "./admin-columns";
 
 // --- Sub-components replicating standard detail page logic ---
 
@@ -206,7 +206,7 @@ const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId }: { 
                         <>
                             <div className="hidden md:block">
                                 <DataTable
-                                    columns={getAdminHistoryColumns({ prefix, currentId })}
+                                    columns={getHistoryColumns({ prefix, currentId })}
                                     data={history}
                                 />
                             </div>
