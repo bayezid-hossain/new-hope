@@ -1,5 +1,4 @@
 "use client";
-
 import { Separator } from "@/components/ui/separator";
 import {
     Sidebar,
@@ -14,17 +13,31 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import {
-    Building2,
-    ExternalLink,
-    LogOut,
-    ShieldCheck
-} from "lucide-react";
+import { Building, HomeIcon, LogOut, WholeWord } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-export function AdminSidebar() {
+const firstSection = [
+    {
+        icon: HomeIcon,
+        label: "Overview",
+        href: "/admin",
+    },
+    {
+        icon: Building,
+        label: "Organizations",
+        href: "/admin/organizations",
+    },
+    {
+        icon: WholeWord,
+        label: "Main Website",
+        href: "/",
+    },
+
+];
+
+const AdminSidebar = () => {
     const pathname = usePathname();
     const router = useRouter();
 
@@ -42,14 +55,14 @@ export function AdminSidebar() {
         <Sidebar>
             <SidebarHeader className="text-sidebar-accent-foreground">
                 <Link
-                    href="/admin"
-                    className="flex items-center gap-2 px-2 pt-2 text-slate-900"
+                    href="/"
+                    className="flex items-center gap-2 px-2 pt-2"
                 >
                     <Image
                         src="/logo.svg"
                         height={36}
                         width={36}
-                        alt="Logo"
+                        alt="Feed Reminder Logo"
                     />
                     <p className="text-2xl font-semibold">Feed Reminder</p>
                 </Link>
@@ -63,75 +76,31 @@ export function AdminSidebar() {
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {/* Overview */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild
-                                    className={cn(
-                                        "h-10 transition-all duration-200 hover:bg-slate-100 group",
-                                        pathname === "/admin" && "bg-primary/5 text-primary font-bold border border-primary/10"
-                                    )}
-                                    isActive={pathname === "/admin"}
-                                >
-                                    <Link href="/admin">
-                                        <ShieldCheck className={cn(
-                                            "size-5 transition-colors",
-                                            pathname === "/admin" ? "text-primary" : "text-slate-500 group-hover:text-slate-900"
-                                        )} />
-                                        <span className={cn(
-                                            "text-sm tracking-tight",
-                                            pathname === "/admin" ? "text-primary" : "text-slate-600 group-hover:text-slate-900"
-                                        )}>
-                                            Overview
-                                        </span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-
-                            {/* Organizations */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild
-                                    className={cn(
-                                        "h-10 transition-all duration-200 hover:bg-slate-100 group",
-                                        pathname.startsWith("/admin/organizations") && "bg-primary/5 text-primary font-bold border border-primary/10"
-                                    )}
-                                    isActive={pathname.startsWith("/admin/organizations")}
-                                >
-                                    <Link href="/admin/organizations">
-                                        <Building2 className={cn(
-                                            "size-5 transition-colors",
-                                            pathname.startsWith("/admin/organizations") ? "text-primary" : "text-slate-500 group-hover:text-slate-900"
-                                        )} />
-                                        <span className={cn(
-                                            "text-sm tracking-tight",
-                                            pathname.startsWith("/admin/organizations") ? "text-primary" : "text-slate-600 group-hover:text-slate-900"
-                                        )}>
-                                            Organizations
-                                        </span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-
-                            {/* Main Website */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild
-                                    className="h-10 transition-all duration-200 hover:bg-slate-100 group"
-                                >
-                                    <Link href="/">
-                                        <ExternalLink className="size-5 text-white" />
-                                        <span className="text-sm tracking-tight text-white">
-                                            Main Website
-                                        </span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
+                            {firstSection.map((item) => (
+                                <SidebarMenuItem key={item.href}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        className={cn(
+                                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                            pathname === item.href &&
+                                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                        )}
+                                        isActive={pathname === item.href}
+                                    >
+                                        <Link href={item.href}>
+                                            <item.icon className="size-5 " />
+                                            <span className="text-sm font-medium tracking-tight">
+                                                {item.label}
+                                            </span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
-            </SidebarContent>
 
+            </SidebarContent>
             <SidebarFooter className="p-4 border-t">
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -147,4 +116,6 @@ export function AdminSidebar() {
             </SidebarFooter>
         </Sidebar>
     );
-}
+};
+
+export default AdminSidebar;

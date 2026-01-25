@@ -5,32 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowRight, Bird, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useDebounce } from "use-debounce";
 
 export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string; isAdmin?: boolean; isManagement?: boolean }) => {
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
+    const [debouncedSearch] = useDebounce(search, 300);
 
-    const { data: cycles, isLoading } = useQuery(
-        trpc.admin.getOrgCycles.queryOptions({ orgId })
-    );
+    // Use the management router which allows seeing ALL cycles in the org
+    const { data, isLoading } = useQuery({
+        ...trpc.management.getOrgActiveCycles.queryOptions({
+            orgId,
+            search: debouncedSearch,
+            pageSize: 100
+        }),
+        placeholderData: keepPreviousData
+    });
 
-    const filteredCycles = cycles?.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.farmerName.toLowerCase().includes(search.toLowerCase())
-    );
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-        );
-    }
+    // Extract items from the paginated response
+    const cycles = data?.items || [];
 
     return (
         <div className="space-y-4">
@@ -44,9 +42,13 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
                 />
             </div>
 
-            {!filteredCycles || filteredCycles.length === 0 ? (
+            {isLoading && !data ? (
+                <div className="flex justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+            ) : cycles.length === 0 ? (
                 <div className="text-center p-8 text-slate-500 bg-slate-50 rounded-lg border-2 border-dashed">
-                    No active production cycles found.
+                    {search ? "No active cycles match your search." : "No active production cycles found."}
                 </div>
             ) : (
                 <>
@@ -55,7 +57,6 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
                         <Table>
                             <TableHeader className="bg-slate-50/50">
                                 <TableRow>
-                                    <TableHead className="font-semibold px-6">Cycle Name</TableHead>
                                     <TableHead className="font-semibold">Farmer</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Age</TableHead>
@@ -65,11 +66,10 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredCycles.map((cycle) => (
+                                {cycles.map((cycle) => (
                                     <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
-                                        <TableCell className="font-bold text-slate-900 px-6">{cycle.name}</TableCell>
                                         <TableCell className="text-slate-600 font-medium">
-                                            <Link href={isAdmin ? `/admin/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer">
+                                            <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer">
                                                 {cycle.farmerName}
                                             </Link>
                                         </TableCell>
@@ -92,7 +92,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
                                         </TableCell>
                                         <TableCell className="px-6">
                                             <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity" asChild>
-                                                <Link href={isAdmin ? `/admin/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
+                                                <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                                                     <ArrowRight className="h-4 w-4 text-slate-400" />
                                                 </Link>
                                             </Button>
@@ -105,8 +105,8 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement }: { orgId: string;
 
                     {/* Mobile Cards */}
                     <div className="md:hidden space-y-3">
-                        {filteredCycles.map((cycle) => (
-                            <Link href={isAdmin ? `/admin/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} key={cycle.id} className="block">
+                        {cycles.map((cycle) => (
+                            <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} key={cycle.id} className="block">
                                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="space-y-0.5">

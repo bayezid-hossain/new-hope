@@ -127,7 +127,7 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
                                         </TableCell>
                                         <TableCell>
                                             <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100" asChild>
-                                                <Link href={isAdminView ? `/admin/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}>
+                                                <Link href={isAdminView ? `/admin/organizations/${orgId}/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}>
                                                     <ArrowRight className="h-4 w-4" />
                                                 </Link>
                                             </Button>
@@ -140,7 +140,7 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
 
                     <div className="md:hidden space-y-3">
                         {profile.farmers.map((farmer) => (
-                            <Link key={farmer.id} href={isAdminView ? `/admin/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}>
+                            <Link key={farmer.id} href={isAdminView ? `/admin/organizations/${orgId}/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}>
                                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                                     <div className="space-y-1">
                                         <h4 className="font-bold text-slate-900">{farmer.name}</h4>

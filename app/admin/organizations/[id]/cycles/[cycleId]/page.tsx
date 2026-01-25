@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 export default function AdminCycleDetailsPage() {
     const params = useParams();
-    const cycleId = params.id as string;
+    const cycleId = params.cycleId as string;
 
     return (
         <AdminGuard>

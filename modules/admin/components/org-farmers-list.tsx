@@ -22,7 +22,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     const [search, setSearch] = useState("");
 
     const { data: farmers, isLoading } = useQuery(
-        trpc.admin.getOrgFarmers.queryOptions({ orgId })
+        trpc.management.getOrgFarmers.queryOptions({ orgId })
     );
 
     const filteredFarmers = farmers?.filter(f =>
@@ -30,7 +30,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     );
 
     const getFarmerLink = (farmerId: string) => {
-        if (isAdmin) return `/admin/farmers/${farmerId}`;
+        if (isAdmin) return `/admin/organizations/${orgId}/farmers/${farmerId}`;
         if (isManagement) return `/management/farmers/${farmerId}`;
         return `/farmers/${farmerId}`;
     };
@@ -67,6 +67,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                             <TableHeader className="bg-slate-50/50">
                                 <TableRow>
                                     <TableHead className="font-semibold px-6">Farmer Name</TableHead>
+                                    <TableHead className="font-semibold">Officer</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Cycles</TableHead>
                                     <TableHead className="font-semibold">Stock</TableHead>
@@ -78,6 +79,10 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                 {filteredFarmers.map((farmer) => (
                                     <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
                                         <TableCell className="font-bold text-slate-900 px-6">{farmer.name}</TableCell>
+                                        <TableCell className="text-slate-600 font-medium text-sm">
+
+                                            <Link href={"/admin/organizations/" + farmer.organizationId + "/officers/" + farmer.officerId} className="hover:underline "> {farmer.officerName || "Unknown"}</Link>
+                                        </TableCell>
                                         <TableCell>
                                             {farmer.activeCyclesCount > 0 ? (
                                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
@@ -103,6 +108,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                 {farmer.mainStock.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
                                             </div>
                                         </TableCell>
+
                                         <TableCell className="text-slate-400 text-[11px] font-medium">
                                             {format(new Date(farmer.createdAt), "MMM d, yyyy")}
                                         </TableCell>
@@ -129,6 +135,9 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             <h3 className="font-bold text-slate-900">{farmer.name}</h3>
                                             <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
                                                 Joined {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 font-medium">
+                                                Officer: <span className="font-bold text-slate-900">{farmer.officerName}</span>
                                             </p>
                                         </div>
                                         {farmer.activeCyclesCount > 0 ? (

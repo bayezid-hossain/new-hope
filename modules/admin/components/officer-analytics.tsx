@@ -28,8 +28,8 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
 
-    const { data: analytics, isPending } = useQuery(
-        trpc.organization.getOfficerAnalytics.queryOptions({ orgId })
+    const { data: analytics, isLoading } = useQuery(
+        trpc.management.getOfficerAnalytics.queryOptions({ orgId })
     );
 
     const filtered = analytics?.filter(a =>
@@ -37,7 +37,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
         a.email.toLowerCase().includes(search.toLowerCase())
     );
 
-    if (isPending) {
+    if (isLoading) {
         return (
             <div className="flex justify-center p-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

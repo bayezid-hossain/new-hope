@@ -80,32 +80,30 @@ export default function OrganizationDetailsPage() {
 
                 {/* Main Content */}
                 <div className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-8">
-                    <Tabs defaultValue="overview" className="space-y-6">
+                    <Tabs defaultValue="members" className="space-y-6">
                         <div className="overflow-x-auto pb-2 scrollbar-hide">
                             <TabsList className="inline-flex w-auto bg-white border shadow-sm p-1 rounded-xl h-auto">
-                                <TabsTrigger value="overview" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <LayoutDashboard className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Overview</span>
-                                </TabsTrigger>
+
                                 <TabsTrigger value="members" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
                                     <Users className="h-4 w-4" />
                                     Members
-                                </TabsTrigger>
-                                <TabsTrigger value="farmers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Wheat className="h-4 w-4" />
-                                    Farmers
                                 </TabsTrigger>
                                 <TabsTrigger value="production" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
                                     <Activity className="h-4 w-4" />
                                     Production Tree
                                 </TabsTrigger>
-                                <TabsTrigger value="cycles" className="hidden sm:flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Bird className="h-4 w-4" />
-                                    Active Records
-                                </TabsTrigger>
                                 <TabsTrigger value="officers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
                                     <UserCircle2 className="h-4 w-4" />
                                     Officers
+                                </TabsTrigger>
+                                <TabsTrigger value="farmers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                    <Wheat className="h-4 w-4" />
+                                    Farmers
+                                </TabsTrigger>
+
+                                <TabsTrigger value="cycles" className="hidden sm:flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                    <Bird className="h-4 w-4" />
+                                    Active Records
                                 </TabsTrigger>
                             </TabsList>
                         </div>
