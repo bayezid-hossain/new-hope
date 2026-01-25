@@ -34,7 +34,7 @@ import { useState } from "react";
 
 // --- Sub-components (Simplified versions for Admin) ---
 
-const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => (
+const ActiveCyclesSection = ({ isLoading, data, prefix }: { isLoading: boolean, data: any, prefix: string }) => (
     <div className="space-y-4">
         {isLoading ? (
             <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
@@ -42,13 +42,13 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
             <>
                 <div className="hidden sm:block">
                     <DataTable
-                        columns={getCycleColumns({ prefix: "/admin" })}
+                        columns={getCycleColumns({ prefix })}
                         data={(data?.items || []) as Farmer[]}
                     />
                 </div>
                 <div className="sm:hidden space-y-3">
                     {data?.items.map((cycle: any) => (
-                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/admin" />
+                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix={prefix} />
                     ))}
                 </div>
             </>
@@ -60,7 +60,7 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
     </div>
 );
 
-const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolean, isError: boolean, data: any }) => (
+const ArchivedCyclesSection = ({ isLoading, isError, data, prefix }: { isLoading: boolean, isError: boolean, data: any, prefix: string }) => (
     <div className="space-y-4">
         {isLoading ? (
             <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
@@ -70,13 +70,13 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
             <>
                 <div className="hidden sm:block">
                     <DataTable
-                        columns={getHistoryColumns({ prefix: "/admin" })}
+                        columns={getHistoryColumns({ prefix })}
                         data={data?.items as any[] || []}
                     />
                 </div>
                 <div className="sm:hidden space-y-3">
                     {data?.items.map((cycle: any) => (
-                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/admin" />
+                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix={prefix} />
                     ))}
                 </div>
             </>
@@ -183,11 +183,11 @@ export default function AdminFarmerDetailsPage() {
                             </TabsList>
 
                             <TabsContent value="active" className="mt-0 focus-visible:outline-none">
-                                <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} />
+                                <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="history" className="mt-0 focus-visible:outline-none">
-                                <ArchivedCyclesSection isLoading={historyQuery.isLoading} isError={historyQuery.isError} data={historyQuery.data} />
+                                <ArchivedCyclesSection isLoading={historyQuery.isLoading} isError={historyQuery.isError} data={historyQuery.data} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
