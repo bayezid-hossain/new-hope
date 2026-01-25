@@ -14,6 +14,7 @@ const cycleSearchSchema = z.object({
   status: z.enum(["active", "archived"]).default("active"),
   orgId: z.string(),
   farmerId: z.string().optional(),
+  officerId: z.string().optional(), // Added for Manager/Admin filtering
   sortBy: z.enum(["name", "age", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -38,11 +39,11 @@ export const cyclesRouter = createTRPCRouter({
   getActiveCycles: protectedProcedure
     .input(cycleSearchSchema)
     .query(async ({ ctx, input }) => {
-      const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
+      const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId, officerId } = input;
       const offset = (page - 1) * pageSize;
 
-      // Membership check (Always applied, even for Global Admins in this "User View")
-      let memberCheck = undefined;
+      // Standard Procedure: ALWAYS filter by the current user (Officer View)
+      // This procedure is now strictly for the "My Cycles" view.
 
       const membership = await ctx.db.query.member.findFirst({
         where: and(
@@ -52,19 +53,20 @@ export const cyclesRouter = createTRPCRouter({
         )
       });
 
-      // If user uses this route, they MUST be a member of the org.
-      // Even Global Admins need to be "in" the org to see "My Cycles" context.
       if (!membership) throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
 
-      if (membership.role === "OFFICER") {
-        memberCheck = eq(farmer.officerId, ctx.user.id);
-      }
-      // Managers/Owners can see everything in the org
+
+      // Managers/Owners/GlobalAdmins can see everything in the org
+      // But if 'officerId' is provided (e.g. by a Manager filtering), we respect it.
 
       const whereClause = and(
         eq(cycles.organizationId, orgId),
         eq(cycles.status, "active"),
-        memberCheck,
+        eq(cycles.organizationId, orgId),
+        eq(cycles.status, "active"),
+        eq(farmer.officerId, ctx.user.id), // STRICT: Only show cycles managed by this user
+        // officerId ? eq(farmer.officerId, officerId) : undefined, // Removed: Officers cannot filter by other officers
+
         farmerId ? eq(cycles.farmerId, farmerId) : undefined,
         search ? ilike(cycles.name, `%${search}%`) : undefined,
       );
@@ -105,11 +107,10 @@ export const cyclesRouter = createTRPCRouter({
   getPastCycles: protectedProcedure
     .input(cycleSearchSchema)
     .query(async ({ ctx, input }) => {
-      const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId } = input;
+      const { search, page, pageSize, sortBy, sortOrder, orgId, farmerId, officerId } = input;
       const offset = (page - 1) * pageSize;
 
-      // Membership check
-      let memberCheck = undefined;
+      // Standard Procedure: ALWAYS filter by the current user (Officer View)
 
       const membership = await ctx.db.query.member.findFirst({
         where: and(
@@ -121,13 +122,13 @@ export const cyclesRouter = createTRPCRouter({
 
       if (!membership) throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
 
-      if (membership.role === "OFFICER") {
-        memberCheck = eq(farmer.officerId, ctx.user.id);
-      }
 
       const whereClause = and(
         eq(cycleHistory.organizationId, orgId),
-        memberCheck,
+        eq(cycleHistory.organizationId, orgId),
+        eq(farmer.officerId, ctx.user.id), // STRICT: Only show history for farmers managed by this user
+        // officerId ? eq(farmer.officerId, officerId) : undefined,
+
         farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
         search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
       );

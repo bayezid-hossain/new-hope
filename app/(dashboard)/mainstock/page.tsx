@@ -181,118 +181,135 @@ export default function MainStockPage() {
         </div>
       </div>
 
-      {/* Main Data Table - Desktop */}
-      <div className="hidden sm:block border rounded-md bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>Farmer</TableHead>
-              <TableHead>Active Cycles</TableHead>
-              <TableHead className="w-[300px]">Main Stock Usage</TableHead>
-              <TableHead className="text-right">Remaining</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.items.map((row) => {
-              // Ensure we fallback to 0 safely
-              const consumed = row.totalConsumed || 0;
-              const remainingStock = row.mainStock || 0;
-              const percentUsed = remainingStock > 0 ? (consumed / remainingStock) * 100 : 0;
-              const total = Number(remainingStock) + Number(consumed);
-              return (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
-                      {row.name}
-                    </Link>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="grid grid-cols-2 gap-2">
-                      {row.activeCycles.map((c: any) => (
-                        <Badge key={c.id} variant="secondary" className="text-xs font-normal border-gray-200 justify-center">
-                          {/* Adjust 'c.name' if your schema uses 'cycleId' or similar */}
-                          Cycle <span className="text-muted-foreground ml-1">(Age: {c.age})</span>
-                        </Badge>
-                      ))}
-                      {row.activeCycles.length === 0 && <span className="text-muted-foreground text-xs italic col-span-2">No active cycles</span>}
-                    </div>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {/* ✅ FIXED: Added .toFixed(1) and fallback */}
-                          Consumed: <span className="text-foreground font-medium">{consumed.toFixed(1)}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Total: <span className="text-foreground font-medium">{total.toFixed(1)}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Active: <span className="text-foreground font-medium">{row.activeConsumption.toFixed(1)}</span>
-                        </span>
-
-                      </div>
-                      <Progress
-                        value={percentUsed}
-                        className={percentUsed > 90 ? "bg-red-500" : percentUsed > 75 ? "bg-amber-500" : "bg-primary"}
-                      />
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    {/* ✅ FIXED: Added .toFixed(1) */}
-                    <div className={`text-lg font-bold tabular-nums ${row.isLowStock ? "text-red-600" : "text-green-600"}`}>
-                      {row.remainingStock.toFixed(1)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Bags Available</div>
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setTransferModal({
-                          open: true,
-                          data: {
-                            farmerId: row.id,
-                            farmerName: row.name,
-                            currentStock: row.remainingStock
-                          }
-                        })}
-                      >
-                        <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setFeedModal({ open: true, farmerId: row.id })}
-                      >
-                        <Wheat className="h-4 w-4 mr-2" /> Restock
-                      </Button>
-                    </div>
-                  </TableCell>
+      {(!data?.items || data.items.length === 0) ? (
+        <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed rounded-xl bg-slate-50/50">
+          <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <Wheat className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">No Stock Inventory</h3>
+          <p className="text-slate-500 text-sm max-w-sm text-center mt-2 mb-6">
+            There are no farmers with stock records yet. Register a farmer to start tracking feed inventory.
+          </p>
+          <Button onClick={() => setCreateModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Register First Farmer
+          </Button>
+        </div>
+      ) : (
+        <>
+          {/* Main Data Table - Desktop */}
+          <div className="hidden sm:block border rounded-md bg-white shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Farmer</TableHead>
+                  <TableHead>Active Cycles</TableHead>
+                  <TableHead className="w-[300px]">Main Stock Usage</TableHead>
+                  <TableHead className="text-right">Remaining</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {data.items.map((row) => {
+                  // Ensure we fallback to 0 safely
+                  const consumed = row.totalConsumed || 0;
+                  const remainingStock = row.mainStock || 0;
+                  const percentUsed = remainingStock > 0 ? (consumed / remainingStock) * 100 : 0;
+                  const total = Number(remainingStock) + Number(consumed);
+                  return (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
+                          {row.name}
+                        </Link>
+                      </TableCell>
 
-      {/* Main Data Cards - Mobile */}
-      <div className="sm:hidden space-y-4">
-        {data?.items.map((row) => (
-          <MobileStockCard
-            key={row.id}
-            row={row}
-            onTransfer={(transferData) => setTransferModal({ open: true, data: transferData })}
-            onRestock={(farmerId) => setFeedModal({ open: true, farmerId })}
-          />
-        ))}
-      </div>
+                      <TableCell>
+                        <div className="grid grid-cols-2 gap-2">
+                          {row.activeCycles.map((c: any) => (
+                            <Badge key={c.id} variant="secondary" className="text-xs font-normal border-gray-200 justify-center">
+                              {/* Adjust 'c.name' if your schema uses 'cycleId' or similar */}
+                              Cycle <span className="text-muted-foreground ml-1">(Age: {c.age})</span>
+                            </Badge>
+                          ))}
+                          {row.activeCycles.length === 0 && <span className="text-muted-foreground text-xs italic col-span-2">No active cycles</span>}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {/* ✅ FIXED: Added .toFixed(1) and fallback */}
+                              Consumed: <span className="text-foreground font-medium">{consumed.toFixed(1)}</span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              Total: <span className="text-foreground font-medium">{total.toFixed(1)}</span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              Active: <span className="text-foreground font-medium">{row.activeConsumption.toFixed(1)}</span>
+                            </span>
+
+                          </div>
+                          <Progress
+                            value={percentUsed}
+                            className={percentUsed > 90 ? "bg-red-500" : percentUsed > 75 ? "bg-amber-500" : "bg-primary"}
+                          />
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {/* ✅ FIXED: Added .toFixed(1) */}
+                        <div className={`text-lg font-bold tabular-nums ${row.isLowStock ? "text-red-600" : "text-green-600"}`}>
+                          {row.remainingStock.toFixed(1)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Bags Available</div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setTransferModal({
+                              open: true,
+                              data: {
+                                farmerId: row.id,
+                                farmerName: row.name,
+                                currentStock: row.remainingStock
+                              }
+                            })}
+                          >
+                            <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setFeedModal({ open: true, farmerId: row.id })}
+                          >
+                            <Wheat className="h-4 w-4 mr-2" /> Restock
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Main Data Cards - Mobile */}
+          <div className="sm:hidden space-y-4">
+            {data.items.map((row) => (
+              <MobileStockCard
+                key={row.id}
+                row={row}
+                onTransfer={(transferData) => setTransferModal({ open: true, data: transferData })}
+                onRestock={(farmerId) => setFeedModal({ open: true, farmerId })}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* --- DIALOGS --- */}
 

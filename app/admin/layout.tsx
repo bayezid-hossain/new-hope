@@ -1,7 +1,7 @@
 "use client";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AdminSidebar } from "@/modules/admin/components/admin-sidebar";
+import AdminSidebar from "@/modules/admin/components/admin-sidebar";
 import React from "react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
@@ -237,7 +238,7 @@ interface CycleDetailsProps {
 export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsProps) => {
     const trpc = useTRPC();
     const router = useRouter();
-
+    const { orgId } = useCurrentOrg()
     const { data: response, isLoading } = useQuery(
         trpc.cycles.getDetails.queryOptions({ id: cycleId })
     );
@@ -281,7 +282,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </Button>
                     <div className="flex flex-col gap-1">
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900"> <Link
-                            href={isAdmin ? `/admin/farmers/${response?.data?.farmerId}` : (isManagement ? `/management/farmers/${response?.data?.farmerId}` : `/farmers/${response?.data?.farmerId}`)}
+                            href={isAdmin ? `/admin/organizations/${orgId}/farmers/${response?.data?.farmerId}` : (isManagement ? `/management/farmers/${response?.data?.farmerId}` : `/farmers/${response?.data?.farmerId}`)}
                             className="text-slate-900 font-bold hover:underline hover:text-primary transition-colors underline decoration-slate-200"
                         >{normalizedCycle.farmerName}</Link></h1>
                         <div className="flex items-center gap-2">

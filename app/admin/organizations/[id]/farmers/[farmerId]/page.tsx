@@ -92,34 +92,34 @@ export default function AdminFarmerDetailsPage() {
     const trpc = useTRPC();
     const params = useParams();
     const router = useRouter();
-    const farmerId = params.id as string;
+    const farmerId = params.farmerId as string;
 
     const [showTransferModal, setShowTransferModal] = useState(false);
 
     // 0. Fetch Farmer Info first to get OrgId
     const { data: farmerData, isLoading: isFarmerLoading } = useQuery(
-        trpc.admin.getFarmerDetails.queryOptions({ farmerId })
+        trpc.management.getFarmerDetails.queryOptions({ farmerId })
     );
 
     const orgId = farmerData?.organizationId;
 
     // 1. Fetch Active Cycles
     const activeQuery = useQuery(
-        trpc.admin.getFarmerCycles.queryOptions({
+        trpc.management.getFarmerCycles.queryOptions({
             farmerId: farmerId,
         }, { enabled: !!orgId })
     );
 
     // 2. Fetch Archived Cycles
     const historyQuery = useQuery(
-        trpc.admin.getFarmerHistory.queryOptions({
+        trpc.management.getFarmerHistory.queryOptions({
             farmerId: farmerId,
         }, { enabled: !!orgId })
     );
 
     // 3. Fetch Ledger (Stock History)
     const ledgerQuery = useQuery(
-        trpc.admin.getFarmerStockLogs.queryOptions({ farmerId: farmerId }, { enabled: !!farmerId })
+        trpc.management.getFarmerStockLogs.queryOptions({ farmerId: farmerId }, { enabled: !!farmerId })
     );
 
     if (isFarmerLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;

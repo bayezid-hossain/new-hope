@@ -65,7 +65,7 @@ export const ProductionTree = ({
     }
 
     const getFarmerLink = (id: string) =>
-        isAdmin ? `/admin/farmers/${id}` : `/management/farmers/${id}`;
+        isAdmin ? `/admin/organizations/${orgId}/farmers/${id}` : `/management/farmers/${id}`;
 
     const getOfficerLink = (userId: string) =>
         isAdmin
@@ -163,7 +163,7 @@ export const ProductionTree = ({
                                                                             {farmer.activeCycles.map((cycle) => (
                                                                                 <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
                                                                                     <TableCell className="py-2 px-4 font-bold text-slate-700 text-xs">
-                                                                                        <Link href={isAdmin ? `/admin/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} className="hover:text-primary transition-colors underline decoration-slate-200">
+                                                                                        <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} className="hover:text-primary transition-colors underline decoration-slate-200">
                                                                                             {cycle.name}
                                                                                         </Link>
                                                                                     </TableCell>
@@ -199,7 +199,7 @@ export const ProductionTree = ({
                                                                             {farmer.pastCycles.map((h) => (
                                                                                 <TableRow key={h.id} className="hover:bg-slate-50/50 transition-colors">
                                                                                     <TableCell className="py-2 px-4 font-medium text-slate-600 text-xs">
-                                                                                        <Link href={isAdmin ? `/admin/cycles/${h.id}` : (isManagement ? `/management/cycles/${h.id}` : `/cycles/${h.id}`)} className="hover:text-primary transition-colors underline decoration-slate-200">
+                                                                                        <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${h.id}` : (isManagement ? `/management/cycles/${h.id}` : `/cycles/${h.id}`)} className="hover:text-primary transition-colors underline decoration-slate-200">
                                                                                             {h.cycleName}
                                                                                         </Link>
                                                                                     </TableCell>
