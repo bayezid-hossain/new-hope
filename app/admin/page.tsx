@@ -16,23 +16,39 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminDashboard() {
-  return (
-    <AdminGuard>
-      <div className="p-8 space-y-8 bg-muted/10 min-h-screen">
-        <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold tracking-tight">System Administration</h1>
-            <CreateOrgButton />
-        </div>
-        
-        <AdminStats />
-        
-        <div className="space-y-4">
-            <h2 className="text-xl font-semibold">All Organizations</h2>
-            <OrgList />
-        </div>
-      </div>
-    </AdminGuard>
-  );
+    const [searchQuery, setSearchQuery] = useState("");
+
+    return (
+        <AdminGuard>
+            <div className="p-4 sm:p-8 space-y-8 bg-slate-50/50 min-h-screen">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-slate-900">System Administration</h1>
+                        <p className="text-slate-500 text-sm">Manage organizations, monitors system health, and oversee members.</p>
+                    </div>
+                    <CreateOrgButton />
+                </div>
+
+                <AdminStats />
+
+                <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <h2 className="text-xl font-semibold text-slate-800">All Organizations</h2>
+                        <div className="relative w-full sm:w-72">
+                            <Input
+                                placeholder="Search organizations..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 bg-white border-slate-200 focus:ring-primary/20"
+                            />
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        </div>
+                    </div>
+                    <OrgList searchQuery={searchQuery} />
+                </div>
+            </div>
+        </AdminGuard>
+    );
 }
 
 // --- Sub-Components ---
@@ -41,25 +57,29 @@ function AdminStats() {
     const trpc = useTRPC();
     const { data: stats, isPending } = useQuery(trpc.admin.getStats.queryOptions());
 
-    if (isPending) return <div className="grid grid-cols-4 gap-4 h-32 animate-pulse bg-muted rounded-xl" />;
+    if (isPending) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-32 animate-pulse bg-slate-100 rounded-xl" />;
 
     const items = [
-        { label: "Organizations", value: stats?.orgs, icon: Building2, color: "text-blue-600" },
-        { label: "Total Users", value: stats?.users, icon: Users, color: "text-green-600" },
-        { label: "Farmers", value: stats?.farmers, icon: Wheat, color: "text-yellow-600" },
-        { label: "Active Cycles", value: stats?.activeCycles, icon: Activity, color: "text-purple-600" },
+        { label: "Organizations", value: stats?.orgs, icon: Building2, gradient: "from-blue-500 to-indigo-600", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+        { label: "Total Users", value: stats?.users, icon: Users, gradient: "from-emerald-500 to-teal-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+        { label: "Farmers", value: stats?.farmers, icon: Wheat, gradient: "from-amber-400 to-orange-500", iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+        { label: "Active Cycles", value: stats?.activeCycles, icon: Activity, gradient: "from-violet-500 to-purple-600", iconBg: "bg-violet-100", iconColor: "text-violet-600" },
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {items.map((item) => (
-                <Card key={item.label}>
+                <Card key={item.label} className="border-none shadow-sm overflow-hidden relative group">
+                    <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.gradient}`} />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{item.label}</CardTitle>
-                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                        <CardTitle className="text-sm font-medium text-slate-500">{item.label}</CardTitle>
+                        <div className={`p-2 rounded-lg ${item.iconBg} ${item.iconColor} group-hover:scale-110 transition-transform`}>
+                            <item.icon className="h-4 w-4" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{item.value}</div>
+                        <div className="text-3xl font-bold tracking-tight">{item.value?.toLocaleString() || 0}</div>
+                        <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold tracking-wider">System Total</p>
                     </CardContent>
                 </Card>
             ))}
@@ -71,7 +91,7 @@ function CreateOrgButton() {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
-    
+
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
@@ -104,21 +124,21 @@ function CreateOrgButton() {
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Organization Name</Label>
-                        <Input 
-                            placeholder="e.g. Sunny Side Farms" 
-                            value={name} 
+                        <Input
+                            placeholder="e.g. Sunny Side Farms"
+                            value={name}
                             onChange={(e) => {
                                 setName(e.target.value);
                                 setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
-                            }} 
+                            }}
                         />
                     </div>
                     <div className="space-y-2">
                         <Label>URL Slug</Label>
                         <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
                     </div>
-                    <Button 
-                        className="w-full" 
+                    <Button
+                        className="w-full"
                         onClick={() => createMutation.mutate({ name, slug })}
                         disabled={createMutation.isPending || !name || !slug}
                     >
@@ -130,44 +150,75 @@ function CreateOrgButton() {
         </>
     );
 }
-function OrgList() {
+function OrgList({ searchQuery }: { searchQuery: string }) {
     const trpc = useTRPC();
-    const { data: orgs } = useQuery(trpc.admin.getAllOrgs.queryOptions());
+    const { data: orgs, isPending } = useQuery(trpc.admin.getAllOrgs.queryOptions());
+
+    const filteredOrgs = orgs?.filter(org =>
+        org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        org.slug.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (isPending) return (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-48 animate-pulse bg-slate-100 rounded-xl" />)}
+        </div>
+    );
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {orgs?.map((org) => (
-                <Card key={org.id} className="group relative hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <div>
-                            <CardTitle className="text-lg">{org.name}</CardTitle>
-                            <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-muted-foreground">
-                                {org.slug}
-                            </span>
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {filteredOrgs?.map((org) => (
+                <Card key={org.id} className="group relative hover:shadow-lg transition-all border-slate-200 overflow-hidden bg-white">
+                    <div className="absolute top-0 left-0 w-full h-[3px] bg-slate-100 group-hover:bg-primary/50 transition-colors" />
+                    <CardHeader className="flex flex-row items-start justify-between pb-4">
+                        <div className="space-y-1">
+                            <CardTitle className="text-xl font-bold text-slate-900 leading-none">{org.name}</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-500 uppercase tracking-wider">
+                                    {org.slug}
+                                </span>
+                            </div>
                         </div>
-                        {/* Edit/Delete Dialog */}
                         <EditOrgDialog org={org} />
                     </CardHeader>
-                    
-                    <CardContent>
-                        {/* Manage Members Sheet */}
+
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                            <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                <span>{org.members.length} Members</span>
+                            </div>
+                            <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-semibold text-[10px]">Active</span>
+                        </div>
+
                         <Sheet>
                             <SheetTrigger asChild>
-                                <Button variant="outline" className="w-full justify-start">
+                                <Button variant="secondary" className="w-full justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 border-none">
                                     <Users className="h-4 w-4 mr-2" />
-                                    Manage Members ({org.members.length})
+                                    Manage Members
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent className="min-w-[600px] sm:w-[540px]">
+                            <SheetContent className="w-full sm:max-w-[600px] overflow-y-auto">
                                 <SheetHeader className="mb-6">
-                                    <SheetTitle>Members: {org.name}</SheetTitle>
+                                    <SheetTitle className="text-2xl font-bold flex items-center gap-2">
+                                        <Building2 className="h-6 w-6 text-primary" />
+                                        Members: {org.name}
+                                    </SheetTitle>
                                 </SheetHeader>
-                                <MembersList orgId={org.id} />
+                                <div className="mt-4">
+                                    <MembersList orgId={org.id} />
+                                </div>
                             </SheetContent>
                         </Sheet>
                     </CardContent>
                 </Card>
             ))}
+            {filteredOrgs?.length === 0 && (
+                <div className="col-span-full py-12 text-center bg-white rounded-xl border-2 border-dashed border-slate-200">
+                    <Users className="h-12 w-12 mx-auto text-slate-300 mb-3" />
+                    <p className="text-slate-500 font-medium italic">No organizations found matching your search.</p>
+                </div>
+            )}
         </div>
     );
 }
