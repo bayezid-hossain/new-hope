@@ -18,7 +18,7 @@ export const OrgGuard = ({ children }: OrgGuardProps) => {
 
   // FIXED: Use standard useQuery + queryOptions
   const { data: statusData, isPending, error } = useQuery(
-    trpc.organization.getMyStatus.queryOptions(undefined, {
+    trpc.auth.getMyMembership.queryOptions(undefined, {
       retry: 1,
     })
   );

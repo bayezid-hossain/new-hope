@@ -17,12 +17,14 @@ import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Power, Skull, Trash2 } from "lucide-react";
+import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Pencil, Power, RotateCcw, Skull, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddMortalityModal } from "../cycles/add-mortality-modal";
+import { EditDocModal } from "../cycles/edit-doc-modal";
 import { EndCycleModal } from "../cycles/end-cycle-modal";
+import { ReopenCycleModal } from "../cycles/reopen-cycle-modal";
 
 interface ColumnsFactoryOptions {
     prefix?: string; // e.g. "/admin" or "/management"
@@ -34,6 +36,7 @@ interface ColumnsFactoryOptions {
 export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
+    const [showEditDoc, setShowEditDoc] = useState(false);
 
     if (cycle.status === "history") return null;
 
@@ -53,6 +56,11 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
                         <Skull className="mr-2 h-4 w-4" />
                         Add Mortality
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem onClick={() => setShowEditDoc(true)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit Initial Birds (DOC)
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
@@ -81,12 +89,20 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 open={showEndCycle}
                 onOpenChange={setShowEndCycle}
             />
+
+            <EditDocModal
+                cycleId={cycle.id}
+                currentDoc={parseInt(String(cycle.doc || 0))}
+                open={showEditDoc}
+                onOpenChange={setShowEditDoc}
+            />
         </>
     );
 };
 
 const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();
     const queryClient = useQueryClient();
     const { orgId } = useCurrentOrg();
@@ -109,8 +125,8 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                     queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
 
                     // Invalidate detailed farmer views
-                    queryClient.invalidateQueries(trpc.management.getFarmerManagementHub.queryOptions({ farmerId: history.farmerId })),
-                    queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: history.farmerId })),
+                    queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
                 ]);
                 setShowDeleteModal(false);
             },
@@ -119,6 +135,7 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
             }
         })
     );
+
 
     // If status is active, show indicator (shouldn't happen in history table usually but duplicate logic from original)
     // @ts-ignore
@@ -144,6 +161,13 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                        onClick={() => setShowReopenModal(true)}
+                    >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Reopen Cycle
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
                         className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
                         onClick={() => setShowDeleteModal(true)}
                     >
@@ -152,6 +176,13 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <ReopenCycleModal
+                historyId={history.id}
+                cycleName={history.cycleName}
+                open={showReopenModal}
+                onOpenChange={setShowReopenModal}
+            />
 
             <ResponsiveDialog
                 open={showDeleteModal}
@@ -243,7 +274,7 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
         },
         {
             accessorKey: "intake",
-            header: () => <div className="text-right text-[10px] sm:text-[11px]">Intake (Bags)</div>,
+            header: () => <div className="text-right text-[10px] sm:text-[11px]">Consumption (Bags)</div>,
             cell: ({ row }) => {
                 const amount = parseFloat(row.getValue("intake"));
                 return <div className="text-right text-xs sm:text-sm text-muted-foreground">{amount.toFixed(2)}</div>;
@@ -350,7 +381,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
         },
         {
             accessorKey: "intake",
-            header: () => <div className="text-right text-[10px] sm:text-[11px]">Consumed</div>,
+            header: () => <div className="text-right text-[10px] sm:text-[11px]">Consumption (Bags)</div>,
             cell: ({ row }) => {
                 // @ts-ignore
                 const val = parseFloat(row.getValue("intake") || row.original.finalIntake || "0");

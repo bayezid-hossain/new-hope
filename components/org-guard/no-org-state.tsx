@@ -42,17 +42,17 @@ export const NoOrgState = () => {
 
     // FIXED: Use standard useQuery + queryOptions
     const { data: orgs, isPending: isLoadingOrgs } = useQuery(
-        trpc.organization.getAll.queryOptions()
+        trpc.auth.listOrganizations.queryOptions()
     );
 
     // FIXED: Use standard useMutation + mutationOptions
     const joinMutation = useMutation(
-        trpc.organization.join.mutationOptions({
+        trpc.auth.joinOrganization.mutationOptions({
             onSuccess: async () => {
                 toast.success("Request sent successfully!");
                 // Invalidate the status query to trigger a re-render in OrgGuard
                 await queryClient.invalidateQueries(
-                    trpc.organization.getMyStatus.queryOptions()
+                    trpc.auth.getMyMembership.queryOptions()
                 );
             },
             onError: (err) => {

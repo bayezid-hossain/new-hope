@@ -20,6 +20,8 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
+import { EditStockLogModal } from "@/modules/cycles/ui/components/mainstock/revert-stock-modal";
+import { RevertTransferButton } from "@/modules/cycles/ui/components/mainstock/revert-transfer-button";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 
@@ -48,6 +50,7 @@ type StockLog = {
   amount: string | number;
   type: string;
   note: string | null;
+  referenceId: string | null;
   createdAt: string | Date | null;
 };
 
@@ -145,11 +148,11 @@ export default function FarmerDetails() {
 
   // 3. Fetch Ledger (Stock History)
   const ledgerQuery = useQuery(
-    trpc.mainstock.getHistory.queryOptions({ farmerId: farmerId })
+    trpc.officer.stock.getHistory.queryOptions({ farmerId: farmerId })
   );
 
   const farmerQuery = useQuery(
-    trpc.farmers.getFarmer.queryOptions({ farmerId: farmerId })
+    trpc.officer.farmers.getDetails.queryOptions({ farmerId: farmerId })
   );
 
   return (
@@ -301,6 +304,7 @@ export default function FarmerDetails() {
         orgId={orgId!}
         currentFarmerId={farmerId}
         currentOfficerId={farmerQuery.data?.officerId}
+        useOfficerRouter={true}
       />
     </div>
   );
@@ -326,6 +330,7 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
                 <TableHead className="w-[120px] sm:w-[140px] px-4 h-9 sm:h-11 text-[10px] sm:text-[11px]">Type</TableHead>
                 <TableHead className="px-4 h-9 sm:h-11 text-[10px] sm:text-[11px]">Note</TableHead>
                 <TableHead className="text-right px-4 h-9 sm:h-11 text-[10px] sm:text-[11px]">Change</TableHead>
+                <TableHead className="w-[50px] px-4 h-9 sm:h-11"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -353,11 +358,18 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
                     <TableCell className={`px-4 py-3 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
                       {isPositive ? "+" : ""}{amount.toFixed(1)}
                     </TableCell>
+                    <TableCell className="px-4 py-3 text-right">
+                      {(log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId ? (
+                        <RevertTransferButton referenceId={log.referenceId} note={log.note} />
+                      ) : (
+                        <EditStockLogModal log={log} />
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {logs.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No stock transaction history found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">No stock transaction history found.</TableCell></TableRow>
               )}
             </TableBody>
           </table>

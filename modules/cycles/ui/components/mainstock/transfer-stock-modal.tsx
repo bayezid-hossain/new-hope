@@ -69,10 +69,8 @@ export function TransferStockModal({
 
     // Fetch Potential Targets (Farmers in same Org)
     const { data: farmersData, isLoading: isLoadingFarmers } = useQuery({
-        ...trpc.farmers.getMany.queryOptions({
-            onlyMine: true,
+        ...trpc.officer.farmers.listWithStock.queryOptions({
             orgId: orgId!,
-            status: "active", // Only transfer to active farmers
             pageSize: 100, // Fetch top 100 for now
         }),
         enabled: open && !!orgId,
@@ -83,12 +81,12 @@ export function TransferStockModal({
 
     // Mutation
     const transferMutation = useMutation(
-        trpc.mainstock.transferStock.mutationOptions({
+        trpc.officer.stock.transferStock.mutationOptions({
             onSuccess: () => {
                 toast.success("Stock transferred successfully");
-                queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId! }));
-                queryClient.invalidateQueries(trpc.mainstock.getHistory.queryOptions({ farmerId: sourceFarmerId }));
-                queryClient.invalidateQueries(trpc.farmers.getFarmer.queryOptions({ farmerId: sourceFarmerId }));
+                queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! }));
+                queryClient.invalidateQueries(trpc.officer.stock.getHistory.queryOptions({ farmerId: sourceFarmerId }));
+                queryClient.invalidateQueries(trpc.officer.farmers.getDetails.queryOptions({ farmerId: sourceFarmerId }));
                 onOpenChange(false);
                 form.reset();
             },
@@ -233,6 +231,6 @@ export function TransferStockModal({
                     </div>
                 </form>
             </Form>
-        </ResponsiveDialog>
+        </ResponsiveDialog >
     );
 }

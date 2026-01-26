@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, Archive, ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
+import { Activity, ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -24,7 +24,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     const [debouncedSearch] = useDebounce(search, 300);
 
     const { data: farmers, isLoading } = useQuery({
-        ...trpc.management.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch }),
+        ...trpc.management.farmers.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch }),
         placeholderData: keepPreviousData
     });
 
@@ -70,7 +70,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                     <TableHead className="font-semibold px-6">Farmer Name</TableHead>
                                     <TableHead className="font-semibold">Officer</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Cycles</TableHead>
+                                    <TableHead className="font-semibold">Cycles (Live/Total)</TableHead>
                                     <TableHead className="font-semibold">Stock</TableHead>
                                     <TableHead className="font-semibold">Joined</TableHead>
                                     <TableHead className="w-[50px] px-6"></TableHead>
@@ -101,11 +101,10 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-xs">
                                                     <Activity className="h-3 w-3" />
-                                                    {farmer.activeCyclesCount} Active
+                                                    {farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 font-medium text-slate-400 text-[10px]">
-                                                    <Archive className="h-3 w-3" />
-                                                    {farmer.pastCyclesCount} Past
+                                                    <span className="uppercase tracking-wider">Live / Total</span>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -177,9 +176,9 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Production</span>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-bold text-emerald-600">{farmer.activeCyclesCount} Active</span>
+                                                    <span className="text-sm font-bold text-emerald-600">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
                                                     <span className="text-slate-300">•</span>
-                                                    <span className="text-xs font-medium text-slate-500">{farmer.pastCyclesCount} Past</span>
+                                                    <span className="text-xs font-medium text-slate-500">Live / Total</span>
                                                 </div>
                                             </div>
                                         </div>

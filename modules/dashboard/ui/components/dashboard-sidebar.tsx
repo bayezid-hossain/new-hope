@@ -87,7 +87,7 @@ const DashboardSidebar = () => {
   const { data: sessionData } = useQuery(trpc.auth.getSession.queryOptions());
 
   // Fetch org status for organization role
-  const { data: orgStatus } = useQuery(trpc.organization.getMyStatus.queryOptions());
+  const { data: orgStatus } = useQuery(trpc.auth.getMyMembership.queryOptions());
 
   const isAdmin = sessionData?.user?.globalRole === "ADMIN";
   const isManager = orgStatus?.role === "OWNER" || orgStatus?.role === "MANAGER";

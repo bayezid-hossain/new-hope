@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Activity, FileText, Filter, Search, Skull, Wheat, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RevertMortalityModal } from "./revert-mortality-modal";
 
 // --- Types ---
 export interface TimelineLog {
@@ -19,7 +20,7 @@ export interface TimelineLog {
 }
 
 // --- Log Item Component ---
-const LogItem = ({ log, isLast }: { log: TimelineLog; isLast: boolean }) => {
+const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean; isActive?: boolean }) => {
     const isConsumption = log.note?.includes("Consumption") || log.type === "CONSUMPTION";
 
     let icon = <FileText className="h-4 w-4" />;
@@ -83,12 +84,19 @@ const LogItem = ({ log, isLast }: { log: TimelineLog; isLast: boolean }) => {
                     </div>
                 )}
             </div>
+
+            {/* Revert Action for Mortality */}
+            {isActive && normalizedType === "MORTALITY" && (log.valueChange ?? 0) > 0 && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                    <RevertMortalityModal logId={log.id} amount={log.valueChange} note={log.note} />
+                </div>
+            )}
         </div>
     );
 };
 
 // --- Main Component ---
-export const LogsTimeline = ({ logs, height }: { logs: TimelineLog[], height?: string }) => {
+export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], height?: string, isActive?: boolean }) => {
     const [filter, setFilter] = useState<"ALL" | "FEED" | "MORTALITY" | "SYSTEM">("ALL");
     const [searchQuery, setSearchQuery] = useState("");
     const [dateQuery, setDateQuery] = useState("");
@@ -212,6 +220,7 @@ export const LogsTimeline = ({ logs, height }: { logs: TimelineLog[], height?: s
                                 key={log.id}
                                 log={log}
                                 isLast={index === filteredLogs.length - 1}
+                                isActive={isActive}
                             />
                         ))}
                     </div>

@@ -35,20 +35,20 @@ export function EditOrgDialog({ org }: EditOrgDialogProps) {
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation(
-    trpc.admin.updateOrganization.mutationOptions({
+    trpc.admin.organizations.update.mutationOptions({
       onSuccess: () => {
         toast.success("Updated!");
-        queryClient.invalidateQueries(trpc.admin.getAllOrgs.queryOptions());
+        queryClient.invalidateQueries(trpc.admin.organizations.getAll.queryOptions());
         setOpen(false);
       }
     })
   );
 
   const deleteMutation = useMutation(
-    trpc.admin.deleteOrganization.mutationOptions({
+    trpc.admin.organizations.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Organization deleted");
-        queryClient.invalidateQueries(trpc.admin.getAllOrgs.queryOptions());
+        queryClient.invalidateQueries(trpc.admin.organizations.getAll.queryOptions());
         setOpen(false);
       }
     })

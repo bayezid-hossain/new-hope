@@ -44,9 +44,13 @@ export const ProductionTree = ({
     isManagement,
 }: ProductionTreeProps) => {
     const trpc = useTRPC();
-    const { data: tree, isLoading } = useQuery(
-        trpc.organization.getProductionTree.queryOptions({ orgId })
-    );
+
+    // Choose the router based on context
+    const adminTree = trpc.admin.officers.getProductionTree.queryOptions({ orgId });
+    const managementTree = trpc.management.officers.getProductionTree.queryOptions({ orgId });
+    const queryOpts = isAdmin ? adminTree : managementTree;
+
+    const { data: tree, isLoading } = useQuery(queryOpts);
 
     if (isLoading) {
         return (

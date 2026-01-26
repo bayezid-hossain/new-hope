@@ -28,7 +28,7 @@ export default function OrganizationDetailsPage() {
 
     const orgId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-    const { data: orgs, isPending } = useQuery(trpc.admin.getAllOrgs.queryOptions());
+    const { data: orgs, isPending } = useQuery(trpc.admin.organizations.getAll.queryOptions());
     const org = orgs?.find(o => o.id === orgId);
 
     if (isPending) {

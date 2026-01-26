@@ -45,43 +45,43 @@ export function MembersList({ orgId }: { orgId: string }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: members, isPending } = useQuery(
-    trpc.organization.getMembers.queryOptions({ orgId })
+    trpc.management.members.list.queryOptions({ orgId })
   );
 
   const approveMutation = useMutation(
-    trpc.organization.approveMember.mutationOptions({
+    trpc.management.members.approve.mutationOptions({
       onSuccess: () => {
         toast.success("Member approved");
-        queryClient.invalidateQueries(trpc.organization.getMembers.queryOptions({ orgId }));
+        queryClient.invalidateQueries(trpc.management.members.list.queryOptions({ orgId }));
       }
     })
   );
 
   const roleMutation = useMutation(
-    trpc.organization.updateMemberRole.mutationOptions({
+    trpc.management.members.updateRole.mutationOptions({
       onSuccess: () => {
         toast.success("Role updated");
-        queryClient.invalidateQueries(trpc.organization.getMembers.queryOptions({ orgId }));
+        queryClient.invalidateQueries(trpc.management.members.list.queryOptions({ orgId }));
       }
     })
   );
 
   const statusMutation = useMutation(
-    trpc.organization.updateMemberStatus.mutationOptions({
+    trpc.management.members.updateStatus.mutationOptions({
       onSuccess: () => {
         toast.success("Status updated");
-        queryClient.invalidateQueries(trpc.organization.getMembers.queryOptions({ orgId }));
+        queryClient.invalidateQueries(trpc.management.members.list.queryOptions({ orgId }));
       },
       onError: (err) => toast.error(err.message)
     })
   );
 
   const removeMutation = useMutation(
-    trpc.organization.removeMember.mutationOptions({
+    trpc.management.members.remove.mutationOptions({
       onMutate: (vars) => setDeletingId(vars.memberId),
       onSuccess: () => {
         toast.success("Member removed from organization");
-        queryClient.invalidateQueries(trpc.organization.getMembers.queryOptions({ orgId }));
+        queryClient.invalidateQueries(trpc.management.members.list.queryOptions({ orgId }));
         setDeletingId(null);
       },
       onError: (err) => {

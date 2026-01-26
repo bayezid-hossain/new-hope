@@ -18,9 +18,13 @@ interface OfficerProfileProps {
 
 export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerProfileProps) => {
     const trpc = useTRPC();
-    const { data: profile, isLoading } = useQuery(
-        trpc.organization.getOfficerDetails.queryOptions({ orgId, userId })
-    );
+
+    const adminQuery = trpc.admin.officers.getDetails.queryOptions({ orgId, userId });
+    const managementQuery = trpc.management.officers.getDetails.queryOptions({ orgId, userId });
+
+    const queryOptions = isAdminView ? adminQuery : managementQuery;
+
+    const { data: profile, isLoading } = useQuery(queryOptions);
 
     if (isLoading) return <div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     if (!profile) return <div>Officer not found.</div>;

@@ -49,11 +49,11 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
   });
 
   const createMutation = useMutation(
-    trpc.mainstock.createFarmer.mutationOptions({
+    trpc.officer.farmers.create.mutationOptions({
       onSuccess: async () => {
         toast.success("Farmer registered successfully");
         await queryClient.invalidateQueries(
-          trpc.mainstock.getDashboard.queryOptions({ orgId: orgId! })
+          trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! })
         );
         onOpenChange(false);
         form.reset();

@@ -58,7 +58,7 @@ export const AddMortalityModal = ({
         queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions));
 
         // Invalidate detailed farmer views
-        queryClient.invalidateQueries(trpc.management.getFarmerManagementHub.queryOptions({ farmerId: cycleId })); // Note: cycleId is often used as key or it might be farmerId depending on backend, but let's be safe. Wait, cycleId vs farmerId.
+        queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: cycleId })); // Note: cycleId is often used as key or it might be farmerId depending on backend, but let's be safe. Wait, cycleId vs farmerId.
 
         onOpenChange(false);
         form.reset();

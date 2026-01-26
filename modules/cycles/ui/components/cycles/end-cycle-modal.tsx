@@ -49,7 +49,7 @@ export const EndCycleModal = ({
           queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
 
           // Invalidate Organization/Farmer summary lists
-          queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
         ]);
 
         onOpenChange(false);
