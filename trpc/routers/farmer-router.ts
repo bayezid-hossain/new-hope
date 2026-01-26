@@ -47,9 +47,10 @@ export const farmersRouter = createTRPCRouter({
 
       // 3. Build the WHERE clause
       // 3. Build the WHERE clause
+      // 3. Build the WHERE clause
       const whereClause = and(
         eq(farmer.organizationId, orgId ?? ""),
-        eq(farmer.officerId, ctx.user.id), // STRICT: Only show farmers managed by this user
+        officerFilter, // Apply role-based filter if set
         search ? or(ilike(farmer.name, `%${search}%`)) : undefined
       );
 

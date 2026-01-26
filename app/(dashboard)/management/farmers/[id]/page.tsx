@@ -23,6 +23,7 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 
 import { Badge } from "@/components/ui/badge";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -265,6 +266,12 @@ export default function ManagementFarmerDetailsPage() {
                 currentStock={farmerData.mainStock}
                 open={showTransferModal}
                 onOpenChange={setShowTransferModal}
+            />
+            <FarmerNavigation
+                orgId={farmerData.organizationId}
+                currentFarmerId={farmerId}
+                currentOfficerId={farmerData.officerId}
+                prefix="/management"
             />
         </div>
     );

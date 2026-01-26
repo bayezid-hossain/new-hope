@@ -80,8 +80,14 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                     <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
                                         <TableCell className="font-bold text-slate-900 px-6">{farmer.name}</TableCell>
                                         <TableCell className="text-slate-600 font-medium text-sm">
-
-                                            <Link href={"/admin/organizations/" + farmer.organizationId + "/officers/" + farmer.officerId} className="hover:underline "> {farmer.officerName || "Unknown"}</Link>
+                                            <Link
+                                                href={isAdmin
+                                                    ? `/admin/organizations/${farmer.organizationId}/officers/${farmer.officerId}`
+                                                    : (isManagement ? `/management/officers/${farmer.officerId}` : "#")}
+                                                className={`hover:underline ${!isAdmin && !isManagement ? "pointer-events-none hover:no-underline" : ""}`}
+                                            >
+                                                {farmer.officerName || "Unknown"}
+                                            </Link>
                                         </TableCell>
                                         <TableCell>
                                             {farmer.activeCyclesCount > 0 ? (

@@ -16,7 +16,7 @@ export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!isPending && session && session.user && session.user.globalRole !== "ADMIN") {
-      router.push("/dashboard"); // Kick non-admins to normal dashboard
+      router.push("/"); // Kick non-admins to normal dashboard
     }
   }, [session, isPending, router]);
 
