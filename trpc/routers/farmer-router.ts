@@ -22,34 +22,39 @@ export const farmersRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { orgId, search, page, pageSize, sortBy, sortOrder } = input;
 
-      // 1. Membership Check (Strict - No Global Admin Bypass)
+      // 1. Membership Check
       let officerFilter = undefined;
+      const isGlobalAdmin = ctx.user.globalRole === "ADMIN";
+      let membership = null;
 
-      const membership = await ctx.db.query.member.findFirst({
-        where: and(
-          eq(member.userId, ctx.user.id),
-          eq(member.organizationId, orgId ?? ""),
-          eq(member.status, "ACTIVE")
-        )
-      });
+      if (!isGlobalAdmin) {
+        membership = await ctx.db.query.member.findFirst({
+          where: and(
+            eq(member.userId, ctx.user.id),
+            eq(member.organizationId, orgId ?? ""),
+            eq(member.status, "ACTIVE")
+          )
+        });
 
-      if (!membership) {
-        // If not a member, return empty or throw. For getMany, returning empty is often safer/UX friendly than throwing.
-        return { items: [], total: 0, totalPages: 0, currentPage: page };
+        if (!membership) {
+          // If not a member and not global admin, return empty
+          return { items: [], total: 0, totalPages: 0, currentPage: page };
+        }
       }
 
       // 2. Role-Based Logic
       // If Officer => Filter by officerId
-      // If Manager/Owner => No filter (See all)
-      if (membership.role === "OFFICER") {
+      // If Manager/Owner/Admin => No filter (See all)
+      if (membership?.role === "OFFICER") {
         officerFilter = eq(farmer.officerId, ctx.user.id);
       }
 
       // 3. Build the WHERE clause
       // 3. Build the WHERE clause
+      // 3. Build the WHERE clause
       const whereClause = and(
         eq(farmer.organizationId, orgId ?? ""),
-        eq(farmer.officerId, ctx.user.id), // STRICT: Only show farmers managed by this user
+        officerFilter, // Apply role-based filter if set
         search ? or(ilike(farmer.name, `%${search}%`)) : undefined
       );
 

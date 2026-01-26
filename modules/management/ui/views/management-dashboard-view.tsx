@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MembersList } from "@/modules/admin/components/members-list";
-import { OfficerAnalytics } from "@/modules/admin/components/officer-analytics";
-import { OrgCyclesList } from "@/modules/admin/components/org-cycles-list";
-import { OrgFarmersList } from "@/modules/admin/components/org-farmers-list";
 import { ProductionTree } from "@/modules/admin/components/production-tree";
 import { FeedConsumptionChart } from "@/modules/home/ui/components/feed-consumption-chart";
 import { HistoricalAnalysis } from "@/modules/home/ui/components/historical-analysis";
@@ -18,7 +15,7 @@ import { QuickDetails } from "@/modules/home/ui/components/quick-details";
 import { UrgentActions } from "@/modules/home/ui/components/urgent-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Bird, Building2, Scale, Users, Wheat } from "lucide-react";
+import { Activity, Building2, Scale, Users, Wheat } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
@@ -237,8 +234,8 @@ export const ManagementDashboardView = ({ orgId, orgName }: { orgId: string; org
                     <ManagementStats orgId={orgId} />
 
                     <Tabs defaultValue="members" className="space-y-6">
-                        <div className="overflow-x-auto pb-2 scrollbar-hide">
-                            <TabsList className="inline-flex w-auto bg-white border shadow-sm p-1 rounded-xl h-auto">
+                        <div className="flex items-center justify-between">
+                            <TabsList className="bg-white border shadow-sm p-1 rounded-xl h-auto">
                                 <TabsTrigger value="members" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
                                     <Users className="h-4 w-4" />
                                     Members
@@ -248,27 +245,14 @@ export const ManagementDashboardView = ({ orgId, orgName }: { orgId: string; org
                                     <Scale className="h-4 w-4" />
                                     Production Tree
                                 </TabsTrigger>
-                                <TabsTrigger value="cycles" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
-                                    <Bird className="h-4 w-4" />
-                                    Active Cycles
-                                </TabsTrigger>
                             </TabsList>
                         </div>
 
                         <TabsContent value="members" className="focus-visible:outline-none">
                             <MembersList orgId={orgId} />
                         </TabsContent>
-                        <TabsContent value="officers" className="focus-visible:outline-none">
-                            <OfficerAnalytics orgId={orgId} isManagement={true} />
-                        </TabsContent>
-                        <TabsContent value="farmers" className="focus-visible:outline-none">
-                            <OrgFarmersList orgId={orgId} isManagement={true} />
-                        </TabsContent>
                         <TabsContent value="production" className="focus-visible:outline-none">
                             <ProductionTree orgId={orgId} isManagement={true} />
-                        </TabsContent>
-                        <TabsContent value="cycles" className="focus-visible:outline-none">
-                            <OrgCyclesList orgId={orgId} isManagement={true} />
                         </TabsContent>
                     </Tabs>
                 </TabsContent>

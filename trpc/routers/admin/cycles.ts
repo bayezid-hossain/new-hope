@@ -89,6 +89,26 @@ export const adminCyclesRouter = createTRPCRouter({
                     .where(and(eq(cycleHistory.farmerId, activeCycle.farmerId)))
                     .orderBy(desc(cycleHistory.endDate));
 
+                const otherActiveCycles = await ctx.db.select().from(cycles)
+                    .where(and(
+                        eq(cycles.farmerId, activeCycle.farmerId),
+                        ne(cycles.id, activeCycle.id),
+                        eq(cycles.status, "active")
+                    ))
+                    .orderBy(desc(cycles.createdAt));
+
+                const combinedHistory = [
+                    ...otherActiveCycles.map(c => ({
+                        ...c,
+                        cycleName: c.name,
+                        finalIntake: c.intake,
+                        startDate: c.createdAt,
+                        endDate: null,
+                        status: 'active' as const
+                    })),
+                    ...history.map(h => ({ ...h, status: 'archived' as const }))
+                ];
+
                 return {
                     type: 'active' as const,
                     data: {
@@ -100,7 +120,7 @@ export const adminCyclesRouter = createTRPCRouter({
                         organizationId: activeCycle.organizationId || null,
                     },
                     logs,
-                    history: history.map(h => ({ ...h, status: 'archived' as const })),
+                    history: combinedHistory,
                     farmerContext: { mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name }
                 };
             }
@@ -120,6 +140,25 @@ export const adminCyclesRouter = createTRPCRouter({
                 .where(and(eq(cycleHistory.farmerId, historyRecord.farmerId), ne(cycleHistory.id, historyRecord.id)))
                 .orderBy(desc(cycleHistory.endDate));
 
+            const activeCycles = await ctx.db.select().from(cycles)
+                .where(and(
+                    eq(cycles.farmerId, historyRecord.farmerId),
+                    eq(cycles.status, "active")
+                ))
+                .orderBy(desc(cycles.createdAt));
+
+            const combinedHistory = [
+                ...activeCycles.map(c => ({
+                    ...c,
+                    cycleName: c.name,
+                    finalIntake: c.intake,
+                    startDate: c.createdAt,
+                    endDate: null,
+                    status: 'active' as const
+                })),
+                ...otherHistory.map(h => ({ ...h, status: 'archived' as const }))
+            ];
+
             return {
                 type: 'history' as const,
                 data: {
@@ -130,7 +169,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     updatedAt: historyRecord.endDate,
                 },
                 logs,
-                history: otherHistory.map(h => ({ ...h, status: 'archived' as const })),
+                history: combinedHistory,
                 farmerContext: { mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name }
             };
         }),

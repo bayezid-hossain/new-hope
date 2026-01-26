@@ -23,6 +23,8 @@ import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 
+import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
+
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -294,6 +296,11 @@ export default function FarmerDetails() {
         currentStock={farmerQuery.data?.mainStock || 0}
         open={showTransferModal}
         onOpenChange={setShowTransferModal}
+      />
+      <FarmerNavigation
+        orgId={orgId!}
+        currentFarmerId={farmerId}
+        currentOfficerId={farmerQuery.data?.officerId}
       />
     </div>
   );

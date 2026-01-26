@@ -156,6 +156,7 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                     </Button>
                     <Button
                         variant="destructive"
+                        className=" text-white"
                         onClick={() => deleteMutation.mutate({ id: history.id })}
                         disabled={deleteMutation.isPending}
                     >

@@ -23,6 +23,7 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 
 import { Badge } from "@/components/ui/badge";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -120,6 +121,7 @@ export default function ManagementFarmerDetailsPage() {
                     </Button>
                     <div className="flex flex-col gap-1">
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">{farmerData.name}</h1>
+                        <p className="text-sm text-slate-500 font-medium">Officer: {farmerData.officerName}</p>
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
                             {activeCycles.items && activeCycles.items.length > 0 ? (
@@ -265,6 +267,12 @@ export default function ManagementFarmerDetailsPage() {
                 currentStock={farmerData.mainStock}
                 open={showTransferModal}
                 onOpenChange={setShowTransferModal}
+            />
+            <FarmerNavigation
+                orgId={farmerData.organizationId}
+                currentFarmerId={farmerId}
+                currentOfficerId={farmerData.officerId}
+                prefix="/management"
             />
         </div>
     );

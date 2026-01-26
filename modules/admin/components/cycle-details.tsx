@@ -24,7 +24,8 @@ import {
     Lightbulb,
     Loader2,
     Scale,
-    TrendingUp
+    TrendingUp,
+    UsersIcon
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -224,6 +225,20 @@ const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId }: { 
                         </div>
                     )}
                 </div>
+                {/* Navigation Aid: Nearby Farmers */}
+                {!currentId && (
+                    <div className="mt-8 pt-8 border-t border-dashed">
+                        <h4 className="text-sm font-semibold text-slate-500 mb-4 px-1 uppercase tracking-wider">Quick Navigation</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <Link href={prefix + "/farmers"} className="p-4 rounded-lg border bg-slate-50 hover:bg-white hover:border-primary/30 hover:shadow-sm transition-all text-center group">
+                                <UsersIcon className="h-6 w-6 mx-auto mb-2 text-slate-400 group-hover:text-primary" />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-primary block">All Farmers</span>
+                            </Link>
+                            {/* We could potentially fetch next/prev farmers here if we had the context, 
+                                    for now we link back to main lists or related views */}
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

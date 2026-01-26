@@ -224,7 +224,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                             Cancel
                         </Button>
                         <Button
-                            variant="destructive"
+                            variant="destructive" className="text-white"
                             onClick={() => deleteMutation.mutate({ id: cycle.id })}
                             disabled={deleteMutation.isPending}
                         >

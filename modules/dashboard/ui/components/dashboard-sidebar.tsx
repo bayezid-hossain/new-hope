@@ -71,6 +71,10 @@ const managerSection = {
       label: "Farmers",
       href: "/management/farmers",
     },
+    {
+      label: "Cycles",
+      href: "/management/cycles",
+    },
   ]
 };
 
