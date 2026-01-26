@@ -132,6 +132,8 @@ export const farmer = pgTable("farmer", {
 }, (t) => [
   index("idx_farmer_org_id").on(t.organizationId),
   index("idx_farmer_officer_id").on(t.officerId),
+  // UNIQUE per Officer: One person can't have two farmers with same name in same Org
+  uniqueIndex("unique_farmer_name_per_officer").on(t.organizationId, t.officerId, t.name),
 ]);
 
 export const cycles = pgTable("cycles", {
