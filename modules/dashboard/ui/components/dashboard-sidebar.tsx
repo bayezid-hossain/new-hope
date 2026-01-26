@@ -1,4 +1,5 @@
 "use client";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -10,11 +11,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { HistoryIcon, HomeIcon, Settings, ShieldCheck, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { Building2, ChevronRight, HistoryIcon, HomeIcon, ShieldCheck, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -50,6 +54,26 @@ const secondSection = [
     href: "/upgrade",
   },
 ];
+
+const managerSection = {
+  icon: Building2,
+  label: "Management",
+  items: [
+    {
+      label: "Overview",
+      href: "/management",
+    },
+    {
+      label: "Officers",
+      href: "/management/officers",
+    },
+    {
+      label: "Farmers",
+      href: "/management/farmers",
+    },
+  ]
+};
+
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
@@ -122,25 +146,32 @@ const DashboardSidebar = () => {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {isManager && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        className={cn(
-                          "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                          pathname === "/management" &&
-                          "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                        )}
-                        isActive={pathname === "/management"}
-                      >
-                        <Link href="/management">
-                          <Settings className="size-5" />
-                          <span className="text-sm font-medium tracking-tight">
-                            Management
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <Collapsible defaultOpen className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton tooltip="Management">
+                            <managerSection.icon className="size-5" />
+                            <span className="text-sm font-medium tracking-tight">{managerSection.label}</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {managerSection.items.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.href}>
+                                <SidebarMenuSubButton asChild isActive={pathname === subItem.href}>
+                                  <Link href={subItem.href}>
+                                    <span>{subItem.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
                   )}
+
                   {isAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton

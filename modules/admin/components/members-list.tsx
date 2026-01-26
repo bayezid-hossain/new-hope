@@ -31,7 +31,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Power, Trash2, Users } from "lucide-react";
+import { Check, Loader2, Power, Trash2, Users, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -150,16 +150,28 @@ export function MembersList({ orgId }: { orgId: string }) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {/* Approve Button */}
+                      {/* Approve/Reject Buttons */}
                       {member.status === "PENDING" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
-                          onClick={() => approveMutation.mutate({ memberId: member.id })}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
+                            onClick={() => approveMutation.mutate({ memberId: member.id })}
+                            title="Approve Member"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 h-7 w-7 p-0 flex-shrink-0"
+                            onClick={() => removeMutation.mutate({ memberId: member.id })}
+                            title="Reject Request"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       )}
 
                       {/* Toggle Status Button (Active/Inactive) */}

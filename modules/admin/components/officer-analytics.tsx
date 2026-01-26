@@ -33,8 +33,8 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
     );
 
     const filtered = (analytics || []).filter(a =>
-        a?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        a?.email?.toLowerCase().includes(search.toLowerCase())
+        (a.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (a.email || "").toLowerCase().includes(search.toLowerCase())
     );
 
     if (isLoading) {

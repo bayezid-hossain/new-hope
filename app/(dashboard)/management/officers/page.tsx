@@ -1,21 +1,20 @@
 "use client";
 
 import LoadingState from "@/components/loading-state";
-import { ManagementDashboardView } from "@/modules/management/ui/views/management-dashboard-view";
+import { OfficerAnalytics } from "@/modules/admin/components/officer-analytics";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Users } from "lucide-react";
 
-export default function ManagementPage() {
+export default function ManagementOfficersPage() {
     const trpc = useTRPC();
 
-    // Fetch user's organization status to get the orgId
     const { data: statusData, isPending } = useQuery(
         trpc.organization.getMyStatus.queryOptions()
     );
 
     if (isPending) {
-        return <LoadingState title="Loading Management" description="Fetching organization details..." />;
+        return <LoadingState title="Loading Officers" description="Fetching organization details..." />;
     }
 
     if (!statusData || !statusData.orgId) {
@@ -28,7 +27,6 @@ export default function ManagementPage() {
         );
     }
 
-    // Check if the user is authorized to be here
     const isAuthorized = statusData.role === "OWNER" || statusData.role === "MANAGER";
 
     if (!isAuthorized) {
@@ -41,6 +39,17 @@ export default function ManagementPage() {
         );
     }
 
-    return <ManagementDashboardView orgId={statusData.orgId} orgName={statusData.orgName} />;
-}
+    return (
+        <div className="p-4 sm:p-8 space-y-8 bg-slate-50/50 min-h-screen">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                    <Users className="h-8 w-8 text-primary" />
+                    Officer Performance
+                </h1>
+                <p className="text-slate-500 text-sm mt-1">Monitor the performance and activity of your organization&apos;s officers.</p>
+            </div>
 
+            <OfficerAnalytics orgId={statusData.orgId} isManagement={true} />
+        </div>
+    );
+}
