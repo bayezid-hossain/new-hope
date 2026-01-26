@@ -102,6 +102,7 @@ export const FarmersListView = () => {
             orgId: orgId!,
             search: debouncedSearch,
             pageSize: 50, // Fetch a good amount for the list
+            onlyMine: true,
         }, { enabled: !!orgId })
     );
 

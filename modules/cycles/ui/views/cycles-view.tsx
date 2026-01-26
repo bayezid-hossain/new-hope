@@ -30,7 +30,7 @@ const CyclesContent = () => {
                 useOfficerRouter={true}
             />
 
-            <CreateCycleModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+            <CreateCycleModal open={isCreateOpen} onOpenChange={setIsCreateOpen} onlyMine={true} />
         </div>
     );
 };

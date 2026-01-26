@@ -13,17 +13,19 @@ import {
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Plus, RefreshCcw, Wheat } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ArrowRightLeft, Plus, RefreshCcw, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
 import LoadingState from "@/components/loading-state";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { ChevronRight } from "lucide-react";
+import { useDebounce } from "use-debounce";
 
 // --- Mobile Stock Card Component ---
 const MobileStockCard = ({
@@ -35,12 +37,11 @@ const MobileStockCard = ({
   onTransfer: (data: any) => void;
   onRestock: (id: string) => void;
 }) => {
-  const consumed = row.totalConsumed || 0;
   const mainStock = row.mainStock || 0;
   const activeConsumption = row.activeConsumption || 0;
   const effectiveRemaining = mainStock - activeConsumption;
   const percentUsed = mainStock > 0 ? (activeConsumption / mainStock) * 100 : 0;
-  const total = Number(mainStock) + Number(consumed);
+
 
   return (
     <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
@@ -121,13 +122,18 @@ export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
   const trpc = useTRPC();
 
-  const { data, isPending, refetch, isRefetching } = useQuery(
-    trpc.mainstock.getDashboard.queryOptions({
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebounce(search, 300);
+
+  const { data, isPending, refetch, isRefetching } = useQuery({
+    ...trpc.mainstock.getDashboard.queryOptions({
       orgId: orgId!,
+      search: debouncedSearch,
       page: 1,
       pageSize: 50
-    }, { enabled: !!orgId })
-  );
+    }, { enabled: !!orgId }),
+    placeholderData: keepPreviousData
+  });
 
   const [feedModal, setFeedModal] = useState<{ open: boolean; farmerId: string | null }>({
     open: false,
@@ -151,9 +157,18 @@ export default function MainStockPage() {
     <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Main Stock Inventory</h1>
           <p className="text-muted-foreground">Manage centralized feed stock for all farmers.</p>
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search farmers..."
+            className="pl-9 bg-white"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button

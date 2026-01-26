@@ -56,9 +56,10 @@ type FarmerSuggestion = {
 interface CreateCycleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onlyMine?: boolean;
 }
 
-export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) => {
+export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleModalProps) => {
   const { orgId } = useCurrentOrg();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -81,7 +82,8 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
       {
         orgId: orgId!,
         pageSize: 100, // Fetch more for the dropdown list
-        status: "active"
+        status: "active",
+        onlyMine
       },
       { enabled: open && !!orgId }
     )
