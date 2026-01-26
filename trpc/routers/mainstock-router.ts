@@ -114,12 +114,12 @@ export const mainStockRouter = createTRPCRouter({
       initialStock: z.number().min(0)
     }))
     .mutation(async ({ ctx, input }) => {
-      // Check for existing farmer with same name for THIS officer in THIS org
+      // Check for existing farmer with same name for THIS officer in THIS org (Case-Insensitive)
       const existing = await ctx.db.query.farmer.findFirst({
         where: and(
           eq(farmer.organizationId, input.orgId),
           eq(farmer.officerId, ctx.user.id),
-          eq(farmer.name, input.name)
+          ilike(farmer.name, input.name.toUpperCase())
         )
       });
 
@@ -132,7 +132,7 @@ export const mainStockRouter = createTRPCRouter({
 
       return await ctx.db.transaction(async (tx) => {
         const [newFarmer] = await tx.insert(farmer).values({
-          name: input.name,
+          name: input.name.toUpperCase(),
           organizationId: input.orgId,
           officerId: ctx.user.id,
           mainStock: input.initialStock,
