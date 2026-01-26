@@ -31,7 +31,7 @@ interface ColumnsFactoryOptions {
 }
 
 // --- Actions Component ---
-const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
+export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
 

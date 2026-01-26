@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Farmer } from "@/modules/cycles/types";
+import { ActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -23,6 +25,12 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
     const procedure = useOfficerRouter
         ? trpc.officer.cycles.listActive
         : trpc.management.cycles.listActive;
+
+    const prefix = isAdmin
+        ? `/admin/organizations/${orgId}`
+        : isManagement
+            ? `/management`
+            : ``;
 
     const { data, isLoading } = useQuery({
         ...procedure.queryOptions({
@@ -147,12 +155,13 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                     <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span></div>
                                                     <div className="col-span-2 text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</div>
                                                     <div className="col-span-3 text-xs text-slate-500">{format(new Date(cycle.createdAt), "MMM d, yyyy")}</div>
-                                                    <div className="col-span-1 text-right">
-                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
+                                                    <div className="col-span-1 text-right flex items-center justify-end gap-1">
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
                                                             <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
-                                                                <Eye className="h-4 text-green-500 w-4" />
+                                                                <Eye className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
+                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
                                                     </div>
                                                 </div>
 
@@ -173,6 +182,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                         <div>{format(new Date(cycle.createdAt), "dd MMM")}</div>
                                                     </div>
                                                 </Link>
+                                                <div className="px-4 pb-4 sm:hidden flex justify-end">
+                                                    <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -220,11 +232,14 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                     {format(new Date(cycle.createdAt), "MMM d, yyyy")}
                                                 </TableCell>
                                                 <TableCell className="px-6">
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
-                                                        <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
-                                                            <Eye className="h-4 text-green-500 w-4" />
-                                                        </Link>
-                                                    </Button>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
+                                                            <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
+                                                                <Eye className="h-4 w-4" />
+                                                            </Link>
+                                                        </Button>
+                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -266,6 +281,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                 <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold">
                                                     View Details <ArrowRight className="h-3 w-3" />
                                                 </span>
+                                            </div>
+                                            <div className="px-4 pb-4 pt-0 flex justify-end border-t border-slate-50 mt-2">
+                                                <div className="pt-2">
+                                                    <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                </div>
                                             </div>
                                         </div>
                                     </Link>
