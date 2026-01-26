@@ -9,7 +9,8 @@ interface UrgentActionsProps {
         id: string;
         name: string;
         farmerName: string;
-        farmerMainStock: number;
+        farmerMainStock?: number;
+        availableStock: number;
     }>;
 }
 
@@ -38,7 +39,9 @@ export const UrgentActions = ({ lowStockCycles }: UrgentActionsProps) => {
                                 <div className="space-y-1">
                                     <p className="font-semibold text-sm text-slate-900">{cycle.farmerName}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        Cycle: {cycle.name} &bull; Stock: <span className="font-medium text-amber-600">{cycle.farmerMainStock} bags</span>
+                                        Cycle: {cycle.name} &bull; Available: <span className="font-medium text-amber-600">
+                                            {cycle.availableStock < 0 ? 0 : cycle.availableStock.toFixed(1)} bags
+                                        </span>
                                     </p>
                                 </div>
                                 <Button size="sm" variant="outline" className="h-8 border-amber-200 hover:bg-amber-50 text-amber-700" asChild>

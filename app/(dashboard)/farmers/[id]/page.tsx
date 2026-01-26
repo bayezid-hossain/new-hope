@@ -151,28 +151,85 @@ export default function FarmerDetails() {
   );
 
   return (
-    <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-slate-50/50 min-h-screen">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Farmer History & Details</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Farmer History & Details</h1>
           <p className="text-sm text-muted-foreground italic">
             {farmerQuery.data?.name || "Loading..."} • Production & Stock Management
           </p>
         </div>
-        <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm order-first sm:order-last w-fit">
+        <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white order-first md:order-last w-fit">
           <ArrowUpRight className="h-4 w-4" />
           Transfer Stock
         </Button>
       </div>
 
+      {/* Stock Overview Card */}
+      <Card className="border-none shadow-md bg-white overflow-hidden">
+        <CardContent className="p-6">
+          <div className="grid gap-6 sm:grid-cols-3 items-center">
+            {(() => {
+              const mainStock = farmerQuery.data?.mainStock || 0;
+              const activeConsumption = activeQuery.data?.items.reduce((acc: number, c: any) => acc + (c.intake || 0), 0) || 0;
+              const remaining = mainStock - activeConsumption;
+              const isLow = remaining < 3;
+
+              return (
+                <>
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Remaining</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>{remaining.toFixed(1)}</span>
+                      <span className="text-sm font-medium text-slate-500">bags</span>
+                    </div>
+                    {isLow && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                        Urgent Restock
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-0.5">
+                        <span className="text-slate-500">Active Cycle Use</span>
+                        <div className="font-semibold text-amber-600">+{activeConsumption.toFixed(1)} bags</div>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-slate-500">Total Provisioned (Ledger)</span>
+                        <div className="font-semibold text-slate-900">{mainStock.toFixed(1)} bags</div>
+                      </div>
+                    </div>
+                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                      <div className="bg-emerald-500 h-full" style={{ width: `${Math.min((remaining / (mainStock || 1)) * 100, 100)}%` }} />
+                      <div className="bg-amber-400 h-full" style={{ width: `${Math.min((activeConsumption / (mainStock || 1)) * 100, 100)}%` }} />
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="w-full min-w-0">
         {/* Desktop View: Tabs */}
         <div className="hidden sm:block">
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-11 bg-slate-100 p-1 rounded-xl">
-              <TabsTrigger value="active" className="rounded-lg transition-all data-[state=active]:shadow-sm">Active Cycles</TabsTrigger>
-              <TabsTrigger value="history" className="rounded-lg transition-all data-[state=active]:shadow-sm">Archived Cycles</TabsTrigger>
-              <TabsTrigger value="ledger" className="rounded-lg transition-all data-[state=active]:shadow-sm">Stock Ledger</TabsTrigger>
+          <Tabs defaultValue="active" className="w-full space-y-6">
+            <TabsList className="inline-flex w-auto bg-white border shadow-sm p-1 rounded-xl h-auto">
+              <TabsTrigger value="active" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                <Activity className="h-4 w-4" />
+                Active Cycles
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                <Archive className="h-4 w-4" />
+                Archived Cycles
+              </TabsTrigger>
+              <TabsTrigger value="ledger" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                <Scale className="h-4 w-4" />
+                Stock Ledger
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="active" className="mt-8">
@@ -245,8 +302,8 @@ export default function FarmerDetails() {
 // 1. Stock Ledger Table
 const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: number }) => {
   return (
-    <Card className="border-slate-200 shadow-sm overflow-hidden">
-      <CardHeader className="bg-slate-50/50 border-b py-4">
+    <Card className="border-none shadow-sm overflow-hidden bg-white">
+      <CardHeader className="bg-slate-50/50 border-b py-4 px-6">
         <CardTitle className="flex items-center gap-2 text-lg">
           <History className="h-5 w-5 text-slate-500" />
           Stock Transactions

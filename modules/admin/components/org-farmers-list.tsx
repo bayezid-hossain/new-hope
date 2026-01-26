@@ -103,9 +103,25 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                                                <Wheat className="h-4 w-4 text-amber-400/60" />
-                                                {farmer.mainStock.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                            <div className="flex flex-col gap-0.5">
+                                                {(() => {
+                                                    const activeConsumption = farmer.cycles.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                                    const remaining = farmer.mainStock - activeConsumption;
+                                                    const isLow = remaining < 3;
+                                                    return (
+                                                        <>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className={`font-bold text-sm ${isLow ? "text-red-600" : "text-slate-900"}`}>
+                                                                    {remaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
+                                                                <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
+                                                                <span className="text-slate-400">Total Prov: {farmer.mainStock.toFixed(1)}</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </TableCell>
 
@@ -164,9 +180,30 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
                                                 <Wheat className="h-3.5 w-3.5" />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Main Stock</span>
-                                                <span className="text-sm font-bold text-slate-900">{farmer.mainStock.toFixed(1)} <small className="text-[10px] font-normal">bags</small></span>
+                                            <div className="flex flex-col w-full">
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Stock Overview</span>
+                                                {(() => {
+                                                    const activeConsumption = farmer.cycles.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                                    const remaining = farmer.mainStock - activeConsumption;
+                                                    return (
+                                                        <div className="mt-1 space-y-1">
+                                                            <div className="flex justify-between items-baseline">
+                                                                <span className="text-xs text-muted-foreground">Remaining</span>
+                                                                <span className={`font-bold text-sm ${remaining < 3 ? "text-red-600" : "text-emerald-700"}`}>
+                                                                    {remaining.toFixed(1)} bags
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                                                                <div className="bg-emerald-500 h-full" style={{ width: `${Math.min((remaining / (farmer.mainStock || 1)) * 100, 100)}%` }} />
+                                                                <div className="bg-amber-400 h-full" style={{ width: `${Math.min((activeConsumption / (farmer.mainStock || 1)) * 100, 100)}%` }} />
+                                                            </div>
+                                                            <div className="flex justify-between text-[10px] text-slate-400">
+                                                                <span>Used: {activeConsumption.toFixed(1)}</span>
+                                                                <span>Total Prov: {farmer.mainStock.toFixed(1)}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>

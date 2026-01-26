@@ -53,16 +53,38 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
             uniqueFarmers.set(c.farmerId, c.farmerMainStock || 0);
         }
     });
-    const totalFeedStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
+    const totalMainStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
+
+    // Calculate Total Active Consumption
+    const totalActiveConsumption = cycles.reduce((acc, c) => acc + c.intake, 0);
+
+    // Effective Available Stock
+    const totalAvailableStock = totalMainStock - totalActiveConsumption;
 
     const avgMortality = cycles.length
         ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + (f.doc), 0) * 100).toFixed(2)
         : "0";
 
-    // Urgent: Less than 3 bags remaining (Based on Farmer Stock)
+    // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
+    const farmerConsumptionMap = new Map<string, number>();
+    cycles.forEach(c => {
+        const current = farmerConsumptionMap.get(c.farmerId) || 0;
+        farmerConsumptionMap.set(c.farmerId, current + c.intake);
+    });
+
     const lowStockCycles = cycles
-        .filter(f => (f.farmerMainStock || 0) < 3)
-        .sort((a, b) => (a.farmerMainStock || 0) - (b.farmerMainStock || 0));
+        .map(c => {
+            const totalConsumption = farmerConsumptionMap.get(c.farmerId) || 0;
+            const initialStock = c.farmerMainStock || 0;
+            const availableStock = initialStock - totalConsumption;
+            return { ...c, availableStock };
+        })
+        .filter((c, index, self) =>
+            // Deduplicate by farmer
+            index === self.findIndex((t) => t.farmerId === c.farmerId)
+        )
+        .filter(c => c.availableStock < 3)
+        .sort((a, b) => a.availableStock - b.availableStock);
 
     // --- Aggregation grouped by Farmer ---
     const farmerStats = new Map<string, {
@@ -122,7 +144,9 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
             {/* 1. Top Row KPIs */}
             <KpiCards
                 totalBirds={totalBirds}
-                totalFeedStock={totalFeedStock}
+                totalFeedStock={totalMainStock}
+                activeConsumption={totalActiveConsumption}
+                availableStock={totalAvailableStock}
                 lowStockCount={lowStockCycles.length}
                 avgMortality={avgMortality}
                 activeCyclesCount={cycles.length}
