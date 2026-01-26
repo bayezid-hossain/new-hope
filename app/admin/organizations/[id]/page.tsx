@@ -7,22 +7,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminGuard } from "@/modules/admin/components/admin-guard";
 import { MembersList } from "@/modules/admin/components/members-list";
-import { OfficerAnalytics } from "@/modules/admin/components/officer-analytics";
-import { OrgCyclesList } from "@/modules/admin/components/org-cycles-list";
-import { OrgFarmersList } from "@/modules/admin/components/org-farmers-list";
 import { ProductionTree } from "@/modules/admin/components/production-tree";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
     ArrowLeft,
-    Bird,
     Building2,
     LayoutDashboard,
     Loader2,
-    UserCircle2,
-    Users,
-    Wheat
+    Users
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -80,83 +74,38 @@ export default function OrganizationDetailsPage() {
 
                 {/* Main Content */}
                 <div className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-8">
-                    <Tabs defaultValue="members" className="space-y-6">
-                        <div className="overflow-x-auto pb-2 scrollbar-hide">
-                            <TabsList className="inline-flex w-auto bg-white border shadow-sm p-1 rounded-xl h-auto">
+                    <OrgOverview org={org} />
 
-                                <TabsTrigger value="members" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Users className="h-4 w-4" />
-                                    Members
-                                </TabsTrigger>
-                                <TabsTrigger value="production" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Activity className="h-4 w-4" />
-                                    Production Tree
-                                </TabsTrigger>
-                                <TabsTrigger value="officers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <UserCircle2 className="h-4 w-4" />
-                                    Officers
-                                </TabsTrigger>
-                                <TabsTrigger value="farmers" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Wheat className="h-4 w-4" />
-                                    Farmers
-                                </TabsTrigger>
-
-                                <TabsTrigger value="cycles" className="hidden sm:flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
-                                    <Bird className="h-4 w-4" />
-                                    Active Records
-                                </TabsTrigger>
-                            </TabsList>
-                        </div>
-
-                        <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
-                            <Card className="border-none shadow-sm overflow-hidden bg-white">
-                                <CardContent className="p-6">
-                                    <OfficerAnalytics orgId={org.id} isManagement={false} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="production" className="mt-0 focus-visible:outline-none">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-1">
-                                    <h2 className="text-xl font-bold text-slate-900">Production Hierarchy</h2>
-                                </div>
-                                <ProductionTree orgId={org.id} isAdmin={true} />
+                    <div className="space-y-6">
+                        <Tabs defaultValue="members" className="w-full">
+                            <div className="flex items-center justify-between">
+                                <TabsList className="bg-white border shadow-sm p-1 rounded-xl h-auto">
+                                    <TabsTrigger value="members" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                        <Users className="h-4 w-4" />
+                                        Members
+                                    </TabsTrigger>
+                                    <TabsTrigger value="production" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-semibold">
+                                        <Activity className="h-4 w-4" />
+                                        Production Tree
+                                    </TabsTrigger>
+                                </TabsList>
                             </div>
-                        </TabsContent>
 
-                        <TabsContent value="members" className="mt-0 focus-visible:outline-none">
-                            <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
-                                <CardContent className="p-0 sm:p-6">
-                                    <MembersList orgId={org.id} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                            <TabsContent value="members" className="mt-4 focus-visible:outline-none">
+                                <Card className="border-none shadow-sm overflow-hidden bg-white">
+                                    <CardContent className="p-0 sm:p-6">
+                                        <MembersList orgId={org.id} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                        <TabsContent value="farmers" className="mt-0 focus-visible:outline-none">
-                            <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
-                                <CardContent className="p-0 sm:p-6">
-                                    <OrgFarmersList orgId={org.id} isAdmin={true} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="cycles" className="mt-0 focus-visible:outline-none">
-                            <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
-                                <CardContent className="p-0 sm:p-6">
-                                    <OrgCyclesList orgId={org.id} isAdmin={true} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="officers" className="mt-0 focus-visible:outline-none">
-                            <Card className="border-none shadow-sm overflow-hidden bg-transparent sm:bg-white">
-                                <CardContent className="p-0 sm:p-6">
-                                    <OfficerAnalytics orgId={org.id} isManagement={false} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
+                            <TabsContent value="production" className="mt-4 focus-visible:outline-none">
+                                <div className="rounded-xl border bg-white p-4">
+                                    <ProductionTree orgId={org.id} isAdmin={true} />
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
                 </div>
             </div>
         </AdminGuard>

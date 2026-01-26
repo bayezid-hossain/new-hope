@@ -40,7 +40,7 @@ export const RejectedState = ({ orgName }: RejectedStateProps) => {
                 <div className="flex flex-col gap-2">
                     <Button
                         variant="destructive"
-                        className="w-full"
+                        className="w-full text-white"
                         onClick={() => {
                             toast.info("Please contact your administrator.");
                         }}

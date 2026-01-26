@@ -89,7 +89,7 @@ export const AddMortalityModal = ({
               </FormItem>
             )}
           />
-          <Button type="submit" variant="destructive" className="w-full" disabled={mutation.isPending}>
+          <Button type="submit" variant="destructive" className="w-full text-white" disabled={mutation.isPending}>
             {mutation.isPending ? "Recording..." : "Record Mortality"}
           </Button>
         </form>

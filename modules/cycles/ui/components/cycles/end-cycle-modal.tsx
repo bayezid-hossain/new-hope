@@ -99,7 +99,7 @@ export const EndCycleModal = ({
           <Button
             variant="destructive"
             onClick={handleEndCycle}
-            disabled={endMutation.isPending}
+            disabled={endMutation.isPending} className=" text-white"
           >
             {endMutation.isPending ? "Archiving..." : "Confirm & End Cycle"}
           </Button>

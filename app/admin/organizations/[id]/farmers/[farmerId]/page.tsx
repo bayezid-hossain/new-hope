@@ -118,6 +118,7 @@ export default function AdminFarmerDetailsPage() {
                         </Button>
                         <div className="flex flex-col gap-1">
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{farmerData.name}</h1>
+                            <p className="text-sm text-slate-500 font-medium">Officer: {farmerData.officerName}</p>
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold">ADMIN VIEW</Badge>
                                 {activeCycles.items && activeCycles.items.length > 0 ? (
@@ -127,6 +128,7 @@ export default function AdminFarmerDetailsPage() {
                                 )}
                                 <span className="text-xs text-slate-500">ID: {farmerData.id}</span>
                             </div>
+
                         </div>
                     </div>
                     <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white order-first sm:order-last w-fit">
