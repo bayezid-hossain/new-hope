@@ -183,7 +183,7 @@ export const HomeView = () => {
         <TabsContent value="analytics" className="space-y-4">
           <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load historical analysis" />}>
             <Suspense fallback={<LoadingState title="Loading History" description="Analyzing past cycles..." />}>
-              <HistoricalAnalysis />
+              <HistoricalAnalysis variant="officer" />
             </Suspense>
           </ErrorBoundary>
         </TabsContent>

@@ -9,20 +9,41 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { FeedConsumptionChart } from "../components/feed-consumption-chart";
 import { PerformanceInsights } from "../components/performance-insights";
 
-export const HistoricalAnalysis = () => {
+export const HistoricalAnalysis = ({ variant = "officer" }: { variant?: "officer" | "management" }) => {
     const trpc = useTRPC();
     const { orgId } = useCurrentOrg();
 
-    // Fetch last 100 cycles for broader historical context (Trend + Aggregation)
-    const { data } = useSuspenseQuery(
-        trpc.officer.cycles.listPast.queryOptions({
+    // Select the appropriate query based on variant
+    const queryOptions = variant === "management"
+        ? trpc.management.cycles.listPast.queryOptions({
             orgId: orgId!,
             page: 1,
             pageSize: 100,
             sortBy: "createdAt",
             sortOrder: "desc"
         })
-    );
+        : trpc.officer.cycles.listPast.queryOptions({
+            orgId: orgId!,
+            page: 1,
+            pageSize: 100,
+            sortBy: "createdAt",
+            sortOrder: "desc"
+        });
+
+    // Fetch last 100 cycles for broader historical context (Trend + Aggregation)
+    const { data } = useSuspenseQuery(queryOptions as any) as {
+        data: {
+            items: {
+                doc: number;
+                mortality: number;
+                farmerId: string;
+                farmerName: string;
+                finalIntake: number | null;
+                // Add other necessary fields if used, but these are the ones causing errors
+            }[];
+            total: number;
+        }
+    };
 
     const history = data.items;
 

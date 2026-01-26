@@ -18,7 +18,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
     const farmersStats = db.$with('farmers_stats').as(
         db.select({
             officerId: farmer.officerId,
-            count: sql<number>`count(*)`.as('count'),
+            farmersCount: sql<number>`count(*)`.as('farmersCount'),
         })
             .from(farmer)
             .where(eq(farmer.organizationId, orgId))
@@ -28,10 +28,10 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
     const activeCycleStats = db.$with('active_stats').as(
         db.select({
             officerId: farmer.officerId,
-            totalDoc: sql<number>`sum(${cycles.doc})`.as('totalDoc'),
-            totalIntake: sql<number>`sum(${cycles.intake})`.as('totalIntake'),
-            totalMortality: sql<number>`sum(${cycles.mortality})`.as('totalMortality'),
-            count: sql<number>`count(*)`.as('count'),
+            activeTotalDoc: sql<number>`sum(${cycles.doc})`.as('activeTotalDoc'),
+            activeTotalIntake: sql<number>`sum(${cycles.intake})`.as('activeTotalIntake'),
+            activeTotalMortality: sql<number>`sum(${cycles.mortality})`.as('activeTotalMortality'),
+            activeCount: sql<number>`count(*)`.as('activeCount'),
         })
             .from(cycles)
             .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
@@ -42,10 +42,10 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
     const pastCycleStats = db.$with('past_stats').as(
         db.select({
             officerId: farmer.officerId,
-            totalDoc: sql<number>`sum(${cycleHistory.doc})`.as('totalDoc'),
-            totalIntake: sql<number>`sum(${cycleHistory.finalIntake})`.as('totalIntake'),
-            totalMortality: sql<number>`sum(${cycleHistory.mortality})`.as('totalMortality'),
-            count: sql<number>`count(*)`.as('count'),
+            pastTotalDoc: sql<number>`sum(${cycleHistory.doc})`.as('pastTotalDoc'),
+            pastTotalIntake: sql<number>`sum(${cycleHistory.finalIntake})`.as('pastTotalIntake'),
+            pastTotalMortality: sql<number>`sum(${cycleHistory.mortality})`.as('pastTotalMortality'),
+            pastCount: sql<number>`count(*)`.as('pastCount'),
         })
             .from(cycleHistory)
             .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
@@ -60,12 +60,12 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             name: user.name,
             email: user.email,
             role: member.role,
-            farmersCount: sql<number>`COALESCE(${farmersStats.count}, 0)`,
-            activeCycles: sql<number>`COALESCE(${activeCycleStats.count}, 0)`,
-            pastCycles: sql<number>`COALESCE(${pastCycleStats.count}, 0)`,
-            totalDoc: sql<number>`COALESCE(${activeCycleStats.totalDoc}, 0) + COALESCE(${pastCycleStats.totalDoc}, 0)`,
-            totalIntake: sql<number>`COALESCE(${activeCycleStats.totalIntake}, 0) + COALESCE(${pastCycleStats.totalIntake}, 0)`,
-            totalMortality: sql<number>`COALESCE(${activeCycleStats.totalMortality}, 0) + COALESCE(${pastCycleStats.totalMortality}, 0)`,
+            farmersCount: sql<number>`COALESCE(${farmersStats.farmersCount}, 0)`,
+            activeCycles: sql<number>`COALESCE(${activeCycleStats.activeCount}, 0)`,
+            pastCycles: sql<number>`COALESCE(${pastCycleStats.pastCount}, 0)`,
+            totalDoc: sql<number>`COALESCE(${activeCycleStats.activeTotalDoc}, 0) + COALESCE(${pastCycleStats.pastTotalDoc}, 0)`,
+            totalIntake: sql<number>`COALESCE(${activeCycleStats.activeTotalIntake}, 0) + COALESCE(${pastCycleStats.pastTotalIntake}, 0)`,
+            totalMortality: sql<number>`COALESCE(${activeCycleStats.activeTotalMortality}, 0) + COALESCE(${pastCycleStats.pastTotalMortality}, 0)`,
         })
         .from(member)
         .innerJoin(user, eq(member.userId, user.id))
@@ -75,6 +75,15 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         .where(and(eq(member.organizationId, orgId), eq(member.status, 'ACTIVE')))
         .orderBy(user.name);
 
-    return results as OfficerAnalyticsData[];
+    return results.map((r: any) => ({
+        ...r,
+        farmersCount: Number(r.farmersCount || 0),
+        activeCycles: Number(r.activeCycles || 0),
+        pastCycles: Number(r.pastCycles || 0),
+        totalDoc: Number(r.totalDoc || 0),
+        totalIntake: Number(r.totalIntake || 0),
+        totalMortality: Number(r.totalMortality || 0),
+    })) as OfficerAnalyticsData[];
 }
+
 

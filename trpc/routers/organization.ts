@@ -187,7 +187,13 @@ export const organizationRouter = createTRPCRouter({
       })
         .from(member)
         .innerJoin(user, eq(member.userId, user.id))
-        .where(eq(member.organizationId, input.orgId));
+        .where(
+          and(
+            eq(member.organizationId, input.orgId),
+            // Exclude yourself from the list
+            sql`${member.userId} != ${ctx.user.id}`
+          )
+        );
     }),
 
   // 2. Update Member Role (Promote/Demote)
