@@ -23,6 +23,8 @@ import {
     ChevronRight,
     Clock,
     MoreVertical,
+    Pencil,
+    RotateCcw,
     Skull,
     Trash2,
     Wheat
@@ -31,7 +33,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddMortalityModal } from "./add-mortality-modal";
+import { EditDocModal } from "./edit-doc-modal";
 import { EndCycleModal } from "./end-cycle-modal";
+import { ReopenCycleModal } from "./reopen-cycle-modal";
 
 interface MobileCycleCardProps {
     cycle: any;
@@ -44,6 +48,8 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showReopenModal, setShowReopenModal] = useState(false);
+    const [showEditDocModal, setShowEditDocModal] = useState(false);
 
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -98,6 +104,9 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                                 <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
                                     <Skull className="mr-2 h-4 w-4" /> Add Mortality
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowEditDocModal(true)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit Initial Birds (DOC)
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setShowEndCycle(true)}
@@ -116,6 +125,12 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setShowReopenModal(true)}
+                                >
+                                    <RotateCcw className="mr-2 h-4 w-4" /> Reopen Cycle
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
@@ -152,7 +167,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
 
                     <div className="bg-amber-50/50 p-2.2 rounded-xl border border-amber-100 flex flex-col gap-1">
                         <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                            <Wheat className="h-3 w-3" /> Intake
+                            <Wheat className="h-3 w-3" /> Consumption
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-lg font-black text-amber-900 leading-none">{intakeValue}</span>
@@ -205,33 +220,48 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                         open={showEndCycle}
                         onOpenChange={setShowEndCycle}
                     />
+
+                    <EditDocModal
+                        cycleId={cycle.id}
+                        currentDoc={docValue}
+                        open={showEditDocModal}
+                        onOpenChange={setShowEditDocModal}
+                    />
                 </>
             )}
 
             {isPast && (
-                <ResponsiveDialog
-                    open={showDeleteModal}
-                    onOpenChange={setShowDeleteModal}
-                    title="Delete Record"
-                    description="Are you sure you want to delete this history record? This action cannot be undone."
-                >
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowDeleteModal(false)}
-                            disabled={deleteMutation.isPending}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive" className="text-white"
-                            onClick={() => deleteMutation.mutate({ id: cycle.id })}
-                            disabled={deleteMutation.isPending}
-                        >
-                            {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </Button>
-                    </div>
-                </ResponsiveDialog>
+                <>
+                    <ReopenCycleModal
+                        historyId={cycle.id}
+                        cycleName={cycleName}
+                        open={showReopenModal}
+                        onOpenChange={setShowReopenModal}
+                    />
+                    <ResponsiveDialog
+                        open={showDeleteModal}
+                        onOpenChange={setShowDeleteModal}
+                        title="Delete Record"
+                        description="Are you sure you want to delete this history record? This action cannot be undone."
+                    >
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deleteMutation.isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive" className="text-white"
+                                onClick={() => deleteMutation.mutate({ id: cycle.id })}
+                                disabled={deleteMutation.isPending}
+                            >
+                                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                            </Button>
+                        </div>
+                    </ResponsiveDialog>
+                </>
             )}
         </Card>
     );

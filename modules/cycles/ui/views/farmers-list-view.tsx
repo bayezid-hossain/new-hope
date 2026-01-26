@@ -60,8 +60,10 @@ const MobileFarmerCard = ({ farmer }: { farmer: any }) => (
                         <Bird className="h-3.5 w-3.5" /> Production
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-slate-900 leading-none">{farmer.activeCyclesCount}</span>
-                        <span className="text-[10px] text-slate-500 font-medium lowercase">Active Cycles</span>
+                        <span className="text-lg font-black text-slate-900 leading-none">
+                            {farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium lowercase">Live / Total</span>
                     </div>
                 </div>
 
@@ -98,7 +100,7 @@ export const FarmersListView = () => {
     const debouncedSearch = searchTerm;
 
     const { data, isLoading } = useQuery(
-        trpc.farmers.getMany.queryOptions({
+        trpc.management.farmers.getMany.queryOptions({
             orgId: orgId!,
             search: debouncedSearch,
             pageSize: 50, // Fetch a good amount for the list
@@ -149,7 +151,7 @@ export const FarmersListView = () => {
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Farmer Name</TableHead>
                                     <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Status</TableHead>
-                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Active Cycles</TableHead>
+                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Cycles (Live/Total)</TableHead>
                                     <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Current Stock</TableHead>
                                     <TableHead className="text-right h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Joined</TableHead>
                                     <TableHead className="w-[50px] h-9 sm:h-11 text-[10px] sm:text-[11px] px-4"></TableHead>
@@ -185,8 +187,8 @@ export const FarmersListView = () => {
                                         <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                             <div className="flex items-center gap-1.5">
                                                 <Bird className="h-4 w-4 text-muted-foreground" />
-                                                <span className="font-medium">{farmer.activeCyclesCount}</span>
-                                                <span className="text-[10px] text-muted-foreground">cycles</span>
+                                                <span className="font-medium">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
+                                                <span className="text-[10px] text-muted-foreground">Live / Total</span>
                                             </div>
                                         </TableCell>
 

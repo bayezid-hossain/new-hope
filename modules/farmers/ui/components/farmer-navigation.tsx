@@ -13,21 +13,29 @@ interface FarmerNavigationProps {
     orgId: string;
     prefix?: string; // e.g. "/management" or "/admin/organizations/[id]"
     heading?: string;
+    useOfficerRouter?: boolean;
 }
 
-export const FarmerNavigation = ({ currentFarmerId, currentOfficerId, orgId, prefix = "", heading = "Explore Other Farmers" }: FarmerNavigationProps) => {
+export const FarmerNavigation = ({ currentFarmerId, currentOfficerId, orgId, prefix = "", heading = "Explore Other Farmers", useOfficerRouter }: FarmerNavigationProps) => {
     const trpc = useTRPC();
 
-    // Fetch a list of farmers. 
-    // We fetch a bit more than needed to allow for client-side prioritization of same-officer farmers
-    const { data, isLoading } = useQuery(
-        trpc.farmers.getMany.queryOptions({
+    const opts = useOfficerRouter
+        ? trpc.officer.farmers.getMany.queryOptions({
             orgId,
             pageSize: 20,
             sortBy: "createdAt",
             sortOrder: "desc"
         })
-    );
+        : trpc.management.farmers.getMany.queryOptions({
+            orgId,
+            pageSize: 20,
+            sortBy: "createdAt",
+            sortOrder: "desc"
+        });
+
+    // Fetch a list of farmers. 
+    // We fetch a bit more than needed to allow for client-side prioritization of same-officer farmers
+    const { data, isLoading } = useQuery(opts);
 
     if (isLoading || !data?.items || data.items.length === 0) return null;
 

@@ -44,7 +44,7 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
   });
 
   const addStockMutation = useMutation(
-    trpc.mainstock.addStock.mutationOptions({
+    trpc.officer.stock.addStock.mutationOptions({
       onSuccess: async () => {
         toast.success("Main stock updated successfully");
 
@@ -52,7 +52,7 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
         // We invalidate the specific procedures. 
         // Passing an empty filter object often matches the query key structure loosely enough for invalidation.
         await Promise.all([
-          queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId! })),
+          queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! })),
           queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions({ orgId: orgId! })),
         ]);
 

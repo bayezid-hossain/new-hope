@@ -10,7 +10,7 @@ export default function ManagementOfficersPage() {
     const trpc = useTRPC();
 
     const { data: statusData, isPending } = useQuery(
-        trpc.organization.getMyStatus.queryOptions()
+        trpc.auth.getMyMembership.queryOptions()
     );
 
     if (isPending) {

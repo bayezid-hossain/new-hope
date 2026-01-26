@@ -56,11 +56,11 @@ function CreateOrgButton() {
     const queryClient = useQueryClient();
 
     const createMutation = useMutation(
-        trpc.admin.createOrganization.mutationOptions({
+        trpc.admin.organizations.create.mutationOptions({
             onSuccess: () => {
                 toast.success("Organization created successfully");
-                queryClient.invalidateQueries(trpc.admin.getAllOrgs.queryOptions());
-                queryClient.invalidateQueries(trpc.admin.getStats.queryOptions());
+                queryClient.invalidateQueries(trpc.admin.organizations.getAll.queryOptions());
+                queryClient.invalidateQueries(trpc.admin.stats.getDashboardStats.queryOptions());
                 setOpen(false);
                 setName("");
                 setSlug("");
@@ -113,7 +113,7 @@ function CreateOrgButton() {
 
 function OrgList({ searchQuery }: { searchQuery: string }) {
     const trpc = useTRPC();
-    const { data: orgs, isPending } = useQuery(trpc.admin.getAllOrgs.queryOptions());
+    const { data: orgs, isPending } = useQuery(trpc.admin.organizations.getAll.queryOptions());
 
     const filteredOrgs = orgs?.filter(org =>
         org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -14,7 +14,7 @@ import {
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Plus, RefreshCcw, Search, Wheat } from "lucide-react";
+import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
@@ -56,7 +56,14 @@ const MobileStockCard = ({
           </div>
         </div>
 
-        {/* Active Cycles Badges */}
+        {/* Active Cycles Summary */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">
+            <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.activeCyclesCount + row.pastCyclesCount} Live
+          </div>
+        </div>
+
+        {/* Individual Cycles Badges */}
         <div className="flex flex-wrap gap-1.5">
           {row.activeCycles.length > 0 ? (
             row.activeCycles.map((c: any) => (
@@ -72,7 +79,7 @@ const MobileStockCard = ({
         {/* Progress Section */}
         <div className="space-y-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
           <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-            <span className="text-slate-500">Stock Usage</span>
+            <span className="text-slate-500">Current Consumption</span>
             <span className={percentUsed > 90 ? "text-red-600" : "text-primary"}>{percentUsed.toFixed(0)}% Used</span>
           </div>
           <div className="flex h-2 w-full bg-slate-200 rounded-full overflow-hidden">
@@ -80,7 +87,7 @@ const MobileStockCard = ({
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
             <div className="flex justify-between">
-              <span className="text-slate-400 font-bold uppercase">Active Use</span>
+              <span className="text-slate-400 font-bold uppercase">Consump.</span>
               <span className="font-bold text-amber-600">+{activeConsumption.toFixed(1)}</span>
             </div>
             <div className="flex justify-between border-l border-slate-200 pl-2">
@@ -126,7 +133,7 @@ export default function MainStockPage() {
   const [debouncedSearch] = useDebounce(search, 300);
 
   const { data, isPending, refetch, isRefetching } = useQuery({
-    ...trpc.mainstock.getDashboard.queryOptions({
+    ...trpc.officer.farmers.listWithStock.queryOptions({
       orgId: orgId!,
       search: debouncedSearch,
       page: 1,
@@ -207,7 +214,7 @@ export default function MainStockPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Farmer</TableHead>
-                  <TableHead>Active Cycles</TableHead>
+                  <TableHead>Cycles (Live/Total)</TableHead>
                   <TableHead className="w-[250px]">Stock Overview</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -231,14 +238,18 @@ export default function MainStockPage() {
                       </TableCell>
 
                       <TableCell>
-                        <div className="grid grid-cols-2 gap-2">
-                          {row.activeCycles.map((c: any) => (
-                            <Badge key={c.id} variant="secondary" className="text-xs font-normal border-gray-200 justify-center">
-                              {/* Adjust 'c.name' if your schema uses 'cycleId' or similar */}
-                              Cycle <span className="text-muted-foreground ml-1">(Age: {c.age})</span>
-                            </Badge>
-                          ))}
-                          {row.activeCycles.length === 0 && <span className="text-muted-foreground text-xs italic col-span-2">No active cycles</span>}
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider">
+                            <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.activeCyclesCount + row.pastCyclesCount} Live
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {row.activeCycles.map((c: any) => (
+                              <Badge key={c.id} variant="secondary" className="text-[9px] font-normal border-gray-200 py-0 h-4">
+                                Age: {c.age}d
+                              </Badge>
+                            ))}
+                          </div>
+                          {row.activeCycles.length === 0 && <span className="text-muted-foreground text-[10px] italic">No active cycles</span>}
                         </div>
                       </TableCell>
 
@@ -250,7 +261,7 @@ export default function MainStockPage() {
                             </span>
                           </div>
                           <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
+                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} consumption in active cycles</span>
                             <span className="text-slate-400">Total Prov: {mainStock.toFixed(1)}</span>
                           </div>
                         </div>

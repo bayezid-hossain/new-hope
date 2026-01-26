@@ -64,7 +64,7 @@ export default function AdminDashboard() {
 
 function AdminStats() {
     const trpc = useTRPC();
-    const { data: stats, isPending } = useQuery(trpc.admin.getStats.queryOptions());
+    const { data: stats, isPending } = useQuery(trpc.admin.stats.getDashboardStats.queryOptions());
 
     if (isPending) {
         return (

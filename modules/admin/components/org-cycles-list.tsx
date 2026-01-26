@@ -133,7 +133,8 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                             <div className="col-span-3">Cycle Name</div>
                                             <div className="col-span-2">Age</div>
                                             <div className="col-span-2">Birds</div>
-                                            <div className="col-span-2">Mortality</div>
+                                            <div className="col-span-1">Mortality</div>
+                                            <div className="col-span-2">Consumption</div>
                                             <div className="col-span-2">Started</div>
                                             <div className="col-span-1"></div>
                                         </div>
@@ -155,13 +156,14 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                     </div>
                                                     <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span></div>
                                                     <div className="col-span-2 text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</div>
-                                                    <div className="col-span-2 text-sm font-bold text-slate-900">
+                                                    <div className="col-span-1 text-sm font-bold text-slate-900">
                                                         {cycle.mortality > 0 ? (
                                                             <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-full text-xs">{cycle.mortality}</span>
                                                         ) : (
                                                             <span className="text-slate-400">-</span>
                                                         )}
                                                     </div>
+                                                    <div className="col-span-2 text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
                                                     <div className="col-span-2 text-xs text-slate-500">{format(new Date(cycle.createdAt), "MMM d, yyyy")}</div>
                                                     <div className="col-span-1 text-right flex items-center justify-end gap-1">
                                                         <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
@@ -219,7 +221,8 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                             <TableHead className="font-semibold">Age</TableHead>
                                             <TableHead className="font-semibold">Birds (DOC)</TableHead>
                                             <TableHead className="font-semibold">Mortality</TableHead>
-                                            <TableHead className="font-semibold">Started</TableHead>
+                                            <TableHead className="font-semibold text-right">Consumption (Bags)</TableHead>
+                                            <TableHead className="font-semibold text-right">Started</TableHead>
                                             <TableHead className="w-[50px] px-6"></TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -254,7 +257,10 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-slate-400 text-[11px] font-medium">
+                                                <TableCell className="text-right">
+                                                    <div className="font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
+                                                </TableCell>
+                                                <TableCell className="text-right text-slate-400 text-[11px] font-medium">
                                                     {format(new Date(cycle.createdAt), "MMM d, yyyy")}
                                                 </TableCell>
                                                 <TableCell className="px-6">

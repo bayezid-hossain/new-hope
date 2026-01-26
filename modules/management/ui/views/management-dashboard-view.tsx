@@ -166,7 +166,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
 
 function ManagementStats({ orgId }: { orgId: string }) {
     const trpc = useTRPC();
-    const { data: stats, isLoading } = useQuery(trpc.organization.getOrgStats.queryOptions({ orgId }));
+    const { data: stats, isLoading } = useQuery(trpc.management.analytics.getDashboardStats.queryOptions({ orgId }));
 
     if (isLoading) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 h-32 animate-pulse bg-slate-100 rounded-xl" />;
 

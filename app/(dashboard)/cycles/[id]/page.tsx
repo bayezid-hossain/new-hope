@@ -142,7 +142,7 @@ const AnalysisContent = ({
                 <Card className="bg-slate-50 border-slate-200 shadow-sm py-2">
                     <CardHeader className="pb-2 px-4 sm:px-6">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Calculator className="h-4 w-4 text-blue-600" /> Intake Insights
+                            <Calculator className="h-4 w-4 text-blue-600" /> Consumption Insights
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 sm:px-6 pb-4">
@@ -255,6 +255,7 @@ const LogsTabContent = ({ isActive, logs, isMobile }: { isActive: boolean; logs:
                 note: log.note
             }))}
             height={isMobile ? "max-h-[350px]" : "max-h-[300px]"}
+            isActive={isActive}
         />
     </div>
 );

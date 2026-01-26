@@ -100,7 +100,7 @@ export default function AdminFarmerDetailsPage() {
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
-        trpc.management.getFarmerManagementHub.queryOptions({ farmerId })
+        trpc.management.farmers.getManagementHub.queryOptions({ farmerId })
     );
 
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;

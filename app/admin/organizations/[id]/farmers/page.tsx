@@ -13,7 +13,7 @@ export default function AdminOrgFarmersPage() {
     const orgId = params.id as string;
     const trpc = useTRPC();
 
-    const { data: orgs, isPending } = useQuery(trpc.admin.getAllOrgs.queryOptions());
+    const { data: orgs, isPending } = useQuery(trpc.admin.organizations.getAll.queryOptions());
     const org = orgs?.find(o => o.id === orgId);
 
     if (isPending) return <LoadingState title="Loading Farmers" description="Fetching organization data..." />;

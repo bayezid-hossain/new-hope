@@ -78,12 +78,10 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
 
   // 2. Fetch Active Farmers for Dropdown
   const { data: farmersData, isFetching } = useQuery(
-    trpc.farmers.getMany.queryOptions(
+    trpc.officer.farmers.listWithStock.queryOptions(
       {
         orgId: orgId!,
         pageSize: 100, // Fetch more for the dropdown list
-        status: "active",
-        onlyMine
       },
       { enabled: open && !!orgId }
     )
@@ -118,10 +116,10 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
           queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
 
           // Invalidate Organization/Farmer summary lists
-          queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
 
           // Also invalidate mainstock as feed might be deducted
-          queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId?.toString()! })),
+          queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId?.toString()! })),
         ]);
 
         onOpenChange(false);

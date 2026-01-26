@@ -11,7 +11,7 @@ export default function ManagementPage() {
 
     // Fetch user's organization status to get the orgId
     const { data: statusData, isPending } = useQuery(
-        trpc.organization.getMyStatus.queryOptions()
+        trpc.auth.getMyMembership.queryOptions()
     );
 
     if (isPending) {

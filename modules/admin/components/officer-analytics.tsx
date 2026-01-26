@@ -29,7 +29,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
     const [search, setSearch] = useState("");
 
     const { data: analytics, isLoading } = useQuery(
-        trpc.management.getOfficerAnalytics.queryOptions({ orgId })
+        trpc.management.analytics.getOfficerAnalytics.queryOptions({ orgId })
     );
 
     const filtered = (analytics || []).filter(a =>

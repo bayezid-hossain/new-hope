@@ -63,12 +63,13 @@ export const officerCyclesRouter = createTRPCRouter({
     listPast: officerProcedure
         .input(cycleSearchSchema)
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId } = input;
+            const { search, page, pageSize, orgId, farmerId } = input;
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
                 eq(farmer.officerId, ctx.user.id),
+                farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
                 search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
             );
 
@@ -366,5 +367,184 @@ export const officerCyclesRouter = createTRPCRouter({
 
             await ctx.db.delete(cycleHistory).where(eq(cycleHistory.id, input.id));
             return { success: true };
+            await ctx.db.delete(cycleHistory).where(eq(cycleHistory.id, input.id));
+            return { success: true };
+        }),
+
+    // REOPEN CYCLE (Undo End Cycle)
+    reopenCycle: officerProcedure
+        .input(z.object({ historyId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                // 1. Fetch History Record
+                const historyRecord = await tx.query.cycleHistory.findFirst({
+                    where: eq(cycleHistory.id, input.historyId),
+                    with: { farmer: true }
+                });
+
+                if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
+                if (historyRecord.farmer.officerId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+
+                // 2. Move back to Cycles (Active)
+                const [restoredCycle] = await tx.insert(cycles).values({
+                    id: crypto.randomUUID(), // New ID or keep old? New is safer to avoid conflicts if ID reused ideally, but let's just make new.
+                    name: historyRecord.cycleName,
+                    farmerId: historyRecord.farmerId,
+                    organizationId: historyRecord.organizationId!,
+                    doc: historyRecord.doc,
+                    age: historyRecord.age,
+                    mortality: historyRecord.mortality,
+                    intake: historyRecord.finalIntake,
+                    status: "active",
+                    createdAt: historyRecord.startDate,
+                    updatedAt: new Date(),
+                }).returning();
+
+                // 3. Re-link Logs
+                await tx.update(cycleLogs)
+                    .set({ cycleId: restoredCycle.id, historyId: null })
+                    .where(eq(cycleLogs.historyId, input.historyId));
+
+                // 4. Revert Feed Consumption from Stock (Add back)
+                // The cycle turned 'active' implies the feed it consumed is still "consumed" by the cycle,
+                // BUT 'End Cycle' event usually deducts from mainStock.
+                // Wait, 'End Cycle' logic in 'end' procedure:
+                // await tx.update(farmer).set({ mainStock: mainStock - intake, totalConsumed: totalConsumed + intake })
+                // So we must REVERSE this deduction.
+
+                const amountToRestore = historyRecord.finalIntake;
+
+                await tx.update(farmer)
+                    .set({
+                        mainStock: sql`${farmer.mainStock} + ${amountToRestore}`,
+                        totalConsumed: sql`${farmer.totalConsumed} - ${amountToRestore}`,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, historyRecord.farmerId));
+
+                // 5. Log the Stock Correction
+                if (amountToRestore > 0) {
+                    await tx.insert(stockLogs).values({
+                        farmerId: historyRecord.farmerId,
+                        amount: amountToRestore.toString(),
+                        type: "CORRECTION",
+                        note: `Cycle "${historyRecord.cycleName}" Reopened. Restored ${amountToRestore} bags.`,
+                    });
+                }
+
+                // 6. Delete History Record
+                await tx.delete(cycleHistory).where(eq(cycleHistory.id, input.historyId));
+
+                return { success: true, cycleId: restoredCycle.id };
+            });
+        }),
+
+    // REVERT MORTALITY (Undo Mortality Log)
+    revertCycleLog: officerProcedure
+        .input(z.object({ logId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                const [log] = await tx.select().from(cycleLogs).where(eq(cycleLogs.id, input.logId));
+                if (!log) throw new TRPCError({ code: "NOT_FOUND" });
+                if (log.type !== "MORTALITY") throw new TRPCError({ code: "BAD_REQUEST", message: "Only mortality logs can be reverted here." });
+
+                // Verify Ownership via Cycle (Active)
+                let cycleId = log.cycleId;
+                if (!cycleId) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot revert logs for archived cycles directly. Reopen the cycle first." });
+
+                const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId));
+                if (!activeCycle) throw new TRPCError({ code: "NOT_FOUND", message: "Active cycle not found." });
+
+                // Check Officer
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: and(eq(farmer.id, activeCycle.farmerId), eq(farmer.officerId, ctx.user.id))
+                });
+                if (!farmerData) throw new TRPCError({ code: "FORBIDDEN" });
+
+                // Update Cycle Mortality
+                const revertAmount = log.valueChange; // This was +Amount
+
+                await tx.update(cycles)
+                    .set({
+                        mortality: sql`${cycles.mortality} - ${revertAmount}`,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(cycles.id, cycleId));
+
+                // Create Correction Log
+                await tx.insert(cycleLogs).values({
+                    cycleId: cycleId,
+                    userId: ctx.user.id,
+                    type: "MORTALITY", // Use MORTALITY type so it sums up correctly (negative value)
+                    valueChange: -revertAmount,
+                    note: `Reverted Mortality Log: ${log.note}`,
+                    previousValue: log.newValue,
+                    newValue: (log.newValue || 0) - revertAmount
+                });
+
+                return { success: true };
+            });
+        }),
+
+    // CORRECT DOC (Edit Initial Birds)
+    correctDoc: officerProcedure
+        .input(z.object({
+            cycleId: z.string(),
+            newDoc: z.number().int().positive(),
+            reason: z.string().min(3)
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // console.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
+            return await ctx.db.transaction(async (tx) => {
+                // 1. Fetch Cycle
+                const [cycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
+                if (!cycle) {
+                    console.error(`[correctDoc] Cycle not found: ${input.cycleId}`);
+                    throw new TRPCError({ code: "NOT_FOUND" });
+                }
+
+                // 2. Check Ownership (using standard select instead of query API)
+                const [farmerData] = await tx.select()
+                    .from(farmer)
+                    .where(and(eq(farmer.id, cycle.farmerId), eq(farmer.officerId, ctx.user.id)))
+                    .limit(1);
+
+                if (!farmerData) {
+                    console.error(`[correctDoc] Forbidden: Farmer ${cycle.farmerId} not managed by ${ctx.user.id}`);
+                    throw new TRPCError({ code: "FORBIDDEN" });
+                }
+
+                const oldDoc = cycle.doc;
+                if (oldDoc === input.newDoc) return { success: true, message: "No change" };
+
+                // console.log(`[correctDoc] Updating doc from ${oldDoc} to ${input.newDoc}`);
+
+                // 3. Update Cycle
+                const [updatedCycle] = await tx.update(cycles)
+                    .set({
+                        doc: input.newDoc,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(cycles.id, input.cycleId))
+                    .returning();
+
+                // 4. Recalculate Intake based on NEW DOC
+                if (updatedCycle) {
+                    // console.log(`[correctDoc] Triggering intake recalculation...`);
+                    await updateCycleFeed(updatedCycle, ctx.user.id, true, tx);
+                }
+
+                // 5. Log Correction
+                await tx.insert(cycleLogs).values({
+                    cycleId: input.cycleId,
+                    userId: ctx.user.id,
+                    type: "NOTE",
+                    valueChange: 0,
+                    note: `DOC Correction: Changed from ${oldDoc} to ${input.newDoc}. Reason: ${input.reason}`
+                });
+
+                // console.log(`[correctDoc] Successfully completed.`);
+                return { success: true };
+            });
         }),
 });

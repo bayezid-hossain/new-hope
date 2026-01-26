@@ -12,7 +12,7 @@ export default function ManagementOfficerDetailPage() {
     const trpc = useTRPC();
 
     const { data: status, isLoading: isStatusLoading } = useQuery(
-        trpc.organization.getMyStatus.queryOptions()
+        trpc.auth.getMyMembership.queryOptions()
     );
 
     if (isStatusLoading) return <LoadingState title="Loading Profile" description="Connecting to organization..." />;
