@@ -1,6 +1,6 @@
 import { farmer } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
@@ -18,12 +18,12 @@ export const officerRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const userId = ctx.user.id;
 
-            // Check for existing farmer with same name for THIS officer in THIS org
+            // Check for existing farmer with same name for THIS officer in THIS org (Case-Insensitive)
             const existing = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     eq(farmer.officerId, userId),
-                    eq(farmer.name, input.name)
+                    ilike(farmer.name, input.name.toUpperCase())
                 )
             });
 
@@ -35,7 +35,7 @@ export const officerRouter = createTRPCRouter({
             }
 
             const [newFarmer] = await ctx.db.insert(farmer).values({
-                name: input.name,
+                name: input.name.toUpperCase(),
                 organizationId: input.orgId,
                 mainStock: input.mainStock,
                 officerId: userId,
