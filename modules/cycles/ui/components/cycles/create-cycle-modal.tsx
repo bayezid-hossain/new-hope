@@ -106,9 +106,21 @@ export const CreateCycleModal = ({ open, onOpenChange }: CreateCycleModalProps) 
     trpc.officer.cycles.create.mutationOptions({
       onSuccess: async () => {
         toast.success("Cycle started successfully");
-        await queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
-        // Also invalidate mainstock as feed might be deducted
-        await queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId?.toString()! }));
+
+        const baseOptions = { orgId: orgId! };
+
+        // Invalidate Active listings across all potential routers
+        await Promise.all([
+          queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
+
+          // Invalidate Organization/Farmer summary lists
+          queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+
+          // Also invalidate mainstock as feed might be deducted
+          queryClient.invalidateQueries(trpc.mainstock.getDashboard.queryOptions({ orgId: orgId?.toString()! })),
+        ]);
 
         onOpenChange(false);
         form.reset();

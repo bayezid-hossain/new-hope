@@ -95,10 +95,23 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
         trpc.admin.cycles.deleteHistory.mutationOptions({
             onSuccess: async () => {
                 toast.success("Record deleted successfully");
-                // Invalidate across potential routers if necessary, but history is usually org-wide
-                await queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions({ orgId: orgId! }));
-                await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
-                await queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions({ orgId: orgId! }));
+
+                const baseOptions = { orgId: orgId! };
+                // Invalidate across ALL routers to ensure all views update
+                await Promise.all([
+                    queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
+
+                    // Also invalidate active lists just in case
+                    queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
+
+                    // Invalidate detailed farmer views
+                    queryClient.invalidateQueries(trpc.management.getFarmerManagementHub.queryOptions({ farmerId: history.farmerId })),
+                    queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+                ]);
                 setShowDeleteModal(false);
             },
             onError: (err: any) => {

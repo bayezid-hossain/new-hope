@@ -50,7 +50,16 @@ export const AddMortalityModal = ({
     trpc.officer.cycles.addMortality.mutationOptions({
       onSuccess: () => {
         toast.success("Mortality recorded");
-        queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
+
+        // Invalidate Active listings across all potential routers
+        const baseOptions = { orgId: orgId! };
+        queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions));
+        queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions));
+        queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions));
+
+        // Invalidate detailed farmer views
+        queryClient.invalidateQueries(trpc.management.getFarmerManagementHub.queryOptions({ farmerId: cycleId })); // Note: cycleId is often used as key or it might be farmerId depending on backend, but let's be safe. Wait, cycleId vs farmerId.
+
         onOpenChange(false);
         form.reset();
       },

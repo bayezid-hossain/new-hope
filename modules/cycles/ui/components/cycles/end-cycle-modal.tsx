@@ -36,9 +36,22 @@ export const EndCycleModal = ({
     trpc.officer.cycles.end.mutationOptions({
       onSuccess: async () => {
         toast.success("Cycle ended successfully");
-        // Invalidate both Active (removed) and Past (added) queries
-        await queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions({ orgId: orgId! }));
-        await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
+
+        const baseOptions = { orgId: orgId! };
+
+        // Invalidate both Active (removed) and Past (added) queries across all routers
+        await Promise.all([
+          queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
+          queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
+
+          // Invalidate Organization/Farmer summary lists
+          queryClient.invalidateQueries(trpc.management.getOrgFarmers.queryOptions(baseOptions)),
+        ]);
+
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
       },
