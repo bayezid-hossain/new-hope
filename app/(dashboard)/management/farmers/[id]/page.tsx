@@ -139,14 +139,47 @@ export default function ManagementFarmerDetailsPage() {
             <div className="grid gap-6 md:grid-cols-3">
                 <Card className="border-none shadow-sm md:col-span-1 h-fit">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Production Hub</CardTitle>
+                        <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Stock Overview</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex-col items-baseline gap-2">
-                            <span className="text-4xl font-bold text-slate-900">{farmerData.mainStock.toFixed(1)}</span>
-                            <span className="text-slate-500 font-medium text-[10px]">bags in stock</span>
-                        </div>
+                    <CardContent className="space-y-6">
+                        {(() => {
+                            const activeConsumption = activeCycles.items.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                            const remaining = farmerData.mainStock - activeConsumption;
+                            const isLow = remaining < 3;
 
+                            return (
+                                <>
+                                    <div className="space-y-1">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>
+                                                {remaining.toFixed(1)}
+                                            </span>
+                                            <span className="text-slate-500 font-medium text-sm">bags left</span>
+                                        </div>
+                                        {isLow && (
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wide">
+                                                Urgent Restock Needed
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-slate-500">Active Consumption</span>
+                                            <span className="font-semibold text-amber-600">+{activeConsumption.toFixed(1)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-slate-500">Total Provisioned (Ledger)</span>
+                                            <span className="font-semibold text-slate-900">{farmerData.mainStock.toFixed(1)}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                                            <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
+                                            <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${Math.min((activeConsumption / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </CardContent>
                 </Card>
 

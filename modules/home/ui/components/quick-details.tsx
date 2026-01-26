@@ -11,6 +11,8 @@ interface QuickDetailsProps {
         id: string;
         name: string;
         farmerName: string;
+        farmerMainStock: number;
+        intake: number;
         age: number;
         doc: number;
         status: string;
@@ -38,6 +40,7 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Desc</TableHead>
+                            <TableHead>Feed Use</TableHead>
                             <TableHead>Age</TableHead>
                             <TableHead className="text-right">Status</TableHead>
                         </TableRow>
@@ -56,6 +59,13 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                                         <div className="font-medium">{cycle.farmerName}</div>
                                         <div className="hidden text-sm text-muted-foreground md:inline">
                                             {cycle.name}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="text-xs">
+                                            <span className="font-semibold text-amber-600">{cycle.intake.toFixed(1)}</span>
+                                            <span className="text-slate-400"> / </span>
+                                            <span className="text-slate-600">{cycle.farmerMainStock.toFixed(1)}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>{cycle.age} Days</TableCell>

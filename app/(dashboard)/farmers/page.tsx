@@ -3,7 +3,6 @@
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -37,9 +36,11 @@ const MobileStockCard = ({
   onRestock: (id: string) => void;
 }) => {
   const consumed = row.totalConsumed || 0;
-  const remainingStock = row.mainStock || 0;
-  const percentUsed = remainingStock > 0 ? (consumed / remainingStock) * 100 : 0;
-  const total = Number(remainingStock) + Number(consumed);
+  const mainStock = row.mainStock || 0;
+  const activeConsumption = row.activeConsumption || 0;
+  const effectiveRemaining = mainStock - activeConsumption;
+  const percentUsed = mainStock > 0 ? (activeConsumption / mainStock) * 100 : 0;
+  const total = Number(mainStock) + Number(consumed);
 
   return (
     <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
@@ -51,12 +52,6 @@ const MobileStockCard = ({
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{row.name}</h3>
               <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
             </Link>
-          </div>
-          <div className="text-right">
-            <div className={`text-xl font-black tabular-nums leading-none ${row.isLowStock ? "text-red-600" : "text-emerald-600"}`}>
-              {row.remainingStock.toFixed(1)}
-            </div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bags Left</div>
           </div>
         </div>
 
@@ -79,22 +74,17 @@ const MobileStockCard = ({
             <span className="text-slate-500">Stock Usage</span>
             <span className={percentUsed > 90 ? "text-red-600" : "text-primary"}>{percentUsed.toFixed(0)}% Used</span>
           </div>
-          <Progress
-            value={percentUsed}
-            className={`h-2 ${percentUsed > 90 ? "bg-red-500" : percentUsed > 75 ? "bg-amber-500" : "bg-primary"}`}
-          />
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <div className="flex flex-col">
-              <span className="text-[9px] text-slate-400 font-bold uppercase">Consumed</span>
-              <span className="text-xs font-bold text-slate-700">{consumed.toFixed(1)}</span>
+          <div className="flex h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+            <div className="bg-amber-500 h-full" style={{ width: `${Math.min(percentUsed, 100)}%` }} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-bold uppercase">Active Use</span>
+              <span className="font-bold text-amber-600">+{activeConsumption.toFixed(1)}</span>
             </div>
-            <div className="flex flex-col border-x border-slate-200 px-2">
-              <span className="text-[9px] text-slate-400 font-bold uppercase">Active</span>
-              <span className="text-xs font-bold text-slate-700">{row.activeConsumption.toFixed(1)}</span>
-            </div>
-            <div className="flex flex-col pl-1 text-right">
-              <span className="text-[9px] text-slate-400 font-bold uppercase">Total</span>
-              <span className="text-xs font-bold text-slate-700">{total.toFixed(1)}</span>
+            <div className="flex justify-between border-l border-slate-200 pl-2">
+              <span className="text-slate-400 font-bold uppercase">Total Prov.</span>
+              <span className="font-bold text-slate-700">{mainStock.toFixed(1)}</span>
             </div>
           </div>
         </div>
@@ -108,7 +98,7 @@ const MobileStockCard = ({
             onClick={() => onTransfer({
               farmerId: row.id,
               farmerName: row.name,
-              currentStock: row.remainingStock
+              currentStock: effectiveRemaining
             })}
           >
             <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Transfer
@@ -203,8 +193,7 @@ export default function MainStockPage() {
                 <TableRow className="bg-muted/50">
                   <TableHead>Farmer</TableHead>
                   <TableHead>Active Cycles</TableHead>
-                  <TableHead className="w-[300px]">Main Stock Usage</TableHead>
-                  <TableHead className="text-right">Remaining</TableHead>
+                  <TableHead className="w-[250px]">Stock Overview</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -212,9 +201,12 @@ export default function MainStockPage() {
                 {data.items.map((row) => {
                   // Ensure we fallback to 0 safely
                   const consumed = row.totalConsumed || 0;
-                  const remainingStock = row.mainStock || 0;
-                  const percentUsed = remainingStock > 0 ? (consumed / remainingStock) * 100 : 0;
-                  const total = Number(remainingStock) + Number(consumed);
+                  const mainStock = row.mainStock || 0;
+                  const activeConsumption = row.activeConsumption || 0;
+                  const effectiveRemaining = mainStock - activeConsumption;
+                  // Calculate percentage of MAIN stock that is actively consumed
+                  const percentUsed = mainStock > 0 ? (activeConsumption / mainStock) * 100 : 0;
+
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
@@ -236,33 +228,17 @@ export default function MainStockPage() {
                       </TableCell>
 
                       <TableCell>
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {/* ✅ FIXED: Added .toFixed(1) and fallback */}
-                              Consumed: <span className="text-foreground font-medium">{consumed.toFixed(1)}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-bold text-sm ${effectiveRemaining < 3 ? "text-red-600" : "text-slate-900"}`}>
+                              {effectiveRemaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
                             </span>
-                            <span className="text-muted-foreground">
-                              Total: <span className="text-foreground font-medium">{total.toFixed(1)}</span>
-                            </span>
-                            <span className="text-muted-foreground">
-                              Active: <span className="text-foreground font-medium">{row.activeConsumption.toFixed(1)}</span>
-                            </span>
-
                           </div>
-                          <Progress
-                            value={percentUsed}
-                            className={percentUsed > 90 ? "bg-red-500" : percentUsed > 75 ? "bg-amber-500" : "bg-primary"}
-                          />
+                          <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
+                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
+                            <span className="text-slate-400">Total Prov: {mainStock.toFixed(1)}</span>
+                          </div>
                         </div>
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        {/* ✅ FIXED: Added .toFixed(1) */}
-                        <div className={`text-lg font-bold tabular-nums ${row.isLowStock ? "text-red-600" : "text-green-600"}`}>
-                          {row.remainingStock.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Bags Available</div>
                       </TableCell>
 
                       <TableCell className="text-right">
@@ -275,7 +251,7 @@ export default function MainStockPage() {
                               data: {
                                 farmerId: row.id,
                                 farmerName: row.name,
-                                currentStock: row.remainingStock
+                                currentStock: effectiveRemaining
                               }
                             })}
                           >

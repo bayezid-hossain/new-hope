@@ -44,17 +44,47 @@ const OperationsContent = ({ orgId }: { orgId: string }) => {
       uniqueFarmers.set(c.farmerId, c.farmerMainStock || 0);
     }
   });
-  const totalFeedStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
+  const totalMainStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
+
+  // Calculate Total Active Consumption
+  const totalActiveConsumption = cycles.reduce((acc, c) => acc + c.intake, 0);
+
+  // Effective Available Stock
+  const totalAvailableStock = totalMainStock - totalActiveConsumption;
 
   const avgMortality = cycles.length
     ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + (f.doc), 0) * 100).toFixed(2)
     : "0";
 
-  // Urgent: Less than 3 bags remaining (Based on Farmer Stock)
-  // We filter cycles belonging to farmers with low stock
+  // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
+  // Logic: Available = FarmerMainStock - (Sum of intakes for all active cycles of that farmer)
+  // Note: 'cycles' is a flat list of cycles. We need to aggregate per farmer first to find their total consumption.
+
+  const farmerConsumptionMap = new Map<string, number>();
+  cycles.forEach(c => {
+    const current = farmerConsumptionMap.get(c.farmerId) || 0;
+    farmerConsumptionMap.set(c.farmerId, current + c.intake);
+  });
+
   const lowStockCycles = cycles
-    .filter(f => (f.farmerMainStock || 0) < 3)
-    .sort((a, b) => (a.farmerMainStock || 0) - (b.farmerMainStock || 0));
+    .map(c => {
+      const totalConsumption = farmerConsumptionMap.get(c.farmerId) || 0;
+      const initialStock = c.farmerMainStock || 0;
+      const availableStock = initialStock - totalConsumption;
+      return { ...c, availableStock };
+    })
+    // Filter out duplicates per farmer (show only the one with lowest stock or just one rep)
+    // Actually, UrgentActions list cycles. Showing multiple cycles for same farmer is fine,
+    // but the 'stock' is a farmer-level property. Let's deduplicate by farmer for the alert list properly?
+    // The current UI shows "Cycle: Name", implying per-cycle alert. But stock is shared.
+    // Let's keep it simple: Show all active cycles for low-stock farmers?
+    // Or better: Filter distinct farmers.
+    .filter((c, index, self) =>
+      // Only show one entry per farmer to avoid spamming the list if they have multiple batches
+      index === self.findIndex((t) => t.farmerId === c.farmerId)
+    )
+    .filter(c => c.availableStock < 3)
+    .sort((a, b) => a.availableStock - b.availableStock);
 
   // --- Aggregation grouped by Farmer ---
   const farmerStats = new Map<string, {
@@ -114,7 +144,9 @@ const OperationsContent = ({ orgId }: { orgId: string }) => {
       {/* 1. Top Row KPIs */}
       <KpiCards
         totalBirds={totalBirds}
-        totalFeedStock={totalFeedStock}
+        totalFeedStock={totalMainStock}
+        activeConsumption={totalActiveConsumption}
+        availableStock={totalAvailableStock}
         lowStockCount={lowStockCycles.length}
         avgMortality={avgMortality}
         activeCyclesCount={cycles.length}
