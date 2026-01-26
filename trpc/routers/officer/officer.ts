@@ -1,4 +1,5 @@
 import { farmer } from "@/db/schema";
+import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
@@ -16,6 +17,22 @@ export const officerRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const userId = ctx.user.id;
+
+            // Check for existing farmer with same name for THIS officer in THIS org
+            const existing = await ctx.db.query.farmer.findFirst({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, userId),
+                    eq(farmer.name, input.name)
+                )
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `A farmer named "${input.name}" is already registered under your account.`
+                });
+            }
 
             const [newFarmer] = await ctx.db.insert(farmer).values({
                 name: input.name,
