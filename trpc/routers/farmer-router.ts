@@ -17,10 +17,11 @@ export const farmersRouter = createTRPCRouter({
         status: z.enum(["active", "inactive", "archived", "all"]).optional(),
         sortBy: z.string().optional(),
         sortOrder: z.enum(["asc", "desc"]).optional(),
+        onlyMine: z.boolean().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { orgId, search, page, pageSize, sortBy, sortOrder } = input;
+      const { orgId, search, page, pageSize, sortBy, sortOrder, onlyMine } = input;
 
       // 1. Membership Check
       let officerFilter = undefined;
@@ -43,9 +44,8 @@ export const farmersRouter = createTRPCRouter({
       }
 
       // 2. Role-Based Logic
-      // If Officer => Filter by officerId
-      // If Manager/Owner/Admin => No filter (See all)
-      if (membership?.role === "OFFICER") {
+      // If onlyMine is requested OR if user is an Officer => Filter by officerId
+      if (onlyMine || membership?.role === "OFFICER") {
         officerFilter = eq(farmer.officerId, ctx.user.id);
       }
 

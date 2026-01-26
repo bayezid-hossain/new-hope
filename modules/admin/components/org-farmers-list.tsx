@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Activity, Archive, ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useDebounce } from "use-debounce";
 
 interface OrgFarmersListProps {
     orgId: string;
@@ -20,14 +21,14 @@ interface OrgFarmersListProps {
 export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListProps) => {
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
+    const [debouncedSearch] = useDebounce(search, 300);
 
-    const { data: farmers, isLoading } = useQuery(
-        trpc.management.getOrgFarmers.queryOptions({ orgId })
-    );
+    const { data: farmers, isLoading } = useQuery({
+        ...trpc.management.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch }),
+        placeholderData: keepPreviousData
+    });
 
-    const filteredFarmers = farmers?.filter(f =>
-        f.name.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredFarmers = farmers; // Data is already filtered by backend
 
     const getFarmerLink = (farmerId: string) => {
         if (isAdmin) return `/admin/organizations/${orgId}/farmers/${farmerId}`;

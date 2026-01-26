@@ -1,10 +1,13 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Loader2, Search } from "lucide-react";
+import { useState } from "react";
+import { useDebounce } from "use-debounce";
 import { FarmerHistory } from "../../types";
 import { MobileCycleCard } from "../components/cycles/mobile-cycle-card";
 import { getHistoryColumns } from "../components/shared/columns-factory";
@@ -13,13 +16,17 @@ import { getHistoryColumns } from "../components/shared/columns-factory";
 export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) => {
     const { orgId } = useCurrentOrg();
     const trpc = useTRPC();
+    const [search, setSearch] = useState("");
+    const [debouncedSearch] = useDebounce(search, 300);
 
-    const { data, isLoading, isError } = useQuery(
-        trpc.officer.cycles.listPast.queryOptions({
+    const { data, isLoading, isError } = useQuery({
+        ...trpc.officer.cycles.listPast.queryOptions({
             orgId: orgId!,
+            search: debouncedSearch,
             pageSize: 50,
-        })
-    );
+        }),
+        placeholderData: keepPreviousData
+    });
 
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
@@ -37,6 +44,15 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
                     <p className="text-muted-foreground">
                         A complete archive of all production cycles across the organization.
                     </p>
+                </div>
+                <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Search cycle name..."
+                        className="pl-9 bg-white"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
                 </div>
             </div>
 

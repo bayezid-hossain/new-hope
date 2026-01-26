@@ -70,6 +70,7 @@ export function TransferStockModal({
     // Fetch Potential Targets (Farmers in same Org)
     const { data: farmersData, isLoading: isLoadingFarmers } = useQuery({
         ...trpc.farmers.getMany.queryOptions({
+            onlyMine: true,
             orgId: orgId!,
             status: "active", // Only transfer to active farmers
             pageSize: 100, // Fetch top 100 for now

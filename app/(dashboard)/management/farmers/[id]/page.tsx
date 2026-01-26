@@ -22,6 +22,7 @@ import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { useTRPC } from "@/trpc/client";
@@ -35,64 +36,99 @@ import {
     ChevronLeft,
     History,
     Loader2,
-    Scale
+    Scale,
+    Search
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
-const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => (
-    <div className="space-y-4">
-        {isLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
-        ) : data?.items.length > 0 ? (
-            <>
-                <div className="hidden md:block">
-                    <DataTable
-                        columns={getCycleColumns({ prefix: "/management" })}
-                        data={(data?.items || []) as Farmer[]}
-                    />
-                </div>
-                <div className="md:hidden space-y-3">
-                    {data?.items.map((cycle: any) => (
-                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/management" />
-                    ))}
-                </div>
-            </>
-        ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
-                No active cycles found
-            </div>
-        )}
-    </div>
-);
+const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => {
+    const [search, setSearch] = useState("");
 
-const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolean, isError: boolean, data: any }) => (
-    <div className="space-y-4">
-        {isLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
-        ) : isError ? (
-            <div className="text-destructive text-center p-8">Failed to load history</div>
-        ) : data?.items.length > 0 ? (
-            <>
-                <div className="hidden md:block">
-                    <DataTable
-                        columns={getHistoryColumns({ prefix: "/management" })}
-                        data={data?.items as any[] || []}
-                    />
-                </div>
-                <div className="md:hidden space-y-3">
-                    {data?.items.map((cycle: any) => (
-                        <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/management" />
-                    ))}
-                </div>
-            </>
-        ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
-                No archived history found
+    const filteredItems = data?.items.filter((item: any) =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+    ) || [];
+
+    return (
+        <div className="space-y-4">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                    placeholder="Search active cycles..."
+                    className="pl-9 bg-white"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
             </div>
-        )}
-    </div>
-);
+            {isLoading ? (
+                <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+            ) : filteredItems.length > 0 ? (
+                <>
+                    <div className="hidden md:block">
+                        <DataTable
+                            columns={getCycleColumns({ prefix: "/management" })}
+                            data={filteredItems as Farmer[]}
+                        />
+                    </div>
+                    <div className="md:hidden space-y-3">
+                        {filteredItems.map((cycle: any) => (
+                            <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/management" />
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                    {search ? "No matches found" : "No active cycles found"}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolean, isError: boolean, data: any }) => {
+    const [search, setSearch] = useState("");
+
+    const filteredItems = data?.items.filter((item: any) =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+    ) || [];
+
+    return (
+        <div className="space-y-4">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                    placeholder="Search history..."
+                    className="pl-9 bg-white"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </div>
+            {isLoading ? (
+                <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+            ) : isError ? (
+                <div className="text-destructive text-center p-8">Failed to load history</div>
+            ) : filteredItems.length > 0 ? (
+                <>
+                    <div className="hidden md:block">
+                        <DataTable
+                            columns={getHistoryColumns({ prefix: "/management" })}
+                            data={filteredItems as any[] || []}
+                        />
+                    </div>
+                    <div className="md:hidden space-y-3">
+                        {filteredItems.map((cycle: any) => (
+                            <MobileCycleCard key={cycle.id} cycle={cycle} prefix="/management" />
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                    {search ? "No matches found" : "No archived history found"}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function ManagementFarmerDetailsPage() {
     const trpc = useTRPC();

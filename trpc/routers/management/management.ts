@@ -1,6 +1,6 @@
 import { cycleHistory, cycles, farmer, member, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { fetchOfficerAnalytics } from "../utils";
@@ -30,9 +30,11 @@ const managementProcedure = protectedProcedure.input(z.object({ orgId: z.string(
 export const managementRouter = createTRPCRouter({
     cycles: managementCyclesRouter,
 
-    // 1. Get Farmers for an Org
     getOrgFarmers: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+        .input(z.object({
+            orgId: z.string(),
+            search: z.string().optional()
+        }))
         .query(async ({ ctx, input }) => {
             // Access Check
             if (ctx.user.globalRole !== "ADMIN") {
@@ -42,8 +44,12 @@ export const managementRouter = createTRPCRouter({
                 if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
             }
 
+            const search = input.search;
             const data = await ctx.db.query.farmer.findMany({
-                where: eq(farmer.organizationId, input.orgId),
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    search ? ilike(farmer.name, `%${search}%`) : undefined
+                ),
                 with: {
                     cycles: { where: eq(cycles.status, 'active') },
                     history: true,
