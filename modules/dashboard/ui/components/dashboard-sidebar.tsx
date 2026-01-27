@@ -47,8 +47,8 @@ const firstSection = [
 const secondSection = [
   {
     icon: StarIcon,
-    label: "Upgrade",
-    href: "/upgrade",
+    label: "Security",
+    href: "/settings/security",
   },
 ];
 

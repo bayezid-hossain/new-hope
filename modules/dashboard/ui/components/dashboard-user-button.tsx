@@ -25,8 +25,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { authClient } from "@/lib/auth-client";
 import {
   ChevronDownIcon,
-  CreditCardIcon,
-  LogOutIcon,
+  LogOutIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 const DashboardUserButton = () => {
@@ -79,10 +78,6 @@ const DashboardUserButton = () => {
             </DrawerDescription>
           </DrawerHeader>
           <DrawerFooter>
-            <Button variant={"outline"} onClick={() => { }}>
-              <CreditCardIcon className="size-4 text-black" />
-              Billing
-            </Button>
             <Button
               onClick={onLogout}
               variant={"destructive"}
@@ -137,9 +132,6 @@ const DashboardUserButton = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer flex items-center justify-between">
-          Billing <CreditCardIcon className="size-4" />
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={onLogout}
           className="cursor-pointer flex items-center justify-between text-white bg-red-600 hover:bg-red-700 focus:bg-red-700 focus:text-white mt-1 font-bold rounded-lg transition-colors px-3 py-2"

@@ -66,8 +66,12 @@ export const SignUpView = () => {
         password: data.password,
       },
       {
-        onSuccess: () => {
-          router.push("/");
+        onSuccess: async () => {
+          await authClient.emailOtp.sendVerificationOtp({
+            email: data.email,
+            type: "email-verification",
+          });
+          router.push("/verify-email");
           setPending(false);
         },
         onError: ({ error }) => {
