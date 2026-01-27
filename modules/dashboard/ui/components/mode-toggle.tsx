@@ -46,10 +46,11 @@ export const ModeToggle = () => {
                     toast.success("System mode updated");
                     router.push("/admin");
                 } else {
-                    // Standard behavior for switching back to USER
+                    // Standard behavior for switching back to USER (Officer)
                     await queryClient.invalidateQueries(trpc.auth.getSession.queryOptions());
                     toast.success("System mode updated");
-                    hideLoading();
+                    router.push("/");
+                    // Relying on LoadingProvider auto-hide on pathname change
                 }
             },
             onError: () => hideLoading()
@@ -58,10 +59,16 @@ export const ModeToggle = () => {
 
     const updateOrgMode = useMutation(
         trpc.auth.updateOrgMode.mutationOptions({
-            onSuccess: async () => {
+            onSuccess: async (data, variables) => {
                 await queryClient.invalidateQueries(trpc.auth.getMyMembership.queryOptions());
                 toast.success("Dashboard mode updated");
-                hideLoading();
+                if (variables.mode === "MANAGEMENT") {
+                    router.push("/management");
+                }
+                if (variables.mode === "OFFICER") {
+                    router.push("/");
+                }
+                // Relying on LoadingProvider auto-hide on pathname change
             },
             onError: () => hideLoading()
         })
@@ -84,8 +91,10 @@ export const ModeToggle = () => {
                                 globalMode === "ADMIN" ? "bg-primary text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
                             )}
                             onClick={() => {
-                                showLoading("Switching to Admin...");
-                                updateGlobalMode.mutate({ mode: "ADMIN" });
+                                if (globalMode !== "ADMIN") {
+                                    showLoading("Switching to Admin...");
+                                    updateGlobalMode.mutate({ mode: "ADMIN" });
+                                }
                             }}
                         >
                             <ShieldCheck className="h-3.5 w-3.5" />
@@ -99,8 +108,10 @@ export const ModeToggle = () => {
                                 globalMode === "USER" ? "bg-primary text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
                             )}
                             onClick={() => {
-                                showLoading("Switching to Officer...");
-                                updateGlobalMode.mutate({ mode: "USER" });
+                                if (globalMode !== "USER") {
+                                    showLoading("Switching to Officer...");
+                                    updateGlobalMode.mutate({ mode: "USER" });
+                                }
                             }}
                         >
                             <User className="h-3.5 w-3.5" />
@@ -119,8 +130,10 @@ export const ModeToggle = () => {
                                 orgMode === "MANAGEMENT" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
                             )}
                             onClick={() => {
-                                showLoading("Switching to Management...");
-                                updateOrgMode.mutate({ mode: "MANAGEMENT" });
+                                if (orgMode !== "MANAGEMENT") {
+                                    showLoading("Switching to Management...");
+                                    updateOrgMode.mutate({ mode: "MANAGEMENT" });
+                                }
                             }}
                         >
                             <Briefcase className="h-3.5 w-3.5" />
@@ -134,8 +147,10 @@ export const ModeToggle = () => {
                                 orgMode === "OFFICER" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
                             )}
                             onClick={() => {
-                                showLoading("Switching to Officer...");
-                                updateOrgMode.mutate({ mode: "OFFICER" });
+                                if (orgMode !== "OFFICER") {
+                                    showLoading("Switching to Officer...");
+                                    updateOrgMode.mutate({ mode: "OFFICER" });
+                                }
                             }}
                         >
                             <Users className="h-3.5 w-3.5" />
