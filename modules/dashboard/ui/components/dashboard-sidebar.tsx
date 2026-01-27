@@ -14,6 +14,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
@@ -78,6 +79,7 @@ const managerSection = {
 const DashboardSidebar = () => {
   const pathname = usePathname();
   const trpc = useTRPC();
+  const { setOpenMobile, isMobile } = useSidebar();
 
   // Fetch session for globalRole
   const { data: sessionData } = useQuery(trpc.auth.getSession.queryOptions());
@@ -148,7 +150,10 @@ const DashboardSidebar = () => {
                       )}
                       isActive={pathname === item.href}
                     >
-                      <Link href={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => isMobile && setOpenMobile(false)}
+                      >
                         <item.icon className="size-5 " />
                         <span className="text-sm font-medium tracking-tight">
                           {item.label}
@@ -185,7 +190,10 @@ const DashboardSidebar = () => {
                             {managerSection.items.map((subItem) => (
                               <SidebarMenuSubItem key={subItem.href}>
                                 <SidebarMenuSubButton asChild isActive={pathname === subItem.href}>
-                                  <Link href={subItem.href}>
+                                  <Link
+                                    href={subItem.href}
+                                    onClick={() => isMobile && setOpenMobile(false)}
+                                  >
                                     <span>{subItem.label}</span>
                                   </Link>
                                 </SidebarMenuSubButton>
@@ -208,7 +216,10 @@ const DashboardSidebar = () => {
                         )}
                         isActive={pathname === "/admin"}
                       >
-                        <Link href="/admin">
+                        <Link
+                          href="/admin"
+                          onClick={() => isMobile && setOpenMobile(false)}
+                        >
                           <ShieldCheck className="size-5" />
                           <span className="text-sm font-medium tracking-tight">
                             System Admin
@@ -240,7 +251,10 @@ const DashboardSidebar = () => {
                     )}
                     isActive={pathname === item.href}
                   >
-                    <Link href={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => isMobile && setOpenMobile(false)}
+                    >
                       <item.icon className="size-5 " />
                       <span className="text-sm font-medium tracking-tight">
                         {item.label}

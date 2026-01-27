@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Farmer } from "@/modules/cycles/types";
-import { ActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { Farmer, FarmerHistory } from "@/modules/cycles/types";
+import { ActionsCell, HistoryActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -200,7 +200,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                 <Eye className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
-                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                        {cycle.status === "active" ? (
+                                                            <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                        ) : (
+                                                            <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -234,7 +238,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                     </div>
                                                 </Link>
                                                 <div className="px-4 pb-4 sm:hidden flex justify-end">
-                                                    <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                    {cycle.status === "active" ? (
+                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                    ) : (
+                                                        <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -301,7 +309,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                 <Eye className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
-                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                        {cycle.status === "active" ? (
+                                                            <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                        ) : (
+                                                            <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -384,7 +396,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             </div>
                                             <div className="px-4 pb-4 pt-0 flex justify-end border-t border-slate-50 mt-2">
                                                 <div className="pt-2">
-                                                    <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                    {cycle.status === "active" ? (
+                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                    ) : (
+                                                        <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

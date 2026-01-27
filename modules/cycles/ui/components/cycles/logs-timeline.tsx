@@ -76,7 +76,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
                     ) : (
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-mono font-normal">
-                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(2)} {normalizedType === "MORTALITY" ? "Birds" : "Bags"}
+                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(2)} {normalizedType === "MORTALITY" || log.note?.includes("DOC Correction") ? "Birds" : "Bags"}
                             </Badge>
                             {log.note && (
                                 <span className="text-muted-foreground text-xs">
