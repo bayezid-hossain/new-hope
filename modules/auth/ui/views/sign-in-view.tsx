@@ -1,11 +1,11 @@
 "use client";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-import { Input } from "@/components/ui/input";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import { OctagonAlertIcon } from "lucide-react";
 // import { FaGithub, FaGoogle } from "react-icons/fa";
 import {
@@ -16,11 +16,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
+import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { useForm } from "react-hook-form";
 import SocialButtons from "../components/social-buttons";
 
 const formSchema = z.object({
@@ -174,7 +174,7 @@ export const SignInView = () => {
 
           <div className="bg-radial from-sidebar-accent to-sidebar relative hidden md:flex flex-col gap-y-4 items-center justify-center">
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Logo"
               className="h-[92px] w-[92px]"
             />

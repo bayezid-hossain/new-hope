@@ -55,6 +55,9 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
         await queryClient.invalidateQueries(
           trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! })
         );
+        await queryClient.invalidateQueries(
+          trpc.management.farmers.getOrgFarmers.queryOptions({ orgId: orgId! })
+        );
         onOpenChange(false);
         form.reset();
       },

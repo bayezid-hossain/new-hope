@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import React from "react";
-import {  FaGoogle } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 
 interface SocialButtonsProps {
   setPending: (val: boolean) => void;
@@ -43,9 +43,9 @@ const SocialButtons: React.FC<SocialButtonsProps> = ({
         disabled={pending}
         type="button"
         onClick={() => onSocial("google")}
-        className="w-full"
+        className="w-full gap-0"
       >
-        <FaGoogle /> oogle
+        <FaGoogle />oogle
       </Button>
       {/* <Button
         variant="outline"

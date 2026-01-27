@@ -90,9 +90,15 @@ export const ProductionTree = ({
                                     <User className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors">
-                                        {officer.name}
-                                    </h3>
+
+                                    <div className="ml-4 flex gap-3">
+                                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors">
+                                            {officer.name}
+                                        </h3>
+                                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none font-bold text-[10px]">
+                                            {officer.farmers.length} Farmers
+                                        </Badge>
+                                    </div>
                                     <div className="flex items-center gap-2 text-xs text-slate-400">
                                         <Badge variant="outline" className="text-[9px] h-4 uppercase font-bold tracking-widest bg-slate-50 border-slate-200">
                                             {officer.role}
@@ -102,11 +108,7 @@ export const ProductionTree = ({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="ml-4 flex gap-3">
-                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none font-bold text-[10px]">
-                                        {officer.farmers.length} Farmers
-                                    </Badge>
-                                </div>
+
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-6 pb-6 pt-2">

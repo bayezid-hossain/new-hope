@@ -59,10 +59,11 @@ const AdminSidebar = () => {
                     className="flex items-center gap-2 px-2 pt-2"
                 >
                     <Image
-                        src="/logo.svg"
+                        src="/logo.png"
                         height={36}
                         width={36}
                         alt="Feed Reminder Logo"
+                        unoptimized
                     />
                     <p className="text-2xl font-semibold">Feed Reminder</p>
                 </Link>

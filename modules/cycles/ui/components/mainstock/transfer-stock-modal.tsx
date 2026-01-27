@@ -90,6 +90,12 @@ export function TransferStockModal({
                 onOpenChange(false);
                 form.reset();
             },
+            onSettled: (data, error, variables) => {
+                if (variables?.targetFarmerId) {
+                    queryClient.invalidateQueries(trpc.officer.stock.getHistory.queryOptions({ farmerId: variables.targetFarmerId }));
+                    queryClient.invalidateQueries(trpc.officer.farmers.getDetails.queryOptions({ farmerId: variables.targetFarmerId }));
+                }
+            },
             onError: (err) => {
                 toast.error(err.message || "Failed to transfer stock");
             },
