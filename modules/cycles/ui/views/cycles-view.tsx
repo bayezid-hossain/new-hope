@@ -7,9 +7,23 @@ import { Bird, History, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { CreateCycleModal } from "../components/cycles/create-cycle-modal";
 
+import { useTRPC } from "@/trpc/client";
+import { useQuery } from "@tanstack/react-query";
+
 const CyclesContent = () => {
     const { orgId } = useCurrentOrg();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const trpc = useTRPC();
+
+    const { data: activeCount } = useQuery(trpc.officer.cycles.listActive.queryOptions({
+        orgId: orgId || "",
+        pageSize: 1, // Minimize payload, we just want the total
+    }));
+
+    const { data: pastCount } = useQuery(trpc.officer.cycles.listPast.queryOptions({
+        orgId: orgId || "",
+        pageSize: 1,
+    }));
 
     if (!orgId) return null;
 
@@ -32,12 +46,22 @@ const CyclesContent = () => {
                     </div>
                 </div>
                 <TabsList className="bg-slate-100 p-1 h-11">
-                    <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs">
+                    <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
                         Active Cycles
+                        {activeCount?.total !== undefined && (
+                            <span className="ml-1 bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[20px] text-center">
+                                {activeCount.total}
+                            </span>
+                        )}
                     </TabsTrigger>
                     <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
                         <History className="h-3.5 w-3.5" />
                         History
+                        {pastCount?.total !== undefined && (
+                            <span className="ml-1 bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[20px] text-center">
+                                {pastCount.total}
+                            </span>
+                        )}
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="active" className="mt-0 outline-none">
