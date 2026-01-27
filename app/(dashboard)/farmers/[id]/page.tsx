@@ -1,5 +1,6 @@
 "use client";
 
+import ResponsiveDialog from "@/components/responsive-dialog";
 import {
   Accordion,
   AccordionContent,
@@ -20,6 +21,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
+import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { EditStockLogModal } from "@/modules/cycles/ui/components/mainstock/revert-stock-modal";
 import { RevertTransferButton } from "@/modules/cycles/ui/components/mainstock/revert-transfer-button";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
@@ -37,7 +39,8 @@ import {
   ArrowUpRight,
   History,
   Loader2,
-  Scale
+  Scale,
+  Wheat
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -127,6 +130,7 @@ export default function FarmerDetails() {
   const farmerId = params.id as string;
 
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
@@ -164,10 +168,16 @@ export default function FarmerDetails() {
             {farmerQuery.data?.name || "Loading..."} • Production & Stock Management
           </p>
         </div>
-        <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white order-first md:order-last w-fit">
-          <ArrowUpRight className="h-4 w-4" />
-          Transfer Stock
-        </Button>
+        <div className="flex items-center gap-2 order-first md:order-last">
+          <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit">
+            <ArrowUpRight className="h-4 w-4" />
+            Transfer Stock
+          </Button>
+          <Button onClick={() => setShowRestockModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all">
+            <Wheat className="h-4 w-4" />
+            Restock
+          </Button>
+        </div>
       </div>
 
       {/* Stock Overview Card */}
@@ -300,6 +310,18 @@ export default function FarmerDetails() {
         open={showTransferModal}
         onOpenChange={setShowTransferModal}
       />
+      <ResponsiveDialog
+        open={showRestockModal}
+        onOpenChange={setShowRestockModal}
+        title="Restock Inventory"
+        description="Add bags of feed to the farmer's main warehouse."
+      >
+        <AddFeedModal
+          id={farmerId}
+          open={showRestockModal}
+          onOpenChange={setShowRestockModal}
+        />
+      </ResponsiveDialog>
       <FarmerNavigation
         orgId={orgId!}
         currentFarmerId={farmerId}
@@ -334,40 +356,61 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => {
-                const amount = Number(log.amount);
-                const isPositive = amount > 0;
-                const formattedType = log.type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+              {(() => {
+                // Find all logs that are corrections and track what they are correcting
+                const corrections = logs.filter(l => l.type === "CORRECTION");
+                const revertedLogIds = new Set(corrections.map(c => c.referenceId).filter(Boolean));
+                // For transfers, if any log with a referenceId is a correction, we consider the whole transfer reverted
+                const revertedTransferIds = new Set(corrections.map(c => c.referenceId).filter(Boolean));
 
-                return (
-                  <TableRow key={log.id} className="border-b transition-colors">
-                    <TableCell className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full ${isPositive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                          {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
-                        </span>
-                        <span className="font-medium text-[10px] sm:text-xs">{formattedType}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-[10px] sm:text-xs text-muted-foreground whitespace-normal break-words min-w-[120px]">
-                      {log.note || "-"}
-                    </TableCell>
-                    <TableCell className={`px-4 py-3 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                      {isPositive ? "+" : ""}{amount.toFixed(1)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-right">
-                      {(log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId ? (
-                        <RevertTransferButton referenceId={log.referenceId} note={log.note} />
-                      ) : (
-                        <EditStockLogModal log={log} />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                return logs.map((log) => {
+                  const amount = Number(log.amount);
+                  const isPositive = amount > 0;
+                  const formattedType = log.type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+                  const isCorrection = log.type === "CORRECTION";
+                  const isReverted = revertedLogIds.has(log.id) || (log.referenceId && revertedTransferIds.has(log.referenceId));
+                  const isCycleClose = log.type === "CYCLE_CLOSE";
+                  const showActions = !isCorrection && !isReverted && !isCycleClose;
+
+                  return (
+                    <TableRow key={log.id} className="border-b transition-colors">
+                      <TableCell className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full ${isPositive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                            {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
+                          </span>
+                          <span className="font-medium text-[10px] sm:text-xs">{formattedType}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-[10px] sm:text-xs text-muted-foreground whitespace-normal break-words min-w-[120px]">
+                        {log.note || "-"}
+                        {isReverted && <span className="ml-2 text-[8px] font-bold text-rose-500 uppercase tracking-tighter">[Reverted]</span>}
+                      </TableCell>
+                      <TableCell className={`px-4 py-3 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
+                        {isPositive ? "+" : ""}{amount.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-right">
+                        {showActions && (
+                          <div className="flex justify-end gap-1">
+                            {(log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId ? (
+                              <RevertTransferButton referenceId={log.referenceId} note={log.note} />
+                            ) : (
+                              <>
+                                <EditStockLogModal log={log} />
+                                {/* <RevertStockModal logId={log.id} amount={log.amount} note={log.note} /> */}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                });
+              })()}
               {logs.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">No stock transaction history found.</TableCell></TableRow>
               )}

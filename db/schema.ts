@@ -25,7 +25,7 @@ export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 export const orgRoleEnum = pgEnum("org_role", ["OWNER", "MANAGER", "OFFICER"]);
 
 export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED", "INACTIVE"]);
-export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE"]);
+export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM"]);
 
 
 // =========================================================

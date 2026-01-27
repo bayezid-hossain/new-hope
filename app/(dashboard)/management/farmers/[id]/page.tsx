@@ -1,5 +1,6 @@
 "use client";
 
+import ResponsiveDialog from "@/components/responsive-dialog";
 import {
     Accordion,
     AccordionContent,
@@ -19,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
+import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +39,8 @@ import {
     History,
     Loader2,
     Scale,
-    Search
+    Search,
+    Wheat
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -111,7 +114,7 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
                 <>
                     <div className="hidden md:block">
                         <DataTable
-                            columns={getHistoryColumns({ prefix: "/management" })}
+                            columns={getHistoryColumns({ prefix: "/management", enableActions: true })}
                             data={filteredItems as any[] || []}
                         />
                     </div>
@@ -137,6 +140,7 @@ export default function ManagementFarmerDetailsPage() {
     const farmerId = params.id as string;
 
     const [showTransferModal, setShowTransferModal] = useState(false);
+    const [showRestockModal, setShowRestockModal] = useState(false);
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
@@ -168,10 +172,16 @@ export default function ManagementFarmerDetailsPage() {
                         </div>
                     </div>
                 </div>
-                <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white order-first md:order-last w-fit">
-                    <ArrowUpRight className="h-4 w-4" />
-                    Transfer Stock
-                </Button>
+                <div className="flex items-center gap-2 order-first md:order-last">
+                    <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit">
+                        <ArrowUpRight className="h-4 w-4" />
+                        Transfer Stock
+                    </Button>
+                    <Button onClick={() => setShowRestockModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all">
+                        <Wheat className="h-4 w-4" />
+                        Restock
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
@@ -304,6 +314,18 @@ export default function ManagementFarmerDetailsPage() {
                 open={showTransferModal}
                 onOpenChange={setShowTransferModal}
             />
+            <ResponsiveDialog
+                open={showRestockModal}
+                onOpenChange={setShowRestockModal}
+                title="Restock Inventory"
+                description="Add bags of feed to the farmer's main warehouse."
+            >
+                <AddFeedModal
+                    id={farmerId}
+                    open={showRestockModal}
+                    onOpenChange={setShowRestockModal}
+                />
+            </ResponsiveDialog>
             <FarmerNavigation
                 orgId={farmerData.organizationId}
                 currentFarmerId={farmerId}

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Activity, FileText, Filter, Search, Skull, Wheat, X } from "lucide-react";
+import { Activity, FileText, Filter, Search, Settings, Skull, Wheat, Wrench, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RevertMortalityModal } from "./revert-mortality-modal";
 
@@ -37,6 +37,14 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         icon = <Skull className="h-4 w-4" />;
         colorClass = "bg-red-500";
         title = "Reported Mortality";
+    } else if (normalizedType === "CORRECTION") {
+        icon = <Wrench className="h-4 w-4" />;
+        colorClass = "bg-orange-500";
+        title = "Correction";
+    } else if (normalizedType === "SYSTEM") {
+        icon = <Settings className="h-4 w-4" />;
+        colorClass = "bg-purple-500";
+        title = "System Update";
     } else if (isConsumption || normalizedType === "CONSUMPTION" || normalizedType === "STOCK_OUT" || normalizedType === "TRANSFER_OUT") {
         icon = <Activity className="h-4 w-4" />;
         colorClass = "bg-blue-500";
@@ -109,7 +117,7 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
             const normalizedType = log.type.toUpperCase();
             // 1. Category Filter
             if (filter === "MORTALITY" && normalizedType !== "MORTALITY") return false;
-            if (filter === "SYSTEM" && !["NOTE", "STOCK_OUT", "TRANSFER_OUT", "CONSUMPTION"].includes(normalizedType)) return false;
+            if (filter === "SYSTEM" && !["NOTE", "STOCK_OUT", "TRANSFER_OUT", "CONSUMPTION", "CORRECTION", "SYSTEM"].includes(normalizedType)) return false;
 
             // 2. Text Search (Case insensitive on Note or Type)
             if (searchQuery) {

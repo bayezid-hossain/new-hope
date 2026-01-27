@@ -179,6 +179,7 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
 
             <ReopenCycleModal
                 historyId={history.id}
+                farmerId={history.farmerId}
                 cycleName={history.cycleName}
                 open={showReopenModal}
                 onOpenChange={setShowReopenModal}

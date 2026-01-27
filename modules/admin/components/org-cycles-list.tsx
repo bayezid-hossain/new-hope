@@ -9,7 +9,7 @@ import { ActionsCell } from "@/modules/cycles/ui/components/shared/columns-facto
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowRight, Bird, Eye, Loader2, Search, Skull } from "lucide-react";
+import { ArrowRight, Bird, Eye, Loader2, Search, Skull, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -130,20 +130,19 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                     <div className="divide-y divide-slate-100">
                                         {/* Desktop Table Header (Pseudo) */}
                                         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/20">
-                                            <div className="col-span-3">Cycle Name</div>
+                                            <div className="col-span-2">Cycle Name</div>
                                             <div className="col-span-2">Age</div>
-                                            <div className="col-span-2">Birds</div>
-                                            <div className="col-span-1">Mortality</div>
+                                            <div className="col-span-2">Birds & Mortality</div>
                                             <div className="col-span-2">Consumption</div>
                                             <div className="col-span-2">Started</div>
-                                            <div className="col-span-1"></div>
+                                            <div className="col-span-1">Actions</div>
                                         </div>
 
                                         {group.cycles.map((cycle) => (
                                             <div key={cycle.id} className="group hover:bg-slate-50/50 transition-colors">
                                                 {/* Desktop Row */}
                                                 <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 items-center">
-                                                    <div className="col-span-3 font-medium text-slate-900 flex items-center gap-2">
+                                                    <div className="col-span-2 font-medium text-slate-900 flex items-center gap-2">
                                                         <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[8px] h-4 w-4 flex items-center justify-center rounded-full p-0 flex-shrink-0">
                                                             <Bird className="h-2.5 w-2.5" />
                                                         </Badge>
@@ -155,12 +154,16 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                         </Link>
                                                     </div>
                                                     <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span></div>
-                                                    <div className="col-span-2 text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</div>
-                                                    <div className="col-span-1 text-sm font-bold text-slate-900">
-                                                        {cycle.mortality > 0 ? (
-                                                            <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-full text-xs">{cycle.mortality}</span>
-                                                        ) : (
-                                                            <span className="text-slate-400">-</span>
+                                                    <div className="col-span-2 flex flex-col gap-y-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</span>
+                                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Birds</span>
+                                                        </div>
+                                                        {cycle.mortality > 0 && (
+                                                            <div className="flex items-center gap-1 text-[9px] text-red-600 font-bold bg-red-50 border border-red-100/50 w-fit px-1.5 py-0.5 rounded-full">
+                                                                <Skull className="h-2.5 w-2.5" />
+                                                                {cycle.mortality} deaths
+                                                            </div>
                                                         )}
                                                     </div>
                                                     <div className="col-span-2 text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
@@ -190,6 +193,10 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                                 <Bird className="h-3 w-3" />
                                                                 {cycle.doc.toLocaleString()}
                                                             </div>
+                                                            <div className="flex items-center gap-1 text-amber-600 font-bold">
+                                                                <Wheat className="h-3 w-3" />
+                                                                {Number(cycle.intake || 0).toFixed(1)}
+                                                            </div>
                                                             {cycle.mortality > 0 && (
                                                                 <div className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-1.5 rounded">
                                                                     <Skull className="h-3 w-3" />
@@ -218,11 +225,10 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                         <TableRow>
                                             <TableHead className="font-semibold">Farmer</TableHead>
                                             <TableHead className="font-semibold">Status</TableHead>
-                                            <TableHead className="font-semibold">Age</TableHead>
-                                            <TableHead className="font-semibold">Birds (DOC)</TableHead>
-                                            <TableHead className="font-semibold">Mortality</TableHead>
-                                            <TableHead className="font-semibold text-right">Consumption (Bags)</TableHead>
-                                            <TableHead className="font-semibold text-right">Started</TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Age</TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Birds & Mortality</TableHead>
+                                            <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Consumption (Bags)</TableHead>
+                                            <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Started</TableHead>
                                             <TableHead className="w-[50px] px-6"></TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -243,17 +249,16 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                                                        <Bird className="h-4 w-4 text-violet-400/60" />
-                                                        {cycle.doc}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="font-bold">
-                                                        {cycle.mortality > 0 ? (
-                                                            <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-full text-xs">{cycle.mortality}</span>
-                                                        ) : (
-                                                            <span className="text-slate-400">-</span>
+                                                    <div className="flex flex-col gap-y-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Bird className="h-3.5 w-3.5 text-violet-500/70" />
+                                                            <span className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</span>
+                                                        </div>
+                                                        {cycle.mortality > 0 && (
+                                                            <div className="flex items-center gap-1 text-[9px] text-red-600 font-bold bg-red-50 border border-red-100/50 w-fit px-1.5 py-0.5 rounded-full ml-5">
+                                                                <Skull className="h-2.5 w-2.5" />
+                                                                {cycle.mortality} deaths
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -294,7 +299,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50">
+                                            <div className="grid grid-cols-4 gap-2 py-3 border-y border-slate-50">
                                                 <div className="space-y-1">
                                                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Age</span>
                                                     <p className="text-sm font-bold text-slate-900">{cycle.age} <small className="text-[10px] font-normal">d</small></p>
@@ -304,6 +309,13 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                     <div className="flex items-center gap-1 justify-center">
                                                         <Bird className="h-3.5 w-3.5 text-slate-400" />
                                                         <p className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1 text-center">
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Feed</span>
+                                                    <div className="flex items-center gap-1 justify-center">
+                                                        <Wheat className="h-3.5 w-3.5 text-amber-500" />
+                                                        <p className="text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(1)}</p>
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1 text-right">

@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
-import { ChevronRight } from "lucide-react";
 import { useDebounce } from "use-debounce";
 
 // --- Mobile Stock Card Component ---
@@ -49,9 +48,8 @@ const MobileStockCard = ({
         {/* Header: Name & Quick Stock */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-1">
-            <Link href={`/farmers/${row.id}`} className="group flex items-center gap-1.5 focus:outline-none">
-              <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{row.name}</h3>
-              <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+            <Link href={`/farmers/${row.id}`} className="group flex items-center focus:outline-none">
+              <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4 decoration-1">{row.name}</h3>
             </Link>
           </div>
         </div>

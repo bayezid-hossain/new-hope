@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, stockLogs } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, ne, sql } from "drizzle-orm";
@@ -338,13 +338,15 @@ export const officerCyclesRouter = createTRPCRouter({
         }),
 
     syncFeed: officerProcedure.mutation(async ({ ctx }) => {
-        const activeCycles = await ctx.db.query.cycles.findMany({
-            where: and(eq(cycles.status, "active"), eq(farmer.officerId, ctx.user.id)),
-            with: { farmer: true } // Need this for the link in updateCycleFeed usually, though helper might fetch it
-        });
+        const activeCyclesData = await ctx.db.select({
+            cycle: cycles,
+        })
+            .from(cycles)
+            .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+            .where(and(eq(cycles.status, "active"), eq(farmer.officerId, ctx.user.id)));
 
         const results = await Promise.all(
-            activeCycles.map(cycle => updateCycleFeed(cycle, ctx.user.id))
+            activeCyclesData.map(d => updateCycleFeed(d.cycle, ctx.user.id))
         );
 
         return {
@@ -383,7 +385,18 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
 
                 if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
-                if (historyRecord.farmer.officerId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+
+                // Access Check: Officer, Manager, or Admin
+                if (ctx.user.globalRole !== "ADMIN" && historyRecord.farmer.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, historyRecord.organizationId!),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
 
                 // 2. Move back to Cycles (Active)
                 const [restoredCycle] = await tx.insert(cycles).values({
@@ -435,6 +448,24 @@ export const officerCyclesRouter = createTRPCRouter({
                 // 6. Delete History Record
                 await tx.delete(cycleHistory).where(eq(cycleHistory.id, input.historyId));
 
+                // 7. Force Intake Recalculation for Reopened Cycle
+                await updateCycleFeed(
+                    restoredCycle,
+                    ctx.user.id,
+                    true,
+                    tx,
+                    `Cycle "${historyRecord.cycleName}" Reopened. Triggered feed intake recalculation.`
+                );
+
+                // 8. Log the Reopen Event
+                await tx.insert(cycleLogs).values({
+                    cycleId: restoredCycle.id,
+                    userId: ctx.user.id,
+                    type: "SYSTEM",
+                    valueChange: 0,
+                    note: `Cycle Reopened: "${historyRecord.cycleName}" was moved back from archive.`,
+                });
+
                 return { success: true, cycleId: restoredCycle.id };
             });
         }),
@@ -455,11 +486,23 @@ export const officerCyclesRouter = createTRPCRouter({
                 const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId));
                 if (!activeCycle) throw new TRPCError({ code: "NOT_FOUND", message: "Active cycle not found." });
 
-                // Check Officer
+                // Check Access
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: and(eq(farmer.id, activeCycle.farmerId), eq(farmer.officerId, ctx.user.id))
+                    where: eq(farmer.id, activeCycle.farmerId)
                 });
-                if (!farmerData) throw new TRPCError({ code: "FORBIDDEN" });
+
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
 
                 // Update Cycle Mortality
                 const revertAmount = log.valueChange; // This was +Amount
@@ -475,12 +518,24 @@ export const officerCyclesRouter = createTRPCRouter({
                 await tx.insert(cycleLogs).values({
                     cycleId: cycleId,
                     userId: ctx.user.id,
-                    type: "MORTALITY", // Use MORTALITY type so it sums up correctly (negative value)
+                    type: "CORRECTION",
                     valueChange: -revertAmount,
-                    note: `Reverted Mortality Log: ${log.note}`,
-                    previousValue: log.newValue,
-                    newValue: (log.newValue || 0) - revertAmount
+                    note: `Reverted Mortality: Previously reported ${revertAmount} birds.`,
+                    previousValue: activeCycle.mortality,
+                    newValue: (activeCycle.mortality || 0) - revertAmount
                 });
+
+                // Trigger Intake Recalculation (Refetch to get updated mortality)
+                const [updatedCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId)).limit(1);
+                if (updatedCycle) {
+                    await updateCycleFeed(
+                        updatedCycle,
+                        ctx.user.id,
+                        true,
+                        tx,
+                        `Mortality Reverted. Recalculated intake based on updated live bird count.`
+                    );
+                }
 
                 return { success: true };
             });
@@ -503,15 +558,22 @@ export const officerCyclesRouter = createTRPCRouter({
                     throw new TRPCError({ code: "NOT_FOUND" });
                 }
 
-                // 2. Check Ownership (using standard select instead of query API)
-                const [farmerData] = await tx.select()
-                    .from(farmer)
-                    .where(and(eq(farmer.id, cycle.farmerId), eq(farmer.officerId, ctx.user.id)))
-                    .limit(1);
+                // 2. Access Check
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: eq(farmer.id, cycle.farmerId)
+                });
 
-                if (!farmerData) {
-                    console.error(`[correctDoc] Forbidden: Farmer ${cycle.farmerId} not managed by ${ctx.user.id}`);
-                    throw new TRPCError({ code: "FORBIDDEN" });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
                 const oldDoc = cycle.doc;
@@ -530,17 +592,24 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 // 4. Recalculate Intake based on NEW DOC
                 if (updatedCycle) {
-                    // console.log(`[correctDoc] Triggering intake recalculation...`);
-                    await updateCycleFeed(updatedCycle, ctx.user.id, true, tx);
+                    await updateCycleFeed(
+                        updatedCycle,
+                        ctx.user.id,
+                        true,
+                        tx,
+                        `DOC Corrected from ${oldDoc} to ${input.newDoc}. Reason: ${input.reason}`
+                    );
                 }
 
                 // 5. Log Correction
                 await tx.insert(cycleLogs).values({
                     cycleId: input.cycleId,
                     userId: ctx.user.id,
-                    type: "NOTE",
-                    valueChange: 0,
-                    note: `DOC Correction: Changed from ${oldDoc} to ${input.newDoc}. Reason: ${input.reason}`
+                    type: "CORRECTION",
+                    valueChange: input.newDoc - (oldDoc || 0),
+                    previousValue: oldDoc,
+                    newValue: input.newDoc,
+                    note: `DOC Correction: ${input.reason}`
                 });
 
                 // console.log(`[correctDoc] Successfully completed.`);

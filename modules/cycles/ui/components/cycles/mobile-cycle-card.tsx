@@ -59,7 +59,17 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
         trpc.officer.cycles.deleteHistory.mutationOptions({
             onSuccess: async () => {
                 toast.success("Record deleted successfully");
-                await queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions({ orgId: orgId! }));
+                const baseOptions = { orgId: orgId! };
+                // Invalidate across ALL routers
+                await Promise.all([
+                    queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
+
+                    // Detailed farmer views
+                    queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
+                    cycle.farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: cycle.farmerId })) : Promise.resolve(),
+                ]);
                 setShowDeleteModal(false);
             },
             onError: (err: any) => {
@@ -145,10 +155,10 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                 </div>
 
                 {/* Middle Section: Metrics Grid */}
-                <div className="grid grid-cols-3 gap-2 py-1">
+                <div className="grid grid-cols-2 gap-2 py-1">
                     <div className="bg-blue-50/50 p-2.2 rounded-xl border border-blue-100/50 flex flex-col gap-1">
                         <div className="flex items-center gap-1 text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                            <Clock className="h-3 w-3" /> Age
+                            <Clock className="h-3 w-3" /> Cycle Age
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-lg font-black text-blue-900 leading-none">{cycle.age}</span>
@@ -156,22 +166,25 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                         </div>
                     </div>
 
-                    <div className="bg-slate-50/50 p-2.2 rounded-xl border border-slate-100 flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                            <Bird className="h-3 w-3" /> DOC
+                    <div className="bg-slate-50/50 p-2.2 rounded-xl border border-slate-100 flex flex-col gap-2">
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                <Bird className="h-3 w-3" /> Bird Count (DOC)
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-lg font-black text-slate-800 leading-none">{docValue}</span>
+                                <span className="text-[10px] text-slate-500 font-medium">birds</span>
+                            </div>
                         </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-lg font-black text-slate-800 leading-none">{docValue}</span>
-                        </div>
-                    </div>
 
-                    <div className="bg-amber-50/50 p-2.2 rounded-xl border border-amber-100 flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                            <Wheat className="h-3 w-3" /> Consumption
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-lg font-black text-amber-900 leading-none">{intakeValue}</span>
-                            <span className="text-[10px] text-amber-700/70 font-medium">bags</span>
+                        <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1">
+                            <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                                <Wheat className="h-3 w-3" /> Consumption
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-lg font-black text-amber-900 leading-none">{intakeValue.toFixed(1)}</span>
+                                <span className="text-[10px] text-amber-700/70 font-medium">bags</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -234,6 +247,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                 <>
                     <ReopenCycleModal
                         historyId={cycle.id}
+                        farmerId={cycle.farmerId}
                         cycleName={cycleName}
                         open={showReopenModal}
                         onOpenChange={setShowReopenModal}

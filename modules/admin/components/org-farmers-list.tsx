@@ -1,13 +1,12 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, ArrowRight, Bird, Loader2, Search, Wheat } from "lucide-react";
+import { Activity, Bird, Loader2, Search, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -79,7 +78,11 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                             <TableBody>
                                 {filteredFarmers.map((farmer) => (
                                     <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
-                                        <TableCell className="font-bold text-slate-900 px-6">{farmer.name}</TableCell>
+                                        <TableCell className="px-6">
+                                            <Link href={getFarmerLink(farmer.id)} className="font-bold text-slate-900 hover:text-primary hover:underline transition-colors">
+                                                {farmer.name}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell className="text-slate-600 font-medium text-sm">
                                             <Link
                                                 href={isAdmin
@@ -134,13 +137,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                         <TableCell className="text-slate-400 text-[11px] font-medium">
                                             {format(new Date(farmer.createdAt), "MMM d, yyyy")}
                                         </TableCell>
-                                        <TableCell className="px-6">
-                                            <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity" asChild>
-                                                <Link href={getFarmerLink(farmer.id)}>
-                                                    <ArrowRight className="h-4 w-4 text-slate-400" />
-                                                </Link>
-                                            </Button>
-                                        </TableCell>
+                                        <TableCell className="px-6"></TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
