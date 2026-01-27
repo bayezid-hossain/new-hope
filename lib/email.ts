@@ -9,6 +9,7 @@ export const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async ({ to, subject, html }: { to: string, subject: string, html: string }) => {
+    console.log(to, subject, html);
     try {
         const info = await transporter.sendMail({
             from: `"Feed Reminder" <${process.env.EMAIL_USER}>`,

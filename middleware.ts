@@ -21,6 +21,8 @@ export default async function authMiddleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
+
+
     if (!auth.user.emailVerified) {
         return NextResponse.redirect(new URL("/verify-email", request.url));
     }

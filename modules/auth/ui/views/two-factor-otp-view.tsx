@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -39,7 +39,20 @@ const formSchema = z.object({
 
 export const TwoFactorOtpView = () => {
     const router = useRouter();
-    const [isPending, setIsPending] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    useState(() => {
+        // Check local storage or state persistence if needed, but simple state is fine for now
+    });
+
+    useEffect(() => {
+        if (timeLeft > 0) {
+            const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [timeLeft]);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -50,18 +63,24 @@ export const TwoFactorOtpView = () => {
     });
 
     const onSubmit = async (data: z.infer<typeof formSchema>) => {
-        setIsPending(true);
+        setIsVerifying(true);
         const { error } = await authClient.twoFactor.verifyOtp({
             code: data.code,
             trustDevice: data.trustDevice,
         });
-        setIsPending(false);
+        setIsVerifying(false);
 
         if (error) {
             toast.error(error.message || "Invalid or expired code.");
             form.reset();
         } else {
             toast.success("Identity verified!");
+            // Manual UI state persistence for 2FA since better-auth session object doesn't expose it
+            await authClient.getSession().then(({ data }) => {
+                if (data?.user) {
+                    sessionStorage.setItem(`2fa_verified_${data.user.id}`, "true");
+                }
+            });
             router.push("/");
         }
     };
@@ -75,68 +94,98 @@ export const TwoFactorOtpView = () => {
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight">Two-Factor Auth</CardTitle>
                     <CardDescription className="text-base mt-2 text-balance">
-                        We&apos;ve sent a verification code to your email. Please enter it below to continue.
+                        {isSending ? "Sending verification code..." : "Verify your identity to continue."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 pt-2 flex flex-col items-center">
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col items-center w-full">
-                            <FormField
-                                control={form.control}
-                                name="code"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col items-center">
-                                        <FormLabel className="sr-only">Verification Code</FormLabel>
-                                        <FormControl>
-                                            <InputOTP
-                                                maxLength={6}
-                                                {...field}
-                                            >
-                                                <InputOTPGroup className="gap-2">
-                                                    <InputOTPSlot index={0} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                    <InputOTPSlot index={1} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                    <InputOTPSlot index={2} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                    <InputOTPSlot index={3} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                    <InputOTPSlot index={4} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                    <InputOTPSlot index={5} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
-                                                </InputOTPGroup>
-                                            </InputOTP>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="trustDevice"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0 w-full justify-start py-2">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="text-sm font-medium cursor-pointer">
-                                                Trust this device for 30 days
-                                            </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-                            <Button type="submit" className="w-full h-11" disabled={isPending}>
-                                {isPending ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Verifying...
-                                    </>
-                                ) : (
-                                    "Verify & Continue"
-                                )}
-                            </Button>
-                        </form>
-                    </Form>
+
+                    <div className="w-full flex flex-col gap-4">
+                        <Button
+                            onClick={async () => {
+                                setIsSending(true);
+                                await authClient.twoFactor.sendOtp();
+                                setIsSending(false);
+                                setTimeLeft(60);
+                                toast.success("Verification code sent to your email");
+                            }}
+                            className="w-full h-11 border-primary/50 text-primary hover:bg-primary/5 hover:border-primary transition-all duration-300"
+                            variant="outline"
+                            disabled={isSending || isVerifying || timeLeft > 0}
+                        >
+                            {isSending ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Sending Code...
+                                </>
+                            ) : timeLeft > 0 ? (
+                                `Resend code in ${timeLeft}s`
+                            ) : (
+                                <>
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Send Verification Code
+                                </>
+                            )}
+                        </Button>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col items-center w-full mt-4">
+                                <FormField
+                                    control={form.control}
+                                    name="code"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col items-center">
+                                            <FormLabel className="sr-only">Verification Code</FormLabel>
+                                            <FormControl>
+                                                <InputOTP
+                                                    maxLength={6}
+                                                    {...field}
+                                                >
+                                                    <InputOTPGroup className="gap-2">
+                                                        <InputOTPSlot index={0} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                        <InputOTPSlot index={1} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                        <InputOTPSlot index={2} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                        <InputOTPSlot index={3} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                        <InputOTPSlot index={4} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                        <InputOTPSlot index={5} className="h-12 w-10 md:h-14 md:w-12 text-lg border-primary/20" />
+                                                    </InputOTPGroup>
+                                                </InputOTP>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="trustDevice"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center space-x-2 space-y-0 w-full justify-start py-2">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel className="text-sm font-medium cursor-pointer">
+                                                    Trust this device for 30 days
+                                                </FormLabel>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" className="w-full h-11" disabled={isVerifying || isSending}>
+                                    {isVerifying ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Verifying...
+                                        </>
+                                    ) : (
+                                        "Verify & Continue"
+                                    )}
+                                </Button>
+                            </form>
+                        </Form>
+                    </div>
+
 
                     <Button asChild variant="ghost" className="w-full mt-4 h-11 hover:bg-muted">
                         <Link href="/sign-in" className="flex items-center justify-center">

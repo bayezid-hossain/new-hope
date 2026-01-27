@@ -1,5 +1,6 @@
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { TwoFactorGuard } from "@/modules/auth/ui/components/two-factor-guard";
 import { TRPCReactProvider } from "@/trpc/client";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -31,7 +32,9 @@ export default function RootLayout({
             <NextTopLoader showSpinner={false} color="#1c1917" />
             <LoadingProvider>
               <Toaster />
-              {children}
+              <TwoFactorGuard>
+                {children}
+              </TwoFactorGuard>
             </LoadingProvider>
           </body>
         </html>
