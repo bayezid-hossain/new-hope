@@ -1,12 +1,10 @@
 "use client";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-import { Input } from "@/components/ui/input";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { OctagonAlertIcon } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -15,11 +13,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
+import { OctagonAlertIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { useForm } from "react-hook-form";
 // import { FaGithub, FaGoogle } from "react-icons/fa";
 import SocialButtons from "../components/social-buttons";
 
@@ -212,12 +212,12 @@ export const SignUpView = () => {
 
           <div className="bg-radial from-sidebar-accent to-sidebar relative hidden md:flex flex-col gap-y-4 items-center justify-center">
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Logo"
               className="h-[92px] w-[92px]"
             />
             <p className="text-2xl font-semibold text-white">
-             Feed Reminder
+              Feed Reminder
             </p>
           </div>
         </CardContent>

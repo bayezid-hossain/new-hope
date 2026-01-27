@@ -53,7 +53,11 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
         // Passing an empty filter object often matches the query key structure loosely enough for invalidation.
         await Promise.all([
           queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! })),
+          queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
+          queryClient.invalidateQueries(trpc.officer.stock.getHistory.pathFilter()),
           queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions({ orgId: orgId! })),
+          queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions({ orgId: orgId! })),
+          queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions({ orgId: orgId! })),
         ]);
 
         onOpenChange(false);
