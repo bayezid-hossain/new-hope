@@ -44,6 +44,8 @@ export const user = pgTable("user", {
 
   // Custom Field for Global Admin logic
   globalRole: globalRoleEnum("global_role").default("USER").notNull(),
+
+  twoFactorEnabled: boolean("two_factor_enabled"),
 });
 
 export const session = pgTable("session", {
@@ -80,6 +82,14 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const twoFactor = pgTable("two_factor", {
+  id: text("id").primaryKey(),
+  secret: text("secret").notNull(),
+  backupCodes: text("backup_codes").notNull(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
 });
 
 
