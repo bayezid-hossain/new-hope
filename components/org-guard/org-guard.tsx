@@ -1,9 +1,10 @@
 "use client";
 
 import ErrorState from "@/components/error-state";
-import LoadingState from "@/components/loading-state";
+import { useLoading } from "@/components/providers/loading-provider";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query"; // Import useQuery directly
+import { useEffect } from "react";
 import { InactiveState } from "./inactive-view";
 import { NoOrgState } from "./no-org-state";
 import { PendingState } from "./pending-state";
@@ -16,6 +17,9 @@ interface OrgGuardProps {
 export const OrgGuard = ({ children }: OrgGuardProps) => {
   const trpc = useTRPC();
 
+
+  const { showLoading, hideLoading } = useLoading();
+
   // FIXED: Use standard useQuery + queryOptions
   const { data: statusData, isPending, error } = useQuery(
     trpc.auth.getMyMembership.queryOptions(undefined, {
@@ -23,8 +27,16 @@ export const OrgGuard = ({ children }: OrgGuardProps) => {
     })
   );
 
+  useEffect(() => {
+    if (isPending) {
+      showLoading("Checking Access...");
+    } else {
+      hideLoading();
+    }
+  }, [isPending, showLoading, hideLoading]);
+
   if (isPending) {
-    return <LoadingState title="Checking Access" description="Verifying organization membership..." />;
+    return null;
   }
 
   if (error || !statusData) {
