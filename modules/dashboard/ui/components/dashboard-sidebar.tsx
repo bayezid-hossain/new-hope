@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronRight, HomeIcon, ShieldCheck, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { Building2, ChevronRight, HomeIcon, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -94,17 +94,16 @@ const DashboardSidebar = () => {
   const activeOrgMode = orgStatus?.activeMode || "OFFICER";
 
   const showManagementLinks = isManager && activeOrgMode === "MANAGEMENT";
-  const showAdminLinks = isAdmin && activeGlobalMode === "ADMIN";
-  const showOfficerLinks = activeOrgMode === "OFFICER" && !showAdminLinks && !showManagementLinks;
+  const showAdminLinks = false; // Prevent flash, auto-redirect handles admin
+  const showOfficerLinks = activeOrgMode === "OFFICER" && !showManagementLinks;
 
   // Determine the current mode for sidebar styling
-  const currentMode = showAdminLinks ? "admin" : showManagementLinks ? "management" : "officer";
+  const currentMode = showManagementLinks ? "management" : "officer";
 
   // Sidebar color classes based on mode
   const sidebarModeStyles = {
     officer: "", // Default styling
     management: "[&_[data-slot=sidebar-inner]]:bg-gradient-to-b [&_[data-slot=sidebar-inner]]:from-blue-900 [&_[data-slot=sidebar-inner]]:to-blue-950 [&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-blue-900 [&_[data-sidebar=sidebar]]:to-blue-950",
-    admin: "[&_[data-slot=sidebar-inner]]:bg-gradient-to-b [&_[data-slot=sidebar-inner]]:from-violet-900 [&_[data-slot=sidebar-inner]]:via-purple-950 [&_[data-slot=sidebar-inner]]:to-slate-950 [&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-violet-900 [&_[data-sidebar=sidebar]]:via-purple-950 [&_[data-sidebar=sidebar]]:to-slate-950"
   };
 
   return (
@@ -205,29 +204,7 @@ const DashboardSidebar = () => {
                     </Collapsible>
                   )}
 
-                  {showAdminLinks && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        className={cn(
-                          "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
-                          pathname === "/admin" &&
-                          "bg-linear-to-r/oklch border-[#5D6B68]/10"
-                        )}
-                        isActive={pathname === "/admin"}
-                      >
-                        <Link
-                          href="/admin"
-                          onClick={() => isMobile && setOpenMobile(false)}
-                        >
-                          <ShieldCheck className="size-5" />
-                          <span className="text-sm font-medium tracking-tight">
-                            System Admin
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
+
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

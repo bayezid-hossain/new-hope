@@ -1,3 +1,4 @@
+import { LoadingProvider } from "@/components/providers/loading-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TRPCReactProvider } from "@/trpc/client";
 import type { Metadata } from "next";
@@ -28,8 +29,10 @@ export default function RootLayout({
             className={`${inter.className} antialiased`}
           >
             <NextTopLoader showSpinner={false} color="#1c1917" />
-            <Toaster />
-            {children}
+            <LoadingProvider>
+              <Toaster />
+              {children}
+            </LoadingProvider>
           </body>
         </html>
       </TRPCReactProvider>
