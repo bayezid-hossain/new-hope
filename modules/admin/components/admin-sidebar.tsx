@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { ModeToggle } from "@/modules/dashboard/ui/components/mode-toggle";
 import { Bird, Building, HomeIcon, LogOut, User, Users, WholeWord } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -74,6 +75,9 @@ const AdminSidebar = () => {
             </div>
 
             <SidebarContent>
+                <div className="px-3 pt-2">
+                    <ModeToggle />
+                </div>
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
