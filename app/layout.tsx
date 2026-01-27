@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TRPCReactProvider } from "@/trpc/client";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 import { NuqsAdapter } from "nuqs/adapters/next";
 import "./globals.css";
 const inter = Inter({
@@ -26,6 +27,7 @@ export default function RootLayout({
           <body
             className={`${inter.className} antialiased`}
           >
+            <NextTopLoader showSpinner={false} color="#1c1917" />
             <Toaster />
             {children}
           </body>

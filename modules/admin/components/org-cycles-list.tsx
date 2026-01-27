@@ -312,16 +312,36 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
 
                             {/* Mobile Cards (List View) */}
                             <div className="md:hidden space-y-3">
-                                {cycles.map((cycle) => (
-                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)} key={cycle.id} className="block">
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
+                                {cycles.map((cycle) => {
+                                    const cycleLink = isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`);
+                                    const farmerLink = isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`);
+
+                                    return (
+                                        <div
+                                            key={cycle.id}
+                                            onClick={(e) => {
+                                                // If the click originated from a link or button, don't navigate
+                                                if ((e.target as HTMLElement).closest('a') || (e.target as HTMLElement).closest('button')) return;
+                                                window.location.href = cycleLink;
+                                            }}
+                                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                                        >
                                             <div className="flex justify-between items-start mb-3">
                                                 <div className="space-y-0.5">
                                                     <div className="flex items-center gap-1.5">
                                                         <h3 className="font-bold text-slate-900">{cycle.name}</h3>
                                                         <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-4">ACTIVE</Badge>
                                                     </div>
-                                                    <p className="text-[10px] text-slate-500 font-medium">Farmer: <span className="text-slate-900 font-bold">{cycle.farmerName}</span></p>
+                                                    <p className="text-[10px] text-slate-500 font-medium z-10 relative">
+                                                        Farmer:{" "}
+                                                        <Link
+                                                            href={farmerLink}
+                                                            className="text-slate-900 font-bold hover:text-primary hover:underline underline-offset-2"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {cycle.farmerName}
+                                                        </Link>
+                                                    </p>
                                                 </div>
                                             </div>
 
@@ -368,8 +388,8 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 </div>
                                             </div>
                                         </div>
-                                    </Link>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </>
                     )}
