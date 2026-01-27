@@ -23,11 +23,11 @@ export const ModeToggle = () => {
     const orgMode = orgStatus?.activeMode || "OFFICER";
 
     const router = useRouter();
-    const { showLoading } = useLoading();
+    const { showLoading, hideLoading } = useLoading();
 
     const updateGlobalMode = useMutation(
         trpc.auth.updateGlobalMode.mutationOptions({
-            onSuccess: (data, variables) => {
+            onSuccess: async (data, variables) => {
                 if (variables.mode === "ADMIN") {
                     // Manually update cache to avoid flicker/race condition
                     queryClient.setQueryData(
@@ -47,19 +47,23 @@ export const ModeToggle = () => {
                     router.push("/admin");
                 } else {
                     // Standard behavior for switching back to USER
-                    queryClient.invalidateQueries(trpc.auth.getSession.queryOptions());
+                    await queryClient.invalidateQueries(trpc.auth.getSession.queryOptions());
                     toast.success("System mode updated");
+                    hideLoading();
                 }
-            }
+            },
+            onError: () => hideLoading()
         })
     );
 
     const updateOrgMode = useMutation(
         trpc.auth.updateOrgMode.mutationOptions({
-            onSuccess: () => {
-                queryClient.invalidateQueries(trpc.auth.getMyMembership.queryOptions());
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(trpc.auth.getMyMembership.queryOptions());
                 toast.success("Dashboard mode updated");
-            }
+                hideLoading();
+            },
+            onError: () => hideLoading()
         })
     );
 
