@@ -7,7 +7,8 @@ export const updateCycleFeed = async (
     cycle: typeof cycles.$inferSelect,
     userId: string,
     forceUpdate = false,
-    tx?: any // Optional transaction client
+    tx?: any, // Optional transaction client
+    reason?: string // Optional reason for the update
 ) => {
     // console.log(`[updateCycleFeed] Starting for Cycle: ${cycle.id}, Doc: ${cycle.doc}`);
 
@@ -69,6 +70,19 @@ export const updateCycleFeed = async (
                     type: "NOTE",
                     valueChange: consumedAmount,
                     note: `Daily Consumption: ${consumedAmount.toFixed(2)} bags (Age ${currentAge})`
+                });
+            }
+
+            // C. Add System Log for forced recalculations
+            if (forceUpdate) {
+                await client.insert(cycleLogs).values({
+                    cycleId: cycle.id,
+                    userId: userId,
+                    type: "SYSTEM",
+                    valueChange: consumedAmount,
+                    previousValue: previousIntake,
+                    newValue: totalNewBags,
+                    note: reason || "Forced feed intake recalculation due to cycle change."
                 });
             }
             // console.log(`[updateCycleFeed] Database update completed.`);

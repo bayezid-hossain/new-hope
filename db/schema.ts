@@ -25,7 +25,7 @@ export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 export const orgRoleEnum = pgEnum("org_role", ["OWNER", "MANAGER", "OFFICER"]);
 
 export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED", "INACTIVE"]);
-export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE"]);
+export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM"]);
 
 
 // =========================================================
@@ -38,6 +38,7 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  activeMode: text("active_mode").$type<"ADMIN" | "USER">().notNull().default("USER"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 
@@ -102,6 +103,7 @@ export const member = pgTable("member", {
   // ROLE & STATUS
   role: orgRoleEnum("role").notNull().default("OFFICER"),
   status: memberStatusEnum("status").notNull().default("PENDING"),
+  activeMode: text("active_mode").$type<"MANAGEMENT" | "OFFICER">().notNull().default("OFFICER"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

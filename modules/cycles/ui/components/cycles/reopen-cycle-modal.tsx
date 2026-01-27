@@ -11,13 +11,14 @@ import { toast } from "sonner";
 
 interface ReopenCycleModalProps {
     historyId: string;
+    farmerId?: string;
     cycleName: string;
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
 }
 
-export const ReopenCycleModal = ({ historyId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: ReopenCycleModalProps) => {
+export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: ReopenCycleModalProps) => {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen ?? internalOpen;
     const setOpen = controlledOnOpenChange ?? setInternalOpen;
@@ -31,11 +32,20 @@ export const ReopenCycleModal = ({ historyId, cycleName, trigger, open: controll
             onSuccess: async () => {
                 toast.success("Cycle reopened successfully");
                 const baseOptions = { orgId: orgId! };
+                // Invalidate across ALL routers to ensure all views update
                 await Promise.all([
                     queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
                     queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
+
+                    queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
                     queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
+
+                    // Invalidate detailed farmer views
                     queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
+                    farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId })) : Promise.resolve(),
+                    queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
                 ]);
                 setOpen(false);
             },
@@ -47,7 +57,7 @@ export const ReopenCycleModal = ({ historyId, cycleName, trigger, open: controll
 
     return (
         <>
-            {!controlledOpen && (
+            {controlledOpen === undefined && (
                 trigger ? (
                     <div onClick={() => setOpen(true)}>{trigger}</div>
                 ) : (

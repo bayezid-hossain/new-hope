@@ -122,9 +122,9 @@ export const officerFarmersRouter = createTRPCRouter({
 
     create: protectedProcedure
         .input(z.object({
-            name: z.string().min(2),
+            name: z.string().min(2).max(100),
             orgId: z.string(),
-            initialStock: z.number().min(0)
+            initialStock: z.number().min(0).max(1000, "Initial stock cannot exceed 1000 bags")
         }))
         .mutation(async ({ ctx, input }) => {
             const existing = await ctx.db.query.farmer.findFirst({

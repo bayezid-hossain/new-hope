@@ -22,7 +22,6 @@ import { format } from "date-fns";
 import {
     Activity,
     Archive,
-    ArrowRight,
     Bird,
     ChevronRight,
     Loader2,
@@ -125,7 +124,9 @@ export const ProductionTree = ({
                                                                 <Bird className="h-4 w-4" />
                                                             </div>
                                                             <div className="text-left">
-                                                                <p className="font-bold text-slate-800 text-sm">{farmer.name}</p>
+                                                                <Link href={getFarmerLink(farmer.id)} onClick={(e) => e.stopPropagation()}>
+                                                                    <p className="font-bold text-slate-800 text-sm hover:text-primary hover:underline transition-colors">{farmer.name}</p>
+                                                                </Link>
                                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tight flex items-center gap-1">
                                                                     <Wheat className="h-3 w-3" /> {farmer.mainStock.toFixed(1)} Bags
                                                                 </p>
@@ -137,11 +138,6 @@ export const ProductionTree = ({
                                                                     {farmer.activeCycles.length} LIVE
                                                                 </Badge>
                                                             )}
-                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild onClick={(e) => e.stopPropagation()}>
-                                                                <Link href={getFarmerLink(farmer.id)}>
-                                                                    <ArrowRight className="h-4 w-4" />
-                                                                </Link>
-                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </AccordionTrigger>

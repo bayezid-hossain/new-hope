@@ -19,6 +19,7 @@ const cycleSearchSchema = z.object({
     page: z.number().default(1),
     pageSize: z.number().default(10),
     orgId: z.string(),
+    farmerId: z.string().optional(),
     sortBy: z.enum(["name", "age", "createdAt"]).optional(),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -53,6 +54,7 @@ export const adminCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 cycle: cycles,
                 farmerName: farmer.name,
+                farmerMainStock: farmer.mainStock,
             })
                 .from(cycles)
                 .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
@@ -66,7 +68,22 @@ export const adminCyclesRouter = createTRPCRouter({
                 .where(whereClause);
 
             return {
-                items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })),
+                items: data.map(d => ({
+                    id: d.cycle.id,
+                    name: d.cycle.name,
+                    farmerId: d.cycle.farmerId,
+                    organizationId: d.cycle.organizationId || null,
+                    doc: d.cycle.doc,
+                    age: d.cycle.age,
+                    intake: d.cycle.intake,
+                    mortality: d.cycle.mortality,
+                    status: "active" as const,
+                    createdAt: d.cycle.createdAt,
+                    updatedAt: d.cycle.updatedAt,
+                    farmerName: d.farmerName,
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: null as Date | null
+                })),
                 total: total.count,
                 totalPages: Math.ceil(total.count / pageSize)
             };
@@ -187,7 +204,8 @@ export const adminCyclesRouter = createTRPCRouter({
 
             const data = await ctx.db.select({
                 history: cycleHistory,
-                farmerName: farmer.name
+                farmerName: farmer.name,
+                farmerMainStock: farmer.mainStock
             })
                 .from(cycleHistory)
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
@@ -202,12 +220,23 @@ export const adminCyclesRouter = createTRPCRouter({
 
             return {
                 items: data.map(d => ({
-                    ...d.history,
+                    id: d.history.id,
                     name: d.history.cycleName,
+                    farmerId: d.history.farmerId,
+                    organizationId: d.history.organizationId || null,
+                    doc: d.history.doc,
+                    age: d.history.age,
+                    intake: d.history.finalIntake,
+                    mortality: d.history.mortality,
+                    status: 'archived' as const,
+                    createdAt: d.history.startDate,
+                    updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
-                    status: 'archived'
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: d.history.endDate
                 })),
                 total: total.count,
+                totalPages: Math.ceil(total.count / pageSize)
             };
         }),
 

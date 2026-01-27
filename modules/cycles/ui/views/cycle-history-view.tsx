@@ -48,7 +48,7 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
                 <div className="relative w-full sm:w-72">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
-                        placeholder="Search cycle name..."
+                        placeholder="Search farmer name..."
                         className="pl-9 bg-white"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}

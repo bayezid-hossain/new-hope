@@ -333,7 +333,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
                     <div className="flex items-center gap-3 pb-2 sm:gap-4">
                         <Button variant="ghost" size="icon" asChild className="rounded-full">
-                            <Link href={isActive ? "/cycles" : "/history"}><ArrowLeft className="h-4 w-4" /></Link>
+                            <Link href="/cycles"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{cycle.name}</h1>

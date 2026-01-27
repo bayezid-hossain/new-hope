@@ -100,7 +100,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     );
 };
 
-const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
+export const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();
@@ -179,6 +179,7 @@ const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
 
             <ReopenCycleModal
                 historyId={history.id}
+                farmerId={history.farmerId}
                 cycleName={history.cycleName}
                 open={showReopenModal}
                 onOpenChange={setShowReopenModal}

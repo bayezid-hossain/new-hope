@@ -12,7 +12,9 @@ const Page = async () => {
   if (!session) {
     redirect("/sign-in");
   }
-  return <CyclesView/> 
+
+
+  return <CyclesView />
 };
 
 export default Page;

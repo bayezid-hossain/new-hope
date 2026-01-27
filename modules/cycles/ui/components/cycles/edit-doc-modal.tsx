@@ -70,7 +70,7 @@ export const EditDocModal = ({ cycleId, currentDoc, open: controlledOpen, onOpen
 
     return (
         <>
-            {!controlledOpen && (
+            {controlledOpen === undefined && (
                 <Button
                     variant="ghost"
                     size="icon"

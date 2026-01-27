@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil } from "lucide-react";
+import { Pencil, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -107,6 +107,76 @@ export const EditStockLogModal = ({ log }: EditStockLogModalProps) => {
                             disabled={mutation.isPending}
                         >
                             {mutation.isPending ? "Saving..." : "Save Corrections"}
+                        </Button>
+                    </div>
+                </div>
+            </ResponsiveDialog>
+        </>
+    );
+};
+
+interface RevertStockModalProps {
+    logId: string;
+    amount: number | string;
+    note?: string | null;
+}
+
+export const RevertStockModal = ({ logId, amount, note }: RevertStockModalProps) => {
+    const [open, setOpen] = useState(false);
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation(
+        trpc.officer.stock.revertStockLog.mutationOptions({
+            onSuccess: async () => {
+                toast.success("Transaction reverted");
+                await queryClient.invalidateQueries(trpc.officer.stock.getHistory.pathFilter());
+                await queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter());
+                setOpen(false);
+            },
+            onError: (err) => {
+                toast.error(err.message || "Failed to revert transaction");
+            }
+        })
+    );
+
+    return (
+        <>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                onClick={() => setOpen(true)}
+                title="Revert Transaction"
+            >
+                <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+
+            <ResponsiveDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Revert Transaction"
+                description="This will create a correction entry to negate this transaction. Are you sure?"
+            >
+                <div className="space-y-4 py-4 px-1">
+                    <div className="rounded-md bg-slate-50 p-3 text-sm border border-slate-100">
+                        <p className="font-medium text-slate-700">Entry to Revert:</p>
+                        <div className="flex justify-between mt-1 text-slate-600">
+                            <span>Amount</span>
+                            <span className="font-mono font-bold">{amount} Bags</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 italic">{note || "No note"}</p>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => mutation.mutate({ logId })}
+                            disabled={mutation.isPending}
+                            className=" text-white"
+                        >
+                            {mutation.isPending ? "Reverting..." : "Confirm Revert"}
                         </Button>
                     </div>
                 </div>

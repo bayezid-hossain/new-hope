@@ -1,4 +1,4 @@
-import { farmer, stockLogs } from "@/db/schema";
+import { farmer, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -25,8 +25,8 @@ export const officerStockRouter = createTRPCRouter({
     addStock: protectedProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max addition is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Check ownership
@@ -58,8 +58,8 @@ export const officerStockRouter = createTRPCRouter({
     deductStock: protectedProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max deduction is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Check ownership
@@ -92,8 +92,8 @@ export const officerStockRouter = createTRPCRouter({
         .input(z.object({
             sourceFarmerId: z.string(),
             targetFarmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max transfer is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Validate Input
@@ -175,23 +175,57 @@ export const officerStockRouter = createTRPCRouter({
                 const [originalLog] = await tx.select().from(stockLogs).where(eq(stockLogs.id, input.logId));
                 if (!originalLog) throw new TRPCError({ code: "NOT_FOUND", message: "Log entry not found." });
 
-                // 2. Check Ownership via Farmer
+                // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.officerId, ctx.user.id))
+                    where: eq(farmer.id, originalLog.farmerId!)
                 });
-                if (!farmerData) throw new TRPCError({ code: "FORBIDDEN", message: "You do not manage this farmer." });
+
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
 
                 // 3. Preventive Checks
+                if (originalLog.type === "CORRECTION") {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "This is already a correction log and cannot be reverted again."
+                    });
+                }
+
+                // Safety Check: Prevent negative stock
+                const amountToRevert = typeof originalLog.amount === 'string' ? parseFloat(originalLog.amount) : originalLog.amount;
+                if (farmerData.mainStock - amountToRevert < 0) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Cannot revert this log. It would result in negative stock (${(farmerData.mainStock - amountToRevert).toFixed(1)} bags).`
+                    });
+                }
+
+                // Check if this log has already been reverted (exists as a reference for another correction)
+                const [existingCorrection] = await tx.select()
+                    .from(stockLogs)
+                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "CORRECTION")));
+
+                if (existingCorrection) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "This log has already been reverted."
+                    });
+                }
+
                 if (originalLog.type === "CYCLE_CLOSE") {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
                         message: "Cannot revert a Cycle Close log directly. Please reopen the cycle from the History tab."
-                    });
-                }
-                if (originalLog.type === "CORRECTION") {
-                    throw new TRPCError({
-                        code: "BAD_REQUEST",
-                        message: "Cannot revert a correction. Please make a new manual entry instead."
                     });
                 }
 
@@ -232,19 +266,52 @@ export const officerStockRouter = createTRPCRouter({
                 const [originalLog] = await tx.select().from(stockLogs).where(eq(stockLogs.id, input.logId));
                 if (!originalLog) throw new TRPCError({ code: "NOT_FOUND", message: "Log entry not found." });
 
-                // 2. Check Ownership
+                // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.officerId, ctx.user.id))
+                    where: eq(farmer.id, originalLog.farmerId!)
                 });
-                if (!farmerData) throw new TRPCError({ code: "FORBIDDEN" });
+
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
 
                 // 3. Preventive Checks
+                if (originalLog.type === "CORRECTION") {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: "Correction logs cannot be edited." });
+                }
+
+                // Check if this log has been reverted
+                const [reversion] = await tx.select()
+                    .from(stockLogs)
+                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "CORRECTION")));
+
+                if (reversion) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit a log that has already been reverted." });
+                }
+
                 if (originalLog.type === "CYCLE_CLOSE") {
                     throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit cycle close logs. Reopen cycle instead." });
                 }
 
                 const oldAmount = typeof originalLog.amount === 'string' ? parseFloat(originalLog.amount) : originalLog.amount;
                 const delta = input.newAmount - oldAmount;
+
+                // 3.5 Safety Check: Prevent negative stock
+                if (farmerData.mainStock + delta < 0) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `This correction would result in negative stock (${(farmerData.mainStock + delta).toFixed(1)} bags).`
+                    });
+                }
 
                 if (delta === 0) return { success: true };
 
@@ -291,12 +358,44 @@ export const officerStockRouter = createTRPCRouter({
                         throw new TRPCError({ code: "BAD_REQUEST", message: "Found non-transfer logs linked to this reference ID. Cannot revert." });
                     }
 
-                    // Check if the user managed this farmer
+                    // Check if a correction for THIS transfer already exists
+                    // We check if there's any CORRECTION log referencing this transferId
+                    const [alreadyReverted] = await tx.select()
+                        .from(stockLogs)
+                        .where(and(eq(stockLogs.referenceId, input.referenceId), eq(stockLogs.type, "CORRECTION")));
+
+                    if (alreadyReverted) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: "This transfer has already been reverted." });
+                    }
+
+                    // Check Access
                     const farmerData = await tx.query.farmer.findFirst({
-                        where: and(eq(farmer.id, log.farmerId!), eq(farmer.officerId, ctx.user.id))
+                        where: eq(farmer.id, log.farmerId!)
                     });
-                    if (!farmerData) {
-                        throw new TRPCError({ code: "FORBIDDEN", message: "You do not manage one or more farmers in this transfer." });
+
+                    if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                    if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                        const membership = await tx.query.member.findFirst({
+                            where: and(
+                                eq(member.userId, ctx.user.id),
+                                eq(member.organizationId, farmerData.organizationId),
+                                eq(member.status, "ACTIVE")
+                            )
+                        });
+                        if (!membership) {
+                            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to revert transfers for this farmer." });
+                        }
+                    }
+
+                    // 2.5 Safety Check: Prevent negative stock
+                    const amount = typeof log.amount === 'string' ? parseFloat(log.amount) : log.amount;
+                    const reverseAmount = -amount;
+                    if (reverseAmount < 0 && farmerData.mainStock + reverseAmount < 0) {
+                        throw new TRPCError({
+                            code: "BAD_REQUEST",
+                            message: `Cannot revert this transfer. Farmer ${farmerData.name} would end up with negative stock (${(farmerData.mainStock + reverseAmount).toFixed(1)} bags).`
+                        });
                     }
                 }
 
