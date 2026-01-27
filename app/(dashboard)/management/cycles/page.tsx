@@ -21,17 +21,17 @@ export default function ManagementCyclesPage() {
                             </h1>
                             <p className="text-slate-500 text-sm mt-1">Monitor and manage all production cycles across the organization.</p>
                         </div>
-                        <TabsList className="bg-slate-100 p-1 h-11">
-                            <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs">
-                                Active Cycles
-                            </TabsTrigger>
-                            <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
-                                <History className="h-3.5 w-3.5" />
-                                History
-                            </TabsTrigger>
-                        </TabsList>
-                    </div>
 
+                    </div>
+                    <TabsList className="bg-slate-100 p-1 h-11">
+                        <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs">
+                            Active Cycles
+                        </TabsTrigger>
+                        <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
+                            <History className="h-3.5 w-3.5" />
+                            History
+                        </TabsTrigger>
+                    </TabsList>
                     <TabsContent value="active" className="mt-0 outline-none">
                         {orgId && <OrgCyclesList orgId={orgId} isManagement={true} status="active" />}
                     </TabsContent>
