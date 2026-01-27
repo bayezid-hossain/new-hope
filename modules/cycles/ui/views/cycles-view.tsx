@@ -25,22 +25,21 @@ const CyclesContent = () => {
                         <p className="text-slate-500 text-sm mt-1">Manage all your production cycles.</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <TabsList className="bg-slate-100 p-1 h-11">
-                            <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs">
-                                Active Cycles
-                            </TabsTrigger>
-                            <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
-                                <History className="h-3.5 w-3.5" />
-                                History
-                            </TabsTrigger>
-                        </TabsList>
                         <Button onClick={() => setIsCreateOpen(true)}>
                             <PlusIcon className="mr-2 size-4" />
                             Start Cycle
                         </Button>
                     </div>
                 </div>
-
+                <TabsList className="bg-slate-100 p-1 h-11">
+                    <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs">
+                        Active Cycles
+                    </TabsTrigger>
+                    <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
+                        <History className="h-3.5 w-3.5" />
+                        History
+                    </TabsTrigger>
+                </TabsList>
                 <TabsContent value="active" className="mt-0 outline-none">
                     <OrgCyclesList orgId={orgId} useOfficerRouter={true} status="active" />
                 </TabsContent>
