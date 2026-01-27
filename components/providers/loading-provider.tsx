@@ -17,11 +17,6 @@ export const LoadingProvider = ({ children }: { children: React.ReactNode }) => 
     const [message, setMessage] = useState<string | undefined>();
     const pathname = usePathname();
 
-    useEffect(() => {
-        // Automatically hide loading when pathname changes (navigation complete)
-        hideLoading();
-    }, [pathname]);
-
     const showLoading = (msg?: string) => {
         setMessage(msg);
         setIsLoading(true);
@@ -31,6 +26,11 @@ export const LoadingProvider = ({ children }: { children: React.ReactNode }) => 
         setIsLoading(false);
         setMessage(undefined);
     };
+
+    // Automatically hide loading when pathname changes (navigation complete)
+    useEffect(() => {
+        hideLoading();
+    }, [pathname]);
 
     return (
         <LoadingContext.Provider value={{ showLoading, hideLoading, isLoading }}>

@@ -1,10 +1,32 @@
-"use client";
-
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { auth } from "@/lib/auth";
 import AdminSidebar from "@/modules/admin/components/admin-sidebar";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import React from "react";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
+
+    if (!session?.user) {
+        redirect("/sign-in");
+    }
+
+    // Server-side check: must be ADMIN and in ADMIN mode
+    const { db } = await import("@/db");
+    const { user: userTable } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const userData = await db.query.user.findFirst({
+        where: eq(userTable.id, session.user.id),
+    });
+
+    if (userData?.globalRole !== "ADMIN" || userData.activeMode !== "ADMIN") {
+        redirect("/");
+    }
+
     return (
         <SidebarProvider>
             <AdminSidebar />

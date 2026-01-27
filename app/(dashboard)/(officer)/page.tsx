@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import HomeView from "@/modules/home/ui/views/home-view";
-// import { caller } from "@/trpc/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -13,28 +12,24 @@ const page = async () => {
     redirect("/sign-in");
   }
 
-  // Handle Mode-based redirection
+  // Check if user is in Management mode
   const { db } = await import("@/db");
-  const { member, user: userTable } = await import("@/db/schema");
+  const { member } = await import("@/db/schema");
   const { eq } = await import("drizzle-orm");
 
-  // Fetch full user and membership to check active modes
-  const [userData, membership] = await Promise.all([
-    db.query.user.findFirst({ where: eq(userTable.id, session.user.id) }),
-    db.query.member.findFirst({ where: eq(member.userId, session.user.id) })
-  ]);
+  const membership = await db.query.member.findFirst({
+    where: eq(member.userId, session.user.id),
+  });
 
-  // Priority 1: System Admin Mode
-  if (userData?.globalRole === "ADMIN" && userData?.activeMode === "ADMIN") {
-    redirect("/admin");
-  }
-
-  // Priority 2: Management Mode
+  // If in Management mode, redirect to management dashboard
   if (membership && (membership.role === "OWNER" || membership.role === "MANAGER") && membership.activeMode === "MANAGEMENT") {
     redirect("/management");
   }
+
+  // Note: Admin mode redirect is handled in layout.tsx
 
   return <HomeView />;
 };
 
 export default page;
+

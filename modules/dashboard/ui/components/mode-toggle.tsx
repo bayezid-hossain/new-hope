@@ -46,9 +46,10 @@ export const ModeToggle = () => {
                     toast.success("System mode updated");
                     router.push("/admin");
                 } else {
-                    // Standard behavior for switching back to USER
+                    // Standard behavior for switching back to USER (Officer)
                     await queryClient.invalidateQueries(trpc.auth.getSession.queryOptions());
                     toast.success("System mode updated");
+                    router.push("/");
                     hideLoading();
                 }
             },
@@ -58,9 +59,15 @@ export const ModeToggle = () => {
 
     const updateOrgMode = useMutation(
         trpc.auth.updateOrgMode.mutationOptions({
-            onSuccess: async () => {
+            onSuccess: async (data, variables) => {
                 await queryClient.invalidateQueries(trpc.auth.getMyMembership.queryOptions());
                 toast.success("Dashboard mode updated");
+                if (variables.mode === "MANAGEMENT") {
+                    router.push("/management");
+                }
+                if (variables.mode === "OFFICER") {
+                    router.push("/");
+                }
                 hideLoading();
             },
             onError: () => hideLoading()

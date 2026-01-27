@@ -19,11 +19,10 @@ export const ManagementGuard = ({ children }: { children: React.ReactNode }) => 
 
     useEffect(() => {
         if (!isPending && !isAuthorized) {
-            // We don't necessarily want to redirect to / if they just need to toggle mode
-            // But for deep links, it might be better to redirect to / so they get the HomeView or whatever.
-            // Actually, showing the "Access Denied" with a message to toggle mode is better in-place.
+            // Redirect officers/non-managers to the dashboard
+            router.push("/");
         }
-    }, [isAuthorized, isPending]);
+    }, [isAuthorized, isPending, router]);
 
     if (isPending) {
         return <LoadingState title="Loading Management" description="Fetching organization details..." />;
