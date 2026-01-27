@@ -38,6 +38,16 @@ export const adminOrganizationRouter = createTRPCRouter({
             };
         }),
 
+    // Get Organization by ID
+    get: adminProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const org = await ctx.db.query.organization.findFirst({
+                where: eq(organization.id, input.id),
+            });
+            return org;
+        }),
+
     // 1. Delete Organization
     delete: adminProcedure
         .input(z.object({ id: z.string() }))

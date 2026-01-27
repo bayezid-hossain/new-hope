@@ -10,6 +10,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ const firstSection = [
 const AdminSidebar = () => {
     const pathname = usePathname();
     const router = useRouter();
+    const { setOpenMobile, isMobile } = useSidebar();
 
     const onLogout = () => {
         authClient.signOut({
@@ -92,7 +94,10 @@ const AdminSidebar = () => {
                                         )}
                                         isActive={pathname === item.href}
                                     >
-                                        <Link href={item.href}>
+                                        <Link
+                                            href={item.href}
+                                            onClick={() => isMobile && setOpenMobile(false)}
+                                        >
                                             <item.icon className="size-5 " />
                                             <span className="text-sm font-medium tracking-tight">
                                                 {item.label}
@@ -156,7 +161,10 @@ const AdminSidebar = () => {
                                                         )}
                                                         isActive={pathname === item.href}
                                                     >
-                                                        <Link href={item.href}>
+                                                        <Link
+                                                            href={item.href}
+                                                            onClick={() => isMobile && setOpenMobile(false)}
+                                                        >
                                                             <item.icon className="size-5" />
                                                             <span className="text-sm font-medium tracking-tight">
                                                                 {item.label}
