@@ -100,7 +100,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     );
 };
 
-const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
+export const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();

@@ -25,8 +25,8 @@ export const officerStockRouter = createTRPCRouter({
     addStock: protectedProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max addition is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Check ownership
@@ -58,8 +58,8 @@ export const officerStockRouter = createTRPCRouter({
     deductStock: protectedProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max deduction is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Check ownership
@@ -92,8 +92,8 @@ export const officerStockRouter = createTRPCRouter({
         .input(z.object({
             sourceFarmerId: z.string(),
             targetFarmerId: z.string(),
-            amount: z.number().positive(),
-            note: z.string().optional()
+            amount: z.number().positive().max(1000, "Max transfer is 1000 bags"),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Validate Input

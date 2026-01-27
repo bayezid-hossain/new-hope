@@ -14,17 +14,36 @@ import Link from "next/link";
 import { useState } from "react";
 import { useDebounce } from "use-debounce";
 
+// Type for individual cycle items returned from the API
+type CycleItem = {
+    id: string;
+    name: string;
+    farmerId: string;
+    organizationId: string | null;
+    doc: number;
+    age: number;
+    intake: string | number | null;
+    mortality: number;
+    status: "active" | "archived";
+    createdAt: Date;
+    updatedAt: Date;
+    farmerName: string;
+    farmerMainStock: string | null;
+    endDate: Date | null;
+};
 
-export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }: { orgId: string; isAdmin?: boolean; isManagement?: boolean; useOfficerRouter?: boolean }) => {
+// Type for the paginated response from listActive/listPast
+type CyclesQueryResult = {
+    items: CycleItem[];
+    total: number;
+    totalPages: number;
+};
+
+export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, status = "active" }: { orgId: string; isAdmin?: boolean; isManagement?: boolean; useOfficerRouter?: boolean; status?: "active" | "past" }) => {
     const trpc = useTRPC();
     const [viewMode, setViewMode] = useState<"group" | "list">("group");
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
-
-    // Determine which router to use
-    const procedure = useOfficerRouter
-        ? trpc.officer.cycles.listActive
-        : trpc.management.cycles.listActive;
 
     const prefix = isAdmin
         ? `/admin/organizations/${orgId}`
@@ -32,16 +51,35 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
             ? `/management`
             : ``;
 
-    const { data, isLoading } = useQuery({
-        ...procedure.queryOptions({
+    // Get queryOptions inline to avoid union type callable error
+    const queryInput = {
+        orgId,
+        search: debouncedSearch,
+        pageSize: 100,
+        sortOrder: "desc" as const
+    };
 
-            orgId,
-            search: debouncedSearch,
-            pageSize: 100,
-            sortOrder: "desc" // Default sort, backend handles grouping sort if needed
-        }),
+    const getQueryOptions = () => {
+        if (status === "active") {
+            if (useOfficerRouter) {
+                return trpc.officer.cycles.listActive.queryOptions(queryInput);
+            }
+            return trpc.management.cycles.listActive.queryOptions(queryInput);
+        }
+        if (useOfficerRouter) {
+            return trpc.officer.cycles.listPast.queryOptions(queryInput);
+        }
+        return trpc.management.cycles.listPast.queryOptions(queryInput);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawData, isLoading } = useQuery({
+        ...(getQueryOptions() as any),
         placeholderData: keepPreviousData
     });
+
+    // Cast to proper type for TypeScript
+    const data = rawData as CyclesQueryResult | undefined;
 
     // Extract items from the paginated response
     const cycles = data?.items || [];
@@ -128,11 +166,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                         </Button>
                                     </div>
                                     <div className="divide-y divide-slate-100">
-                                        {/* Desktop Table Header (Pseudo) */}
-                                        <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/20">
-                                            <div className="col-span-2">Cycle Name</div>
+                                        <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/20">
                                             <div className="col-span-2">Age</div>
-                                            <div className="col-span-2">Birds & Mortality</div>
+                                            <div className="col-span-3">Birds & Mortality</div>
                                             <div className="col-span-2">Consumption</div>
                                             <div className="col-span-2">Started</div>
                                             <div className="col-span-1">Actions</div>
@@ -141,21 +177,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                         {group.cycles.map((cycle) => (
                                             <div key={cycle.id} className="group hover:bg-slate-50/50 transition-colors">
                                                 {/* Desktop Row */}
-                                                <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 items-center">
-                                                    <div className="col-span-2 font-medium text-slate-900 flex items-center gap-2">
-                                                        <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[8px] h-4 w-4 flex items-center justify-center rounded-full p-0 flex-shrink-0">
-                                                            <Bird className="h-2.5 w-2.5" />
-                                                        </Badge>
-                                                        <Link
-                                                            href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}
-                                                            className="hover:text-primary hover:underline underline-offset-2 transition-colors truncate block"
-                                                        >
-                                                            {cycle.name}
-                                                        </Link>
-                                                    </div>
+                                                <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-3 items-center">
                                                     <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span></div>
-                                                    <div className="col-span-2 flex flex-col gap-y-1">
+                                                    <div className="col-span-3 flex flex-col gap-y-1">
                                                         <div className="flex items-center gap-1.5">
+                                                            <Bird className="h-3.5 w-3.5 text-violet-500" />
                                                             <span className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</span>
                                                             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Birds</span>
                                                         </div>
@@ -166,7 +192,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter }
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="col-span-2 text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
+                                                    <div className="col-span-2 text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span></div>
                                                     <div className="col-span-2 text-xs text-slate-500">{format(new Date(cycle.createdAt), "MMM d, yyyy")}</div>
                                                     <div className="col-span-1 text-right flex items-center justify-end gap-1">
                                                         <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>

@@ -65,7 +65,22 @@ export const managementCyclesRouter = createTRPCRouter({
                 .where(whereClause);
 
             return {
-                items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName, farmerMainStock: d.farmerMainStock })),
+                items: data.map(d => ({
+                    id: d.cycle.id,
+                    name: d.cycle.name,
+                    farmerId: d.cycle.farmerId,
+                    organizationId: d.cycle.organizationId || null,
+                    doc: d.cycle.doc,
+                    age: d.cycle.age,
+                    intake: d.cycle.intake,
+                    mortality: d.cycle.mortality,
+                    status: "active" as const,
+                    createdAt: d.cycle.createdAt,
+                    updatedAt: d.cycle.updatedAt,
+                    farmerName: d.farmerName,
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: null as Date | null
+                })),
                 total: total.count,
                 totalPages: Math.ceil(total.count / pageSize)
             };
@@ -210,17 +225,9 @@ export const managementCyclesRouter = createTRPCRouter({
             );
 
             const data = await ctx.db.select({
-                history: {
-                    id: cycleHistory.id,
-                    cycleName: cycleHistory.cycleName,
-                    doc: cycleHistory.doc,
-                    finalIntake: cycleHistory.finalIntake,
-                    mortality: cycleHistory.mortality,
-                    startDate: cycleHistory.startDate,
-                    endDate: cycleHistory.endDate,
-                    farmerId: cycleHistory.farmerId,
-                },
-                farmerName: farmer.name
+                history: cycleHistory,
+                farmerName: farmer.name,
+                farmerMainStock: farmer.mainStock
             })
                 .from(cycleHistory)
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
@@ -235,12 +242,23 @@ export const managementCyclesRouter = createTRPCRouter({
 
             return {
                 items: data.map(d => ({
-                    ...d.history,
+                    id: d.history.id,
                     name: d.history.cycleName,
+                    farmerId: d.history.farmerId,
+                    organizationId: d.history.organizationId || null,
+                    doc: d.history.doc,
+                    age: d.history.age,
+                    intake: d.history.finalIntake,
+                    mortality: d.history.mortality,
+                    status: 'archived' as const,
+                    createdAt: d.history.startDate,
+                    updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
-                    status: 'archived'
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: d.history.endDate
                 })),
                 total: total.count,
+                totalPages: Math.ceil(total.count / pageSize)
             };
         }),
 });

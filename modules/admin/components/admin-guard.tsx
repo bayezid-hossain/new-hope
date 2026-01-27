@@ -15,12 +15,17 @@ export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
   // ^ Assuming you have a basic auth router. If not, check ctx.user in a specialized query.
 
   useEffect(() => {
-    if (!isPending && session && session.user && session.user.globalRole !== "ADMIN") {
-      router.push("/"); // Kick non-admins to normal dashboard
+    if (!isPending && session && session.user) {
+      const isAdmin = session.user.globalRole === "ADMIN";
+      const isModeAdmin = session.user.activeMode === "ADMIN";
+
+      if (!isAdmin || !isModeAdmin) {
+        router.push("/");
+      }
     }
   }, [session, isPending, router]);
 
-  if (isPending || (session && session.user && session.user.globalRole !== "ADMIN")) {
+  if (isPending || !session?.user || session.user.globalRole !== "ADMIN" || session.user.activeMode !== "ADMIN") {
     return <LoadingState title="Verifying Admin Access" description="Veryfying Admin Access" />;
   }
 

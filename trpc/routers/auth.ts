@@ -11,7 +11,10 @@ export const authRouter = createTRPCRouter({
     // We simply return the context data we already fetched in init.ts
     return {
       session: ctx.session,
-      user: ctx.user // This contains the 'globalRole' from Drizzle
+      user: {
+        ...ctx.user,
+        activeMode: ctx?.user?.activeMode
+      }
     };
   }),
 
@@ -64,7 +67,8 @@ export const authRouter = createTRPCRouter({
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
       orgName: membership.organization.name,
       orgId: membership.organizationId,
-      role: membership.role
+      role: membership.role,
+      activeMode: membership.activeMode
     };
   }),
 
@@ -74,4 +78,25 @@ export const authRouter = createTRPCRouter({
       columns: { id: true, name: true, slug: true },
     });
   }),
+
+  // Update Global Mode (for System Admin)
+  updateGlobalMode: protectedProcedure
+    .input(z.object({ mode: z.enum(["ADMIN", "USER"]) }))
+    .mutation(async ({ ctx, input }) => {
+      const { user: userTable } = await import("@/db/schema");
+      await ctx.db.update(userTable)
+        .set({ activeMode: input.mode })
+        .where(eq(userTable.id, ctx.user.id));
+      return { success: true };
+    }),
+
+  // Update Org Mode (for Manager/Owner)
+  updateOrgMode: protectedProcedure
+    .input(z.object({ mode: z.enum(["MANAGEMENT", "OFFICER"]) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.update(member)
+        .set({ activeMode: input.mode })
+        .where(eq(member.userId, ctx.user.id)); // Assumes one org for now as per getMyMembership
+      return { success: true };
+    }),
 });

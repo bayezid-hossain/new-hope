@@ -36,7 +36,7 @@ const MobileFarmerCard = ({ farmer }: { farmer: any }) => (
             {/* Header section with Name & Badge */}
             <div className="flex justify-between items-start">
                 <div className="flex flex-col gap-1">
-                    <Link href={`/farmers/${farmer.id}/history`} className="group flex items-center gap-1.5 focus:outline-none">
+                    <Link href={`/farmers/${farmer.id}`} className="group flex items-center gap-1.5 focus:outline-none">
                         <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{farmer.name}</h3>
                         <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                     </Link>
@@ -80,8 +80,8 @@ const MobileFarmerCard = ({ farmer }: { farmer: any }) => (
 
             {/* View Details Button */}
             <Button variant="outline" className="w-full text-xs font-semibold h-9 rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
-                <Link href={`/farmers/${farmer.id}/history`}>
-                    View History & Details
+                <Link href={`/farmers/${farmer.id}`}>
+                    View Details
                     <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                 </Link>
             </Button>
@@ -210,7 +210,7 @@ export const FarmersListView = () => {
                                         <TableCell>
                                             <Button size="icon" variant="ghost" asChild>
                                                 {/* Update this HREF to match your routing structure */}
-                                                <Link href={`/farmers/${farmer.id}/history`}>
+                                                <Link href={`/farmers/${farmer.id}`}>
                                                     <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
                                                 </Link>
                                             </Button>

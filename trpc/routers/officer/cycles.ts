@@ -54,7 +54,22 @@ export const officerCyclesRouter = createTRPCRouter({
                 .where(whereClause);
 
             return {
-                items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName, farmerMainStock: d.farmerMainStock })),
+                items: data.map(d => ({
+                    id: d.cycle.id,
+                    name: d.cycle.name,
+                    farmerId: d.cycle.farmerId,
+                    organizationId: d.cycle.organizationId || null,
+                    doc: d.cycle.doc,
+                    age: d.cycle.age,
+                    intake: d.cycle.intake,
+                    mortality: d.cycle.mortality,
+                    status: "active" as const,
+                    createdAt: d.cycle.createdAt,
+                    updatedAt: d.cycle.updatedAt,
+                    farmerName: d.farmerName,
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: null as Date | null
+                })),
                 total: total.count,
                 totalPages: Math.ceil(total.count / pageSize)
             };
@@ -75,7 +90,8 @@ export const officerCyclesRouter = createTRPCRouter({
 
             const data = await ctx.db.select({
                 history: cycleHistory,
-                farmerName: farmer.name
+                farmerName: farmer.name,
+                farmerMainStock: farmer.mainStock
             })
                 .from(cycleHistory)
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
@@ -91,22 +107,33 @@ export const officerCyclesRouter = createTRPCRouter({
 
             return {
                 items: data.map(d => ({
-                    ...d.history,
+                    id: d.history.id,
                     name: d.history.cycleName,
+                    farmerId: d.history.farmerId,
+                    organizationId: d.history.organizationId || null,
+                    doc: d.history.doc,
+                    age: d.history.age,
+                    intake: d.history.finalIntake,
+                    mortality: d.history.mortality,
+                    status: 'archived' as const,
+                    createdAt: d.history.startDate,
+                    updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
-                    status: 'archived'
+                    farmerMainStock: d.farmerMainStock,
+                    endDate: d.history.endDate
                 })),
                 total: total.count,
+                totalPages: Math.ceil(total.count / pageSize)
             };
         }),
 
     create: officerProcedure
         .input(z.object({
-            name: z.string().min(1),
+            name: z.string().min(1).max(100),
             farmerId: z.string(),
             orgId: z.string(),
-            doc: z.number().int().positive(),
-            age: z.number().int().default(0),
+            doc: z.number().int().positive().max(200000, "Maximum 200,000 birds allowed per cycle"),
+            age: z.number().int().min(0).max(30, "Maximum age is 30 days for new cycles").default(0),
         }))
         .mutation(async ({ input, ctx }) => {
             const [newCycle] = await ctx.db.insert(cycles).values({
@@ -253,12 +280,25 @@ export const officerCyclesRouter = createTRPCRouter({
     end: officerProcedure
         .input(z.object({
             id: z.string(),
-            intake: z.number().positive(),
+            intake: z.number().nonnegative(), // Removed .positive() to allow ending with 0 if needed, though strictly positive usually makes sense for consumption. But user said "end cycle intake" logic check.
         }))
         .mutation(async ({ input, ctx }) => {
             return await ctx.db.transaction(async (tx) => {
                 const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, input.id));
                 if (!activeCycle) throw new TRPCError({ code: "NOT_FOUND" });
+
+                // LOGIC CHECK: Ensure intake does not exceed farmer's stock
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: eq(farmer.id, activeCycle.farmerId)
+                });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found." });
+
+                if ((input.intake || 0) > farmerData.mainStock) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Cannot consume ${input.intake} bags. Only ${farmerData.mainStock} bags available in stock.`
+                    });
+                }
 
                 const [history] = await tx.insert(cycleHistory).values({
                     cycleName: activeCycle.name,
@@ -309,12 +349,20 @@ export const officerCyclesRouter = createTRPCRouter({
     addMortality: officerProcedure
         .input(z.object({
             id: z.string(),
-            amount: z.number().int().positive(),
-            reason: z.string().optional(),
+            amount: z.number().int().positive().max(200000, "Sanity check failed: limit is 200k"),
+            reason: z.string().max(500).optional(),
         }))
         .mutation(async ({ input, ctx }) => {
             const [current] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
             if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // LOGIC CHECK: New mortality + existing mortality should not exceed DOC
+            if ((current.mortality + input.amount) > current.doc) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: `Invalid mortality. Total dead (${current.mortality + input.amount}) cannot exceed initial birds (${current.doc}).`
+                });
+            }
 
             const [updated] = await ctx.db.update(cycles)
                 .set({
@@ -545,8 +593,8 @@ export const officerCyclesRouter = createTRPCRouter({
     correctDoc: officerProcedure
         .input(z.object({
             cycleId: z.string(),
-            newDoc: z.number().int().positive(),
-            reason: z.string().min(3)
+            newDoc: z.number().int().positive().max(200000, "Maximum 200,000 birds"),
+            reason: z.string().min(3).max(500)
         }))
         .mutation(async ({ ctx, input }) => {
             // console.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
