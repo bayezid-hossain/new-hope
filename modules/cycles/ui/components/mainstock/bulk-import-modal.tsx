@@ -90,6 +90,12 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         }
     }));
 
+    // Fetch Request Status
+    const { data: requestStatus, refetch: refetchStatus, isPending: isLoadingStatus } = useQuery({
+        ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "BULK_IMPORT" }),
+        enabled: open
+    });
+
     const parseText = async () => {
         if (!farmersList?.items || !inputText.trim()) return;
 
@@ -272,22 +278,25 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     const requestAccessMutation = useMutation(trpc.officer.requestAccess.mutationOptions({
         onSuccess: () => {
             toast.success("Request sent! Admin will review shortly.");
+            refetchStatus();
         },
         onError: (err) => {
             toast.error(err.message);
         }
     }));
 
-    // Check if user has already requested access (persisted in user object or from current session mutation)
-    const hasRequested = user?.hasRequestedAccess || requestAccessMutation.isSuccess;
+    // Check if user has already requested access (persisted in DB or from current session mutation)
+    const dbStatus = requestStatus?.status;
+    const hasRequested = dbStatus === "PENDING" || dbStatus === "APPROVED" || requestAccessMutation.isSuccess;
+    const isApprovedInDb = dbStatus === "APPROVED";
 
     const handleRequestAccess = () => {
         requestAccessMutation.mutate({ feature: "BULK_IMPORT" });
     };
 
-    if (open && !isPro) {
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            {!isPro ? (
                 <DialogContent className="w-[95vw] sm:max-w-md bg-white p-0 overflow-hidden rounded-2xl">
                     <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden">
                         {/* Close Button for Pro Modal */}
@@ -334,25 +343,30 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
                         <Button
                             onClick={handleRequestAccess}
-                            disabled={requestAccessMutation.isPending || hasRequested}
-                            className={`w-full shadow-lg text-white transition-all ${
-                                hasRequested
-                                    ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
-                                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                            }`}
+                            disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus}
+                            className={`w-full shadow-lg text-white transition-all ${hasRequested || isLoadingStatus
+                                ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
+                                : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                }`}
                         >
-                            {requestAccessMutation.isPending ? (
+                            {requestAccessMutation.isPending || isLoadingStatus ? (
                                 <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                            ) : isApprovedInDb ? (
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
                             ) : hasRequested ? (
                                 <Clock className="h-4 w-4 mr-2" />
                             ) : (
                                 <Sparkles className="h-4 w-4 mr-2" />
                             )}
-                            {hasRequested ? "Access Requested" : "Request Access"}
+                            {isLoadingStatus ? "Checking status..." : isApprovedInDb ? "Pro Status Approved" : hasRequested ? "Access Requested" : "Request Access"}
                         </Button>
-                        
+
                         <p className="text-xs text-center text-muted-foreground h-4">
-                            {hasRequested ? (
+                            {isLoadingStatus ? (
+                                <span className="animate-pulse">Verifying access...</span>
+                            ) : isApprovedInDb ? (
+                                <span className="text-emerald-600 font-medium italic">Approved! Refresh page to enable features.</span>
+                            ) : hasRequested ? (
                                 <span className="text-amber-600 font-medium">Pending admin approval.</span>
                             ) : (
                                 "Usually approved within 24 hours."
@@ -360,266 +374,259 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                         </p>
                     </div>
                 </DialogContent>
-            </Dialog>
-        );
-    }
+            ) : (
+                <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
+                    {/* Header */}
+                    <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
+                        {/* Close Button for Main Modal */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
+                            onClick={() => onOpenChange(false)}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
 
-    // --- END PRO CHECK ---
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            {/* Mobile Responsive Classes: w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] */}
-            <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
-                {/* Header */}
-                <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
-                    {/* Close Button for Main Modal */}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
-                        <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
-                            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                                <Sparkles className="h-5 w-5" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span>Bulk Stock Import</span>
-                                <span className="text-xs font-medium text-slate-500 font-normal">AI Powered Extraction</span>
-                            </div>
-                        </DialogTitle>
-                        {step === "REVIEW" && (
-                            <div className="flex gap-2 self-end sm:self-auto">
-                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Ready
-                                </Badge>
-                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs sm:text-sm">
-                                    <AlertCircle className="w-3 h-3 mr-1" />
-                                    {parsedData.filter(p => !p.matchedFarmerId || p.isDuplicate).length} Check
-                                </Badge>
-                            </div>
-                        )}
-                    </div>
-                    <DialogDescription className="hidden">
-                        Import stock from daily reports
-                    </DialogDescription>
-                </DialogHeader>
-
-                {/* Content */}
-                <div className="flex-1 overflow-hidden bg-slate-50/50 relative">
-                    {step === "INPUT" ? (
-                        <div className="h-full flex flex-col p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
-                            <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
-                                <Textarea
-                                    placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
-                                    className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent"
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                />
-                                <div className="p-2 border-t bg-slate-50 text-xs text-slate-400 flex justify-between items-center rounded-b-xl">
-                                    <span>Paste your daily report text above</span>
-                                    <span>{inputText.length} chars</span>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
+                            <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
+                                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                                    <Sparkles className="h-5 w-5" />
                                 </div>
-                            </div>
+                                <div className="flex flex-col">
+                                    <span>Bulk Stock Import</span>
+                                    <span className="text-xs font-medium text-slate-500 font-normal">AI Powered Extraction</span>
+                                </div>
+                            </DialogTitle>
+                            {step === "REVIEW" && (
+                                <div className="flex gap-2 self-end sm:self-auto">
+                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                        {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Ready
+                                    </Badge>
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs sm:text-sm">
+                                        <AlertCircle className="w-3 h-3 mr-1" />
+                                        {parsedData.filter(p => !p.matchedFarmerId || p.isDuplicate).length} Check
+                                    </Badge>
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                        <ScrollArea className="h-full p-4 sm:p-6">
-                            {parsedData.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 min-h-[300px]">
-                                    <Search className="h-8 w-8 opacity-20" />
-                                    <p>No items found</p>
+                        <DialogDescription className="hidden">
+                            Import stock from daily reports
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-hidden bg-slate-50/50 relative">
+                        {step === "INPUT" ? (
+                            <div className="h-full flex flex-col p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
+                                <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
+                                    <Textarea
+                                        placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
+                                        className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent"
+                                        value={inputText}
+                                        onChange={(e) => setInputText(e.target.value)}
+                                    />
+                                    <div className="p-2 border-t bg-slate-50 text-xs text-slate-400 flex justify-between items-center rounded-b-xl">
+                                        <span>Paste your daily report text above</span>
+                                        <span>{inputText.length} chars</span>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    {parsedData.map((row) => (
-                                        <div
-                                            key={row.id}
-                                            className={`
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full p-4 sm:p-6">
+                                {parsedData.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 min-h-[300px]">
+                                        <Search className="h-8 w-8 opacity-20" />
+                                        <p>No items found</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        {parsedData.map((row) => (
+                                            <div
+                                                key={row.id}
+                                                className={`
                                                 group relative p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md
                                                 ${row.isDuplicate ? "bg-red-50/50 border-red-100" :
-                                                    !row.matchedFarmerId ? "bg-amber-50/30 border-amber-100" : "bg-white border-slate-100 hover:border-emerald-200"}
+                                                        !row.matchedFarmerId ? "bg-amber-50/30 border-amber-100" : "bg-white border-slate-100 hover:border-emerald-200"}
                                             `}
-                                        >
-                                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                                {/* Top Row (Mobile): User Info */}
-                                                <div className="flex items-center gap-4 w-full sm:w-auto">
-                                                    {/* Icon Status */}
-                                                    <div className="shrink-0">
-                                                        {row.isDuplicate ? (
-                                                            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                                                                <AlertTriangle className="h-5 w-5" />
-                                                            </div>
-                                                        ) : row.matchedFarmerId ? (
-                                                            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 relative">
-                                                                <Check className="h-5 w-5" />
-                                                                {row.confidence === "HIGH" && (
-                                                                    <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border">
-                                                                        <Sparkles className="h-3 w-3 text-amber-500" />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                                                                <Search className="h-5 w-5" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Input / Name */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                                                Extracted: "{row.rawName}"
-                                                            </span>
-                                                            {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
-                                                        </div>
-
-                                                        {editingId === row.id ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <Input
-                                                                    value={row.cleanName}
-                                                                    onChange={(e) => handleNameEdit(row.id, e.target.value)}
-                                                                    onBlur={() => setEditingId(null)}
-                                                                    autoFocus
-                                                                    className="h-8 max-w-[200px]"
-                                                                />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="font-semibold text-slate-800 text-lg truncate">
-                                                                    {row.cleanName}
-                                                                </h3>
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingId(row.id)}>
-                                                                    <Edit2 className="h-3 w-3 text-slate-400 hover:text-blue-500" />
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Middle Arrow (Hidden on Mobile) */}
-                                                <div className="hidden sm:block text-slate-300">
-                                                    <ArrowRight className="h-5 w-5" />
-                                                </div>
-
-                                                {/* Match Status / Action */}
-                                                <div className="flex-1 w-full sm:w-auto min-w-0 pl-[56px] sm:pl-0 mt-2 sm:mt-0">
-                                                    {row.matchedFarmerId ? (
-                                                        <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="h-8 w-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-bold">
-                                                                    <User className="h-4 w-4" />
+                                            >
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                                    {/* Top Row (Mobile): User Info */}
+                                                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                        {/* Icon Status */}
+                                                        <div className="shrink-0">
+                                                            {row.isDuplicate ? (
+                                                                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                                                    <AlertTriangle className="h-5 w-5" />
                                                                 </div>
-                                                                <div>
-                                                                    <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
-                                                                    <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Database Match</p>
+                                                            ) : row.matchedFarmerId ? (
+                                                                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 relative">
+                                                                    <Check className="h-5 w-5" />
+                                                                    {row.confidence === "HIGH" && (
+                                                                        <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border">
+                                                                            <Sparkles className="h-3 w-3 text-amber-500" />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            </div>
-                                                            <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
-                                                                +{row.amount} Bags
-                                                            </Badge>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-sm font-medium text-amber-700">No Match Found</span>
-                                                                    <span className="text-xs text-amber-600/70">Create new or select suggestion</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Badge variant="outline" className="bg-white text-slate-600 px-2 h-7 font-mono border-slate-200">
-                                                                        +{row.amount}
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="default"
-                                                                        className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                                                        onClick={() => handleCreateClick(row)}
-                                                                        disabled={loadingRowIds.has(row.id)}
-                                                                    >
-                                                                        {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
-                                                                        Create
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* AI Suggestions */}
-                                                            {row.suggestions && row.suggestions.length > 0 && (
-                                                                <div className="flex flex-wrap gap-2 mt-1">
-                                                                    <span className="text-xs text-slate-400 font-medium py-1">Did you mean:</span>
-                                                                    {row.suggestions.map(s => (
-                                                                        <Badge
-                                                                            key={s.id}
-                                                                            variant="secondary"
-                                                                            className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors border border-transparent hover:border-blue-200"
-                                                                            onClick={() => handleSuggestionClick(row.id, s)}
-                                                                        >
-                                                                            {s.name}
-                                                                        </Badge>
-                                                                    ))}
+                                                            ) : (
+                                                                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                                                    <Search className="h-5 w-5" />
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    )}
+
+                                                        {/* Input / Name */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                                                    Extracted: "{row.rawName}"
+                                                                </span>
+                                                                {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
+                                                            </div>
+
+                                                            {editingId === row.id ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Input
+                                                                        value={row.cleanName}
+                                                                        onChange={(e) => handleNameEdit(row.id, e.target.value)}
+                                                                        onBlur={() => setEditingId(null)}
+                                                                        autoFocus
+                                                                        className="h-8 max-w-[200px]"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <h3 className="font-semibold text-slate-800 text-lg truncate">
+                                                                        {row.cleanName}
+                                                                    </h3>
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingId(row.id)}>
+                                                                        <Edit2 className="h-3 w-3 text-slate-400 hover:text-blue-500" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Middle Arrow (Hidden on Mobile) */}
+                                                    <div className="hidden sm:block text-slate-300">
+                                                        <ArrowRight className="h-5 w-5" />
+                                                    </div>
+
+                                                    {/* Match Status / Action */}
+                                                    <div className="flex-1 w-full sm:w-auto min-w-0 pl-[56px] sm:pl-0 mt-2 sm:mt-0">
+                                                        {row.matchedFarmerId ? (
+                                                            <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-8 w-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                                                                        <User className="h-4 w-4" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
+                                                                        <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Database Match</p>
+                                                                    </div>
+                                                                </div>
+                                                                <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
+                                                                    +{row.amount} Bags
+                                                                </Badge>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-2">
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-sm font-medium text-amber-700">No Match Found</span>
+                                                                        <span className="text-xs text-amber-600/70">Create new or select suggestion</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Badge variant="outline" className="bg-white text-slate-600 px-2 h-7 font-mono border-slate-200">
+                                                                            +{row.amount}
+                                                                        </Badge>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="default"
+                                                                            className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                                                            onClick={() => handleCreateClick(row)}
+                                                                            disabled={loadingRowIds.has(row.id)}
+                                                                        >
+                                                                            {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                                                                            Create
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* AI Suggestions */}
+                                                                {row.suggestions && row.suggestions.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                                        <span className="text-xs text-slate-400 font-medium py-1">Did you mean:</span>
+                                                                        {row.suggestions.map(s => (
+                                                                            <Badge
+                                                                                key={s.id}
+                                                                                variant="secondary"
+                                                                                className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors border border-transparent hover:border-blue-200"
+                                                                                onClick={() => handleSuggestionClick(row.id, s)}
+                                                                            >
+                                                                                {s.name}
+                                                                            </Badge>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </ScrollArea>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
-                    {step === "INPUT" ? (
-                        <div className="w-full flex justify-end">
-                            <Button
-                                onClick={parseText}
-                                disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
-                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto"
-                                size="lg"
-                            >
-                                {extractFarmersMutation.isPending ? (
-                                    <>
-                                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                                        Analyzing...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="mr-2 h-4 w-4" />
-                                        Analyze with AI
-                                    </>
+                                        ))}
+                                    </div>
                                 )}
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col-reverse sm:flex-row gap-3 w-full justify-between items-center">
-                            <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
-                                Back to Input
-                            </Button>
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={
-                                    bulkAddMutation.isPending ||
-                                    parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
-                                }
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
-                                size="lg"
-                            >
-                                {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                                Import {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Items
-                            </Button>
-                        </div>
-                    )}
-                </DialogFooter>
-            </DialogContent>
+                            </ScrollArea>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
+                        {step === "INPUT" ? (
+                            <div className="w-full flex justify-end">
+                                <Button
+                                    onClick={parseText}
+                                    disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
+                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto"
+                                    size="lg"
+                                >
+                                    {extractFarmersMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                            Analyzing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="mr-2 h-4 w-4" />
+                                            Analyze with AI
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col-reverse sm:flex-row gap-3 w-full justify-between items-center">
+                                <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
+                                    Back to Input
+                                </Button>
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={
+                                        bulkAddMutation.isPending ||
+                                        parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
+                                    }
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
+                                    size="lg"
+                                >
+                                    {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                                    Import {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Items
+                                </Button>
+                            </div>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            )}
         </Dialog>
     );
 }
