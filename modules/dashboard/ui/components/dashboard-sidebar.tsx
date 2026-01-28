@@ -17,12 +17,14 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, ChevronRight, HomeIcon, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import DashboardUserButton from "./dashboard-user-button";
 import { ModeToggle } from "./mode-toggle";
 
@@ -86,6 +88,19 @@ const DashboardSidebar = () => {
 
   // Fetch org status for organization role
   const { data: orgStatus } = useQuery(trpc.auth.getMyMembership.queryOptions());
+
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (sessionData?.user) {
+      getUserPasswordStatus().then((res) => setHasPassword(res.hasPassword));
+    }
+  }, [sessionData]);
+
+  const filteredSecondSection = secondSection.filter((item) => {
+    if (item.label === "Security" && hasPassword === false) return false;
+    return true;
+  });
 
   const isAdmin = sessionData?.user?.globalRole === "ADMIN";
   const isManager = orgStatus?.role === "OWNER" || orgStatus?.role === "MANAGER";
@@ -217,7 +232,7 @@ const DashboardSidebar = () => {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {secondSection.map((item) => (
+              {filteredSecondSection.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild

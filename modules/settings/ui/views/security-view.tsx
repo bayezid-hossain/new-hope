@@ -15,20 +15,18 @@ import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { getUserPasswordStatus, setUserPassword } from "@/modules/settings/actions/security-actions";
-import { KeyRound, Loader2, Lock, ShieldAlert, ShieldCheck } from "lucide-react";
+import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
+import { KeyRound, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const SecurityView = () => {
     const { data: session, isPending: isSessionPending } = authClient.useSession();
 
-    // Start with null to prevent "Create Password" flash
     const [hasPassword, setHasPassword] = useState<boolean | null>(null);
 
     const [isPending, setIsPending] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
-    const [newPassword, setNewPassword] = useState("");
 
     // 2FA Verification State
     const [isVerifying2FA, setIsVerifying2FA] = useState(false);
@@ -36,7 +34,6 @@ export const SecurityView = () => {
 
     // Dialog states
     const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
-    const [isSetPasswordOpen, setIsSetPasswordOpen] = useState(false);
 
     useEffect(() => {
         const checkPassword = async () => {
@@ -50,31 +47,6 @@ export const SecurityView = () => {
         };
         checkPassword();
     }, [session]);
-
-    const handleSetPassword = async () => {
-        if (!newPassword || newPassword.length < 8) {
-            toast.error("Password must be at least 8 characters.");
-            return;
-        }
-
-        setIsPending(true);
-        try {
-            const { error } = await setUserPassword({ newPassword });
-
-            if (error) {
-                toast.error(error);
-            } else {
-                toast.success("Password set successfully! You can now enable 2FA.");
-                setIsSetPasswordOpen(false);
-                setHasPassword(true); // Immediate UI update
-                setNewPassword("");
-            }
-        } catch (err) {
-            toast.error("An unexpected error occurred.");
-        } finally {
-            setIsPending(false);
-        }
-    }
 
     const handleToggleTwoFactor = async () => {
         if (!currentPassword) {
@@ -150,6 +122,17 @@ export const SecurityView = () => {
         );
     }
 
+    // If user has no password (social login only), hide security settings
+    if (!hasPassword) {
+        return (
+            <div className="container max-w-4xl py-10">
+                <div className="p-4 rounded-lg bg-muted text-muted-foreground text-center">
+                    Security settings are not available for accounts logged in via social providers.
+                </div>
+            </div>
+        );
+    }
+
     const twoFactorEnabled = session?.user.twoFactorEnabled;
 
     return (
@@ -190,117 +173,84 @@ export const SecurityView = () => {
                                 </p>
                             </div>
 
-                            {!hasPassword ? (
-                                <Dialog open={isSetPasswordOpen} onOpenChange={setIsSetPasswordOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button>Create Password to Enable 2FA</Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle className="flex items-center gap-2">
-                                                <Lock className="h-5 w-5 text-primary" /> Set Account Password
-                                            </DialogTitle>
-                                            <DialogDescription>
-                                                You logged in via Google. To enable 2FA, you need to set a local password first.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-2 py-4">
-                                            <Label htmlFor="new-pass">New Password</Label>
-                                            <Input
-                                                id="new-pass"
-                                                type="password"
-                                                value={newPassword}
-                                                onChange={(e) => setNewPassword(e.target.value)}
-                                                placeholder="Min 8 characters"
-                                            />
-                                        </div>
-                                        <DialogFooter>
-                                            <Button onClick={handleSetPassword} disabled={isPending || newPassword.length < 8}>
-                                                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Set Password"}
+                            <Dialog open={is2FADialogOpen} onOpenChange={(open) => {
+                                setIs2FADialogOpen(open);
+                                if (!open) {
+                                    // Reset state on close
+                                    setIsVerifying2FA(false);
+                                    setOtp("");
+                                    setCurrentPassword("");
+                                }
+                            }}>
+                                <DialogTrigger asChild>
+                                    <Button variant={twoFactorEnabled ? "outline" : "default"}>
+                                        {twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                            <KeyRound className="h-5 w-5 text-primary" />
+                                            {isVerifying2FA ? "Verify Email Code" : "Confirm Change"}
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                            {isVerifying2FA
+                                                ? "We sent a 6-digit code to your email. Please enter it below to enable 2FA."
+                                                : `Enter your password to ${twoFactorEnabled ? "disable" : "enable"} two-factor authentication.`}
+                                        </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="space-y-4 py-4 flex flex-col items-center">
+                                        {isVerifying2FA ? (
+                                            <InputOTP
+                                                maxLength={6}
+                                                value={otp}
+                                                onChange={setOtp}
+                                            >
+                                                <InputOTPGroup>
+                                                    <InputOTPSlot index={0} />
+                                                    <InputOTPSlot index={1} />
+                                                    <InputOTPSlot index={2} />
+                                                </InputOTPGroup>
+                                                <div className="w-2" />
+                                                <InputOTPGroup>
+                                                    <InputOTPSlot index={3} />
+                                                    <InputOTPSlot index={4} />
+                                                    <InputOTPSlot index={5} />
+                                                </InputOTPGroup>
+                                            </InputOTP>
+                                        ) : (
+                                            <div className="w-full space-y-2">
+                                                <Label htmlFor="confirm-pass">Current Password</Label>
+                                                <Input
+                                                    id="confirm-pass"
+                                                    type="password"
+                                                    value={currentPassword}
+                                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                                    onKeyDown={(e) => e.key === "Enter" && handleToggleTwoFactor()}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <DialogFooter>
+                                        <Button variant="ghost" onClick={() => setIs2FADialogOpen(false)}>Cancel</Button>
+                                        {isVerifying2FA ? (
+                                            <Button onClick={handleVerifyOTP} disabled={isPending || otp.length !== 6}>
+                                                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify & Enable"}
                                             </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            ) : (
-                                <Dialog open={is2FADialogOpen} onOpenChange={(open) => {
-                                    setIs2FADialogOpen(open);
-                                    if (!open) {
-                                        // Reset state on close
-                                        setIsVerifying2FA(false);
-                                        setOtp("");
-                                        setCurrentPassword("");
-                                    }
-                                }}>
-                                    <DialogTrigger asChild>
-                                        <Button variant={twoFactorEnabled ? "outline" : "default"}>
-                                            {twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle className="flex items-center gap-2">
-                                                <KeyRound className="h-5 w-5 text-primary" />
-                                                {isVerifying2FA ? "Verify Email Code" : "Confirm Change"}
-                                            </DialogTitle>
-                                            <DialogDescription>
-                                                {isVerifying2FA
-                                                    ? "We sent a 6-digit code to your email. Please enter it below to enable 2FA."
-                                                    : `Enter your password to ${twoFactorEnabled ? "disable" : "enable"} two-factor authentication.`}
-                                            </DialogDescription>
-                                        </DialogHeader>
-
-                                        <div className="space-y-4 py-4 flex flex-col items-center">
-                                            {isVerifying2FA ? (
-                                                <InputOTP
-                                                    maxLength={6}
-                                                    value={otp}
-                                                    onChange={setOtp}
-                                                >
-                                                    <InputOTPGroup>
-                                                        <InputOTPSlot index={0} />
-                                                        <InputOTPSlot index={1} />
-                                                        <InputOTPSlot index={2} />
-                                                    </InputOTPGroup>
-                                                    <div className="w-2" />
-                                                    <InputOTPGroup>
-                                                        <InputOTPSlot index={3} />
-                                                        <InputOTPSlot index={4} />
-                                                        <InputOTPSlot index={5} />
-                                                    </InputOTPGroup>
-                                                </InputOTP>
-                                            ) : (
-                                                <div className="w-full space-y-2">
-                                                    <Label htmlFor="confirm-pass">Current Password</Label>
-                                                    <Input
-                                                        id="confirm-pass"
-                                                        type="password"
-                                                        value={currentPassword}
-                                                        onChange={(e) => setCurrentPassword(e.target.value)}
-                                                        onKeyDown={(e) => e.key === "Enter" && handleToggleTwoFactor()}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <DialogFooter>
-                                            <Button variant="ghost" onClick={() => setIs2FADialogOpen(false)}>Cancel</Button>
-                                            {isVerifying2FA ? (
-                                                <Button onClick={handleVerifyOTP} disabled={isPending || otp.length !== 6}>
-                                                    {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify & Enable"}
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    onClick={handleToggleTwoFactor}
-                                                    disabled={isPending || !currentPassword}
-                                                    className={twoFactorEnabled ? "bg-destructive text-white hover:bg-destructive/90" : ""}
-                                                >
-                                                    {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (twoFactorEnabled ? "Disable 2FA" : "Enable 2FA")}
-                                                </Button>
-                                            )}
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            )}
+                                        ) : (
+                                            <Button
+                                                onClick={handleToggleTwoFactor}
+                                                disabled={isPending || !currentPassword}
+                                                className={twoFactorEnabled ? "bg-destructive text-white hover:bg-destructive/90" : ""}
+                                            >
+                                                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (twoFactorEnabled ? "Disable 2FA" : "Enable 2FA")}
+                                            </Button>
+                                        )}
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </CardContent>
                 </Card>

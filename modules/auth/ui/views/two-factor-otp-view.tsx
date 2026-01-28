@@ -43,9 +43,7 @@ export const TwoFactorOtpView = () => {
     const [isVerifying, setIsVerifying] = useState(false);
     const [timeLeft, setTimeLeft] = useState(0);
 
-    useState(() => {
-        // Check local storage or state persistence if needed, but simple state is fine for now
-    });
+
 
     useEffect(() => {
         if (timeLeft > 0) {
@@ -75,13 +73,8 @@ export const TwoFactorOtpView = () => {
             form.reset();
         } else {
             toast.success("Identity verified!");
-            // Manual UI state persistence for 2FA since better-auth session object doesn't expose it
-            await authClient.getSession().then(({ data }) => {
-                if (data?.user) {
-                    sessionStorage.setItem(`2fa_verified_${data.user.id}`, "true");
-                }
-            });
             router.push("/");
+
         }
     };
 

@@ -135,15 +135,7 @@ export const SignInView = () => {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="flex items-center justify-between">
-                          <FormLabel>Password</FormLabel>
-                          <Link
-                            href="/forgot-password"
-                            className="text-sm text-primary hover:underline font-medium"
-                          >
-                            Forgot password?
-                          </Link>
-                        </div>
+                        <FormLabel>Password</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
@@ -152,6 +144,13 @@ export const SignInView = () => {
                           />
                         </FormControl>
                         <FormMessage />
+                        <Link
+                          href="/forgot-password"
+                          className="text-sm text-primary hover:underline font-medium text-right block mt-1"
+                        >
+                          Forgot password?
+                        </Link>
+
                       </FormItem>
                     )}
                   />
