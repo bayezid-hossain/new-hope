@@ -2,7 +2,7 @@ import { db } from "@/db"
 import * as schema from "@/db/schema"
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { emailOTP, twoFactor } from "better-auth/plugins"
+import { emailOTP, organization, twoFactor } from "better-auth/plugins"
 import { sendEmail } from "./email"
 
 export const auth = betterAuth({
@@ -39,6 +39,22 @@ export const auth = betterAuth({
             }
         },
     },
+    user: {
+        additionalFields: {
+            activeMode: {
+                type: "string",
+                required: false,
+                defaultValue: "USER",
+                input: false
+            },
+            globalRole: {
+                type: "string",
+                required: false,
+                defaultValue: "USER",
+                input: false
+            }
+        }
+    },
     socialProviders: {
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -60,6 +76,7 @@ export const auth = betterAuth({
         }
     },
     plugins: [
+        organization(),
         twoFactor({
             otpOptions: {
                 async sendOTP({ user, otp }) {

@@ -78,16 +78,27 @@ const managerSection = {
 };
 
 
-const DashboardSidebar = () => {
+interface DashboardSidebarProps {
+  initialSession?: any;
+  initialMembership?: any;
+}
+
+const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSidebarProps) => {
   const pathname = usePathname();
   const trpc = useTRPC();
   const { setOpenMobile, isMobile } = useSidebar();
 
   // Fetch session for globalRole
-  const { data: sessionData } = useQuery(trpc.auth.getSession.queryOptions());
+  const { data: sessionData } = useQuery({
+    ...trpc.auth.getSession.queryOptions(),
+    initialData: initialSession
+  });
 
   // Fetch org status for organization role
-  const { data: orgStatus } = useQuery(trpc.auth.getMyMembership.queryOptions());
+  const { data: orgStatus } = useQuery({
+    ...trpc.auth.getMyMembership.queryOptions(),
+    initialData: initialMembership
+  });
 
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
 
@@ -121,6 +132,7 @@ const DashboardSidebar = () => {
     management: "[&_[data-slot=sidebar-inner]]:bg-gradient-to-b [&_[data-slot=sidebar-inner]]:from-blue-900 [&_[data-slot=sidebar-inner]]:to-blue-950 [&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-blue-900 [&_[data-sidebar=sidebar]]:to-blue-950",
   };
 
+
   return (
     <Sidebar className={cn(sidebarModeStyles[currentMode], "transition-colors duration-300")}>
       <SidebarHeader className="text-sidebar-accent-foreground">
@@ -145,9 +157,11 @@ const DashboardSidebar = () => {
 
       <SidebarContent>
         {/* Persistent Mode Toggle */}
-        <div className="px-3 pt-2">
-          <ModeToggle />
-        </div>
+        {(isAdmin || isManager) && (
+          <div className="px-3 pt-2">
+            <ModeToggle />
+          </div>
+        )}
 
         {showOfficerLinks && (
           <SidebarGroup>

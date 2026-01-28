@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { useLoading } from "@/components/providers/loading-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +39,7 @@ const formSchema = z.object({
 });
 
 export const TwoFactorOtpView = () => {
+    const { showLoading } = useLoading();
     const router = useRouter();
     const [isSending, setIsSending] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -72,9 +74,9 @@ export const TwoFactorOtpView = () => {
             toast.error(error.message || "Invalid or expired code.");
             form.reset();
         } else {
+            showLoading("Logging In");
             toast.success("Identity verified!");
             router.push("/");
-
         }
     };
 

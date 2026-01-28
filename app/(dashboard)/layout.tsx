@@ -18,17 +18,33 @@ const layout = async ({ children }: Props) => {
     headers: await headers(),
   });
 
+  let membershipData = null;
+
   if (session?.user) {
     const { db } = await import("@/db");
-    const { user: userTable } = await import("@/db/schema");
-    const { eq } = await import("drizzle-orm");
+    const { user: userTable, member: memberTable } = await import("@/db/schema");
+    const { eq, and } = await import("drizzle-orm");
 
     const userData = await db.query.user.findFirst({
       where: eq(userTable.id, session.user.id)
     });
 
+    // Sync session user data with DB (optional, but good for activeMode)
+    if (userData) {
+      session.user.activeMode = userData.activeMode;
+      session.user.globalRole = userData.globalRole;
+    }
+
+    if (session.session.activeOrganizationId) {
+      membershipData = await db.query.member.findFirst({
+        where: and(
+          eq(memberTable.userId, session.user.id),
+          eq(memberTable.organizationId, session.session.activeOrganizationId)
+        )
+      });
+    }
+
     // If user is in Admin mode, redirect immediately before rendering sidebar
-    // Note: Management uses the same (dashboard) layout, so no redirect needed
     if (userData?.globalRole === "ADMIN" && userData?.activeMode === "ADMIN") {
       redirect("/admin");
     }
@@ -37,7 +53,7 @@ const layout = async ({ children }: Props) => {
   return (
     <OrgGuard>
       <SidebarProvider>
-        <DashboardSidebar />
+        <DashboardSidebar initialSession={session} initialMembership={membershipData} />
         <main className="flex flex-col min-h-screen w-full bg-muted bg-white">
           <DashboardNavbar />
           {children}
