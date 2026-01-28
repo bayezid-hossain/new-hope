@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Edit2, Loader2, Plus, Search, Sparkles, User } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Edit2, Loader2, Plus, Search, Sparkles, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -293,6 +293,16 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="w-[95vw] sm:max-w-md bg-white p-0 overflow-hidden rounded-2xl">
                     <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden">
+                        {/* Close Button for Pro Modal */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 z-20 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
+                            onClick={() => onOpenChange(false)}
+                        >
+                            <X className="h-5 w-5" />
+                        </Button>
+
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 opacity-90" />
                         <div className="z-10 text-center text-white p-4">
                             <Sparkles className="h-10 w-10 mx-auto mb-2 text-amber-300" />
@@ -350,8 +360,18 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             {/* Mobile Responsive Classes: w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] */}
             <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
                 {/* Header */}
-                <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
+                    {/* Close Button for Main Modal */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
                         <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
                             <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                                 <Sparkles className="h-5 w-5" />
