@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Edit2, Loader2, Plus, Search, Sparkles, User, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Plus, Search, Sparkles, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -119,9 +119,6 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 // Find the matched farmer object if ID exists
                 const matchedFarmer = matchedId ? farmersList.items.find(f => f.id === matchedId) : null;
 
-                // Fallback: If AI explicitly returned null but confidence is LOW, maybe try simple exact client match?
-                // Actually, let's trust the AI + Candidate list for now. output.
-
                 return {
                     id: `row-${index}`,
                     rawName: nameCandidate,
@@ -149,16 +146,13 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
         } catch (err) {
             console.error(err);
-            // Error handled in mutation onError
         }
     };
 
     const calculateDuplicates = (items: ParsedItem[]): ParsedItem[] => {
         return items.map(item => {
             const count = items.filter(r => {
-                // If both matched to same ID -> Duplicate
                 if (item.matchedFarmerId && r.matchedFarmerId === item.matchedFarmerId) return true;
-                // If neither matched but have same name -> Duplicate
                 if (!item.matchedFarmerId && !r.matchedFarmerId && r.cleanName.toLowerCase() === item.cleanName.toLowerCase()) return true;
                 return false;
             }).length;
@@ -167,7 +161,6 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         });
     };
 
-    // Client-side fuzzy (fallback for edits)
     const findBestMatch = (inputName: string, candidates: any[]) => {
         if (!candidates) return null;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,7 +180,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                     ...p,
                     matchedFarmerId: suggestion.id,
                     matchedName: suggestion.name,
-                    confidence: "HIGH" // User explicitly selected
+                    confidence: "HIGH"
                 } as ParsedItem;
             });
             return calculateDuplicates(updatedItems);
@@ -206,7 +199,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                     matchedFarmerId: match?.id || null,
                     matchedName: match?.name || null,
                     confidence: "HIGH",
-                    suggestions: [] // Clear suggestions on manual edit
+                    suggestions: []
                 } as ParsedItem;
             });
             return calculateDuplicates(updatedItems);
@@ -242,9 +235,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 initialStock: 0,
                 orgId: orgId
             });
-            // Success is handled by mutation callbacks
         } catch (error) {
-            // Error is handled by mutation callbacks
+            // Error handled by mutation
         } finally {
             setLoadingRowIds(prev => {
                 const next = new Set(prev);
@@ -273,7 +265,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
     // --- PRO CHECK ---
     const { data: session } = authClient.useSession();
-    const isPro = (session?.user as any)?.isPro || (session?.user as any)?.globalRole === "ADMIN";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = session?.user as any;
+    const isPro = user?.isPro || user?.globalRole === "ADMIN";
 
     const requestAccessMutation = useMutation(trpc.officer.requestAccess.mutationOptions({
         onSuccess: () => {
@@ -283,6 +277,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             toast.error(err.message);
         }
     }));
+
+    // Check if user has already requested access (persisted in user object or from current session mutation)
+    const hasRequested = user?.hasRequestedAccess || requestAccessMutation.isSuccess;
 
     const handleRequestAccess = () => {
         requestAccessMutation.mutate({ feature: "BULK_IMPORT" });
@@ -308,7 +305,6 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                             <Sparkles className="h-10 w-10 mx-auto mb-2 text-amber-300" />
                             <h3 className="text-xl font-bold">Pro Feature</h3>
                         </div>
-                        {/* Abstract Background Shapes */}
                         <div className="absolute -top-10 -left-10 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-50" />
                         <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-50" />
                     </div>
@@ -338,14 +334,29 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
                         <Button
                             onClick={handleRequestAccess}
-                            disabled={requestAccessMutation.isPending}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg"
+                            disabled={requestAccessMutation.isPending || hasRequested}
+                            className={`w-full shadow-lg text-white transition-all ${
+                                hasRequested
+                                    ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
+                                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                            }`}
                         >
-                            {requestAccessMutation.isPending ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                            Request Access
+                            {requestAccessMutation.isPending ? (
+                                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                            ) : hasRequested ? (
+                                <Clock className="h-4 w-4 mr-2" />
+                            ) : (
+                                <Sparkles className="h-4 w-4 mr-2" />
+                            )}
+                            {hasRequested ? "Access Requested" : "Request Access"}
                         </Button>
-                        <p className="text-xs text-center text-muted-foreground">
-                            Usually approved within 24 hours.
+                        
+                        <p className="text-xs text-center text-muted-foreground h-4">
+                            {hasRequested ? (
+                                <span className="text-amber-600 font-medium">Pending admin approval.</span>
+                            ) : (
+                                "Usually approved within 24 hours."
+                            )}
                         </p>
                     </div>
                 </DialogContent>
