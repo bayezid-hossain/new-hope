@@ -305,10 +305,10 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
                     <div className="p-6 space-y-4">
                         <div className="text-center space-y-2">
-                            <h2 className="text-lg font-semibold text-slate-900">Bulk Stock Import</h2>
-                            <p className="text-sm text-slate-500">
+                            <DialogTitle className="text-lg font-semibold text-slate-900">Bulk Stock Import</DialogTitle>
+                            <DialogDescription className="text-sm text-slate-500">
                                 Import thousands of farmer records in seconds using our AI-powered engine. Exclusive to Pro officers.
-                            </p>
+                            </DialogDescription>
                         </div>
 
                         <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 flex flex-col gap-2">
