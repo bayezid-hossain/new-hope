@@ -87,6 +87,51 @@ export const officerStockRouter = createTRPCRouter({
             });
         }),
 
+    // BULK ADD STOCK (Pro Feature)
+    bulkAddStock: protectedProcedure
+        .input(z.array(z.object({
+            farmerId: z.string(),
+            amount: z.number().positive().max(1000),
+            note: z.string().max(500).optional()
+        })).max(50)) // Limit batch size
+        .mutation(async ({ ctx, input }) => {
+            if (input.length === 0) return { success: true, count: 0 };
+
+            return await ctx.db.transaction(async (tx) => {
+                let successCount = 0;
+
+                for (const item of input) {
+                    // Check ownership for each (or verify all at once efficiently)
+                    // For safety, we verify one by one or filter. 
+                    const f = await tx.query.farmer.findFirst({
+                        where: and(eq(farmer.id, item.farmerId), eq(farmer.officerId, ctx.user.id))
+                    });
+
+                    if (!f) continue; // Skip if not found/owned (or throw?) - user wants "add it to those farmers that are available", so skipping matches logic.
+
+                    // A. Update Farmer DB
+                    await tx.update(farmer)
+                        .set({
+                            mainStock: sql`${farmer.mainStock} + ${item.amount}`,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(farmer.id, item.farmerId));
+
+                    // B. Add Ledger Entry
+                    await tx.insert(stockLogs).values({
+                        farmerId: item.farmerId,
+                        amount: item.amount.toString(),
+                        type: "RESTOCK",
+                        note: item.note || "Bulk Import Restock",
+                    });
+
+                    successCount++;
+                }
+
+                return { success: true, count: successCount };
+            });
+        }),
+
     // TRANSFER STOCK (Officer to Officer)
     transferStock: protectedProcedure
         .input(z.object({

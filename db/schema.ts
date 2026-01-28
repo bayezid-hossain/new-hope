@@ -44,9 +44,21 @@ export const user = pgTable("user", {
 
   // Custom Field for Global Admin logic
   globalRole: globalRoleEnum("global_role").default("USER").notNull(),
+  isPro: boolean("is_pro").default(false).notNull(),
 
   twoFactorEnabled: boolean("two_factor_enabled"),
 });
+
+export const featureRequest = pgTable("feature_request", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  feature: text("feature").notNull(), // e.g., "BULK_IMPORT"
+  status: text("status").notNull().default("PENDING"), // PENDING, APPROVED, REJECTED
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_feature_req_user").on(t.userId),
+]);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),

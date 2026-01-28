@@ -52,6 +52,12 @@ export const auth = betterAuth({
                 required: false,
                 defaultValue: "USER",
                 input: false
+            },
+            isPro: {
+                type: "boolean",
+                required: false,
+                defaultValue: false,
+                input: false
             }
         }
     },

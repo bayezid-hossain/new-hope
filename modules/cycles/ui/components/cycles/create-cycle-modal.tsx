@@ -57,9 +57,15 @@ interface CreateCycleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onlyMine?: boolean;
+  preSelectedFarmer?: {
+    id: string;
+    name: string;
+    mainStock: number;
+    phoneNumber?: string; // Optional to match strict types if needed
+  };
 }
 
-export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleModalProps) => {
+export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: CreateCycleModalProps) => {
   const { orgId } = useCurrentOrg();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -69,8 +75,8 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
   const form = useForm<FormValues>({
     resolver: zodResolver(createCycleSchema),
     defaultValues: {
-      farmerId: "",
-      farmerName: "",
+      farmerId: preSelectedFarmer?.id || "",
+      farmerName: preSelectedFarmer?.name || "",
       doc: 0,
       age: 1,
     },
@@ -83,7 +89,7 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
         orgId: orgId!,
         pageSize: 100, // Fetch more for the dropdown list
       },
-      { enabled: open && !!orgId }
+      { enabled: open && !!orgId && !preSelectedFarmer } // Disable fetching if farmer is pre-selected? Or keep it for switching? Let's keep it but maybe we don't strictly need it if locked. For now, let's allow switching even if pre-selected, effectively just a default value.
     )
   );
 
@@ -91,15 +97,7 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
     return farmersData?.items || [];
   }, [farmersData]);
 
-  // 4. Handle Selection
-  const handleSelectFarmer = (farmer: FarmerSuggestion) => {
-    form.setValue("farmerId", farmer.id);
-    form.setValue("farmerName", farmer.name);
-    setComboboxOpen(false);
 
-    // Optional: Reset other fields if needed
-    // form.setValue("doc", 0);
-  };
 
   // 5. Mutation
   const createMutation = useMutation(
@@ -171,7 +169,7 @@ export const CreateCycleModal = ({ open, onOpenChange, onlyMine }: CreateCycleMo
                         )}
                       >
                         {field.value
-                          ? farmers.find((f) => f.id === field.value)?.name
+                          ? (farmers.find((f) => f.id === field.value)?.name || preSelectedFarmer?.name || "Select farmer...")
                           : "Select farmer..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
