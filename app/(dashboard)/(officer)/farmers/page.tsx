@@ -14,7 +14,7 @@ import {
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Wheat } from "lucide-react";
+import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
@@ -22,6 +22,7 @@ import LoadingState from "@/components/loading-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
+import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-import-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { useDebounce } from "use-debounce";
@@ -146,6 +147,7 @@ export default function MainStockPage() {
   });
 
   const [createModal, setCreateModal] = useState(false);
+  const [bulkImportModal, setBulkImportModal] = useState(false);
 
   const [transferModal, setTransferModal] = useState<{
     open: boolean;
@@ -184,6 +186,9 @@ export default function MainStockPage() {
             title="Sync Data"
           >
             <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+          </Button>
+          <Button variant="secondary" className="border shadow-sm bg-white hover:bg-slate-50 text-emerald-600" onClick={() => setBulkImportModal(true)}>
+            <Sparkles className="mr-2 h-4 w-4" /> Bulk Import
           </Button>
           <Button onClick={() => setCreateModal(true)}>
             <Plus className="mr-2 h-4 w-4" /> Register Farmer
@@ -333,6 +338,12 @@ export default function MainStockPage() {
       <CreateFarmerModal
         open={createModal}
         onOpenChange={setCreateModal}
+      />
+
+      <BulkImportModal
+        open={bulkImportModal}
+        onOpenChange={setBulkImportModal}
+        orgId={orgId}
       />
 
       {transferModal.data && (

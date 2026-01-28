@@ -15,7 +15,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/modules/dashboard/ui/components/mode-toggle";
-import { Bird, Building, HomeIcon, LogOut, User, Users } from "lucide-react";
+import { Bird, Building, HomeIcon, LogOut, Sparkles, User, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,8 +31,11 @@ const firstSection = [
         label: "Organizations",
         href: "/admin/organizations",
     },
-
-
+    {
+        icon: Sparkles,
+        label: "Pro Requests",
+        href: "/admin/requests",
+    },
 ];
 
 const AdminSidebar = () => {

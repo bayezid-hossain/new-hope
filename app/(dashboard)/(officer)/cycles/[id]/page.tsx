@@ -33,10 +33,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
-// --- Standardized Interfaces ---
+import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
+
+// ... existing imports
 
 interface NormalizedCycle {
     id: string;
@@ -286,6 +288,7 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
     const { data, isLoading, error } = useQuery(trpc.officer.cycles.getDetails.queryOptions({ id }));
+    const [showEndCycleModal, setShowEndCycleModal] = useState(false);
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {
@@ -352,20 +355,42 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 sm:gap-1 text-xs sm:text-sm text-muted-foreground sm:text-right">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-1 sm:gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
-                            <span className="font-semibold sm:font-medium text-slate-500 text-[10px] sm:text-sm uppercase sm:normal-case">Started</span>
-                            <span className="text-slate-900 font-medium sm:font-normal">{cycle.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                        </div>
-                        {!isActive && cycle.endDate && (
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-1 sm:gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
-                                <span className="font-semibold sm:font-medium text-slate-500 text-[10px] sm:text-sm uppercase sm:normal-case">Ended</span>
-                                <span className="text-slate-900 font-medium sm:font-normal">{cycle.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
+                        {isActive && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-8 text-xs font-semibold gap-2 shadow-sm"
+                                onClick={() => setShowEndCycleModal(true)}
+                            >
+                                <Archive className="h-3.5 w-3.5" />
+                                End Cycle
+                            </Button>
                         )}
+                        <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 sm:gap-1 text-xs sm:text-sm text-muted-foreground sm:text-right">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-1 sm:gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
+                                <span className="font-semibold sm:font-medium text-slate-500 text-[10px] sm:text-sm uppercase sm:normal-case">Started</span>
+                                <span className="text-slate-900 font-medium sm:font-normal">{cycle.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </div>
+                            {!isActive && cycle.endDate && (
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-1 sm:gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
+                                    <span className="font-semibold sm:font-medium text-slate-500 text-[10px] sm:text-sm uppercase sm:normal-case">Ended</span>
+                                    <span className="text-slate-900 font-medium sm:font-normal">{cycle.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <EndCycleModal
+                cycleId={cycle.id}
+                farmerName={farmerContext.name}
+                open={showEndCycleModal}
+                intake={cycle.intake} // Pass total intake as default final intake
+                onOpenChange={setShowEndCycleModal}
+            />
 
             <div className="grid gap-6 md:grid-cols-7 w-full overflow-hidden">
                 {/* LEFT SIDE: Stats & Overview */}
@@ -492,7 +517,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
+import { CreateCycleModal } from "@/modules/cycles/ui/components/cycles/create-cycle-modal";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
@@ -123,6 +124,9 @@ const StockLedgerSection = ({ isLoading, data, mainStock }: { isLoading: boolean
   </div>
 );
 
+
+// ... existing imports
+
 export default function FarmerDetails() {
   const trpc = useTRPC();
   const { orgId } = useCurrentOrg();
@@ -131,6 +135,7 @@ export default function FarmerDetails() {
 
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
@@ -176,6 +181,10 @@ export default function FarmerDetails() {
           <Button onClick={() => setShowRestockModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all">
             <Wheat className="h-4 w-4" />
             Restock
+          </Button>
+          <Button onClick={() => setShowCreateCycleModal(true)} className="gap-2 shadow-sm w-fit bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Activity className="h-4 w-4" />
+            Start Cycle
           </Button>
         </div>
       </div>
@@ -322,6 +331,18 @@ export default function FarmerDetails() {
           onOpenChange={setShowRestockModal}
         />
       </ResponsiveDialog>
+
+      {farmerQuery.data && (
+        <CreateCycleModal
+          open={showCreateCycleModal}
+          onOpenChange={setShowCreateCycleModal}
+          preSelectedFarmer={{
+            id: farmerId,
+            name: farmerQuery.data.name,
+            mainStock: farmerQuery.data.mainStock
+          }}
+        />
+      )}
       <FarmerNavigation
         orgId={orgId!}
         currentFarmerId={farmerId}

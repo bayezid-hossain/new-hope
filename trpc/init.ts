@@ -9,7 +9,7 @@ import superjson from "superjson";
 
 export const createTRPCContext = cache(async () => {
   const heads = new Headers(await headers());
-  
+
   // 1. Get the session from Better Auth
   const sessionData = await auth.api.getSession({
     headers: heads
@@ -17,10 +17,10 @@ export const createTRPCContext = cache(async () => {
 
   // 2. FETCH FULL USER FROM DB (Fixes the type error & ensures fresh data)
   // We do this because the session token might not have 'globalRole' inside it
-  const fullUser = sessionData?.user 
+  const fullUser = sessionData?.user
     ? await db.query.user.findFirst({
-        where: eq(user.id, sessionData.user.id)
-      })
+      where: eq(user.id, sessionData.user.id)
+    })
     : null;
 
   return {
@@ -50,7 +50,10 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     ctx: {
       // Force non-nullable types for the next step
       session: ctx.session,
-      user: ctx.user, 
+      user: ctx.user,
     },
   });
 });
+
+// Role-based procedures (currently aliases, can be enhanced later)
+export const officerProcedure = protectedProcedure;
