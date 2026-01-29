@@ -1,8 +1,11 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -35,6 +38,7 @@ interface PredictionResult {
 export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWidgetProps) => {
     const trpc = useTRPC();
     const [result, setResult] = useState<PredictionResult | null>(null);
+    const [showDetails, setShowDetails] = useState(false);
 
     const { data: session } = authClient.useSession();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,13 +206,121 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                         )}
 
                         {viewMode === "ADMIN" && (
-                            <Button variant="ghost" size="sm" className="w-full text-indigo-600 text-xs h-7 hover:bg-indigo-50 hover:text-indigo-700">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowDetails(true)}
+                                className="w-full text-indigo-600 text-xs h-7 hover:bg-indigo-50 hover:text-indigo-700"
+                            >
                                 View Logistics Details <ArrowRight className="h-3 w-3 ml-1" />
                             </Button>
                         )}
                     </div>
                 )}
+
             </CardContent>
+
+            <Dialog open={showDetails} onOpenChange={setShowDetails}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Truck className="h-5 w-5 text-indigo-600" />
+                            Logistics & Stockout Analysis
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-6 mt-4">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                <p className="text-xs font-medium text-red-600 uppercase tracking-widest">Critical Risks</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-1">
+                                    {result?.predictions.filter(p => p.urgency === "CRITICAL").length || 0}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">Farmers needing immediate feed</p>
+                            </div>
+                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                                <p className="text-xs font-medium text-amber-600 uppercase tracking-widest">Total Warnings</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-1">
+                                    {result?.predictions.length || 0}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">Total farmers with low stock</p>
+                            </div>
+                        </div>
+
+                        {/* AI Plan Section */}
+                        {result?.aiPlan && (
+                            <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100">
+                                <h4 className="flex items-center gap-2 font-bold text-indigo-900 mb-3">
+                                    <Sparkles className="h-4 w-4 text-indigo-500" />
+                                    AI Proposed Action Plan
+                                </h4>
+                                <div className="space-y-4">
+                                    <div className="bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
+                                        <p className="text-sm font-medium text-slate-700 italic">
+                                            "{result.aiPlan.instructions}"
+                                        </p>
+                                    </div>
+
+                                    {/* Route/Steps if available */}
+                                    {result.aiPlan.suggestedRoute && result.aiPlan.suggestedRoute.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Suggested Route Priority</p>
+                                            <div className="space-y-2">
+                                                {result.aiPlan.suggestedRoute.map((step, i) => (
+                                                    <div key={i} className="flex items-center gap-3 text-sm text-slate-700">
+                                                        <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                                            {i + 1}
+                                                        </div>
+                                                        <span>{step}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Detailed Table */}
+                        <div>
+                            <h4 className="font-bold text-slate-900 mb-3">Stockout Risk Details</h4>
+                            <div className="border rounded-lg overflow-hidden">
+                                <Table>
+                                    <TableHeader className="bg-slate-50">
+                                        <TableRow>
+                                            <TableHead>Farmer</TableHead>
+                                            <TableHead>Current Stock</TableHead>
+                                            <TableHead>Daily Burn</TableHead>
+                                            <TableHead>Days Left</TableHead>
+                                            <TableHead>Urgency</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {result?.predictions.map((p, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell className="font-medium">{p.farmer}</TableCell>
+                                                <TableCell>{p.stock} bags</TableCell>
+                                                <TableCell>{p.burnRate} bags/day</TableCell>
+                                                <TableCell>
+                                                    <span className="font-bold">{p.daysRemaining} days</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className={
+                                                        p.urgency === "CRITICAL" ? "bg-red-100 text-red-700 hover:bg-red-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"
+                                                    }>
+                                                        {p.urgency}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 };

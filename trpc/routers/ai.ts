@@ -10,7 +10,8 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
     // Fallback Model List (Order of preference)
     const MODELS = [
         "llama-3.3-70b-versatile",
-
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
     ];
 
     let lastError = null;
@@ -22,7 +23,7 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
                 messages,
                 model,
                 temperature: 0.3,
-                max_tokens: 250,
+                max_tokens: 8192,
                 response_format: { type: "json_object" }
             });
 
@@ -55,6 +56,9 @@ export const aiRouter = createTRPCRouter({
             Match against CANDIDATE LIST:
             ${candidatesList}
             
+            IMPORTANT: If a farmer appears multiple times in the text, SUM their amounts into a single entry with the TOTAL.
+            CRITICAL: You must extract EVERY SINGLE farmer mentioned in the text. DO NOT stop after a few. DO NOT summarize. Process the entire text.
+            If there are 50 farmers, return 50 entries.
             Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
             Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [] }] }
             `;
@@ -91,14 +95,37 @@ export const aiRouter = createTRPCRouter({
                 else if (Array.isArray(parsed)) data = parsed;
                 else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
                 else return [];
-
-                return data.map((item: any) => ({
+                console.log("Extracted Data:", data);
+                const mappedData = data.map((item: any) => ({
                     name: item.original_name || item.name || "Unknown",
                     amount: Number(item.amount) || 0,
                     matchedId: item.matched_id || null,
                     confidence: item.confidence || "LOW",
                     suggestions: Array.isArray(item.suggestions) ? item.suggestions : []
                 }));
+
+                // Aggregation Logic: Merge duplicates based on matchedId or name
+                const aggregatedMap = new Map<string, typeof mappedData[0]>();
+
+                for (const item of mappedData) {
+                    // Use matchedId as primary key, fallback to name (normalized)
+                    const key = item.matchedId ? `ID:${item.matchedId}` : `NAME:${item.name.toLowerCase().trim()}`;
+
+                    if (aggregatedMap.has(key)) {
+                        const existing = aggregatedMap.get(key)!;
+                        existing.amount += item.amount;
+                        // Keep the one with higher confidence if merging
+                        if (existing.confidence !== "HIGH" && item.confidence === "HIGH") {
+                            existing.confidence = "HIGH";
+                            existing.matchedId = item.matchedId; // Update ID if better match found
+                            existing.suggestions = item.suggestions;
+                        }
+                    } else {
+                        aggregatedMap.set(key, { ...item });
+                    }
+                }
+
+                return Array.from(aggregatedMap.values());
 
             } catch (e: any) {
                 console.error("AI Extract Failed:", e);
@@ -322,6 +349,7 @@ export const aiRouter = createTRPCRouter({
             You are a Logistics Manager.
             Goal: Suggest restocking priority.
             Input: [{ farmer, stock: bags, daysRemaining }]
+            Return JSON object with keys: "aiPlan" (suggestedRoute: string[], instructions: string).
             `;
 
             try {

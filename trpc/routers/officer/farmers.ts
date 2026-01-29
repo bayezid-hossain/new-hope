@@ -162,6 +162,66 @@ export const officerFarmersRouter = createTRPCRouter({
             });
         }),
 
+    createBulk: protectedProcedure
+        .input(z.object({
+            farmers: z.array(z.object({
+                name: z.string().min(2).max(100),
+                initialStock: z.number().min(0).default(0)
+            })),
+            orgId: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const { farmers: newFarmers, orgId } = input;
+
+            if (newFarmers.length === 0) return [];
+
+            return await ctx.db.transaction(async (tx) => {
+                const results = [];
+                const namesToCheck = newFarmers.map(f => f.name.toUpperCase());
+
+                // 1. Find existing farmers to skip
+                const existing = await tx.query.farmer.findMany({
+                    where: and(
+                        eq(farmer.organizationId, orgId),
+                        eq(farmer.officerId, ctx.user.id),
+                        sql`upper(${farmer.name}) IN ${namesToCheck}`
+                    )
+                });
+
+                const existingNames = new Set(existing.map(f => f.name.toUpperCase()));
+
+                // 2. Filter out duplicates
+                const toCreate = newFarmers.filter(f => !existingNames.has(f.name.toUpperCase()));
+
+                // Deduplicate input list itself (in case duplications in input)
+                const uniqueToCreate = Array.from(new Map(toCreate.map(item => [item.name.toUpperCase(), item])).values());
+
+                if (uniqueToCreate.length === 0) return existing;
+
+                // 3. Insert new farmers
+                for (const f of uniqueToCreate) {
+                    const [created] = await tx.insert(farmer).values({
+                        name: f.name.toUpperCase(),
+                        organizationId: orgId,
+                        officerId: ctx.user.id,
+                        mainStock: f.initialStock,
+                    }).returning();
+
+                    if (f.initialStock > 0) {
+                        await tx.insert(stockLogs).values({
+                            farmerId: created.id,
+                            amount: f.initialStock.toString(),
+                            type: "INITIAL",
+                            note: "Initial Stock Assignment"
+                        });
+                    }
+                    results.push(created);
+                }
+
+                return results;
+            });
+        }),
+
     getDetails: protectedProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {

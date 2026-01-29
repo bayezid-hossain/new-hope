@@ -36,6 +36,7 @@ interface ParsedItem {
     confidence: "HIGH" | "MEDIUM" | "LOW";
     suggestions?: { id: string; name: string }[];
     isDuplicate?: boolean;
+    stockAdded?: boolean;
 }
 
 export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalProps) {
@@ -45,6 +46,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
     const [showProGate, setShowProGate] = useState(false);
+    const [loadingRowIds, setLoadingRowIds] = useState<Set<string>>(new Set());
 
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -76,7 +78,6 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
     const createFarmerMutation = useMutation(trpc.officer.farmers.create.mutationOptions({
         onSuccess: (data) => {
-            toast.success(`Farmer "${data.name}" created!`);
             queryClient.invalidateQueries({ queryKey: [["officer", "farmers"]] });
             // We don't close modal, we update the matched row
             handleFarmerCreated(data.name, data.id);
@@ -85,6 +86,75 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             toast.error(`Failed to create farmer: ${err.message}`);
         }
     }));
+
+    const createBulkMutation = useMutation(trpc.officer.farmers.createBulk.mutationOptions({
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: [["officer", "farmers"]] });
+
+            // Update matched rows for all created farmers
+            setParsedData(prev => {
+                const updatedItems = prev.map(p => {
+                    const created = data.find(c => c.name.toLowerCase() === p.cleanName.toLowerCase());
+                    if (created && !p.matchedFarmerId) {
+                        return {
+                            ...p,
+                            matchedFarmerId: created.id,
+                            matchedName: created.name,
+                            confidence: "HIGH",
+                            stockAdded: false
+                        } as ParsedItem;
+                    }
+                    return p;
+                });
+                return calculateDuplicates(updatedItems);
+            });
+
+            toast.success(`Created ${data.length} farmers`);
+        },
+        onError: (err) => {
+            toast.error(`Failed to create farmers: ${err.message}`);
+        }
+    }));
+    // ...
+    const handleFarmerCreated = (name: string, newId: string) => {
+        setParsedData(prev => {
+            const updatedItems = prev.map(p => {
+                if (p.cleanName.toLowerCase() === name.toLowerCase()) {
+                    return {
+                        ...p,
+                        matchedFarmerId: newId,
+                        matchedName: name,
+                        confidence: "HIGH",
+                        stockAdded: false // Updated: Stock NOT added during creation, will be added by bulk import
+                    } as ParsedItem;
+                }
+                return p;
+            });
+            return calculateDuplicates(updatedItems);
+        });
+    };
+    // ...
+    const handleCreateClick = async (item: ParsedItem) => {
+        if (!item.cleanName) return;
+
+        setLoadingRowIds(prev => new Set(prev).add(item.id));
+        try {
+            await createFarmerMutation.mutateAsync({
+                name: item.cleanName,
+                initialStock: 0, // Updated: Create with 0 stock
+                orgId: orgId,
+            });
+            toast.success(`Farmer "${item.cleanName}" created!`);
+        } catch (error) {
+            // Error handled by mutation
+        } finally {
+            setLoadingRowIds(prev => {
+                const next = new Set(prev);
+                next.delete(item.id);
+                return next;
+            });
+        }
+    };
 
     const extractFarmersMutation = useMutation(trpc.ai.extractFarmers.mutationOptions({
         onError: (err) => {
@@ -244,45 +314,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         });
     };
 
-    const handleFarmerCreated = (name: string, newId: string) => {
-        setParsedData(prev => {
-            const updatedItems = prev.map(p => {
-                if (p.cleanName.toLowerCase() === name.toLowerCase()) {
-                    return {
-                        ...p,
-                        matchedFarmerId: newId,
-                        matchedName: name,
-                        confidence: "HIGH"
-                    } as ParsedItem;
-                }
-                return p;
-            });
-            return calculateDuplicates(updatedItems);
-        });
-    };
 
-    const [loadingRowIds, setLoadingRowIds] = useState<Set<string>>(new Set());
-
-    const handleCreateClick = async (item: ParsedItem) => {
-        if (!item.cleanName) return;
-
-        setLoadingRowIds(prev => new Set(prev).add(item.id));
-        try {
-            await createFarmerMutation.mutateAsync({
-                name: item.cleanName,
-                initialStock: 0,
-                orgId: orgId
-            });
-        } catch (error) {
-            // Error handled by mutation
-        } finally {
-            setLoadingRowIds(prev => {
-                const next = new Set(prev);
-                next.delete(item.id);
-                return next;
-            });
-        }
-    };
 
     const handleDismiss = (id: string) => {
         setParsedData(prev => {
@@ -293,7 +325,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
     const handleSubmit = () => {
         const payload = parsedData
-            .filter(p => p.matchedFarmerId)
+            .filter(p => p.matchedFarmerId && !p.stockAdded)
             .map(p => ({
                 farmerId: p.matchedFarmerId!,
                 amount: p.amount,
@@ -344,6 +376,38 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             setShowProGate(false);
         }
         onOpenChange(isOpen);
+    };
+
+    const [isCreatingAll, setIsCreatingAll] = useState(false);
+
+    const handleCreateAll = async () => {
+        const missing = parsedData.filter(p => !p.matchedFarmerId && p.cleanName);
+        if (missing.length === 0) return;
+
+        setIsCreatingAll(true);
+        // Deduplicate creation requests by name to avoid double creating
+        const uniqueNames = new Set<string>();
+        const uniqueMissing = missing.filter(p => {
+            const normalized = p.cleanName.toLowerCase().trim();
+            if (uniqueNames.has(normalized)) return false;
+            uniqueNames.add(normalized);
+            return true;
+        });
+
+        try {
+            await createBulkMutation.mutateAsync({
+                farmers: uniqueMissing.map(item => ({
+                    name: item.cleanName,
+                    initialStock: 0 // Create with 0 stock
+                })),
+                orgId: orgId
+            });
+            // Success handled in onSuccess
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsCreatingAll(false);
+        }
     };
 
     return (
@@ -480,7 +544,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
                                         <Textarea
                                             placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
-                                            className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent overflow-y-auto max-h-[350px]"
+                                            className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent overflow-y-auto max-h-[500px]"
                                             value={inputText}
                                             onChange={(e) => setInputText(e.target.value)}
                                         />
@@ -581,10 +645,12 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                             </div>
                                                                             <div>
                                                                                 <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
-                                                                                <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Database Match</p>
+                                                                                <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">
+                                                                                    {row.stockAdded ? "Created & Stock Added" : "Database Match"}
+                                                                                </p>
                                                                             </div>
                                                                         </div>
-                                                                        {editingAmountId === row.id ? (
+                                                                        {editingAmountId === row.id && !row.stockAdded ? (
                                                                             <Input
                                                                                 type="number"
                                                                                 className="h-6 w-20 bg-emerald-50 border-emerald-200 focus-visible:ring-emerald-500 p-1 text-right"
@@ -594,11 +660,20 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                                 autoFocus
                                                                             />
                                                                         ) : (
-                                                                            <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => setEditingAmountId(row.id)}>
-                                                                                <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
-                                                                                    +{row.amount} Bags
-                                                                                </Badge>
-                                                                                <Pencil className="h-3 w-3 text-emerald-600 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                            <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => !row.stockAdded && setEditingAmountId(row.id)}>
+                                                                                {row.stockAdded ? (
+                                                                                    <Badge className="bg-emerald-600 text-white hover:bg-emerald-700 border-0 h-6">
+                                                                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                                                        {row.amount} Added
+                                                                                    </Badge>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
+                                                                                            +{row.amount} Bags
+                                                                                        </Badge>
+                                                                                        <Pencil className="h-3 w-3 text-emerald-600 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -632,7 +707,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                                     variant="default"
                                                                                     className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                                                                                     onClick={() => handleCreateClick(row)}
-                                                                                    disabled={loadingRowIds.has(row.id)}
+                                                                                    disabled={loadingRowIds.has(row.id) || isCreatingAll}
                                                                                 >
                                                                                     {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
                                                                                     Create
@@ -742,18 +817,45 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
                                         Back to Input
                                     </Button>
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={
-                                            bulkAddMutation.isPending ||
-                                            parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
-                                        }
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
-                                        size="lg"
-                                    >
-                                        {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                                        Import {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Items
-                                    </Button>
+                                    <div className="flex gap-2 w-full sm:w-auto justify-end">
+                                        {parsedData.some(p => !p.matchedFarmerId) && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleCreateAll}
+                                                disabled={isCreatingAll}
+                                                className="w-full sm:w-auto border-blue-200 text-blue-700 hover:bg-blue-50"
+                                            >
+                                                {isCreatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                                                Create Missing ({parsedData.filter(p => !p.matchedFarmerId).length})
+                                            </Button>
+                                        )}
+                                        <Button
+                                            onClick={() => {
+                                                // Calculate properly inside the handler or use derived state
+                                                const validToImport = parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate && !p.stockAdded);
+                                                if (validToImport.length === 0) {
+                                                    // All items are either invalid or already processed (created with stock)
+                                                    // If we are here and the button is enabled, it means all items are valid but processed.
+                                                    handleOpenChangeWrapper(false);
+                                                    return;
+                                                }
+                                                handleSubmit();
+                                            }}
+                                            disabled={
+                                                bulkAddMutation.isPending ||
+                                                parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
+                                            }
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
+                                            size="lg"
+                                        >
+                                            {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                                            {(() => {
+                                                const count = parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate && !p.stockAdded).length;
+                                                if (count === 0) return "Done";
+                                                return `Import ${count} Items`;
+                                            })()}
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </DialogFooter>
