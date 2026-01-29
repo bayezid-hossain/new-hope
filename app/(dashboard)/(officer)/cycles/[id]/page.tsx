@@ -27,22 +27,25 @@ import {
     Calculator,
     History,
     Lightbulb,
+    RotateCcw,
     Scale,
     TrendingUp,
     Wheat
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
+import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
 
 // ... existing imports
 
 interface NormalizedCycle {
     id: string;
     name: string;
+    farmerId: string;
     doc: number;
     mortality: number;
     age: number;
@@ -287,8 +290,10 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
 
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
+    const router = useRouter();
     const { data, isLoading, error } = useQuery(trpc.officer.cycles.getDetails.queryOptions({ id }));
     const [showEndCycleModal, setShowEndCycleModal] = useState(false);
+    const [showReopenModal, setShowReopenModal] = useState(false);
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {
@@ -300,6 +305,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
         const normalizedCycle: NormalizedCycle = {
             id: rawData.id,
             name: (rawData as any).farmer?.name || (isActive ? (rawData as ActiveCycle).name : (rawData as HistoryRecord).cycleName),
+            farmerId: rawData.farmerId,
             doc: rawData.doc || 0,
             mortality: rawData.mortality || 0,
             age: rawData.age || 0,
@@ -357,7 +363,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
-                        {isActive && (
+                        {isActive ? (
                             <Button
                                 variant="destructive"
                                 size="sm"
@@ -366,6 +372,16 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             >
                                 <Archive className="h-3.5 w-3.5" />
                                 End Cycle
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs font-semibold gap-2 shadow-sm"
+                                onClick={() => setShowReopenModal(true)}
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Reopen Cycle
                             </Button>
                         )}
                         <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 sm:gap-1 text-xs sm:text-sm text-muted-foreground sm:text-right">
@@ -390,6 +406,15 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 open={showEndCycleModal}
                 intake={cycle.intake} // Pass total intake as default final intake
                 onOpenChange={setShowEndCycleModal}
+            />
+
+            <ReopenCycleModal
+                historyId={cycle.id}
+                farmerId={cycle.farmerId}
+                cycleName={cycle.name}
+                open={showReopenModal}
+                onOpenChange={setShowReopenModal}
+                onCycleReopened={(newId) => router.push(`/cycles/${newId}`)}
             />
 
             <div className="grid gap-6 md:grid-cols-7 w-full overflow-hidden">
