@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
@@ -23,13 +24,14 @@ import {
     History,
     Lightbulb,
     Loader2,
+    RotateCcw,
     Scale,
     TrendingUp,
     UsersIcon
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 // --- Sub-components replicating standard detail page logic ---
 
@@ -254,6 +256,8 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
     const trpc = useTRPC();
     const router = useRouter();
     const { orgId } = useCurrentOrg()
+    const [showReopenModal, setShowReopenModal] = useState(false);
+
     const { data: response, isLoading } = useQuery(
         isAdmin
             ? trpc.admin.cycles.getDetails.queryOptions({ id: cycleId })
@@ -321,6 +325,17 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                         </div>
                     </div>
                 </div>
+                {normalizedCycle.status !== 'active' && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setShowReopenModal(true)}
+                    >
+                        <RotateCcw className="h-4 w-4" />
+                        Reopen Cycle
+                    </Button>
+                )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">
@@ -415,6 +430,18 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     />
                 </TabsContent>
             </Tabs>
+
+            {
+                response?.data?.id && (
+                    <ReopenCycleModal
+                        historyId={response.data.id}
+                        farmerId={response.data.farmerId}
+                        cycleName={normalizedCycle.name}
+                        open={showReopenModal}
+                        onOpenChange={setShowReopenModal}
+                    />
+                )
+            }
         </div>
     );
 };
