@@ -56,11 +56,13 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
                 </div>
             </div>
 
-            <div className={`hidden sm:block rounded-xl border bg-card text-card-foreground shadow-sm`}>
-                <DataTable
-                    columns={getHistoryColumns({ enableActions: true, currentId: activeCycleId })}
-                    data={(data?.items || []) as unknown as FarmerHistory[]}
-                />
+            <div className={`hidden sm:block rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden`}>
+                <div className="max-h-[600px] overflow-y-auto">
+                    <DataTable
+                        columns={getHistoryColumns({ enableActions: true, currentId: activeCycleId })}
+                        data={(data?.items || []) as unknown as FarmerHistory[]}
+                    />
+                </div>
             </div>
 
             <div className="sm:hidden space-y-3">

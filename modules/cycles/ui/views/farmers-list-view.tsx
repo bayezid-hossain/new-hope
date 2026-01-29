@@ -145,88 +145,89 @@ export const FarmersListView = () => {
                 </CardHeader>
                 <CardContent>
                     {/* Desktop View: Table */}
-                    <div className="hidden md:block rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/50">
-                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Farmer Name</TableHead>
-                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Status</TableHead>
-                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Cycles (Live/Total)</TableHead>
-                                    <TableHead className="h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Current Stock</TableHead>
-                                    <TableHead className="text-right h-9 sm:h-11 text-[10px] sm:text-[11px] px-4">Joined</TableHead>
-                                    <TableHead className="w-[50px] h-9 sm:h-11 text-[10px] sm:text-[11px] px-4"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                                                <Loader2 className="h-4 w-4 animate-spin" /> Loading farmers...
-                                            </div>
-                                        </TableCell>
+                    <div className="hidden md:block rounded-md border text-slate-900 bg-white overflow-hidden shadow-sm">
+                        <div className="max-h-[600px] overflow-y-auto">
+                            <Table>
+                                <TableHeader className="bg-slate-50/90 backdrop-blur sticky top-0 z-10 shadow-sm">
+                                    <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Farmer Name</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Status</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Cycles (Live/Total)</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Current Stock</TableHead>
+                                        <TableHead className="text-right h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Joined</TableHead>
+                                        <TableHead className="w-[50px] h-9 sm:h-11 text-[10px] sm:text-[11px] px-4"></TableHead>
                                     </TableRow>
-                                ) : data?.items.map((farmer) => (
-                                    <TableRow key={farmer.id} className="group">
-                                        {/* Name & Phone */}
-                                        <TableCell className="px-4 py-3 text-xs sm:text-sm">
-                                            <div className="font-medium">{farmer.name}</div>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center">
+                                                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading farmers...
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : data?.items.map((farmer) => (
+                                        <TableRow key={farmer.id} className="group hover:bg-slate-50/50 transition-colors">
+                                            {/* Name & Phone */}
+                                            <TableCell className="px-4 py-3 text-xs sm:text-sm">
+                                                <div className="font-bold text-slate-900">{farmer.name}</div>
+                                            </TableCell>
 
-                                        </TableCell>
+                                            {/* Status (derived logic) */}
+                                            <TableCell className="px-4 py-3">
+                                                {farmer.activeCyclesCount > 0 ? (
+                                                    <Badge variant="default" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] bg-emerald-100 uppercase tracking-wider px-2 py-0.5">Active</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-100 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Idle</Badge>
+                                                )}
+                                            </TableCell>
 
-                                        {/* Status (derived logic) */}
-                                        <TableCell className="px-4 py-3">
-                                            {farmer.activeCyclesCount > 0 ? (
-                                                <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-600 text-[10px] px-2 py-0">Active</Badge>
-                                            ) : (
-                                                <Badge variant="secondary" className="text-[10px] px-2 py-0">Idle</Badge>
-                                            )}
-                                        </TableCell>
+                                            {/* Active Cycles Count */}
+                                            <TableCell className="px-4 py-3 text-xs sm:text-sm">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Bird className="h-4 w-4 text-emerald-500/70" />
+                                                    <span className="font-bold text-slate-900">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
+                                                    <span className="text-[10px] font-medium text-slate-400">Live / Total</span>
+                                                </div>
+                                            </TableCell>
 
-                                        {/* Active Cycles Count */}
-                                        <TableCell className="px-4 py-3 text-xs sm:text-sm">
-                                            <div className="flex items-center gap-1.5">
-                                                <Bird className="h-4 w-4 text-muted-foreground" />
-                                                <span className="font-medium">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
-                                                <span className="text-[10px] text-muted-foreground">Live / Total</span>
-                                            </div>
-                                        </TableCell>
+                                            {/* Main Warehouse Stock */}
+                                            <TableCell className="px-4 py-3 text-xs sm:text-sm">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Wheat className="h-4 w-4 text-amber-500/70" />
+                                                    <span className="font-bold text-slate-900 font-mono">{farmer.mainStock.toFixed(1)}</span>
+                                                    <span className="text-[10px] font-medium text-slate-400">bags</span>
+                                                </div>
+                                            </TableCell>
 
-                                        {/* Main Warehouse Stock */}
-                                        <TableCell className="px-4 py-3 text-xs sm:text-sm">
-                                            <div className="flex items-center gap-1.5">
-                                                <Wheat className="h-4 w-4 text-muted-foreground" />
-                                                <span className="font-mono font-medium">{farmer.mainStock.toFixed(1)}</span>
-                                                <span className="text-[10px] text-muted-foreground">bags</span>
-                                            </div>
-                                        </TableCell>
+                                            {/* Joined Date */}
+                                            <TableCell className="text-right text-slate-500/80 font-medium text-[10px] sm:text-[11px] px-4 py-3">
+                                                {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                            </TableCell>
 
-                                        {/* Joined Date */}
-                                        <TableCell className="text-right text-muted-foreground text-[10px] sm:text-sm px-4 py-3">
-                                            {format(new Date(farmer.createdAt), "MMM d, yyyy")}
-                                        </TableCell>
+                                            {/* Action: Link to History View */}
+                                            <TableCell>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-300 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
+                                                    {/* Update this HREF to match your routing structure */}
+                                                    <Link href={`/farmers/${farmer.id}`}>
+                                                        <ArrowRight className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
 
-                                        {/* Action: Link to History View */}
-                                        <TableCell>
-                                            <Button size="icon" variant="ghost" asChild>
-                                                {/* Update this HREF to match your routing structure */}
-                                                <Link href={`/farmers/${farmer.id}`}>
-                                                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-                                                </Link>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-
-                                {!isLoading && data?.items.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                                            No farmers found matching "{searchTerm}".
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                    {!isLoading && data?.items.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                                                No farmers found matching "{searchTerm}".
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
 
                     {/* Mobile View: Cards */}
