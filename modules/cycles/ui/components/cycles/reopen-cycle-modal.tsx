@@ -44,7 +44,7 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
 
                     // Invalidate detailed farmer views
                     queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
-                    farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId })) : Promise.resolve(),
+                    farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId, orgId: orgId! })) : Promise.resolve(),
                     queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
                 ]);
                 setOpen(false);

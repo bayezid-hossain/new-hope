@@ -1,10 +1,10 @@
 
 import Groq from "groq-sdk";
 import { z } from "zod";
-import { createTRPCRouter, officerProcedure } from "../../init";
+import { createTRPCRouter, proProcedure } from "../../init";
 
 export const officerAiRouter = createTRPCRouter({
-    extractFarmers: officerProcedure
+    extractFarmers: proProcedure
         .input(z.object({
             text: z.string(),
             candidates: z.array(z.object({

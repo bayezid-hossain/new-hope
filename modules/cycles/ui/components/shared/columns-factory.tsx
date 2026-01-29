@@ -125,7 +125,7 @@ export const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                     queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
 
                     // Invalidate detailed farmer views
-                    queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: history.farmerId })),
+                    queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: history.farmerId, orgId: orgId! })),
                     queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
                 ]);
                 setShowDeleteModal(false);
@@ -417,7 +417,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                     <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
                         <CalendarDays className="size-4 opacity-30" />
                         <div className="flex flex-col">
-                            <span className="font-medium leading-none text-slate-800">{diffDays} days</span>
+                            <span className="font-medium leading-none text-slate-800">{diffDays} {diffDays > 1 ? "days" : "day"}</span>
                             <span className="mt-1 text-[9px] uppercase tracking-wide opacity-70">
                                 {start.toLocaleDateString('en-US', options)} - {end.toLocaleDateString('en-US', options)}
                             </span>

@@ -2,11 +2,10 @@ import { member, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, orgProcedure } from "../../init";
 
 export const managementMembersRouter = createTRPCRouter({
-    list: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+    list: orgProcedure
         .query(async ({ ctx, input }) => {
             return await ctx.db.select({
                 id: member.id,
@@ -28,12 +27,13 @@ export const managementMembersRouter = createTRPCRouter({
                 );
         }),
 
-    approve: protectedProcedure
+    approve: orgProcedure
         .input(z.object({
             memberId: z.string()
         }))
         .mutation(async ({ ctx, input }) => {
             const actorId = ctx.user.id;
+            const actorMember = ctx.membership;
 
             const targetMember = await ctx.db.query.member.findFirst({
                 where: eq(member.id, input.memberId),
@@ -41,13 +41,10 @@ export const managementMembersRouter = createTRPCRouter({
 
             if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Request not found" });
 
-            const actorMember = await ctx.db.query.member.findFirst({
-                where: and(
-                    eq(member.userId, actorId),
-                    eq(member.organizationId, targetMember.organizationId),
-                    eq(member.status, "ACTIVE")
-                )
-            });
+            // Ensure target is in the same organization as the orgId provided
+            if (targetMember.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Member belongs to a different organization" });
+            }
 
             let isAuthorized = false;
             if (actorMember?.role === "OWNER") isAuthorized = true;
@@ -66,14 +63,20 @@ export const managementMembersRouter = createTRPCRouter({
             return updatedMember;
         }),
 
-    updateRole: protectedProcedure
+    updateRole: orgProcedure
         .input(z.object({ memberId: z.string(), role: z.enum(["MANAGER", "OFFICER"]) }))
         .mutation(async ({ ctx, input }) => {
+            const actorMember = ctx.membership;
+
             const targetMember = await ctx.db.query.member.findFirst({
                 where: eq(member.id, input.memberId),
             });
 
             if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+
+            if (targetMember.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Member belongs to a different organization" });
+            }
 
             if (targetMember.userId === ctx.user.id) {
                 throw new TRPCError({
@@ -82,19 +85,28 @@ export const managementMembersRouter = createTRPCRouter({
                 });
             }
 
+            // Authorization
+            let isAuthorized = false;
+            if (actorMember?.role === "OWNER") isAuthorized = true;
+            else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
+
+            if (!isAuthorized) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Only Owners can change roles." });
+            }
+
             await ctx.db.update(member)
                 .set({ role: input.role })
                 .where(eq(member.id, input.memberId));
             return { success: true };
         }),
 
-    updateStatus: protectedProcedure
+    updateStatus: orgProcedure
         .input(z.object({
             memberId: z.string(),
             status: z.enum(["ACTIVE", "INACTIVE"])
         }))
         .mutation(async ({ ctx, input }) => {
-            const actorId = ctx.user.id;
+            const actorMember = ctx.membership;
 
             const targetMember = await ctx.db.query.member.findFirst({
                 where: eq(member.id, input.memberId),
@@ -102,20 +114,16 @@ export const managementMembersRouter = createTRPCRouter({
 
             if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
 
-            if (targetMember.userId === actorId) {
+            if (targetMember.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Member belongs to a different organization" });
+            }
+
+            if (targetMember.userId === ctx.user.id) {
                 throw new TRPCError({
                     code: "FORBIDDEN",
                     message: "You cannot change your own membership status."
                 });
             }
-
-            const actorMember = await ctx.db.query.member.findFirst({
-                where: and(
-                    eq(member.userId, actorId),
-                    eq(member.organizationId, targetMember.organizationId),
-                    eq(member.status, "ACTIVE")
-                )
-            });
 
             let isAuthorized = false;
             if (actorMember?.role === "OWNER" || actorMember?.role === "MANAGER") isAuthorized = true;
@@ -132,20 +140,34 @@ export const managementMembersRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    remove: protectedProcedure
+    remove: orgProcedure
         .input(z.object({ memberId: z.string() }))
         .mutation(async ({ ctx, input }) => {
+            const actorMember = ctx.membership;
             const targetMember = await ctx.db.query.member.findFirst({
                 where: eq(member.id, input.memberId),
             });
 
             if (!targetMember) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
 
+            if (targetMember.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Member belongs to a different organization" });
+            }
+
             if (targetMember.userId === ctx.user.id) {
                 throw new TRPCError({
                     code: "FORBIDDEN",
                     message: "You cannot remove yourself from the organization. Please ask an Owner or another Manager."
                 });
+            }
+
+            let isAuthorized = false;
+            if (actorMember?.role === "OWNER") isAuthorized = true;
+            else if (actorMember?.role === "MANAGER" && targetMember.role === "OFFICER") isAuthorized = true;
+            else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
+
+            if (!isAuthorized) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to remove this member." });
             }
 
             await ctx.db.delete(member).where(eq(member.id, input.memberId));

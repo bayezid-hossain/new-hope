@@ -135,7 +135,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                       defaultValue={member.role}
                       onValueChange={(val) => roleMutation.mutate({
                         memberId: member.id,
-                        role: val as "MANAGER" | "OFFICER"
+                        role: val as "MANAGER" | "OFFICER",
+                        orgId
                       })}
                       disabled={member.role === "OWNER" || member.userId === currentUserId}
                     >
@@ -157,7 +158,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                             size="sm"
                             variant="outline"
                             className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
-                            onClick={() => approveMutation.mutate({ memberId: member.id })}
+                            onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
                             title="Approve Member"
                           >
                             <Check className="h-3.5 w-3.5" />
@@ -166,7 +167,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                             size="sm"
                             variant="outline"
                             className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 h-7 w-7 p-0 flex-shrink-0"
-                            onClick={() => removeMutation.mutate({ memberId: member.id })}
+                            onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
                             title="Reject Request"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -186,7 +187,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                           title={member.userId === currentUserId ? "You cannot deactivate yourself" : (member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member")}
                           onClick={() => statusMutation.mutate({
                             memberId: member.id,
-                            status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+                            status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                            orgId
                           })}
                           disabled={statusMutation.isPending || member.userId === currentUserId}
                         >
@@ -232,7 +234,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                           <AlertDialogFooter className="pt-4">
                             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => removeMutation.mutate({ memberId: member.id })}
+                              onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white rounded-xl"
                             >
                               Remove Member
@@ -278,7 +280,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                     defaultValue={member.role}
                     onValueChange={(val) => roleMutation.mutate({
                       memberId: member.id,
-                      role: val as "MANAGER" | "OFFICER"
+                      role: val as "MANAGER" | "OFFICER",
+                      orgId
                     })}
                     disabled={member.role === "OWNER" || member.userId === currentUserId}
                   >
@@ -299,7 +302,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                       size="sm"
                       variant="outline"
                       className="text-emerald-600 border-emerald-200 h-8 w-8 p-0"
-                      onClick={() => approveMutation.mutate({ memberId: member.id })}
+                      onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -316,7 +319,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                         } h-8 w-8 p-0`}
                       onClick={() => statusMutation.mutate({
                         memberId: member.id,
-                        status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+                        status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                        orgId
                       })}
                       disabled={statusMutation.isPending || member.userId === currentUserId}
                     >
@@ -354,7 +358,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => removeMutation.mutate({ memberId: member.id })}
+                          onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
                           className="bg-destructive text-white"
                         >
                           Remove

@@ -1,13 +1,12 @@
-import { cycleHistory, cycles, farmer, member, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, ilike, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, orgProcedure } from "../../init";
 
 export const managementFarmersRouter = createTRPCRouter({
-    getMany: protectedProcedure
+    getMany: orgProcedure
         .input(z.object({
-            orgId: z.string(),
             search: z.string().optional(),
             page: z.number().default(1),
             pageSize: z.number().default(50),
@@ -16,15 +15,8 @@ export const managementFarmersRouter = createTRPCRouter({
             sortOrder: z.enum(["asc", "desc"]).optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const { orgId, search, page, pageSize, onlyMine } = input;
-
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
+            const { search, page, pageSize, onlyMine } = input;
+            const orgId = input.orgId;
 
             const whereClause = and(
                 eq(farmer.organizationId, orgId),
@@ -64,21 +56,13 @@ export const managementFarmersRouter = createTRPCRouter({
             };
         }),
 
-    getOrgFarmers: protectedProcedure
+    getOrgFarmers: orgProcedure
         .input(z.object({
-            orgId: z.string(),
             search: z.string().optional()
         }))
         .query(async ({ ctx, input }) => {
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
-
             const search = input.search;
+
             const data = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
@@ -100,7 +84,7 @@ export const managementFarmersRouter = createTRPCRouter({
             }));
         }),
 
-    getDetails: protectedProcedure
+    getDetails: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             const data = await ctx.db.query.farmer.findFirst({
@@ -114,29 +98,23 @@ export const managementFarmersRouter = createTRPCRouter({
 
             if (!data) throw new TRPCError({ code: "NOT_FOUND" });
 
-            // Access Check (Post-fetch to get OrgId)
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, data.organizationId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            // Post-fetch org membership check (just in case they hacked farmerId but provided correct orgId)
+            if (data.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Farmer belongs to a different organization" });
             }
 
             return data;
         }),
 
-    getCycles: protectedProcedure
+    getCycles: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
             const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, f.organizationId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            if (f.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN" });
             }
 
             const data = await ctx.db.select({
@@ -151,18 +129,15 @@ export const managementFarmersRouter = createTRPCRouter({
             return { items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })) };
         }),
 
-    getHistory: protectedProcedure
+    getHistory: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
             const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, f.organizationId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            if (f.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN" });
             }
 
             const data = await ctx.db.select({
@@ -188,18 +163,15 @@ export const managementFarmersRouter = createTRPCRouter({
             };
         }),
 
-    getStockLogs: protectedProcedure
+    getStockLogs: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
             const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, f.organizationId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            if (f.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN" });
             }
 
             return await ctx.db.select()
@@ -208,7 +180,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
-    getManagementHub: protectedProcedure
+    getManagementHub: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             const farmerData = await ctx.db.query.farmer.findFirst({
@@ -218,12 +190,9 @@ export const managementFarmersRouter = createTRPCRouter({
 
             if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
 
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, farmerData.organizationId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            // Post-fetch org membership check
+            if (farmerData.organizationId !== input.orgId) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Farmer belongs to a different organization" });
             }
 
             const [activeCyclesData, historyData, stockLogsData] = await Promise.all([

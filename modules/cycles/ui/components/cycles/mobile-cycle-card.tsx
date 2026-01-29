@@ -68,7 +68,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
 
                     // Detailed farmer views
                     queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
-                    cycle.farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: cycle.farmerId })) : Promise.resolve(),
+                    cycle.farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: cycle.farmerId, orgId: orgId! })) : Promise.resolve(),
                 ]);
                 setShowDeleteModal(false);
             },
@@ -162,7 +162,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-lg font-black text-blue-900 leading-none">{cycle.age}</span>
-                            <span className="text-[10px] text-blue-600/70 font-medium lowercase">days</span>
+                            <span className="text-[10px] text-blue-600/70 font-medium lowercase">{cycle.age > 1 ? "days" : "day"}</span>
                         </div>
                     </div>
 

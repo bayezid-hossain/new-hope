@@ -2,11 +2,11 @@ import { cycleHistory, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, orgProcedure } from "../../init";
 
 export const managementOfficersRouter = createTRPCRouter({
-    getDetails: protectedProcedure
-        .input(z.object({ orgId: z.string(), userId: z.string() }))
+    getDetails: orgProcedure
+        .input(z.object({ userId: z.string() })) // orgId inherited from orgProcedure input
         .query(async ({ ctx, input }) => {
             // 1. Get the member info
             const membership = await ctx.db.query.member.findFirst({
@@ -97,8 +97,7 @@ export const managementOfficersRouter = createTRPCRouter({
             };
         }),
 
-    getProductionTree: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+    getProductionTree: orgProcedure
         .query(async ({ ctx, input }) => {
             // 1. Get all members active in the organization
             const members = await ctx.db.query.member.findMany({

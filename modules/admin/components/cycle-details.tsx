@@ -331,7 +331,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     <CardContent>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-bold text-slate-900">{normalizedCycle.age}</span>
-                            <span className="text-slate-400 text-xs font-medium">days</span>
+                            <span className="text-slate-400 text-xs font-medium">{normalizedCycle.age > 1 ? "days" : "day"}</span>
                         </div>
                     </CardContent>
                 </Card>

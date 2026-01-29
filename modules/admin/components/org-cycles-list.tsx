@@ -29,6 +29,7 @@ type CycleItem = {
     updatedAt: Date;
     farmerName: string;
     farmerMainStock: string | null;
+    officerName: string | null;
     endDate: Date | null;
 };
 
@@ -113,7 +114,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                 <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
-                        placeholder="Search cycles or farmers..."
+                        placeholder="Search cycles, farmers, or officers..."
                         className="pl-9"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -150,20 +151,29 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                             {sortedGroups.map((group) => (
                                 <div key={group.farmerId} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                                     <div className="px-4 py-3 bg-slate-50/50 border-b flex justify-between items-center">
-                                        <Link
-                                            href={isAdmin ? `/admin/organizations/${orgId}/farmers/${group.farmerId}` : (isManagement ? `/management/farmers/${group.farmerId}` : `/farmers/${group.farmerId}`)}
-                                            className="font-bold text-slate-900 hover:text-primary hover:underline flex items-center gap-2"
-                                        >
-                                            {group.farmerName}
-                                            <Badge variant="secondary" className="ml-2 font-normal text-xs bg-white border border-slate-200 text-slate-500">
-                                                {group.cycles.length} cycle{group.cycles.length !== 1 ? 's' : ''}
-                                            </Badge>
-                                        </Link>
-                                        <Button size="sm" variant="ghost" className="h-8 gap-1 text-slate-500" asChild>
+                                        <div className="flex flex-col">
+                                            <Link
+                                                href={isAdmin ? `/admin/organizations/${orgId}/farmers/${group.farmerId}` : (isManagement ? `/management/farmers/${group.farmerId}` : `/farmers/${group.farmerId}`)}
+                                                className="font-bold text-slate-900 hover:text-primary hover:underline flex items-center gap-2"
+                                            >
+                                                {group.farmerName}
+
+                                                <Badge variant="secondary" className="ml-2 font-normal text-xs bg-white border border-slate-200 text-slate-500">
+                                                    {group.cycles.length} cycle{group.cycles.length !== 1 ? 's' : ''}
+                                                </Badge>
+                                            </Link>
+                                            <p>{group.cycles[0]?.officerName && (
+                                                <span className="text-xs font-normal text-slate-500">
+                                                    (Officer: {group.cycles[0].officerName})
+                                                </span>
+                                            )}</p>
+                                        </div>
+
+                                        {/* <Button size="sm" variant="ghost" className="h-8 gap-1 text-slate-500" asChild>
                                             <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${group.farmerId}` : (isManagement ? `/management/farmers/${group.farmerId}` : `/farmers/${group.farmerId}`)}>
                                                 Details <ArrowRight className="h-3 w-3" />
                                             </Link>
-                                        </Button>
+                                        </Button> */}
                                     </div>
                                     <div className="divide-y divide-slate-100">
                                         <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/20">
@@ -178,7 +188,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             <div key={cycle.id} className="group hover:bg-slate-50/50 transition-colors">
                                                 {/* Desktop Row */}
                                                 <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-3 items-center">
-                                                    <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span></div>
+                                                    <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span></div>
                                                     <div className="col-span-3 flex flex-col gap-y-1">
                                                         <div className="flex items-center gap-1.5">
                                                             <Bird className="h-3.5 w-3.5 text-violet-500" />
@@ -214,8 +224,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                     className="block md:hidden p-4 space-y-2 active:bg-slate-50"
                                                 >
                                                     <div className="flex justify-between items-start">
-                                                        <div className="font-bold text-slate-900">{cycle.name}</div>
-                                                        <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[9px]">{cycle.age} days</Badge>
+                                                        <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[9px]">{cycle.age} {cycle.age > 1 ? "days" : "day"}</Badge>
                                                     </div>
                                                     <div className="flex justify-between items-center text-xs text-slate-500">
                                                         <div className="flex items-center gap-3">
@@ -270,16 +279,21 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                         {cycles.map((cycle) => (
                                             <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
                                                 <TableCell className="text-slate-600 font-medium">
-                                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer">
+                                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer block">
                                                         {cycle.farmerName}
                                                     </Link>
+                                                    {cycle.officerName && (
+                                                        <span className="text-[10px] text-slate-400 font-normal">
+                                                            Officer: {cycle.officerName}
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                                                        {cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">days</span>
+                                                        {cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -341,19 +355,20 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             <div className="flex justify-between items-start mb-3">
                                                 <div className="space-y-0.5">
                                                     <div className="flex items-center gap-1.5">
-                                                        <h3 className="font-bold text-slate-900">{cycle.name}</h3>
-                                                        <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-4">ACTIVE</Badge>
-                                                    </div>
-                                                    <p className="text-[10px] text-slate-500 font-medium z-10 relative">
-                                                        Farmer:{" "}
                                                         <Link
                                                             href={farmerLink}
-                                                            className="text-slate-900 font-bold hover:text-primary hover:underline underline-offset-2"
+                                                            className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-sm"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
                                                             {cycle.farmerName}
                                                         </Link>
-                                                    </p>
+                                                        <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-4">ACTIVE</Badge>
+                                                    </div>
+                                                    {cycle.officerName && (
+                                                        <span className="block text-[10px] text-slate-400 font-normal">
+                                                            Officer: {cycle.officerName}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 

@@ -1,6 +1,6 @@
-import { cycleHistory, cycleLogs, cycles, farmer } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, ilike, ne } from "drizzle-orm";
+import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 
@@ -29,12 +29,17 @@ export const adminCyclesRouter = createTRPCRouter({
         .input(cycleSearchSchema)
         .query(async ({ ctx, input }) => {
             const { search, page, pageSize, orgId, sortBy, sortOrder } = input;
+            const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycles.organizationId, orgId),
                 eq(cycles.status, "active"),
-                search ? ilike(cycles.name, `%${search}%`) : undefined,
+                search ? or(
+                    ilike(cycles.name, `%${search}%`),
+                    ilike(farmer.name, `%${search}%`),
+                    ilike(users.name, `%${search}%`)
+                ) : undefined,
             );
 
             let orderByClause;
@@ -55,9 +60,11 @@ export const adminCyclesRouter = createTRPCRouter({
                 cycle: cycles,
                 farmerName: farmer.name,
                 farmerMainStock: farmer.mainStock,
+                officerName: users.name
             })
                 .from(cycles)
                 .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+                .leftJoin(users, eq(farmer.officerId, users.id))
                 .where(whereClause)
                 .orderBy(orderByClause)
                 .limit(pageSize)
@@ -65,6 +72,8 @@ export const adminCyclesRouter = createTRPCRouter({
 
             const [total] = await ctx.db.select({ count: count() })
                 .from(cycles)
+                .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+                .leftJoin(users, eq(farmer.officerId, users.id))
                 .where(whereClause);
 
             return {
@@ -82,6 +91,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     updatedAt: d.cycle.updatedAt,
                     farmerName: d.farmerName,
                     farmerMainStock: d.farmerMainStock,
+                    officerName: d.officerName || null,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -195,20 +205,27 @@ export const adminCyclesRouter = createTRPCRouter({
         .input(cycleSearchSchema)
         .query(async ({ ctx, input }) => {
             const { search, page, pageSize, orgId, sortBy, sortOrder } = input;
+            const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
-                search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
+                search ? or(
+                    ilike(cycleHistory.cycleName, `%${search}%`),
+                    ilike(farmer.name, `%${search}%`),
+                    ilike(users.name, `%${search}%`)
+                ) : undefined
             );
 
             const data = await ctx.db.select({
                 history: cycleHistory,
                 farmerName: farmer.name,
-                farmerMainStock: farmer.mainStock
+                farmerMainStock: farmer.mainStock,
+                officerName: users.name
             })
                 .from(cycleHistory)
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+                .leftJoin(users, eq(farmer.officerId, users.id))
                 .where(whereClause)
                 .orderBy(desc(cycleHistory.endDate))
                 .limit(pageSize)
@@ -216,6 +233,8 @@ export const adminCyclesRouter = createTRPCRouter({
 
             const [total] = await ctx.db.select({ count: count() })
                 .from(cycleHistory)
+                .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+                .leftJoin(users, eq(farmer.officerId, users.id))
                 .where(whereClause);
 
             return {
@@ -233,6 +252,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
                     farmerMainStock: d.farmerMainStock,
+                    officerName: d.officerName || null,
                     endDate: d.history.endDate
                 })),
                 total: total.count,

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { featureRequest, user } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { adminProcedure, createTRPCRouter } from "../../init";
 import { adminCyclesRouter } from "./cycles";
 import { adminOfficersRouter } from "./officers";
 import { adminOrganizationRouter } from "./organization";
@@ -14,7 +14,7 @@ export const adminRouter = createTRPCRouter({
   officers: adminOfficersRouter,
   stats: adminStatsRouter,
 
-  listFeatureRequests: protectedProcedure
+  listFeatureRequests: adminProcedure
     .query(async () => {
       const requests = await db
         .select({
@@ -37,7 +37,7 @@ export const adminRouter = createTRPCRouter({
       return requests;
     }),
 
-  approveFeatureRequest: protectedProcedure
+  approveFeatureRequest: adminProcedure
     .input(z.object({ requestId: z.string() }))
     .mutation(async ({ input }) => {
       // 1. Get the request

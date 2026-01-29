@@ -142,12 +142,23 @@ export default function ManagementFarmerDetailsPage() {
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showRestockModal, setShowRestockModal] = useState(false);
 
-    // Consolidated Fetch
-    const { data: hubData, isLoading } = useQuery(
-        trpc.management.farmers.getManagementHub.queryOptions({ farmerId })
+    // 1. Get Organization Context (for orgId)
+    const { data: statusData, isPending: isMembershipPending } = useQuery(
+        trpc.auth.getMyMembership.queryOptions()
     );
 
-    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+    const orgId = statusData?.orgId;
+
+    // 2. Consolidated Fetch (Only when orgId is available)
+    const { data: hubData, isLoading: isHubLoading } = useQuery({
+        ...trpc.management.farmers.getManagementHub.queryOptions({
+            farmerId,
+            orgId: orgId as string
+        }),
+        enabled: !!orgId
+    });
+
+    if (isMembershipPending || isHubLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
     if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
 
     const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;

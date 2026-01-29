@@ -1,5 +1,5 @@
 import { farmer, member, stockLogs } from "@/db/schema";
-import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
+import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -88,7 +88,7 @@ export const officerStockRouter = createTRPCRouter({
         }),
 
     // BULK ADD STOCK (Pro Feature)
-    bulkAddStock: protectedProcedure
+    bulkAddStock: proProcedure
         .input(z.array(z.object({
             farmerId: z.string(),
             amount: z.number().positive().max(1000),

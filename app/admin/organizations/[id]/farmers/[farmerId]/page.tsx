@@ -97,6 +97,7 @@ export default function AdminFarmerDetailsPage() {
     const trpc = useTRPC();
     const params = useParams();
     const router = useRouter();
+    const orgId = params.id as string;
     const farmerId = params.farmerId as string;
 
     const [showTransferModal, setShowTransferModal] = useState(false);
@@ -104,7 +105,7 @@ export default function AdminFarmerDetailsPage() {
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
-        trpc.management.farmers.getManagementHub.queryOptions({ farmerId })
+        trpc.management.farmers.getManagementHub.queryOptions({ farmerId, orgId })
     );
 
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;

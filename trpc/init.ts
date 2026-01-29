@@ -1,11 +1,12 @@
 import { db } from "@/db";
-import { user } from "@/db/schema"; // Import your schema
+import { member, user } from "@/db/schema"; // Import your schema
 import { auth } from "@/lib/auth";
 import { initTRPC, TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { cache } from "react";
 import superjson from "superjson";
+import { z } from "zod";
 
 export const createTRPCContext = cache(async () => {
   const heads = new Headers(await headers());
@@ -55,5 +56,48 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   });
 });
 
-// Role-based procedures (currently aliases, can be enhanced later)
+// Role-based procedures
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.globalRole !== "ADMIN") {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+export const proProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.user.isPro && ctx.user.globalRole !== "ADMIN") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This is a Pro feature. Please request access."
+    });
+  }
+  return next({ ctx });
+});
+
 export const officerProcedure = protectedProcedure;
+
+export const orgProcedure = protectedProcedure
+  .input(z.object({ orgId: z.string() }))
+  .use(async ({ ctx, input, next }) => {
+    const membership = await ctx.db.query.member.findFirst({
+      where: and(
+        eq(member.userId, ctx.user.id),
+        eq(member.organizationId, input.orgId),
+        eq(member.status, "ACTIVE")
+      ),
+    });
+
+    if (!membership && ctx.user.globalRole !== "ADMIN") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You are not a member of this organization",
+      });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        membership,
+      },
+    });
+  });
