@@ -1,282 +1,187 @@
 "use client";
 
-import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useCurrentOrg } from "@/hooks/use-current-org";
-import { useTRPC } from "@/trpc/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
+import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { format } from "date-fns";
 import {
-    ArrowRight,
     Bird,
-    Calendar,
-    ChevronRight,
-    Clock,
-    MoreVertical,
-    Pencil,
-    RotateCcw,
     Skull,
-    Trash2,
     Wheat
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { toast } from "sonner";
-import { AddMortalityModal } from "./add-mortality-modal";
-import { EditDocModal } from "./edit-doc-modal";
-import { EndCycleModal } from "./end-cycle-modal";
-import { ReopenCycleModal } from "./reopen-cycle-modal";
+import { useRef } from "react";
+import { ActionsCell, HistoryActionsCell } from "../shared/columns-factory";
 
 interface MobileCycleCardProps {
     cycle: any;
     prefix?: string;
     currentId?: string;
+    variant?: "elevated" | "flat";
+    className?: string;
 }
 
-export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardProps) => {
+export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated", className }: MobileCycleCardProps) => {
+
+    const cardRef = useRef<HTMLDivElement>(null);
     const isCurrent = cycle.id === currentId;
-    const [showEndCycle, setShowEndCycle] = useState(false);
-    const [showAddMortality, setShowAddMortality] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [showReopenModal, setShowReopenModal] = useState(false);
-    const [showEditDocModal, setShowEditDocModal] = useState(false);
-
-    const trpc = useTRPC();
-    const queryClient = useQueryClient();
-    const { orgId } = useCurrentOrg();
-
-    const deleteMutation = useMutation(
-        trpc.officer.cycles.deleteHistory.mutationOptions({
-            onSuccess: async () => {
-                toast.success("Record deleted successfully");
-                const baseOptions = { orgId: orgId! };
-                // Invalidate across ALL routers
-                await Promise.all([
-                    queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
-
-                    // Detailed farmer views
-                    queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
-                    cycle.farmerId ? queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: cycle.farmerId, orgId: orgId! })) : Promise.resolve(),
-                ]);
-                setShowDeleteModal(false);
-            },
-            onError: (err: any) => {
-                toast.error(err.message || "Failed to delete record");
-            }
-        })
-    );
-
-    const isPast = cycle.status === "history" || (cycle.status !== "active" && (cycle.endDate || cycle.updatedAt && !cycle.age));
-    // Check if it's a history item or active based on fields
-    const cycleName = cycle.name || cycle.cycleName;
+    // Map properties safely
+    const cycleName = cycle.name || cycle.cycleName || cycle.farmerName;
     const intakeValue = parseFloat(cycle.intake || cycle.finalIntake || "0");
     const docValue = parseInt(cycle.doc || "0");
     const mortalityValue = cycle.mortality || 0;
     const createdAt = cycle.startDate || cycle.createdAt;
+    const endDate = cycle.endDate;
+    // Construct links
+    // If prefix is provided, utilize it. Logic copied from org-cycles-list usage where prefix is passed.
+    // If no prefix (e.g. officer dashboard), existing logic used /farmers /cycles
+    const detailLink = prefix ? `${prefix}/cycles/${cycle.id}` : `/cycles/${cycle.id}`;
+    const farmerLink = prefix ? `${prefix}/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`;
 
     return (
-        <Card className={`border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors ${isCurrent ? 'ring-2 ring-primary border-primary/20 bg-primary/5' : ''}`}>
-            <CardContent className="p-2.5 space-y-2">
-                {/* Top Section: Header & Status */}
-                <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-0.5">
-                        <Link href={`${prefix || ""}/farmers/${cycle.farmerId}`} className="group flex items-center gap-1.5 focus:outline-none">
-                            <h3 className="font-bold text-sm text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4 line-clamp-1">{cycleName}</h3>
-                            {isCurrent && (
-                                <Badge variant="outline" className="text-[8px] h-3.5 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
-                            )}
-                            <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                        </Link>
-                    </div>
+        <div
+            ref={cardRef}
+            onClick={(e) => {
+                // If the click originated from a link or button, don't navigate via div
+                if ((e.target as HTMLElement).closest('a') || (e.target as HTMLElement).closest('button')) return;
 
-                    {!isPast ? (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5">
-                                    <MoreVertical className="h-3.5 w-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuLabel>Cycle Management</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
-                                    <Skull className="mr-2 h-4 w-4" /> Add Mortality
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShowEditDocModal(true)}>
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit Initial Birds (DOC)
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setShowEndCycle(true)}
-                                    className="text-destructive focus:text-destructive"
+                // Ignore clicks from Portals (Dropdowns, Modals) which are physically outside the card's DOM
+                if (cardRef.current && !cardRef.current.contains(e.target as Node)) return;
+
+                // If the click originated from the actions container
+                if ((e.target as HTMLElement).closest('.js-actions-container')) return;
+
+                window.location.href = detailLink;
+            }}
+            className={cn(
+                "transition-transform cursor-pointer active:scale-[0.98]",
+                variant === "elevated"
+                    ? "bg-white p-2 rounded-lg border border-slate-200 shadow-sm"
+                    : "p-2 space-y-1 active:bg-slate-50 border-b border-slate-100 last:border-0",
+                isCurrent && variant === "elevated" && "ring-2 ring-primary border-primary/20 bg-primary/5",
+                className
+            )}
+        >
+            <div className={cn("flex justify-between items-start w-full", variant === "elevated" ? "mb-1" : "mb-0")}>
+                <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 align-middle">
+                        {variant === "flat" ? (
+                            <div className="flex items-center gap-1.5">
+                                <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[10px] px-1.5 h-4 leading-none flex items-center">
+                                    {cycle.age} {cycle.age > 1 ? "days" : "day"}
+                                </Badge>
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                    {createdAt ? format(new Date(createdAt), "MMM d") : ""}
+                                    {endDate ? ` - ${format(new Date(endDate), "MMM d")}` : ""}
+                                </span>
+                            </div>
+                        ) : (
+                            <>
+                                <Link
+                                    href={farmerLink}
+                                    className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-sm line-clamp-1"
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <ArrowRight className="mr-2 h-4 w-4 rotate-45" /> End Cycle
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    ) : (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5">
-                                    <MoreVertical className="h-3.5 w-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setShowReopenModal(true)}
-                                >
-                                    <RotateCcw className="mr-2 h-4 w-4" /> Reopen Cycle
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
-                                    onClick={() => setShowDeleteModal(true)}
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete Record
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )}
-                </div>
-
-                {/* Middle Section: Metrics Grid */}
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-blue-50/50 p-1.5 rounded-lg border border-blue-100/50 flex flex-col gap-0.5 justify-center">
-                        <div className="flex items-center gap-1 text-[9px] text-blue-600 font-bold uppercase tracking-wider">
-                            <Clock className="h-2.5 w-2.5" /> Cycle Age
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-black text-blue-900 leading-none">{cycle.age}</span>
-                            <span className="text-[9px] text-blue-600/70 font-medium lowercase">{cycle.age > 1 ? "days" : "day"}</span>
-                        </div>
+                                    {cycleName}
+                                </Link>
+                                {isCurrent && (
+                                    <Badge variant="outline" className="text-[8px] h-3.5 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
+                                )}
+                                {!isCurrent && cycle.status === 'active' && <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-3.5 px-1">ACTIVE</Badge>}
+                            </>
+                        )}
                     </div>
-
-                    <div className="bg-slate-50/50 p-1.5 rounded-lg border border-slate-100 flex flex-col gap-1.5">
-                        <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                                <Bird className="h-2.5 w-2.5" /> Bird Count
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-black text-slate-800 leading-none">{docValue}</span>
-                                {/* <span className="text-[9px] text-slate-500 font-medium">birds</span> */}
-                            </div>
-                        </div>
-
-                        <div className="pt-1.5 border-t border-slate-200/60 flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold uppercase tracking-wider">
-                                <Wheat className="h-2.5 w-2.5" /> Consumption
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-black text-amber-900 leading-none">{intakeValue.toFixed(1)}</span>
-                                <span className="text-[9px] text-amber-700/70 font-medium">bags</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bottom Section: Footer Info */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-0.5">
-                    <div className="flex items-center gap-1 text-slate-400">
-                        <Calendar className="h-3 w-3" />
-                        <span className="text-[9px] font-medium">
-                            {createdAt ? format(new Date(createdAt), "MMM d") : "-"}
+                    {(cycle.officerName && variant === "elevated") && (
+                        <span className="block text-[9px] text-slate-400 font-normal leading-none">
+                            Officer: {cycle.officerName}
                         </span>
-                    </div>
-
-                    {mortalityValue > 0 ? (
-                        <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
-                            <Skull className="h-2.5 w-2.5 text-red-500" />
-                            <span className="text-[9px] font-bold text-red-600">-{mortalityValue}</span>
-                        </div>
-                    ) : (
-                        <div className="text-[9px] font-medium text-slate-300 italic">No mortality</div>
                     )}
                 </div>
 
-                {/* View Details Button */}
-                <Button variant="outline" className="w-full text-[10px] uppercase tracking-wide font-bold h-7 rounded-sm border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
-                    <Link href={`${prefix || ""}/cycles/${cycle.id}`}>
-                        View Details
-                        <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                </Button>
-            </CardContent>
+                <div
+                    className="pl-2 -mr-2 scale-90 origin-top-right js-actions-container"
+                >
+                    {cycle.status === "active" ? (
+                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                    ) : (
+                        <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                    )}
+                </div>
+            </div>
 
-            {!isPast && (
-                <>
-                    <AddMortalityModal
-                        cycleId={cycle.id}
-                        farmerName={cycle.farmerName}
-                        open={showAddMortality}
-                        onOpenChange={setShowAddMortality}
-                    />
-
-                    <EndCycleModal
-                        cycleId={cycle.id}
-                        farmerName={cycle.farmerName}
-                        intake={intakeValue}
-                        open={showEndCycle}
-                        onOpenChange={setShowEndCycle}
-                    />
-
-                    <EditDocModal
-                        cycleId={cycle.id}
-                        currentDoc={docValue}
-                        open={showEditDocModal}
-                        onOpenChange={setShowEditDocModal}
-                    />
-                </>
-            )}
-
-            {isPast && (
-                <>
-                    <ReopenCycleModal
-                        historyId={cycle.id}
-                        farmerId={cycle.farmerId}
-                        cycleName={cycleName}
-                        open={showReopenModal}
-                        onOpenChange={setShowReopenModal}
-                    />
-                    <ResponsiveDialog
-                        open={showDeleteModal}
-                        onOpenChange={setShowDeleteModal}
-                        title="Delete Record"
-                        description="Are you sure you want to delete this history record? This action cannot be undone."
-                    >
-                        <div className="flex justify-end gap-2 pt-4">
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowDeleteModal(false)}
-                                disabled={deleteMutation.isPending}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="destructive" className="text-white"
-                                onClick={() => deleteMutation.mutate({ id: cycle.id })}
-                                disabled={deleteMutation.isPending}
-                            >
-                                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                            </Button>
+            <div className={cn("grid grid-cols-4 gap-1", variant === "elevated" ? "py-1 border-y border-slate-50" : "py-0.5")}>
+                {variant === "elevated" ? (
+                    <div className="flex flex-col justify-center">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Age</span>
+                        <p className="text-sm font-bold text-slate-900 leading-none">{cycle.age} <small className="text-[8px] font-normal">d</small></p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col justify-center p-1 rounded bg-blue-50 border border-blue-100 gap-y-1">
+                        <span className="text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                        <div className="flex items-center gap-1">
+                            <Bird className="h-5 w-5 text-blue-500" />
+                            <p className="text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
                         </div>
-                    </ResponsiveDialog>
-                </>
-            )}
-        </Card>
+                    </div>
+                )}
+
+                {variant === "elevated" ? (
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-blue-50 border border-blue-100">
+                        <span className="text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                        <div className="flex items-center gap-1 justify-center">
+                            <Bird className="h-5 w-5 text-blue-500" />
+                            <p className="text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-50 border border-amber-100">
+                        <span className="text-[12px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                        <div className="flex items-center gap-1 justify-center">
+                            <Wheat className="h-5 w-5 text-amber-500" />
+                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
+                        </div>
+                    </div>
+                )}
+
+                {variant === "elevated" ? (
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-50 border border-amber-100">
+                        <span className="text-[8px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                        <div className="flex items-center gap-0.5 justify-center">
+                            <Wheat className="h-3 w-3 text-amber-500" />
+                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col justify-center text-right col-span-2">
+                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Mortality</span>
+                        <div className="flex items-center gap-0.5 justify-end">
+                            {mortalityValue > 0 ? (
+                                <div className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded leading-none">
+                                    <Skull className="h-3 w-3" />
+                                    <span className="text-xs">{mortalityValue}</span>
+                                </div>
+                            ) : (
+                                <span className="text-xs font-bold text-slate-300">-</span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {variant === "elevated" && (
+                    <div className="flex flex-col justify-center text-right">
+                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Deaths</span>
+                        <div className="flex items-center gap-0.5 justify-end">
+                            {mortalityValue > 0 ? (
+                                <p className="text-xs font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded-full leading-none">{mortalityValue}</p>
+                            ) : (
+                                <p className="text-xs font-bold text-slate-300">-</p>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+
+        </div>
     );
 };

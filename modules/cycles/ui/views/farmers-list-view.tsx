@@ -13,14 +13,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     ArrowRight,
     Bird,
-    Calendar,
-    ChevronRight,
     Loader2,
     Search,
     Users,
@@ -30,64 +29,8 @@ import Link from "next/link"; // Assuming Next.js navigation
 import { useState } from "react";
 
 // --- Mobile Farmer Card Component ---
-const MobileFarmerCard = ({ farmer }: { farmer: any }) => (
-    <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
-        <CardContent className="p-4 space-y-4">
-            {/* Header section with Name & Badge */}
-            <div className="flex justify-between items-start">
-                <div className="flex flex-col gap-1">
-                    <Link href={`/farmers/${farmer.id}`} className="group flex items-center gap-1.5 focus:outline-none">
-                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{farmer.name}</h3>
-                        <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                    </Link>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        Joined {format(new Date(farmer.createdAt), "MMM d, yyyy")}
-                    </div>
-                </div>
-
-                {farmer.activeCyclesCount > 0 ? (
-                    <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-600 text-[10px] px-2 py-0 h-5 shadow-sm">Active</Badge>
-                ) : (
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5">Idle</Badge>
-                )}
-            </div>
-
-            {/* Metrics Row */}
-            <div className="grid grid-cols-2 gap-3 py-1">
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                        <Bird className="h-3.5 w-3.5" /> Production
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-slate-900 leading-none">
-                            {farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium lowercase">Live / Total</span>
-                    </div>
-                </div>
-
-                <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 flex flex-col gap-1">
-                    <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                        <Wheat className="h-3.5 w-3.5" /> Feed Stock
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-amber-900 leading-none">{farmer.mainStock.toFixed(1)}</span>
-                        <span className="text-[10px] text-amber-700/70 font-medium">bags</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* View Details Button */}
-            <Button variant="outline" className="w-full text-xs font-semibold h-9 rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
-                <Link href={`/farmers/${farmer.id}`}>
-                    View Details
-                    <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-            </Button>
-        </CardContent>
-    </Card>
-);
+// --- Mobile Farmer Card Component ---
+// Imported from @/modules/farmers/ui/components/mobile-farmer-card
 
 export const FarmersListView = () => {
     const { orgId } = useCurrentOrg();

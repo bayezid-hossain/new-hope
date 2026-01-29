@@ -19,7 +19,6 @@ import Link from "next/link";
 import { useState } from "react";
 // Ensure these paths match your file structure
 import LoadingState from "@/components/loading-state";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-import-modal";
@@ -27,102 +26,7 @@ import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/crea
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { useDebounce } from "use-debounce";
 
-// --- Mobile Stock Card Component ---
-const MobileStockCard = ({
-  row,
-  onTransfer,
-  onRestock
-}: {
-  row: any;
-  onTransfer: (data: any) => void;
-  onRestock: (id: string) => void;
-}) => {
-  const mainStock = row.mainStock || 0;
-  const activeConsumption = row.activeConsumption || 0;
-  const effectiveRemaining = mainStock - activeConsumption;
-  const percentUsed = mainStock > 0 ? (activeConsumption / mainStock) * 100 : 0;
-
-
-  return (
-    <Card className="border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors">
-      <CardContent className="p-4 space-y-4">
-        {/* Header: Name & Quick Stock */}
-        <div className="flex justify-between items-start">
-          <div className="flex flex-col gap-1">
-            <Link href={`/farmers/${row.id}`} className="group flex items-center focus:outline-none">
-              <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4 decoration-1">{row.name}</h3>
-            </Link>
-          </div>
-        </div>
-
-        {/* Active Cycles Summary */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">
-            <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.activeCyclesCount + row.pastCyclesCount} Live
-          </div>
-        </div>
-
-        {/* Individual Cycles Badges */}
-        <div className="flex flex-wrap gap-1.5">
-          {row.activeCycles.length > 0 ? (
-            row.activeCycles.map((c: any) => (
-              <Badge key={c.id} variant="secondary" className="bg-slate-100/80 text-slate-600 border-slate-200/60 font-medium text-[10px] px-2 py-0 h-5">
-                Cycle (Age: {c.age})
-              </Badge>
-            ))
-          ) : (
-            <div className="text-[10px] font-medium text-slate-400 italic">No active cycles</div>
-          )}
-        </div>
-
-        {/* Progress Section */}
-        <div className="space-y-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-            <span className="text-slate-500">Current Consumption</span>
-            <span className={percentUsed > 90 ? "text-red-600" : "text-primary"}>{percentUsed.toFixed(0)}% Used</span>
-          </div>
-          <div className="flex h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-            <div className="bg-amber-500 h-full" style={{ width: `${Math.min(percentUsed, 100)}%` }} />
-          </div>
-          <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
-            <div className="flex justify-between">
-              <span className="text-slate-400 font-bold uppercase">Consump.</span>
-              <span className="font-bold text-amber-600">+{activeConsumption.toFixed(1)}</span>
-            </div>
-            <div className="flex justify-between border-l border-slate-200 pl-2">
-              <span className="text-slate-400 font-bold uppercase">Total Prov.</span>
-              <span className="font-bold text-slate-700">{mainStock.toFixed(1)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
-            onClick={() => onTransfer({
-              farmerId: row.id,
-              farmerName: row.name,
-              currentStock: effectiveRemaining
-            })}
-          >
-            <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Transfer
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 text-xs font-semibold rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
-            onClick={() => onRestock(row.id)}
-          >
-            <Wheat className="h-3.5 w-3.5 mr-2" /> Restock
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 
 export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
@@ -305,11 +209,36 @@ export default function MainStockPage() {
           {/* Main Data Cards - Mobile */}
           <div className="sm:hidden space-y-4">
             {data.items.map((row) => (
-              <MobileStockCard
+              <MobileFarmerCard
                 key={row.id}
-                row={row}
-                onTransfer={(transferData) => setTransferModal({ open: true, data: transferData })}
-                onRestock={(farmerId) => setFeedModal({ open: true, farmerId })}
+                farmer={row}
+                actions={
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
+                      onClick={() => setTransferModal({
+                        open: true,
+                        data: {
+                          farmerId: row.id,
+                          farmerName: row.name,
+                          currentStock: (row.mainStock || 0) - (row.activeConsumption || 0)
+                        }
+                      })}
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Transfer
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
+                      onClick={() => setFeedModal({ open: true, farmerId: row.id })}
+                    >
+                      <Wheat className="h-3.5 w-3.5 mr-2" /> Restock
+                    </Button>
+                  </div>
+                }
               />
             ))}
           </div>
