@@ -141,12 +141,26 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                         <div className="h-2 bg-indigo-50 rounded-full w-1/2 animate-pulse" />
                     </div>
                 ) : result?.status === "OK" ? (
-                    <div className="flex flex-col items-center justify-center py-4 text-center space-y-2">
-                        <div className="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                            <Truck className="h-5 w-5" />
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                        <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-sm">
+                            <Truck className="h-6 w-6" />
                         </div>
-                        <p className="text-emerald-900 font-medium text-sm">Supply Chain Healthy</p>
-                        <p className="text-emerald-700/70 text-xs">No stockouts predicted for next 4 days.</p>
+                        <div>
+                            <p className="text-indigo-900 font-bold text-sm">Supply Chain Healthy</p>
+                            <p className="text-indigo-700/70 text-xs mt-1 px-4">
+                                No immediate stockout risks detected. All farmers have sufficient feed for at least 4 days.
+                            </p>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => predict({ orgId, officerId })}
+                            disabled={isPending}
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 h-7 text-xs"
+                        >
+                            <Sparkles className="h-3 w-3 mr-1.5" />
+                            Refresh Prediction
+                        </Button>
                     </div>
                 ) : (
                     <div className="space-y-4">

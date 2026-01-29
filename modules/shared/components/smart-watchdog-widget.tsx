@@ -165,7 +165,27 @@ export const SmartWatchdogWidget = ({ orgId, officerId, className }: SmartWatchd
                         )}
                     </div>
                 ) : (
-                    <p className="text-sm text-slate-400 italic">Watchdog sleeping.</p>
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                        <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-sm">
+                            <CheckCircle2 className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-emerald-900 font-bold text-sm">System Secure</p>
+                            <p className="text-emerald-700/70 text-xs mt-1 px-4">
+                                Smart Watchdog has not detected any immediate mortality or growth risks in the last scan.
+                            </p>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => runRiskScan({ orgId, officerId })}
+                            disabled={isScanning}
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-7 text-xs"
+                        >
+                            <Sparkles className="h-3 w-3 mr-1.5" />
+                            Run New Scan
+                        </Button>
+                    </div>
                 )}
             </CardContent>
         </Card>
