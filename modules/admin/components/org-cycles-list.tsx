@@ -150,7 +150,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                         <div className="space-y-4">
                             {sortedGroups.map((group) => (
                                 <div key={group.farmerId} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className="px-4 py-3 bg-slate-50/50 border-b flex justify-between items-center">
+                                    <div className="px-4 py-1 bg-slate-50/50 border-b flex justify-between items-center">
                                         <div className="flex flex-col">
                                             <Link
                                                 href={isAdmin ? `/admin/organizations/${orgId}/farmers/${group.farmerId}` : (isManagement ? `/management/farmers/${group.farmerId}` : `/farmers/${group.farmerId}`)}
@@ -221,38 +221,52 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 {/* Mobile Row */}
                                                 <Link
                                                     href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}
-                                                    className="block md:hidden p-4 space-y-2 active:bg-slate-50"
+                                                    className="block md:hidden p-2 space-y-1 active:bg-slate-50 border-b border-slate-100 last:border-0"
                                                 >
                                                     <div className="flex justify-between items-start">
-                                                        <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[9px]">{cycle.age} {cycle.age > 1 ? "days" : "day"}</Badge>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-xs text-slate-500">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex items-center gap-1">
-                                                                <Bird className="h-3 w-3" />
-                                                                {cycle.doc.toLocaleString()}
-                                                            </div>
-                                                            <div className="flex items-center gap-1 text-amber-600 font-bold">
-                                                                <Wheat className="h-3 w-3" />
-                                                                {Number(cycle.intake || 0).toFixed(1)}
-                                                            </div>
-                                                            {cycle.mortality > 0 && (
-                                                                <div className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-1.5 rounded">
-                                                                    <Skull className="h-3 w-3" />
-                                                                    {cycle.mortality}
-                                                                </div>
+                                                        <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[8px] px-1 h-3.5 leading-none flex items-center">{cycle.age} {cycle.age > 1 ? "days" : "day"}</Badge>
+                                                        <div className="pl-2 -mr-2 scale-90 origin-top-right">
+                                                            {cycle.status === "active" ? (
+                                                                <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                            ) : (
+                                                                <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
                                                             )}
                                                         </div>
-                                                        <div>{format(new Date(cycle.createdAt), "dd MMM")}</div>
+                                                    </div>
+                                                    <div className="grid grid-cols-4 gap-1 py-0.5">
+                                                        <div className="flex flex-col justify-center">
+                                                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                                                            <div className="flex items-center gap-0.5">
+                                                                <Bird className="h-3 w-3 text-slate-400" />
+                                                                <p className="text-sm font-bold text-slate-900 leading-none">{cycle.doc.toLocaleString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col justify-center text-center">
+                                                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                                                            <div className="flex items-center gap-0.5 justify-center text-amber-600 font-bold">
+                                                                <Wheat className="h-3 w-3" />
+                                                                <p className="text-sm font-bold text-amber-700 leading-none">{Number(cycle.intake || 0).toFixed(1)}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col justify-center text-right col-span-2">
+                                                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Mortality</span>
+                                                            <div className="flex items-center gap-0.5 justify-end">
+                                                                {cycle.mortality > 0 ? (
+                                                                    <div className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded leading-none">
+                                                                        <Skull className="h-3 w-3" />
+                                                                        <span className="text-xs">{cycle.mortality}</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs font-bold text-slate-300">-</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-[9px] text-slate-400 pt-0.5">
+                                                        <span>{format(new Date(cycle.createdAt), "dd MMM")}</span>
                                                     </div>
                                                 </Link>
-                                                <div className="px-4 pb-4 sm:hidden flex justify-end">
-                                                    {cycle.status === "active" ? (
-                                                        <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
-                                                    ) : (
-                                                        <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
-                                                    )}
-                                                </div>
+
                                             </div>
                                         ))}
                                     </div>
@@ -338,7 +352,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                 </div>
                             </div>
                             {/* Mobile Cards (List View) */}
-                            <div className="md:hidden space-y-3">
+                            <div className="md:hidden space-y-2">
                                 {cycles.map((cycle) => {
                                     const cycleLink = isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`);
                                     const farmerLink = isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`);
@@ -351,67 +365,28 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 if ((e.target as HTMLElement).closest('a') || (e.target as HTMLElement).closest('button')) return;
                                                 window.location.href = cycleLink;
                                             }}
-                                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                                            className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
                                         >
-                                            <div className="flex justify-between items-start mb-3">
+                                            <div className="flex justify-between items-start w-full">
                                                 <div className="space-y-0.5">
-                                                    <div className="flex items-center gap-1.5">
+                                                    <div className="flex items-center gap-1.5 align-middle">
                                                         <Link
                                                             href={farmerLink}
-                                                            className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-sm"
+                                                            className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-sm line-clamp-1"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
                                                             {cycle.farmerName}
                                                         </Link>
-                                                        <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-4">ACTIVE</Badge>
+                                                        <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-3.5 px-1">ACTIVE</Badge>
                                                     </div>
                                                     {cycle.officerName && (
-                                                        <span className="block text-[10px] text-slate-400 font-normal">
-                                                            Officer: {cycle.officerName}
+                                                        <span className="block text-[9px] text-slate-400 font-normal leading-none">
+                                                            Ofc: {cycle.officerName}
                                                         </span>
                                                     )}
                                                 </div>
-                                            </div>
 
-                                            <div className="grid grid-cols-4 gap-2 py-3 border-y border-slate-50">
-                                                <div className="space-y-1">
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Age</span>
-                                                    <p className="text-sm font-bold text-slate-900">{cycle.age} <small className="text-[10px] font-normal">d</small></p>
-                                                </div>
-                                                <div className="space-y-1 text-center">
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">DOC</span>
-                                                    <div className="flex items-center gap-1 justify-center">
-                                                        <Bird className="h-3.5 w-3.5 text-slate-400" />
-                                                        <p className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1 text-center">
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Feed</span>
-                                                    <div className="flex items-center gap-1 justify-center">
-                                                        <Wheat className="h-3.5 w-3.5 text-amber-500" />
-                                                        <p className="text-sm font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(1)}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1 text-right">
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Mortality</span>
-                                                    <div className="flex items-center gap-1 justify-end">
-                                                        {cycle.mortality > 0 ? (
-                                                            <p className="text-sm font-bold text-red-600 bg-red-50 px-2 rounded-full">{cycle.mortality}</p>
-                                                        ) : (
-                                                            <p className="text-sm font-bold text-slate-300">-</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400">
-                                                <span className="font-medium">Started {format(new Date(cycle.createdAt), "MMM d, yyyy")}</span>
-                                                <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold">
-                                                    View Details <ArrowRight className="h-3 w-3" />
-                                                </span>
-                                            </div>
-                                            <div className="px-4 pb-4 pt-0 flex justify-end border-t border-slate-50 mt-2">
-                                                <div className="pt-2">
+                                                <div className="pl-2 -mr-2 scale-90 origin-top-right">
                                                     {cycle.status === "active" ? (
                                                         <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
                                                     ) : (
@@ -419,6 +394,45 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                     )}
                                                 </div>
                                             </div>
+
+                                            <div className="grid grid-cols-4 gap-1 py-1 border-y border-slate-50">
+                                                <div className="flex flex-col justify-center">
+                                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Age</span>
+                                                    <p className="text-sm font-bold text-slate-900 leading-none">{cycle.age} <small className="text-[8px] font-normal">d</small></p>
+                                                </div>
+                                                <div className="flex flex-col justify-center text-center">
+                                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                                                    <div className="flex items-center gap-0.5 justify-center">
+                                                        <Bird className="h-3 w-3 text-slate-400" />
+                                                        <p className="text-sm font-bold text-slate-900 leading-none">{cycle.doc.toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col justify-center text-center">
+                                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                                                    <div className="flex items-center gap-0.5 justify-center">
+                                                        <Wheat className="h-3 w-3 text-amber-500" />
+                                                        <p className="text-sm font-bold text-amber-700 leading-none">{Number(cycle.intake || 0).toFixed(1)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col justify-center text-right">
+                                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Deaths</span>
+                                                    <div className="flex items-center gap-0.5 justify-end">
+                                                        {cycle.mortality > 0 ? (
+                                                            <p className="text-xs font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded-full leading-none">{cycle.mortality}</p>
+                                                        ) : (
+                                                            <p className="text-xs font-bold text-slate-300">-</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-1 flex justify-between items-center text-[9px] text-slate-400">
+                                                <span className="font-medium">Started {format(new Date(cycle.createdAt), "MMM d")}</span>
+                                                <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold">
+                                                    View <ArrowRight className="h-2.5 w-2.5" />
+                                                </span>
+                                            </div>
+
                                         </div>
                                     );
                                 })}

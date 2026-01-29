@@ -88,24 +88,24 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
 
     return (
         <Card className={`border-slate-200 shadow-sm overflow-hidden active:bg-slate-50 transition-colors ${isCurrent ? 'ring-2 ring-primary border-primary/20 bg-primary/5' : ''}`}>
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="p-2.5 space-y-2">
                 {/* Top Section: Header & Status */}
                 <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                         <Link href={`${prefix || ""}/farmers/${cycle.farmerId}`} className="group flex items-center gap-1.5 focus:outline-none">
-                            <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4">{cycleName}</h3>
+                            <h3 className="font-bold text-sm text-slate-900 group-hover:text-primary transition-colors underline decoration-slate-200 underline-offset-4 line-clamp-1">{cycleName}</h3>
                             {isCurrent && (
-                                <Badge variant="outline" className="text-[8px] h-4 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
+                                <Badge variant="outline" className="text-[8px] h-3.5 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
                             )}
-                            <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                            <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                         </Link>
                     </div>
 
                     {!isPast ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
-                                    <MoreVertical className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5">
+                                    <MoreVertical className="h-3.5 w-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
@@ -129,8 +129,8 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                     ) : (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
-                                    <MoreVertical className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5">
+                                    <MoreVertical className="h-3.5 w-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
@@ -155,64 +155,64 @@ export const MobileCycleCard = ({ cycle, prefix, currentId }: MobileCycleCardPro
                 </div>
 
                 {/* Middle Section: Metrics Grid */}
-                <div className="grid grid-cols-2 gap-2 py-1">
-                    <div className="bg-blue-50/50 p-2.2 rounded-xl border border-blue-100/50 flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                            <Clock className="h-3 w-3" /> Cycle Age
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-blue-50/50 p-1.5 rounded-lg border border-blue-100/50 flex flex-col gap-0.5 justify-center">
+                        <div className="flex items-center gap-1 text-[9px] text-blue-600 font-bold uppercase tracking-wider">
+                            <Clock className="h-2.5 w-2.5" /> Cycle Age
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-lg font-black text-blue-900 leading-none">{cycle.age}</span>
-                            <span className="text-[10px] text-blue-600/70 font-medium lowercase">{cycle.age > 1 ? "days" : "day"}</span>
+                            <span className="text-xl font-black text-blue-900 leading-none">{cycle.age}</span>
+                            <span className="text-[9px] text-blue-600/70 font-medium lowercase">{cycle.age > 1 ? "days" : "day"}</span>
                         </div>
                     </div>
 
-                    <div className="bg-slate-50/50 p-2.2 rounded-xl border border-slate-100 flex flex-col gap-2">
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                <Bird className="h-3 w-3" /> Bird Count (DOC)
+                    <div className="bg-slate-50/50 p-1.5 rounded-lg border border-slate-100 flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                                <Bird className="h-2.5 w-2.5" /> Bird Count
                             </div>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-lg font-black text-slate-800 leading-none">{docValue}</span>
-                                <span className="text-[10px] text-slate-500 font-medium">birds</span>
+                                <span className="text-xl font-black text-slate-800 leading-none">{docValue}</span>
+                                {/* <span className="text-[9px] text-slate-500 font-medium">birds</span> */}
                             </div>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1">
-                            <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                                <Wheat className="h-3 w-3" /> Consumption
+                        <div className="pt-1.5 border-t border-slate-200/60 flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold uppercase tracking-wider">
+                                <Wheat className="h-2.5 w-2.5" /> Consumption
                             </div>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-lg font-black text-amber-900 leading-none">{intakeValue.toFixed(1)}</span>
-                                <span className="text-[10px] text-amber-700/70 font-medium">bags</span>
+                                <span className="text-xl font-black text-amber-900 leading-none">{intakeValue.toFixed(1)}</span>
+                                <span className="text-[9px] text-amber-700/70 font-medium">bags</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Bottom Section: Footer Info */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-2">
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span className="text-[10px] font-medium">
-                            {createdAt ? format(new Date(createdAt), "MMM d, yyyy") : "-"}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-0.5">
+                    <div className="flex items-center gap-1 text-slate-400">
+                        <Calendar className="h-3 w-3" />
+                        <span className="text-[9px] font-medium">
+                            {createdAt ? format(new Date(createdAt), "MMM d") : "-"}
                         </span>
                     </div>
 
                     {mortalityValue > 0 ? (
-                        <div className="flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
-                            <Skull className="h-3 w-3 text-red-500" />
-                            <span className="text-[10px] font-bold text-red-600">-{mortalityValue} Deaths</span>
+                        <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+                            <Skull className="h-2.5 w-2.5 text-red-500" />
+                            <span className="text-[9px] font-bold text-red-600">-{mortalityValue}</span>
                         </div>
                     ) : (
-                        <div className="text-[10px] font-medium text-slate-400 italic">No mortality recorded</div>
+                        <div className="text-[9px] font-medium text-slate-300 italic">No mortality</div>
                     )}
                 </div>
 
                 {/* View Details Button */}
-                <Button variant="outline" className="w-full text-xs font-semibold h-9 rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
+                <Button variant="outline" className="w-full text-[10px] uppercase tracking-wide font-bold h-7 rounded-sm border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all group" asChild>
                     <Link href={`${prefix || ""}/cycles/${cycle.id}`}>
                         View Details
-                        <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                        <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </Button>
             </CardContent>

@@ -1,11 +1,13 @@
 "use client";
 
+import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -23,15 +25,22 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
     const open = controlledOpen ?? internalOpen;
     const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
+    const { showLoading } = useLoading();
     const trpc = useTRPC();
     const queryClient = useQueryClient();
+    const router = useRouter();
     const { orgId } = useCurrentOrg();
 
     const mutation = useMutation(
         trpc.officer.cycles.reopenCycle.mutationOptions({
-            onSuccess: async () => {
+            onSuccess: async (data: { success: boolean; cycleId: string; }) => {
                 toast.success("Cycle reopened successfully");
+                // Immediately redirect to the new active cycle
+                if (data.cycleId) {
+                    router.push(`/cycles/${data.cycleId}`);
+                }
                 const baseOptions = { orgId: orgId! };
+                showLoading("Redirecting to activated cycle details...")
                 // Invalidate across ALL routers to ensure all views update
                 await Promise.all([
                     queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),

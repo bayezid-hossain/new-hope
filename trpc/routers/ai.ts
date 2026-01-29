@@ -55,26 +55,40 @@ export const aiRouter = createTRPCRouter({
             Match against CANDIDATE LIST:
             ${candidatesList}
             
-            Return JSON array: [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [] }]
+            Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
+            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [] }] }
             `;
 
             try {
-                const completion = await groq.chat.completions.create({
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: input.text }
-                    ],
-                    model: "llama-3.3-70b-versatile",
-                    temperature: 0,
-                });
+                // Use the fallback mechanism which enforces json_object mode
+                const aiResponse = await callAiWithFallback(groq, [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: input.text }
+                ]);
 
-                const content = completion.choices[0]?.message?.content || "[]";
-                const jsonString = content.replace(/```json\n?|\n?```/g, "").trim();
-                const parsed = JSON.parse(jsonString);
+                // Robust JSON Parsing
+                let parsed: any = {};
+                try {
+                    // 1. Try direct parse
+                    parsed = JSON.parse(aiResponse || "{}");
+                } catch (e) {
+                    // 2. Try extracting JSON from code blocks or curly braces
+                    const jsonMatch = (aiResponse || "").match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            parsed = JSON.parse(jsonMatch[0]);
+                        } catch (e2) {
+                            console.error("Failed to parse extracted JSON:", e2);
+                            throw new Error("Invalid JSON structure in AI response");
+                        }
+                    } else {
+                        throw new Error("No JSON object found in AI response");
+                    }
+                }
 
                 let data = [];
-                if (Array.isArray(parsed)) data = parsed;
-                else if (parsed.farmers && Array.isArray(parsed.farmers)) data = parsed.farmers;
+                if (parsed.farmers && Array.isArray(parsed.farmers)) data = parsed.farmers;
+                else if (Array.isArray(parsed)) data = parsed;
                 else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
                 else return [];
 
@@ -88,7 +102,8 @@ export const aiRouter = createTRPCRouter({
 
             } catch (e: any) {
                 console.error("AI Extract Failed:", e);
-                throw new Error("Failed to parse AI response.");
+                // Return empty instead of crashing to allow UI to handle it gracefully or show empty state
+                return [];
             }
         }),
 

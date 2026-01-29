@@ -27,6 +27,7 @@ import {
     Calculator,
     History,
     Lightbulb,
+    RotateCcw,
     Scale,
     TrendingUp,
     Wheat
@@ -37,6 +38,7 @@ import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
+import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
 
 // ... existing imports
 
@@ -289,6 +291,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
     const { data, isLoading, error } = useQuery(trpc.officer.cycles.getDetails.queryOptions({ id }));
     const [showEndCycleModal, setShowEndCycleModal] = useState(false);
+    const [showReopenModal, setShowReopenModal] = useState(false);
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {
@@ -380,6 +383,17 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 </div>
                             )}
                         </div>
+                        {!isActive && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs font-semibold gap-2 shadow-sm"
+                                onClick={() => setShowReopenModal(true)}
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Reopen Cycle
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -390,6 +404,14 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 open={showEndCycleModal}
                 intake={cycle.intake} // Pass total intake as default final intake
                 onOpenChange={setShowEndCycleModal}
+            />
+
+            <ReopenCycleModal
+                historyId={cycle.id}
+                farmerId={farmerContext.id}
+                cycleName={cycle.name}
+                open={showReopenModal}
+                onOpenChange={setShowReopenModal}
             />
 
             <div className="grid gap-6 md:grid-cols-7 w-full overflow-hidden">
