@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Plus, Search, Sparkles, User, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Pencil, Plus, Search, Sparkles, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -43,6 +43,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     const [inputText, setInputText] = useState("");
     const [parsedData, setParsedData] = useState<ParsedItem[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
+    const [showProGate, setShowProGate] = useState(false);
 
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -84,7 +86,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         }
     }));
 
-    const extractFarmersMutation = useMutation(trpc.officer.ai.extractFarmers.mutationOptions({
+    const extractFarmersMutation = useMutation(trpc.ai.extractFarmers.mutationOptions({
         onError: (err) => {
             toast.error(`Failed to analyze text: ${err.message}`);
         }
@@ -125,14 +127,32 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 // Find the matched farmer object if ID exists
                 const matchedFarmer = matchedId ? farmersList.items.find(f => f.id === matchedId) : null;
 
+                let finalMatchedId = null;
+                let finalMatchedName = null;
+
+                // STRICT MATCH LOGIC:
+                // Only automatically link if the name is an EXACT match (case-insensitive)
+                if (matchedFarmer) {
+                    if (matchedFarmer.name.toLowerCase().trim() === nameCandidate.toLowerCase()) {
+                        finalMatchedId = matchedFarmer.id;
+                        finalMatchedName = matchedFarmer.name;
+                    } else {
+                        // If it was a partial match by AI, move it to suggestions
+                        const exists = suggestions.find(s => s.id === matchedFarmer.id);
+                        if (!exists) {
+                            suggestions.unshift({ id: matchedFarmer.id, name: matchedFarmer.name });
+                        }
+                    }
+                }
+
                 return {
                     id: `row-${index}`,
                     rawName: nameCandidate,
                     cleanName: nameCandidate,
                     amount: totalAmount,
-                    matchedFarmerId: matchedFarmer?.id || null,
-                    matchedName: matchedFarmer?.name || null,
-                    confidence: confidence,
+                    matchedFarmerId: finalMatchedId,
+                    matchedName: finalMatchedName,
+                    confidence: finalMatchedId ? "HIGH" : "LOW",
                     suggestions: suggestions,
                     isDuplicate: false // Initial value
                 };
@@ -172,9 +192,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const exact = candidates.find((c: any) => c.name.toLowerCase() === inputName.toLowerCase());
         if (exact) return exact;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const partial = candidates.find((c: any) => c.name.toLowerCase().includes(inputName.toLowerCase()) || inputName.toLowerCase().includes(c.name.toLowerCase()));
-        if (partial) return partial;
+
+        // Strict Mode: No partial matches allowed for auto-select
         return null;
     };
 
@@ -209,6 +228,19 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 } as ParsedItem;
             });
             return calculateDuplicates(updatedItems);
+        });
+    };
+
+    const handleAmountEdit = (id: string, newAmount: string) => {
+        const amount = parseInt(newAmount) || 0;
+        setParsedData(prev => {
+            return prev.map(p => {
+                if (p.id !== id) return p;
+                return {
+                    ...p,
+                    amount: amount
+                };
+            });
         });
     };
 
@@ -252,6 +284,13 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         }
     };
 
+    const handleDismiss = (id: string) => {
+        setParsedData(prev => {
+            const next = prev.filter(p => p.id !== id);
+            return calculateDuplicates(next);
+        });
+    };
+
     const handleSubmit = () => {
         const payload = parsedData
             .filter(p => p.matchedFarmerId)
@@ -285,348 +324,422 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         }
     }));
 
-    // Check if user has already requested access (persisted in DB or from current session mutation)
-    const dbStatus = requestStatus?.status;
-    const hasRequested = dbStatus === "PENDING" || dbStatus === "APPROVED" || requestAccessMutation.isSuccess;
-    const isApprovedInDb = dbStatus === "APPROVED";
+
+
+    const hasRequested = requestStatus?.status === "PENDING";
+    const isApprovedInDb = requestStatus?.status === "APPROVED";
 
     const handleRequestAccess = () => {
         requestAccessMutation.mutate({ feature: "BULK_IMPORT" });
     };
 
+    const handleOpenChangeWrapper = (isOpen: boolean) => {
+        if (!isOpen) {
+            setStep("INPUT");
+            setInputText("");
+            setParsedData([]);
+            setEditingId(null);
+            setEditingAmountId(null);
+            setLoadingRowIds(new Set());
+            setShowProGate(false);
+        }
+        onOpenChange(isOpen);
+    };
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            {!isPro ? (
-                <DialogContent className="w-[95vw] sm:max-w-md bg-white p-0 overflow-hidden rounded-2xl">
-                    <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden">
-                        {/* Close Button for Pro Modal */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2 z-20 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            <X className="h-5 w-5" />
-                        </Button>
+        <Dialog open={open} onOpenChange={handleOpenChangeWrapper}>
+            <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
+                {showProGate ? (
+                    <div className="h-full w-full flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                        <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
+                            {/* Close Button for Pro Modal - Just goes back to input */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-2 right-2 z-20 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
+                                onClick={() => setShowProGate(false)}
+                            >
+                                <X className="h-5 w-5" />
+                            </Button>
 
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 opacity-90" />
-                        <div className="z-10 text-center text-white p-4">
-                            <Sparkles className="h-10 w-10 mx-auto mb-2 text-amber-300" />
-                            <h3 className="text-xl font-bold">Pro Feature</h3>
-                        </div>
-                        <div className="absolute -top-10 -left-10 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-50" />
-                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-50" />
-                    </div>
-
-                    <div className="p-6 space-y-4">
-                        <div className="text-center space-y-2">
-                            <DialogTitle className="text-lg font-semibold text-slate-900">Bulk Stock Import</DialogTitle>
-                            <DialogDescription className="text-sm text-slate-500">
-                                Import thousands of farmer records in seconds using our AI-powered engine. Exclusive to Pro officers.
-                            </DialogDescription>
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 opacity-90" />
+                            <div className="z-10 text-center text-white p-4">
+                                <Sparkles className="h-10 w-10 mx-auto mb-2 text-amber-300" />
+                                <h3 className="text-xl font-bold">Pro Feature</h3>
+                            </div>
+                            <div className="absolute -top-10 -left-10 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-50" />
+                            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-50" />
                         </div>
 
-                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 flex flex-col gap-2">
-                            <div className="flex items-center gap-2 text-sm text-slate-700">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                <span>Parse WhatsApp/SMS reports</span>
+                        <div className="p-6 space-y-4 flex-1 overflow-y-auto">
+                            <div className="text-center space-y-2">
+                                <DialogTitle className="text-lg font-semibold text-slate-900">AI Stock Extraction</DialogTitle>
+                                <DialogDescription className="text-sm text-slate-500">
+                                    Import thousands of farmer records in seconds using our AI-powered engine. Exclusive to Pro officers.
+                                </DialogDescription>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-700">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                <span>Auto-match existing farmers</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-700">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                <span>Detect duplicates automatically</span>
-                            </div>
-                        </div>
 
-                        <Button
-                            onClick={handleRequestAccess}
-                            disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus}
-                            className={`w-full shadow-lg text-white transition-all ${hasRequested || isLoadingStatus
-                                ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
-                                : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                                }`}
-                        >
-                            {requestAccessMutation.isPending || isLoadingStatus ? (
-                                <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                            ) : isApprovedInDb ? (
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                            ) : hasRequested ? (
-                                <Clock className="h-4 w-4 mr-2" />
-                            ) : (
-                                <Sparkles className="h-4 w-4 mr-2" />
-                            )}
-                            {isLoadingStatus ? "Checking status..." : isApprovedInDb ? "Pro Status Approved" : hasRequested ? "Access Requested" : "Request Access"}
-                        </Button>
-
-                        <p className="text-xs text-center text-muted-foreground h-4">
-                            {isLoadingStatus ? (
-                                <span className="animate-pulse">Verifying access...</span>
-                            ) : isApprovedInDb ? (
-                                <span className="text-emerald-600 font-medium italic">Approved! Refresh page to enable features.</span>
-                            ) : hasRequested ? (
-                                <span className="text-amber-600 font-medium">Pending admin approval.</span>
-                            ) : (
-                                "Usually approved within 24 hours."
-                            )}
-                        </p>
-                    </div>
-                </DialogContent>
-            ) : (
-                <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
-                    {/* Header */}
-                    <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
-                        {/* Close Button for Main Modal */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
-                            <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
-                                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                                    <Sparkles className="h-5 w-5" />
+                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 flex flex-col gap-2">
+                                <div className="flex items-center gap-2 text-sm text-slate-700">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                    <span>Parse WhatsApp/SMS reports</span>
                                 </div>
-                                <div className="flex flex-col">
-                                    <span>Bulk Stock Import</span>
-                                    <span className="text-xs font-medium text-slate-500 font-normal">AI Powered Extraction</span>
+                                <div className="flex items-center gap-2 text-sm text-slate-700">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                    <span>Auto-match existing farmers</span>
                                 </div>
-                            </DialogTitle>
-                            {step === "REVIEW" && (
-                                <div className="flex gap-2 self-end sm:self-auto">
-                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm">
-                                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                                        {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Ready
-                                    </Badge>
-                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs sm:text-sm">
-                                        <AlertCircle className="w-3 h-3 mr-1" />
-                                        {parsedData.filter(p => !p.matchedFarmerId || p.isDuplicate).length} Check
-                                    </Badge>
-                                </div>
-                            )}
-                        </div>
-                        <DialogDescription className="hidden">
-                            Import stock from daily reports
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {/* Content */}
-                    <div className="flex-1 overflow-hidden bg-slate-50/50 relative">
-                        {step === "INPUT" ? (
-                            <div className="h-full flex flex-col p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
-                                <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
-                                    <Textarea
-                                        placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
-                                        className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent"
-                                        value={inputText}
-                                        onChange={(e) => setInputText(e.target.value)}
-                                    />
-                                    <div className="p-2 border-t bg-slate-50 text-xs text-slate-400 flex justify-between items-center rounded-b-xl">
-                                        <span>Paste your daily report text above</span>
-                                        <span>{inputText.length} chars</span>
-                                    </div>
+                                <div className="flex items-center gap-2 text-sm text-slate-700">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                    <span>Detect duplicates automatically</span>
                                 </div>
                             </div>
-                        ) : (
-                            <ScrollArea className="h-full p-4 sm:p-6">
-                                {parsedData.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 min-h-[300px]">
-                                        <Search className="h-8 w-8 opacity-20" />
-                                        <p>No items found</p>
-                                    </div>
+
+                            <Button
+                                onClick={handleRequestAccess}
+                                disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus}
+                                className={`w-full shadow-lg text-white transition-all ${hasRequested || isLoadingStatus
+                                    ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
+                                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                    }`}
+                            >
+                                {requestAccessMutation.isPending || isLoadingStatus ? (
+                                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                ) : isApprovedInDb ? (
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                ) : hasRequested ? (
+                                    <Clock className="h-4 w-4 mr-2" />
                                 ) : (
-                                    <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        {parsedData.map((row) => (
-                                            <div
-                                                key={row.id}
-                                                className={`
+                                    <Sparkles className="h-4 w-4 mr-2" />
+                                )}
+                                {isLoadingStatus ? "Checking status..." : isApprovedInDb ? "Pro Status Approved" : hasRequested ? "Access Requested" : "Request Access"}
+                            </Button>
+
+                            <p className="text-xs text-center text-muted-foreground h-4">
+                                {isLoadingStatus ? (
+                                    <span className="animate-pulse">Verifying access...</span>
+                                ) : isApprovedInDb ? (
+                                    <span className="text-emerald-600 font-medium italic">Approved! Refresh page to enable features.</span>
+                                ) : hasRequested ? (
+                                    <span className="text-amber-600 font-medium">Pending admin approval.</span>
+                                ) : (
+                                    "Usually approved within 24 hours."
+                                )}
+                            </p>
+
+                            <Button variant="ghost" className="w-full text-slate-400" onClick={() => setShowProGate(false)}>
+                                No thanks, I'll type manually
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Header */}
+                        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
+                            {/* Close Button for Main Modal */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
+                                onClick={() => handleOpenChangeWrapper(false)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
+                                <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
+                                    <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                                        <Sparkles className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span>Bulk Stock Import</span>
+                                        <span className="text-xs font-medium text-slate-500 font-normal">AI Powered Extraction</span>
+                                    </div>
+                                </DialogTitle>
+                                {step === "REVIEW" && (
+                                    <div className="flex gap-2 self-end sm:self-auto">
+                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm">
+                                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                                            {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Ready
+                                        </Badge>
+                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs sm:text-sm">
+                                            <AlertCircle className="w-3 h-3 mr-1" />
+                                            {parsedData.filter(p => !p.matchedFarmerId || p.isDuplicate).length} Check
+                                        </Badge>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogDescription className="hidden">
+                                Import stock from daily reports
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-hidden bg-slate-50/50 relative">
+                            {step === "INPUT" ? (
+                                <div className="h-full flex flex-col p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
+                                    <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
+                                        <Textarea
+                                            placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
+                                            className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent overflow-y-auto max-h-[350px]"
+                                            value={inputText}
+                                            onChange={(e) => setInputText(e.target.value)}
+                                        />
+                                        <div className="p-2 border-t bg-slate-50 text-xs text-slate-400 flex justify-between items-center rounded-b-xl">
+                                            <span>Paste your daily report text above</span>
+                                            <span>{inputText.length} chars</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <ScrollArea className="h-full p-4 sm:p-6">
+                                    {parsedData.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 min-h-[300px]">
+                                            <Search className="h-8 w-8 opacity-20" />
+                                            <p>No items found</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                            {parsedData.map((row) => (
+                                                <div
+                                                    key={row.id}
+                                                    className={`
                                                 group relative p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md
                                                 ${row.isDuplicate ? "bg-red-50/50 border-red-100" :
-                                                        !row.matchedFarmerId ? "bg-amber-50/30 border-amber-100" : "bg-white border-slate-100 hover:border-emerald-200"}
+                                                            !row.matchedFarmerId ? "bg-amber-50/30 border-amber-100" : "bg-white border-slate-100 hover:border-emerald-200"}
                                             `}
-                                            >
-                                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                                    {/* Top Row (Mobile): User Info */}
-                                                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                                                        {/* Icon Status */}
-                                                        <div className="shrink-0">
-                                                            {row.isDuplicate ? (
-                                                                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                                                                    <AlertTriangle className="h-5 w-5" />
-                                                                </div>
-                                                            ) : row.matchedFarmerId ? (
-                                                                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 relative">
-                                                                    <Check className="h-5 w-5" />
-                                                                    {row.confidence === "HIGH" && (
-                                                                        <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border">
-                                                                            <Sparkles className="h-3 w-3 text-amber-500" />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                                                                    <Search className="h-5 w-5" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Input / Name */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                                                    Extracted: "{row.rawName}"
-                                                                </span>
-                                                                {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
-                                                            </div>
-
-                                                            {editingId === row.id ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Input
-                                                                        value={row.cleanName}
-                                                                        onChange={(e) => handleNameEdit(row.id, e.target.value)}
-                                                                        onBlur={() => setEditingId(null)}
-                                                                        autoFocus
-                                                                        className="h-8 max-w-[200px]"
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-2">
-                                                                    <h3 className="font-semibold text-slate-800 text-lg truncate">
-                                                                        {row.cleanName}
-                                                                    </h3>
-                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingId(row.id)}>
-                                                                        <Edit2 className="h-3 w-3 text-slate-400 hover:text-blue-500" />
-                                                                    </Button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Middle Arrow (Hidden on Mobile) */}
-                                                    <div className="hidden sm:block text-slate-300">
-                                                        <ArrowRight className="h-5 w-5" />
-                                                    </div>
-
-                                                    {/* Match Status / Action */}
-                                                    <div className="flex-1 w-full sm:w-auto min-w-0 pl-[56px] sm:pl-0 mt-2 sm:mt-0">
-                                                        {row.matchedFarmerId ? (
-                                                            <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="h-8 w-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-bold">
-                                                                        <User className="h-4 w-4" />
+                                                >
+                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                                        {/* Top Row (Mobile): User Info */}
+                                                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                            {/* Icon Status */}
+                                                            <div className="shrink-0">
+                                                                {row.isDuplicate ? (
+                                                                    <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                                                        <AlertTriangle className="h-5 w-5" />
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
-                                                                        <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Database Match</p>
+                                                                ) : row.matchedFarmerId ? (
+                                                                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 relative">
+                                                                        <Check className="h-5 w-5" />
+                                                                        {row.confidence === "HIGH" && (
+                                                                            <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border">
+                                                                                <Sparkles className="h-3 w-3 text-amber-500" />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                </div>
-                                                                <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
-                                                                    +{row.amount} Bags
-                                                                </Badge>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex flex-col gap-2">
-                                                                <div className="flex items-center justify-between gap-3">
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-sm font-medium text-amber-700">No Match Found</span>
-                                                                        <span className="text-xs text-amber-600/70">Create new or select suggestion</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Badge variant="outline" className="bg-white text-slate-600 px-2 h-7 font-mono border-slate-200">
-                                                                            +{row.amount}
-                                                                        </Badge>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="default"
-                                                                            className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                                                            onClick={() => handleCreateClick(row)}
-                                                                            disabled={loadingRowIds.has(row.id)}
-                                                                        >
-                                                                            {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
-                                                                            Create
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* AI Suggestions */}
-                                                                {row.suggestions && row.suggestions.length > 0 && (
-                                                                    <div className="flex flex-wrap gap-2 mt-1">
-                                                                        <span className="text-xs text-slate-400 font-medium py-1">Did you mean:</span>
-                                                                        {row.suggestions.map(s => (
-                                                                            <Badge
-                                                                                key={s.id}
-                                                                                variant="secondary"
-                                                                                className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors border border-transparent hover:border-blue-200"
-                                                                                onClick={() => handleSuggestionClick(row.id, s)}
-                                                                            >
-                                                                                {s.name}
-                                                                            </Badge>
-                                                                        ))}
+                                                                ) : (
+                                                                    <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                                                        <Search className="h-5 w-5" />
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        )}
+
+                                                            {/* Input / Name */}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                                                        Extracted: "{row.rawName}"
+                                                                    </span>
+                                                                    {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
+                                                                </div>
+
+                                                                {editingId === row.id ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Input
+                                                                            value={row.cleanName}
+                                                                            onChange={(e) => handleNameEdit(row.id, e.target.value)}
+                                                                            onBlur={() => setEditingId(null)}
+                                                                            autoFocus
+                                                                            className="h-8 max-w-[200px]"
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 className="font-semibold text-slate-800 text-lg truncate">
+                                                                            {row.cleanName}
+                                                                        </h3>
+                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingId(row.id)}>
+                                                                            <Edit2 className="h-3 w-3 text-slate-400 hover:text-blue-500" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Middle Arrow (Hidden on Mobile) */}
+                                                        <div className="hidden sm:block text-slate-300">
+                                                            <ArrowRight className="h-5 w-5" />
+                                                        </div>
+
+                                                        {/* Match Status / Action */}
+                                                        <div className="flex-1 w-full sm:w-auto min-w-0 pl-[56px] sm:pl-0 mt-2 sm:mt-0 flex items-center justify-between gap-2">
+                                                            <div className="flex-1">
+                                                                {row.matchedFarmerId ? (
+                                                                    <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="h-8 w-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                                                                                <User className="h-4 w-4" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
+                                                                                <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">Database Match</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        {editingAmountId === row.id ? (
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="h-6 w-20 bg-emerald-50 border-emerald-200 focus-visible:ring-emerald-500 p-1 text-right"
+                                                                                value={row.amount}
+                                                                                onChange={(e) => handleAmountEdit(row.id, e.target.value)}
+                                                                                onBlur={() => setEditingAmountId(null)}
+                                                                                autoFocus
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => setEditingAmountId(row.id)}>
+                                                                                <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
+                                                                                    +{row.amount} Bags
+                                                                                </Badge>
+                                                                                <Pencil className="h-3 w-3 text-emerald-600 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-2">
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-sm font-medium text-amber-700">No Match Found</span>
+                                                                                <span className="text-xs text-amber-600/70">Create new or select suggestion</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {editingAmountId === row.id ? (
+                                                                                    <Input
+                                                                                        type="number"
+                                                                                        className="h-7 w-20 bg-white border-slate-200 text-right"
+                                                                                        value={row.amount}
+                                                                                        onChange={(e) => handleAmountEdit(row.id, e.target.value)}
+                                                                                        onBlur={() => setEditingAmountId(null)}
+                                                                                        autoFocus
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => setEditingAmountId(row.id)}>
+                                                                                        <Badge variant="outline" className="bg-white text-slate-600 px-2 h-7 font-mono border-slate-200">
+                                                                                            +{row.amount}
+                                                                                        </Badge>
+                                                                                        <Pencil className="h-3 w-3 text-slate-400 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="default"
+                                                                                    className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                                                                    onClick={() => handleCreateClick(row)}
+                                                                                    disabled={loadingRowIds.has(row.id)}
+                                                                                >
+                                                                                    {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                                                                                    Create
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* AI Suggestions */}
+                                                                        {row.suggestions && row.suggestions.length > 0 && (
+                                                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                                                <span className="text-xs text-slate-400 font-medium py-1">Did you mean:</span>
+                                                                                {row.suggestions.map(s => (
+                                                                                    <Badge
+                                                                                        key={s.id}
+                                                                                        variant="secondary"
+                                                                                        className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors border border-transparent hover:border-blue-200"
+                                                                                        onClick={() => handleSuggestionClick(row.id, s)}
+                                                                                    >
+                                                                                        {s.name}
+                                                                                    </Badge>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Remove Action */}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                                                                onClick={() => handleDismiss(row.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </ScrollArea>
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
-                        {step === "INPUT" ? (
-                            <div className="w-full flex justify-end">
-                                <Button
-                                    onClick={parseText}
-                                    disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
-                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto"
-                                    size="lg"
-                                >
-                                    {extractFarmersMutation.isPending ? (
-                                        <>
-                                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                                            Analyzing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="mr-2 h-4 w-4" />
-                                            Analyze with AI
-                                        </>
+                                            ))}
+                                        </div>
                                     )}
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col-reverse sm:flex-row gap-3 w-full justify-between items-center">
-                                <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
-                                    Back to Input
-                                </Button>
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={
-                                        bulkAddMutation.isPending ||
-                                        parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
-                                    }
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
-                                    size="lg"
-                                >
-                                    {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                                    Import {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Items
-                                </Button>
-                            </div>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            )}
+                                </ScrollArea>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
+                            {step === "INPUT" ? (
+                                <div className="w-full flex justify-end">
+                                    <Button
+                                        onClick={() => {
+                                            if (!isPro) {
+                                                setShowProGate(true);
+                                                return;
+                                            }
+                                            parseText();
+                                        }}
+                                        disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
+                                        className={`text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto ${!isPro
+                                            ? "bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900"
+                                            : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                            }`}
+                                        size="lg"
+                                    >
+                                        {extractFarmersMutation.isPending ? (
+                                            <>
+                                                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                                Analyzing...
+                                            </>
+                                        ) : !isPro ? (
+                                            <>
+                                                <Sparkles className="mr-2 h-4 w-4 text-amber-300" />
+                                                Analyze with AI <Badge className="ml-2 bg-amber-400 text-amber-950 text-[10px] items-center px-1 h-4">PRO</Badge>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="mr-2 h-4 w-4" />
+                                                Analyze with AI
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col-reverse sm:flex-row gap-3 w-full justify-between items-center">
+                                    <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
+                                        Back to Input
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={
+                                            bulkAddMutation.isPending ||
+                                            parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
+                                        }
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
+                                        size="lg"
+                                    >
+                                        {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                                        Import {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Items
+                                    </Button>
+                                </div>
+                            )}
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+
         </Dialog>
     );
 }

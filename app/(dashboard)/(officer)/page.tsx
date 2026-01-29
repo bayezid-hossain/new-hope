@@ -28,7 +28,7 @@ const page = async () => {
 
   // Note: Admin mode redirect is handled in layout.tsx
 
-  return <HomeView />;
+  return <HomeView userId={session.user.id} />;
 };
 
 export default page;

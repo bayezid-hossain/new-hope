@@ -64,4 +64,31 @@ export const adminRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  revokeFeatureRequest: adminProcedure
+    .input(z.object({ requestId: z.string() }))
+    .mutation(async ({ input }) => {
+      const [req] = await db
+        .select()
+        .from(featureRequest)
+        .where(eq(featureRequest.id, input.requestId));
+
+      if (!req) throw new Error("Request not found");
+
+      await db.transaction(async (tx) => {
+        // Revoke pro access
+        await tx
+          .update(user)
+          .set({ isPro: false })
+          .where(eq(user.id, req.userId));
+
+        // Mark request as rejected
+        await tx
+          .update(featureRequest)
+          .set({ status: "REJECTED" })
+          .where(eq(featureRequest.id, input.requestId));
+      });
+
+      return { success: true };
+    }),
 });

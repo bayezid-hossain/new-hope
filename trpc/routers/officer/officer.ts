@@ -3,7 +3,6 @@ import { featureRequest } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
-import { officerAiRouter } from "./ai";
 import { officerCyclesRouter } from "./cycles";
 import { officerFarmersRouter } from "./farmers";
 import { officerStockRouter } from "./stock";
@@ -12,7 +11,6 @@ export const officerRouter = createTRPCRouter({
     cycles: officerCyclesRouter,
     farmers: officerFarmersRouter,
     stock: officerStockRouter,
-    ai: officerAiRouter,
     getMyRequestStatus: protectedProcedure
         .input(z.object({ feature: z.string() }))
         .query(async ({ ctx, input }) => {

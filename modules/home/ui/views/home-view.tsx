@@ -6,6 +6,7 @@ import LoadingState from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -20,7 +21,7 @@ import { UrgentActions } from "../components/urgent-actions";
 
 
 // --- Active Operations Component ---
-const OperationsContent = ({ orgId }: { orgId: string }) => {
+const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: string }) => {
   const trpc = useTRPC();
 
   // Fetch Active Cycles
@@ -141,6 +142,11 @@ const OperationsContent = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="space-y-6 pt-2">
+      {/* Supply Chain Predictor Widget (Officer View - Compact) */}
+      <div className="mb-2">
+        <SupplyChainWidget orgId={orgId} officerId={officerId} viewMode="OFFICER" />
+      </div>
+
       {/* 1. Top Row KPIs */}
       <KpiCards
         totalBirds={totalBirds}
@@ -168,7 +174,7 @@ const OperationsContent = ({ orgId }: { orgId: string }) => {
 };
 
 // --- Main Page Component ---
-export const HomeView = () => {
+export const HomeView = ({ userId }: { userId?: string }) => {
   const { orgId, isLoading } = useCurrentOrg();
 
   if (isLoading) {
@@ -206,7 +212,7 @@ export const HomeView = () => {
         <TabsContent value="operations" className="space-y-4">
           <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load operations data" />}>
             <Suspense fallback={<LoadingState title="Loading Operations" description="Gathering active metrics..." />}>
-              <OperationsContent orgId={orgId} />
+              {userId ? <OperationsContent orgId={orgId} officerId={userId} /> : <ErrorState title="User Error" description="User ID missing" />}
             </Suspense>
           </ErrorBoundary>
         </TabsContent>

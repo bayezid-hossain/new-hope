@@ -12,6 +12,7 @@ export interface OfficerAnalyticsData {
     totalDoc: number;
     totalIntake: number;
     totalMortality: number;
+    totalMainStock: number;
 }
 
 export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<OfficerAnalyticsData[]> {
@@ -19,6 +20,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         db.select({
             officerId: farmer.officerId,
             farmersCount: sql<number>`count(*)`.as('farmersCount'),
+            totalMainStock: sql<number>`sum(${farmer.mainStock})`.as('totalMainStock'),
         })
             .from(farmer)
             .where(eq(farmer.organizationId, orgId))
@@ -61,6 +63,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             email: user.email,
             role: member.role,
             farmersCount: sql<number>`COALESCE(${farmersStats.farmersCount}, 0)`,
+            totalMainStock: sql<number>`COALESCE(${farmersStats.totalMainStock}, 0)`,
             activeCycles: sql<number>`COALESCE(${activeCycleStats.activeCount}, 0)`,
             pastCycles: sql<number>`COALESCE(${pastCycleStats.pastCount}, 0)`,
             totalDoc: sql<number>`COALESCE(${activeCycleStats.activeTotalDoc}, 0) + COALESCE(${pastCycleStats.pastTotalDoc}, 0)`,
@@ -83,6 +86,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         totalDoc: Number(r.totalDoc || 0),
         totalIntake: Number(r.totalIntake || 0),
         totalMortality: Number(r.totalMortality || 0),
+        totalMainStock: Number(r.totalMainStock || 0),
     })) as OfficerAnalyticsData[];
 }
 

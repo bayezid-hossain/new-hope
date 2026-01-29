@@ -1,5 +1,5 @@
 
-import { cycleHistory, cycles, farmer, member } from "@/db/schema";
+import { cycleHistory, cycles, farmer, member, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -150,5 +150,18 @@ export const adminOfficersRouter = createTRPCRouter({
                     }))
                 };
             });
+        }),
+
+    toggleProStatus: adminProcedure
+        .input(z.object({
+            userId: z.string(),
+            isPro: z.boolean()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db.update(user)
+                .set({ isPro: input.isPro })
+                .where(eq(user.id, input.userId));
+
+            return { success: true };
         }),
 });
