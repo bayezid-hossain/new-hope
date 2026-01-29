@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 interface SupplyChainWidgetProps {
     orgId: string;
-    officerId: string;
+    officerId?: string;
     viewMode: "ADMIN" | "OFFICER"; // Admin view (in profile) or Officer Dashboard
 }
 

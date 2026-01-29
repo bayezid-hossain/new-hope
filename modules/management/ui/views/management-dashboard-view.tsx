@@ -13,6 +13,8 @@ import { KpiCards } from "@/modules/home/ui/components/kpi-cards";
 import { PerformanceInsights } from "@/modules/home/ui/components/performance-insights";
 import { QuickDetails } from "@/modules/home/ui/components/quick-details";
 import { UrgentActions } from "@/modules/home/ui/components/urgent-actions";
+import { SmartWatchdogWidget } from "@/modules/shared/components/smart-watchdog-widget";
+import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Building2, Scale, Users, Wheat } from "lucide-react";
@@ -177,22 +179,29 @@ function ManagementStats({ orgId }: { orgId: string }) {
     ];
 
     return (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-                <Card key={item.label} className="border-none shadow-sm overflow-hidden relative group">
-                    <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.gradient}`} />
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-slate-500">{item.label}</CardTitle>
-                        <div className={`p-2 rounded-lg ${item.iconBg} ${item.iconColor} group-hover:scale-110 transition-transform`}>
-                            <item.icon className="h-4 w-4" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold tracking-tight">{item.value?.toLocaleString() || 0}</div>
-                        <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold tracking-wider">Organization Total</p>
-                    </CardContent>
-                </Card>
-            ))}
+        <div className="space-y-6">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map((item) => (
+                    <Card key={item.label} className="border-none shadow-sm overflow-hidden relative group">
+                        <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.gradient}`} />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">{item.label}</CardTitle>
+                            <div className={`p-2 rounded-lg ${item.iconBg} ${item.iconColor} group-hover:scale-110 transition-transform`}>
+                                <item.icon className="h-4 w-4" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold tracking-tight">{item.value?.toLocaleString() || 0}</div>
+                            <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold tracking-wider">Organization Total</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+                <SmartWatchdogWidget orgId={orgId} />
+                <SupplyChainWidget orgId={orgId} viewMode="ADMIN" />
+            </div>
         </div>
     );
 }

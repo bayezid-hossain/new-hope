@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 interface SmartWatchdogWidgetProps {
     orgId: string;
-    officerId: string;
+    officerId?: string;
     className?: string;
 }
 
@@ -71,7 +71,7 @@ export const SmartWatchdogWidget = ({ orgId, officerId, className }: SmartWatchd
     };
 
     useEffect(() => {
-        if (!assessment && !isScanning && isPro && orgId && officerId) {
+        if (!assessment && !isScanning && isPro && orgId) {
             runRiskScan({
                 orgId,
                 officerId

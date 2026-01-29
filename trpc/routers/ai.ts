@@ -1,5 +1,5 @@
 
-import { cycleLogs, cycles, farmer } from "@/db/schema";
+import { cycleLogs, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import Groq from "groq-sdk";
@@ -110,12 +110,33 @@ export const aiRouter = createTRPCRouter({
     generateRiskAssessment: proProcedure
         .input(z.object({
             orgId: z.string(),
-            officerId: z.string(),
+            officerId: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            // Security Check: Users can only scan themselves unless they are ADMIN
-            if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
-                throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+            // Security Check
+            if (!input.officerId) {
+                // ORG-WIDE SCAN: Requires Global Admin or Org Admin/Owner
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, input.orgId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+
+                    if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+                        throw new TRPCError({
+                            code: "FORBIDDEN",
+                            message: "Organization-wide analysis requires Manager or Owner privileges."
+                        });
+                    }
+                }
+            } else {
+                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override
+                if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+                }
             }
 
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -135,14 +156,14 @@ export const aiRouter = createTRPCRouter({
                 .where(and(
                     eq(cycles.organizationId, input.orgId),
                     eq(cycles.status, "active"),
-                    eq(farmer.officerId, input.officerId)
+                    input.officerId ? eq(farmer.officerId, input.officerId) : undefined
                 ));
 
             if (activeCycles.length === 0) {
                 return { risks: [], summary: "No active cycles to analyze." };
             }
 
-            const riskFlags = [];
+            const riskFlags: { farmer: string; type: string; detail: string }[] = [];
 
             for (const cycle of activeCycles) {
                 const recentLogs = await ctx.db.select()
@@ -207,12 +228,33 @@ export const aiRouter = createTRPCRouter({
     generateSupplyChainPrediction: proProcedure
         .input(z.object({
             orgId: z.string(),
-            officerId: z.string(),
+            officerId: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             // Security Check
-            if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
-                throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+            if (!input.officerId) {
+                // ORG-WIDE SCAN: Requires Global Admin or Org Admin/Owner
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, input.orgId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+
+                    if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+                        throw new TRPCError({
+                            code: "FORBIDDEN",
+                            message: "Organization-wide analysis requires Manager or Owner privileges."
+                        });
+                    }
+                }
+            } else {
+                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override
+                if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+                }
             }
 
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -229,10 +271,10 @@ export const aiRouter = createTRPCRouter({
                 .leftJoin(cycles, and(eq(cycles.farmerId, farmer.id), eq(cycles.status, "active")))
                 .where(and(
                     eq(farmer.organizationId, input.orgId),
-                    eq(farmer.officerId, input.officerId)
+                    input.officerId ? eq(farmer.officerId, input.officerId) : undefined
                 ));
 
-            const criticalFarmers = [];
+            const criticalFarmers: { farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: string }[] = [];
 
             for (const row of rows) {
                 if (!row.cycleId) continue;

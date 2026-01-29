@@ -8,13 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminGuard } from "@/modules/admin/components/admin-guard";
 import { MembersList } from "@/modules/admin/components/members-list";
 import { ProductionTree } from "@/modules/admin/components/production-tree";
+import { SmartWatchdogWidget } from "@/modules/shared/components/smart-watchdog-widget";
+import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
     ArrowLeft,
     Building2,
-    LayoutDashboard,
     Loader2,
     Users
 } from "lucide-react";
@@ -114,29 +115,28 @@ export default function OrganizationDetailsPage() {
 
 function OrgOverview({ org }: { org: any }) {
     return (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Card className="border-none shadow-sm group">
-                <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                            <Users className="h-6 w-6" />
+        <div className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <Card className="border-none shadow-sm group">
+                    <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                <Users className="h-6 w-6" />
+                            </div>
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold">Active Org</Badge>
                         </div>
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold">Active Org</Badge>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-3xl font-bold text-slate-900">{org.members.length}</p>
-                        <p className="text-sm font-medium text-slate-500">Total Registered Members</p>
-                    </div>
-                </CardContent>
-            </Card>
+                        <div className="space-y-1">
+                            <p className="text-3xl font-bold text-slate-900">{org.members.length}</p>
+                            <p className="text-sm font-medium text-slate-500">Total Registered Members</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
-            {/* Placeholder for more granular org stats if needed (currently we use systemic ones) */}
-            <Card className="border-none shadow-sm bg-primary/5 flex items-center justify-center p-8 border-2 border-dashed border-primary/20">
-                <div className="text-center">
-                    <LayoutDashboard className="h-10 w-10 text-primary/40 mx-auto mb-2" />
-                    <p className="text-primary/60 font-medium text-sm">More detailed analytics<br />coming soon.</p>
-                </div>
-            </Card>
+            <div className="grid gap-6 md:grid-cols-2">
+                <SmartWatchdogWidget orgId={org.id} />
+                <SupplyChainWidget orgId={org.id} viewMode="ADMIN" />
+            </div>
         </div>
     );
 }
