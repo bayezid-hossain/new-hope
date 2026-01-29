@@ -148,7 +148,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     },
                     logs,
                     history: combinedHistory,
-                    farmerContext: { mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name }
+                    farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name }
                 };
             }
 
@@ -197,7 +197,7 @@ export const adminCyclesRouter = createTRPCRouter({
                 },
                 logs,
                 history: combinedHistory,
-                farmerContext: { mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name }
+                farmerContext: { id: historyRecord.farmer.id, mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name }
             };
         }),
 
