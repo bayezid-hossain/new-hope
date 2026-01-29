@@ -24,7 +24,7 @@ import {
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, Clock, Loader2, ShieldCheck, ShieldX, Sparkles } from "lucide-react";
+import { Check, Clock, Loader2, ShieldX, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -35,6 +35,7 @@ export default function AdminRequestsPage() {
     const [actionId, setActionId] = useState<string | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<any>(null);
+    const [actionType, setActionType] = useState<"REVOKE" | "REJECT">("REVOKE");
 
     const { data: requests, isLoading } = useQuery(
         trpc.admin.listFeatureRequests.queryOptions()
@@ -54,13 +55,13 @@ export default function AdminRequestsPage() {
 
     const revokeMutation = useMutation(trpc.admin.revokeFeatureRequest.mutationOptions({
         onSuccess: () => {
-            toast.success("Access revoked and request rejected.");
+            toast.success(actionType === "REVOKE" ? "Access revoked." : "Request rejected.");
             queryClient.invalidateQueries(trpc.admin.listFeatureRequests.pathFilter());
             setActionId(null);
             setDialogOpen(false);
         },
         onError: (err) => {
-            toast.error(`Failed to revoke: ${err.message}`);
+            toast.error(`Failed to ${actionType.toLowerCase()}: ${err.message}`);
             setActionId(null);
             setDialogOpen(false);
         }
@@ -71,12 +72,13 @@ export default function AdminRequestsPage() {
         approveMutation.mutate({ requestId: id });
     };
 
-    const confirmRevoke = (req: any) => {
+    const confirmAction = (req: any, type: "REVOKE" | "REJECT") => {
         setSelectedRequest(req);
+        setActionType(type);
         setDialogOpen(true);
     };
 
-    const handleRevoke = () => {
+    const handleConfirmAction = () => {
         if (!selectedRequest) return;
         setActionId(selectedRequest.id);
         revokeMutation.mutate({ requestId: selectedRequest.id });
@@ -102,106 +104,153 @@ export default function AdminRequestsPage() {
                 </div>
             </div>
 
-            <Card>
-                <CardHeader className="px-7">
-                    <CardTitle>Pending Requests</CardTitle>
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="px-7 bg-slate-50/50 border-b">
+                    <CardTitle>Request Log</CardTitle>
                     <CardDescription>
-                        Review and approve access requests.
+                        History of all Pro Pack requests and their current status.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead className="hidden sm:table-cell">Feature</TableHead>
-                                <TableHead className="hidden sm:table-cell">Status</TableHead>
-                                <TableHead className="hidden md:table-cell">Date</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {requests?.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        No pending requests found.
-                                    </TableCell>
+                <CardContent className="p-0">
+                    <div className="max-h-[600px] overflow-y-auto">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6 w-[250px]">User Details</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Organization</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Request Type</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Status</TableHead>
+                                    <TableHead className="hidden md:table-cell">Timing</TableHead>
+                                    <TableHead className="text-right pr-6">Actions</TableHead>
                                 </TableRow>
-                            ) : (
-                                requests?.map((req) => (
-                                    <TableRow key={req.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{req.user?.name || "Unknown"}</div>
-                                            <div className="hidden text-sm text-muted-foreground md:inline">
-                                                {req.user?.email}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="hidden sm:table-cell">
-                                            <Badge variant="outline" className="font-mono">
-                                                {req.feature}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="hidden sm:table-cell">
-                                            <Badge className={req.status === "APPROVED" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : req.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>
-                                                {req.status === "APPROVED" ? <Check className="w-3 h-3 mr-1" /> : req.status === "REJECTED" ? <ShieldX className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
-                                                {req.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell">
-                                            {format(new Date(req.createdAt), "PPP p")}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {req.status === "PENDING" && (
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-emerald-600 hover:bg-emerald-700 h-8"
-                                                        onClick={() => handleApprove(req.id)}
-                                                        disabled={actionId === req.id || approveMutation.isPending || revokeMutation.isPending}
-                                                    >
-                                                        {actionId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
-                                                        Approve
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {req.status === "APPROVED" && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    className="h-8"
-                                                    onClick={() => confirmRevoke(req)}
-                                                    disabled={actionId === req.id || revokeMutation.isPending || approveMutation.isPending}
-                                                >
-                                                    {actionId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldX className="w-4 h-4 mr-2" />}
-                                                    Revoke
-                                                </Button>
-                                            )}
+                            </TableHeader>
+                            <TableBody>
+                                {requests?.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                                            No requests found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : (
+                                    requests?.map((req) => (
+                                        <TableRow key={req.id} className="group">
+                                            <TableCell className="pl-6 py-4">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold text-slate-900">{req.user?.name || "Unknown"}</span>
+                                                    <span className="text-xs text-slate-500 font-mono">{req.user?.email}</span>
+                                                    <span className="text-[10px] text-slate-400 font-mono">ID: {req.user?.id.slice(0, 8)}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
+                                                {req.organizationName ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="secondary" className="font-medium text-slate-700 bg-slate-100">
+                                                            {req.organizationName}
+                                                        </Badge>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 text-sm italic">No Org</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
+                                                <Badge variant="outline" className="font-mono bg-slate-50 text-slate-600 border-slate-200">
+                                                    {req.feature}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
+                                                <Badge variant="outline" className={`
+                                                font-bold text-[10px] uppercase tracking-wider border
+                                                ${req.status === "APPROVED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                                        req.status === "REJECTED" ? "bg-red-50 text-red-700 border-red-200" :
+                                                            "bg-amber-50 text-amber-700 border-amber-200"}
+                                            `}>
+                                                    {req.status === "APPROVED" ? <Check className="w-3 h-3 mr-1" /> :
+                                                        req.status === "REJECTED" ? <ShieldX className="w-3 h-3 mr-1" /> :
+                                                            <Clock className="w-3 h-3 mr-1" />}
+                                                    {req.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell text-xs text-slate-500">
+                                                <div className="flex flex-col gap-1">
+                                                    <span>Req: {format(new Date(req.createdAt), "MMM d, h:mm a")}</span>
+                                                    {req.status !== "PENDING" && req.updatedAt && (
+                                                        <span className="text-slate-400">Upd: {format(new Date(req.updatedAt), "MMM d, h:mm a")}</span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                {req.status === "PENDING" && (
+                                                    <div className="flex justify-end gap-2 text-white">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                            onClick={() => confirmAction(req, "REJECT")}
+                                                            disabled={actionId === req.id || approveMutation.isPending || revokeMutation.isPending}
+                                                            title="Reject Request"
+                                                        >
+                                                            {actionId === req.id && actionType === "REJECT" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldX className="w-4 h-4" />}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-emerald-600 hover:bg-emerald-700 h-8 shadow-sm text-xs font-semibold"
+                                                            onClick={() => handleApprove(req.id)}
+                                                            disabled={actionId === req.id || approveMutation.isPending || revokeMutation.isPending}
+                                                        >
+                                                            {actionId === req.id && actionType !== "REJECT" ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Check className="w-3 h-3 mr-1.5" />}
+
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                                {req.status === "APPROVED" && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-8 text-slate-400 hover:text-red-700 hover:bg-red-50 text-xs"
+                                                        onClick={() => confirmAction(req, "REVOKE")}
+                                                        disabled={actionId === req.id || revokeMutation.isPending || approveMutation.isPending}
+                                                    >
+                                                        Revoke Access
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 
             <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Revoke Pro Access?</AlertDialogTitle>
+                        <AlertDialogTitle className={actionType === "REVOKE" ? "text-red-600" : "text-slate-900"}>
+                            {actionType === "REVOKE" ? "Revoke Pro Access" : "Reject Request"}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will immediately disable Pro features for <b>{selectedRequest?.user?.name}</b>.
-                            They will need to request access again to use these features.
+                            {actionType === "REVOKE" ? (
+                                <>
+                                    Are you sure you want to revoke Pro features for <b>{selectedRequest?.user?.name}</b>?
+                                    This will immediately disable their access.
+                                </>
+                            ) : (
+                                <>
+                                    Reject this request from <b>{selectedRequest?.user?.name}</b>?
+                                    They will be notified and will not get Pro access.
+                                </>
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleRevoke}
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            onClick={handleConfirmAction}
+                            className={`${actionType === "REVOKE" || actionType === "REJECT" ? "bg-red-600 hover:bg-red-700 focus:ring-red-600" : "bg-slate-900"}`}
                         >
                             {revokeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Confirm Revoke
+                            {actionType === "REVOKE" ? "Confirm Revoke" : "Reject Request"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

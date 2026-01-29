@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { featureRequest, user } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { featureRequest, member, organization, user } from "@/db/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter } from "../../init";
 import { adminCyclesRouter } from "./cycles";
@@ -22,13 +22,18 @@ export const adminRouter = createTRPCRouter({
           feature: featureRequest.feature,
           status: featureRequest.status,
           createdAt: featureRequest.createdAt,
+          updatedAt: featureRequest.updatedAt,
+          organizationName: sql<string>`(
+            SELECT ${organization.name} FROM ${organization}
+            JOIN ${member} ON ${member.organizationId} = ${organization.id}
+            WHERE ${member.userId} = ${user.id}
+            LIMIT 1
+          )`.as("organization_name"),
           user: {
             id: user.id,
             name: user.name,
             email: user.email,
           },
-          // Attempt to find organization (might be multiple or none, just taking one for context if possible, or skip org for now if complex join)
-          // Simplified: just return requests with user info.
         })
         .from(featureRequest)
         .leftJoin(user, eq(featureRequest.userId, user.id))

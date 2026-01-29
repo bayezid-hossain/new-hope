@@ -6,6 +6,7 @@ import LoadingState from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { SmartWatchdogWidget } from "@/modules/shared/components/smart-watchdog-widget";
 import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -142,9 +143,10 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
 
   return (
     <div className="space-y-6 pt-2">
-      {/* Supply Chain Predictor Widget (Officer View - Compact) */}
-      <div className="mb-2">
+      {/* Smart Watchdog & Supply Chain (Officer View - Compact) */}
+      <div className="grid md:grid-cols-2 gap-4 mb-2">
         <SupplyChainWidget orgId={orgId} officerId={officerId} viewMode="OFFICER" />
+        <SmartWatchdogWidget orgId={orgId} officerId={officerId} />
       </div>
 
       {/* 1. Top Row KPIs */}

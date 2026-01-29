@@ -263,79 +263,80 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                         <>
                             {/* Desktop Table (List View) */}
                             <div className="hidden md:block rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                                <Table>
-                                    <TableHeader className="bg-slate-50/50">
-                                        <TableRow>
-                                            <TableHead className="font-semibold">Farmer</TableHead>
-                                            <TableHead className="font-semibold">Status</TableHead>
-                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Age</TableHead>
-                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Birds & Mortality</TableHead>
-                                            <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Consumption (Bags)</TableHead>
-                                            <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Started</TableHead>
-                                            <TableHead className="w-[50px] px-6"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {cycles.map((cycle) => (
-                                            <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
-                                                <TableCell className="text-slate-600 font-medium">
-                                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer block">
-                                                        {cycle.farmerName}
-                                                    </Link>
-                                                    {cycle.officerName && (
-                                                        <span className="text-[10px] text-slate-400 font-normal">
-                                                            Officer: {cycle.officerName}
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                                                        {cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-y-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Bird className="h-3.5 w-3.5 text-violet-500/70" />
-                                                            <span className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</span>
-                                                        </div>
-                                                        {cycle.mortality > 0 && (
-                                                            <div className="flex items-center gap-1 text-[9px] text-red-600 font-bold bg-red-50 border border-red-100/50 w-fit px-1.5 py-0.5 rounded-full ml-5">
-                                                                <Skull className="h-2.5 w-2.5" />
-                                                                {cycle.mortality} deaths
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
-                                                </TableCell>
-                                                <TableCell className="text-right text-slate-400 text-[11px] font-medium">
-                                                    {format(new Date(cycle.createdAt), "MMM d, yyyy")}
-                                                </TableCell>
-                                                <TableCell className="px-6">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
-                                                            <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
-                                                                <Eye className="h-4 w-4" />
-                                                            </Link>
-                                                        </Button>
-                                                        {cycle.status === "active" ? (
-                                                            <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
-                                                        ) : (
-                                                            <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
-                                                        )}
-                                                    </div>
-                                                </TableCell>
+                                <div className="max-h-[600px] overflow-y-auto">
+                                    <Table>
+                                        <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
+                                            <TableRow>
+                                                <TableHead className="font-semibold">Farmer</TableHead>
+                                                <TableHead className="font-semibold">Status</TableHead>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Age</TableHead>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider">Birds & Mortality</TableHead>
+                                                <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Consumption (Bags)</TableHead>
+                                                <TableHead className="font-semibold text-right text-[11px] uppercase tracking-wider">Started</TableHead>
+                                                <TableHead className="w-[50px] px-6"></TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {cycles.map((cycle) => (
+                                                <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors">
+                                                    <TableCell className="text-slate-600 font-medium">
+                                                        <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="hover:text-primary transition-colors cursor-pointer block">
+                                                            {cycle.farmerName}
+                                                        </Link>
+                                                        {cycle.officerName && (
+                                                            <span className="text-[10px] text-slate-400 font-normal">
+                                                                Officer: {cycle.officerName}
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                                                            {cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col gap-y-1">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Bird className="h-3.5 w-3.5 text-violet-500/70" />
+                                                                <span className="text-sm font-bold text-slate-900">{cycle.doc.toLocaleString()}</span>
+                                                            </div>
+                                                            {cycle.mortality > 0 && (
+                                                                <div className="flex items-center gap-1 text-[9px] text-red-600 font-bold bg-red-50 border border-red-100/50 w-fit px-1.5 py-0.5 rounded-full ml-5">
+                                                                    <Skull className="h-2.5 w-2.5" />
+                                                                    {cycle.mortality} deaths
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="font-bold text-amber-700">{Number(cycle.intake || 0).toFixed(2)}</div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-slate-400 text-[11px] font-medium">
+                                                        {format(new Date(cycle.createdAt), "MMM d, yyyy")}
+                                                    </TableCell>
+                                                    <TableCell className="px-6">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
+                                                                <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Link>
+                                                            </Button>
+                                                            {cycle.status === "active" ? (
+                                                                <ActionsCell cycle={cycle as unknown as Farmer} prefix={prefix} />
+                                                            ) : (
+                                                                <HistoryActionsCell history={cycle as unknown as FarmerHistory} />
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
-
                             {/* Mobile Cards (List View) */}
                             <div className="md:hidden space-y-3">
                                 {cycles.map((cycle) => {

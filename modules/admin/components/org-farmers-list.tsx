@@ -63,85 +63,87 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                 <>
                     {/* Desktop Table */}
                     <div className="hidden md:block rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                        <Table>
-                            <TableHeader className="bg-slate-50/50">
-                                <TableRow>
-                                    <TableHead className="font-semibold px-6">Farmer Name</TableHead>
-                                    <TableHead className="font-semibold">Officer</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Cycles (Live/Total)</TableHead>
-                                    <TableHead className="font-semibold">Stock</TableHead>
-                                    <TableHead className="font-semibold">Joined</TableHead>
-                                    <TableHead className="w-[50px] px-6"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredFarmers.map((farmer) => (
-                                    <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
-                                        <TableCell className="px-6">
-                                            <Link href={getFarmerLink(farmer.id)} className="font-bold text-slate-900 hover:text-primary hover:underline transition-colors">
-                                                {farmer.name}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="text-slate-600 font-medium text-sm">
-                                            <Link
-                                                href={isAdmin
-                                                    ? `/admin/organizations/${farmer.organizationId}/officers/${farmer.officerId}`
-                                                    : (isManagement ? `/management/officers/${farmer.officerId}` : "#")}
-                                                className={`hover:underline ${!isAdmin && !isManagement ? "pointer-events-none hover:no-underline" : ""}`}
-                                            >
-                                                {farmer.officerName || "Unknown"}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            {farmer.activeCyclesCount > 0 ? (
-                                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
-                                            ) : (
-                                                <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-xs">
-                                                    <Activity className="h-3 w-3" />
-                                                    {farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}
-                                                </div>
-                                                <div className="flex items-center gap-1.5 font-medium text-slate-400 text-[10px]">
-                                                    <span className="uppercase tracking-wider">Live / Total</span>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col gap-0.5">
-                                                {(() => {
-                                                    const activeConsumption = farmer.cycles.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                                    const remaining = farmer.mainStock - activeConsumption;
-                                                    const isLow = remaining < 3;
-                                                    return (
-                                                        <>
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className={`font-bold text-sm ${isLow ? "text-red-600" : "text-slate-900"}`}>
-                                                                    {remaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                                                                <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
-                                                                <span className="text-slate-400">Total Prov: {farmer.mainStock.toFixed(1)}</span>
-                                                            </div>
-                                                        </>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </TableCell>
-
-                                        <TableCell className="text-slate-400 text-[11px] font-medium">
-                                            {format(new Date(farmer.createdAt), "MMM d, yyyy")}
-                                        </TableCell>
-                                        <TableCell className="px-6"></TableCell>
+                        <div className="max-h-[600px] overflow-y-auto">
+                            <Table>
+                                <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
+                                    <TableRow>
+                                        <TableHead className="font-semibold px-6">Farmer Name</TableHead>
+                                        <TableHead className="font-semibold">Officer</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Cycles (Live/Total)</TableHead>
+                                        <TableHead className="font-semibold">Stock</TableHead>
+                                        <TableHead className="font-semibold">Joined</TableHead>
+                                        <TableHead className="w-[50px] px-6"></TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredFarmers.map((farmer) => (
+                                        <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
+                                            <TableCell className="px-6">
+                                                <Link href={getFarmerLink(farmer.id)} className="font-bold text-slate-900 hover:text-primary hover:underline transition-colors">
+                                                    {farmer.name}
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="text-slate-600 font-medium text-sm">
+                                                <Link
+                                                    href={isAdmin
+                                                        ? `/admin/organizations/${farmer.organizationId}/officers/${farmer.officerId}`
+                                                        : (isManagement ? `/management/officers/${farmer.officerId}` : "#")}
+                                                    className={`hover:underline ${!isAdmin && !isManagement ? "pointer-events-none hover:no-underline" : ""}`}
+                                                >
+                                                    {farmer.officerName || "Unknown"}
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell>
+                                                {farmer.activeCyclesCount > 0 ? (
+                                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-xs">
+                                                        <Activity className="h-3 w-3" />
+                                                        {farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 font-medium text-slate-400 text-[10px]">
+                                                        <span className="uppercase tracking-wider">Live / Total</span>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-0.5">
+                                                    {(() => {
+                                                        const activeConsumption = farmer.cycles.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                                        const remaining = farmer.mainStock - activeConsumption;
+                                                        const isLow = remaining < 3;
+                                                        return (
+                                                            <>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className={`font-bold text-sm ${isLow ? "text-red-600" : "text-slate-900"}`}>
+                                                                        {remaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
+                                                                    <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
+                                                                    <span className="text-slate-400">Total Prov: {farmer.mainStock.toFixed(1)}</span>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </TableCell>
+
+                                            <TableCell className="text-slate-400 text-[11px] font-medium">
+                                                {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                            </TableCell>
+                                            <TableCell className="px-6"></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
 
                     {/* Mobile Cards */}

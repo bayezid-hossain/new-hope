@@ -12,7 +12,7 @@ export const officerRouter = createTRPCRouter({
     farmers: officerFarmersRouter,
     stock: officerStockRouter,
     getMyRequestStatus: protectedProcedure
-        .input(z.object({ feature: z.string() }))
+        .input(z.object({ feature: z.literal("PRO_PACK").optional().default("PRO_PACK") }))
         .query(async ({ ctx, input }) => {
             const [request] = await db
                 .select()
@@ -29,7 +29,7 @@ export const officerRouter = createTRPCRouter({
             return request || null;
         }),
     requestAccess: protectedProcedure
-        .input(z.object({ feature: z.string() }))
+        .input(z.object({ feature: z.literal("PRO_PACK") }))
         .mutation(async ({ ctx, input }) => {
             // Check if already has a pending request
             const [existing] = await db
@@ -38,7 +38,7 @@ export const officerRouter = createTRPCRouter({
                 .where(
                     and(
                         eq(featureRequest.userId, ctx.user.id),
-                        eq(featureRequest.feature, input.feature),
+                        eq(featureRequest.feature, "PRO_PACK"),
                         eq(featureRequest.status, "PENDING")
                     )
                 )
@@ -50,7 +50,7 @@ export const officerRouter = createTRPCRouter({
 
             await db.insert(featureRequest).values({
                 userId: ctx.user.id,
-                feature: input.feature,
+                feature: "PRO_PACK",
             });
             return { success: true };
         }),

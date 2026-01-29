@@ -97,159 +97,160 @@ export function MembersList({ orgId }: { orgId: string }) {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
         {/* Desktop Table View */}
-        <div className="hidden sm:block overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow>
-                <TableHead className="font-semibold text-slate-700">User</TableHead>
-                <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                <TableHead className="font-semibold text-slate-700">Role</TableHead>
-                <TableHead className="text-right font-semibold text-slate-700">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members?.map((member) => (
-                <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900 text-sm">{member.name}</span>
-                      <span className="text-[11px] text-slate-500 truncate">{member.email}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={member.status === "ACTIVE" ? "default" : "secondary"}
-                      className={
-                        member.status === "ACTIVE"
-                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-semibold text-[10px]"
-                          : member.status === "INACTIVE"
-                            ? "bg-slate-100 text-slate-600 hover:bg-slate-100 border-none font-semibold text-[10px]"
-                            : "bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-semibold text-[10px]"
-                      }
-                    >
-                      {member.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      defaultValue={member.role}
-                      onValueChange={(val) => roleMutation.mutate({
-                        memberId: member.id,
-                        role: val as "MANAGER" | "OFFICER",
-                        orgId
-                      })}
-                      disabled={member.role === "OWNER" || member.userId === currentUserId}
-                    >
-                      <SelectTrigger className="w-[110px] h-7 text-[11px] bg-slate-50 border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MANAGER">Manager</SelectItem>
-                        <SelectItem value="OFFICER">Officer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {/* Approve/Reject Buttons */}
-                      {member.status === "PENDING" && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
-                            onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
-                            title="Approve Member"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 h-7 w-7 p-0 flex-shrink-0"
-                            onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
-                            title="Reject Request"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="max-h-[600px] overflow-y-auto">
+            <Table>
+              <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
+                <TableRow>
+                  <TableHead className="font-semibold text-slate-700">User</TableHead>
+                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
+                  <TableHead className="font-semibold text-slate-700">Role</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-700">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members?.map((member) => (
+                  <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-900 text-sm">{member.name}</span>
+                        <span className="text-[11px] text-slate-500 truncate">{member.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={member.status === "ACTIVE" ? "default" : "secondary"}
+                        className={
+                          member.status === "ACTIVE"
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-semibold text-[10px]"
+                            : member.status === "INACTIVE"
+                              ? "bg-slate-100 text-slate-600 hover:bg-slate-100 border-none font-semibold text-[10px]"
+                              : "bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-semibold text-[10px]"
+                        }
+                      >
+                        {member.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={member.role}
+                        onValueChange={(val) => roleMutation.mutate({
+                          memberId: member.id,
+                          role: val as "MANAGER" | "OFFICER",
+                          orgId
+                        })}
+                        disabled={member.role === "OWNER" || member.userId === currentUserId}
+                      >
+                        <SelectTrigger className="w-[110px] h-7 text-[11px] bg-slate-50 border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MANAGER">Manager</SelectItem>
+                          <SelectItem value="OFFICER">Officer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        {/* Approve/Reject Buttons */}
+                        {member.status === "PENDING" && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
+                              onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
+                              title="Approve Member"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 h-7 w-7 p-0 flex-shrink-0"
+                              onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
+                              title="Reject Request"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
 
-                      {/* Toggle Status Button (Active/Inactive) */}
-                      {(member.status === "ACTIVE" || member.status === "INACTIVE") && member.role !== "OWNER" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className={`${member.status === "ACTIVE"
-                            ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                            : "text-amber-600 hover:text-emerald-600 hover:bg-emerald-50"
-                            } h-7 w-7 p-0 flex-shrink-0`}
-                          title={member.userId === currentUserId ? "You cannot deactivate yourself" : (member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member")}
-                          onClick={() => statusMutation.mutate({
-                            memberId: member.id,
-                            status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                            orgId
-                          })}
-                          disabled={statusMutation.isPending || member.userId === currentUserId}
-                        >
-                          {statusMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Power className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      )}
-
-                      {/* Kick Button with Dialog */}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                        {/* Toggle Status Button (Active/Inactive) */}
+                        {(member.status === "ACTIVE" || member.status === "INACTIVE") && member.role !== "OWNER" && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-slate-400 hover:text-destructive hover:bg-destructive/5 h-7 w-7 p-0 flex-shrink-0"
-                            disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
-                            title={member.userId === currentUserId ? "You cannot remove yourself" : ""}
+                            className={`${member.status === "ACTIVE"
+                              ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                              : "text-amber-600 hover:text-emerald-600 hover:bg-emerald-50"
+                              } h-7 w-7 p-0 flex-shrink-0`}
+                            title={member.userId === currentUserId ? "You cannot deactivate yourself" : (member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member")}
+                            onClick={() => statusMutation.mutate({
+                              memberId: member.id,
+                              status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                              orgId
+                            })}
+                            disabled={statusMutation.isPending || member.userId === currentUserId}
                           >
-                            {deletingId === member.id ? (
+                            {statusMutation.isPending ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Power className="h-3.5 w-3.5" />
                             )}
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="flex items-center gap-2 text-xl">
-                              <div className="p-2 rounded-full bg-red-100 text-red-600">
-                                <Trash2 className="h-5 w-5" />
-                              </div>
-                              Remove Member?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="text-slate-600 pt-2 text-sm leading-relaxed">
-                              Are you sure you want to remove <span className="font-bold text-slate-900">{member.name}</span>?
-                              <br /><br />
-                              They will lose all access to organization data and production monitoring tools immediately.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="pt-4">
-                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white rounded-xl"
-                            >
-                              Remove Member
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                        )}
 
+                        {/* Kick Button with Dialog */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-slate-400 hover:text-destructive hover:bg-destructive/5 h-7 w-7 p-0 flex-shrink-0"
+                              disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
+                              title={member.userId === currentUserId ? "You cannot remove yourself" : ""}
+                            >
+                              {deletingId === member.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center gap-2 text-xl">
+                                <div className="p-2 rounded-full bg-red-100 text-red-600">
+                                  <Trash2 className="h-5 w-5" />
+                                </div>
+                                Remove Member?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription className="text-slate-600 pt-2 text-sm leading-relaxed">
+                                Are you sure you want to remove <span className="font-bold text-slate-900">{member.name}</span>?
+                                <br /><br />
+                                They will lose all access to organization data and production monitoring tools immediately.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="pt-4">
+                              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white rounded-xl"
+                              >
+                                Remove Member
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
         {/* Mobile Card View */}
         <div className="sm:hidden divide-y divide-slate-100">
           {members?.map((member) => (

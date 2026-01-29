@@ -65,7 +65,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
 
     // Fetch Request Status
     const { data: requestStatus, refetch: refetchStatus, isPending: isLoadingStatus } = useQuery({
-        ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "SUPPLY_CHAIN" }),
+        ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "PRO_PACK" }),
         enabled: !isPro && !!user
     });
 
@@ -73,7 +73,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
     const isApprovedInDb = requestStatus?.status === "APPROVED";
 
     const handleRequestAccess = () => {
-        requestAccessMutation.mutate({ feature: "SUPPLY_CHAIN" });
+        requestAccessMutation.mutate({ feature: "PRO_PACK" });
     };
 
     useEffect(() => {

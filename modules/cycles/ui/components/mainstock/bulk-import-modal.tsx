@@ -94,7 +94,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
     // Fetch Request Status
     const { data: requestStatus, refetch: refetchStatus, isPending: isLoadingStatus } = useQuery({
-        ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "BULK_IMPORT" }),
+        ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "PRO_PACK" }),
         enabled: open
     });
 
@@ -330,7 +330,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     const isApprovedInDb = requestStatus?.status === "APPROVED";
 
     const handleRequestAccess = () => {
-        requestAccessMutation.mutate({ feature: "BULK_IMPORT" });
+        requestAccessMutation.mutate({ feature: "PRO_PACK" });
     };
 
     const handleOpenChangeWrapper = (isOpen: boolean) => {
@@ -682,7 +682,28 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                         {/* Footer */}
                         <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
                             {step === "INPUT" ? (
-                                <div className="w-full flex justify-end">
+                                <div className="w-full flex justify-between items-center sm:justify-end gap-3">
+                                    {!isPro && (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={handleRequestAccess}
+                                            disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus || isApprovedInDb}
+                                            className={`text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all ${hasRequested ? "opacity-50 cursor-not-allowed" : ""
+                                                }`}
+                                            size="sm"
+                                        >
+                                            {requestAccessMutation.isPending || isLoadingStatus ? (
+                                                <Loader2 className="animate-spin h-3.5 w-3.5 mr-2" />
+                                            ) : isApprovedInDb ? (
+                                                <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
+                                            ) : hasRequested ? (
+                                                <Clock className="h-3.5 w-3.5 mr-2" />
+                                            ) : (
+                                                <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-500" />
+                                            )}
+                                            {isLoadingStatus ? "Checking..." : isApprovedInDb ? "Approved" : hasRequested ? "Access Requested" : "Request Pro Access"}
+                                        </Button>
+                                    )}
                                     <Button
                                         onClick={() => {
                                             if (!isPro) {
