@@ -16,9 +16,10 @@ interface ReopenCycleModalProps {
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    onCycleReopened?: (cycleId: string) => void;
 }
 
-export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: ReopenCycleModalProps) => {
+export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange, onCycleReopened }: ReopenCycleModalProps) => {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen ?? internalOpen;
     const setOpen = controlledOnOpenChange ?? setInternalOpen;
@@ -29,9 +30,14 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
 
     const mutation = useMutation(
         trpc.officer.cycles.reopenCycle.mutationOptions({
-            onSuccess: async () => {
+            onSuccess: async (data) => {
                 toast.success("Cycle reopened successfully");
                 const baseOptions = { orgId: orgId! };
+
+                if (onCycleReopened && data.cycleId) {
+                    onCycleReopened(data.cycleId);
+                }
+
                 // Invalidate across ALL routers to ensure all views update
                 await Promise.all([
                     queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),

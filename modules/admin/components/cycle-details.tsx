@@ -439,6 +439,10 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                         cycleName={normalizedCycle.name}
                         open={showReopenModal}
                         onOpenChange={setShowReopenModal}
+                        onCycleReopened={(newId) => {
+                            const prefix = isAdmin ? "/admin" : (isManagement ? "/management" : "");
+                            router.push(`${prefix}/cycles/${newId}`);
+                        }}
                     />
                 )
             }
