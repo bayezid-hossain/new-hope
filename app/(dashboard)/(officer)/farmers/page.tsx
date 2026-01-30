@@ -1,8 +1,10 @@
 "use client";
 
+import LoadingState from "@/components/loading-state";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -12,21 +14,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
-import { useTRPC } from "@/trpc/client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Wheat } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-// Ensure these paths match your file structure
-import LoadingState from "@/components/loading-state";
-import { Input } from "@/components/ui/input";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-import-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
-import { useDebounce } from "use-debounce";
-
+import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
+import { useTRPC } from "@/trpc/client";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Wheat, Wrench } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { useDebounce } from "use-debounce";
 
 export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
@@ -60,6 +59,8 @@ export default function MainStockPage() {
     open: false,
     data: null
   });
+
+  const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string } | null>(null);
 
   if (!orgId) return null;
   if (isPending) return <div className="p-8"><LoadingState title="Stock Information" description="Loading stock information..." /></div>;
@@ -139,9 +140,23 @@ export default function MainStockPage() {
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
-                          {row.name}
-                        </Link>
+                        <div className="flex items-center gap-2 group">
+                          <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
+                            {row.name}
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setEditingFarmer({ id: row.id, name: row.name });
+                            }}
+                          >
+                            <Wrench className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
 
                       <TableCell>
@@ -282,6 +297,15 @@ export default function MainStockPage() {
           sourceFarmerId={transferModal.data.farmerId}
           sourceFarmerName={transferModal.data.farmerName}
           currentStock={transferModal.data.currentStock}
+        />
+      )}
+
+      {editingFarmer && (
+        <EditFarmerNameModal
+          farmerId={editingFarmer.id}
+          currentName={editingFarmer.name}
+          open={!!editingFarmer}
+          onOpenChange={(open) => !open && setEditingFarmer(null)}
         />
       )}
 

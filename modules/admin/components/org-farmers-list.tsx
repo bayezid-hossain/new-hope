@@ -1,13 +1,15 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, Loader2, Search } from "lucide-react";
+import { Activity, Loader2, Search, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -22,6 +24,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
+    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
 
     const { data: farmers, isLoading } = useQuery({
         ...trpc.management.farmers.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch }),
@@ -81,9 +84,19 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                     {filteredFarmers.map((farmer) => (
                                         <TableRow key={farmer.id} className="hover:bg-slate-50/50 group transition-colors">
                                             <TableCell className="px-6">
-                                                <Link href={getFarmerLink(farmer.id)} className="font-bold text-slate-900 hover:text-primary hover:underline transition-colors">
-                                                    {farmer.name}
-                                                </Link>
+                                                <div className="flex items-center gap-2">
+                                                    <Link href={getFarmerLink(farmer.id)} className="font-bold text-slate-900 hover:text-primary hover:underline transition-colors">
+                                                        {farmer.name}
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
+                                                    >
+                                                        <Wrench className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-slate-600 font-medium text-sm">
                                                 <Link
@@ -158,6 +171,15 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                         ))}
                     </div>
                 </>
+            )}
+
+            {editingFarmer && (
+                <EditFarmerNameModal
+                    farmerId={editingFarmer.id}
+                    currentName={editingFarmer.name}
+                    open={!!editingFarmer}
+                    onOpenChange={(open) => !open && setEditingFarmer(null)}
+                />
             )}
         </div>
     );

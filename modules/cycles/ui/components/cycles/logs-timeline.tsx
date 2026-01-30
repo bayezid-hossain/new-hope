@@ -17,6 +17,7 @@ export interface TimelineLog {
     newValue?: number;
     createdAt: string | Date;
     note?: string | null;
+    cycleId?: string | null;
 }
 
 // --- Log Item Component ---
@@ -51,6 +52,9 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         title = normalizedType === "TRANSFER_OUT" ? "Transferred Out" : (isConsumption ? "Daily Consumption" : "Stock Deduction");
     }
 
+    // State for Edit Modal
+    const [showEditModal, setShowEditModal] = useState(false);
+
     return (
         <div className="flex gap-4 group">
             <div className="flex flex-col items-center">
@@ -63,9 +67,22 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
             <div className="pb-8 space-y-1.5 flex-1">
                 <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm text-slate-900">{title}</span>
-                    <time className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleDateString()} • {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </time>
+                    <div className="flex items-center gap-2">
+                        {/* Edit Action for Mortality */}
+                        {isActive && normalizedType === "MORTALITY" && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-[10px] text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => setShowEditModal(true)}
+                            >
+                                <Wrench className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                        )}
+                        <time className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleDateString()} • {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </time>
+                    </div>
                 </div>
 
                 <div className="text-sm">
@@ -99,6 +116,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
                     <RevertMortalityModal logId={log.id} amount={log.valueChange} note={log.note} />
                 </div>
             )}
+
         </div>
     );
 };

@@ -13,6 +13,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +24,8 @@ import {
     Loader2,
     Search,
     Users,
-    Wheat
+    Wheat,
+    Wrench
 } from "lucide-react";
 import Link from "next/link"; // Assuming Next.js navigation
 import { useState } from "react";
@@ -41,6 +43,8 @@ export const FarmersListView = () => {
     // Debounce search to avoid spamming the API (optional but recommended)
     // If you don't have a debounce hook, just pass searchTerm directly for now.
     const debouncedSearch = searchTerm;
+
+    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
 
     const { data, isLoading } = useQuery(
         trpc.management.farmers.getMany.queryOptions({
@@ -114,7 +118,17 @@ export const FarmersListView = () => {
                                         <TableRow key={farmer.id} className="group hover:bg-slate-50/50 transition-colors">
                                             {/* Name & Phone */}
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
-                                                <div className="font-bold text-slate-900">{farmer.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="font-bold text-slate-900">{farmer.name}</div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
+                                                    >
+                                                        <Wrench className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
 
                                             {/* Status (derived logic) */}
@@ -193,6 +207,15 @@ export const FarmersListView = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {editingFarmer && (
+                <EditFarmerNameModal
+                    farmerId={editingFarmer.id}
+                    currentName={editingFarmer.name}
+                    open={!!editingFarmer}
+                    onOpenChange={(open) => !open && setEditingFarmer(null)}
+                />
+            )}
         </div>
     );
 };

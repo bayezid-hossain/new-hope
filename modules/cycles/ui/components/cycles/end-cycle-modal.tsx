@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"; // Import Input
@@ -8,6 +9,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,6 +18,7 @@ interface EndCycleModalProps {
   farmerName: string;
   open: boolean;
   intake: number;
+  prefix?: string;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -24,14 +27,16 @@ export const EndCycleModal = ({
   farmerName,
   open,
   intake,
+  prefix,
   onOpenChange,
 }: EndCycleModalProps) => {
   const trpc = useTRPC();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { orgId } = useCurrentOrg()
   // State to track manual remaining stock
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
-
+  const { showLoading } = useLoading();
   const endMutation = useMutation(
     trpc.officer.cycles.end.mutationOptions({
       onSuccess: async () => {
@@ -54,6 +59,15 @@ export const EndCycleModal = ({
 
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
+        showLoading("Going back to cycles...")
+
+        if (prefix?.includes("/admin")) {
+          router.push(`/admin/organizations/${orgId}/cycles`);
+        } else if (prefix?.includes("/management")) {
+          router.push(`/management/cycles`);
+        } else {
+          router.push(`/cycles`);
+        }
       },
       onError: (error) => toast.error(error.message),
     })

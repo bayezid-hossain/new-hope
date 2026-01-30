@@ -329,7 +329,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             .map(p => ({
                 farmerId: p.matchedFarmerId!,
                 amount: p.amount,
-                note: `Bulk Import: ${p.rawName}`
+                note: `Bulk Import: ${p.matchedName || p.cleanName}`
             }));
 
         if (payload.length === 0) {

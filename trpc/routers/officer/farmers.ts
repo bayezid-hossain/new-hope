@@ -1,7 +1,7 @@
 import { cycles, farmer, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerFarmersRouter = createTRPCRouter({
@@ -160,6 +160,38 @@ export const officerFarmersRouter = createTRPCRouter({
                 }
                 return newFarmer;
             });
+        }),
+
+    updateName: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+            name: z.string().min(2).max(100),
+            orgId: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const existing = await ctx.db.query.farmer.findFirst({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, ctx.user.id),
+                    ilike(farmer.name, input.name.toUpperCase()),
+                    ne(farmer.id, input.id) // Exclude self
+                )
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `A farmer named "${input.name}" is already registered.`
+                });
+            }
+
+            return await ctx.db.update(farmer)
+                .set({
+                    name: input.name.toUpperCase(),
+                    updatedAt: new Date()
+                })
+                .where(eq(farmer.id, input.id))
+                .returning();
         }),
 
     createBulk: protectedProcedure

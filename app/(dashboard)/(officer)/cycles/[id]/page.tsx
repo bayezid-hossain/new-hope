@@ -30,7 +30,8 @@ import {
     RotateCcw,
     Scale,
     TrendingUp,
-    Wheat
+    Wheat,
+    Wrench
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -287,11 +288,14 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
     </div>
 );
 
+import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
     const { data, isLoading, error } = useQuery(trpc.officer.cycles.getDetails.queryOptions({ id }));
     const [showEndCycleModal, setShowEndCycleModal] = useState(false);
     const [showReopenModal, setShowReopenModal] = useState(false);
+    const [showEditFarmerModal, setShowEditFarmerModal] = useState(false);
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {
@@ -353,8 +357,18 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         <Archive className="h-3 w-3" /> Archived Cycle
                                     </Badge>
                                 )}
-                                {/* <span>•</span> */}
-                                {/* <span className="font-medium text-slate-600">{farmerContext.name}</span> */}
+                                <span>•</span>
+                                <div className="flex items-center gap-1">
+                                    <span className="font-medium text-slate-600">{farmerContext.name}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 text-slate-400 hover:text-slate-600"
+                                        onClick={() => setShowEditFarmerModal(true)}
+                                    >
+                                        <Wrench className="h-3 w-3" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -412,6 +426,13 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 cycleName={cycle.name}
                 open={showReopenModal}
                 onOpenChange={setShowReopenModal}
+            />
+
+            <EditFarmerNameModal
+                farmerId={farmerContext.id}
+                currentName={farmerContext.name}
+                open={showEditFarmerModal}
+                onOpenChange={setShowEditFarmerModal}
             />
 
             <div className="grid gap-6 md:grid-cols-7 w-full overflow-hidden">

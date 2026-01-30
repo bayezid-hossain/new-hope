@@ -665,4 +665,173 @@ export const officerCyclesRouter = createTRPCRouter({
                 return { success: true };
             });
         }),
+
+    editMortalityLog: officerProcedure
+        .input(z.object({
+            logId: z.string(),
+            newAmount: z.number().int().positive().max(200000),
+            reason: z.string().max(500).optional()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                const [log] = await tx.select().from(cycleLogs).where(eq(cycleLogs.id, input.logId));
+                if (!log) throw new TRPCError({ code: "NOT_FOUND" });
+                if (log.type !== "MORTALITY") throw new TRPCError({ code: "BAD_REQUEST", message: "Only mortality logs can be edited here." });
+
+                let cycleId = log.cycleId;
+                if (!cycleId) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit logs for archived cycles directly." });
+
+                const [currentCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId));
+                if (!currentCycle) throw new TRPCError({ code: "NOT_FOUND" });
+
+                // Check Access
+                const farmerData = await tx.query.farmer.findFirst({ where: eq(farmer.id, currentCycle.farmerId) });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    // Check membership for manager logic if needed, reusing logic from other procedures
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
+
+                const oldMortality = log.valueChange || 0;
+                const doc = currentCycle.doc || 0;
+                const currentTotalMortality = currentCycle.mortality || 0;
+
+                // Validate new total
+                // If we change this log from oldMortality to newAmount, the total changes by (newAmount - oldMortality)
+                const diff = input.newAmount - oldMortality;
+                const newTotal = currentTotalMortality + diff;
+
+                if (newTotal > doc) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `New total mortality (${newTotal}) would exceed initial birds (${doc}).`
+                    });
+                }
+                if (newTotal < 0) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `New total mortality cannot be negative.`
+                    });
+                }
+
+                // Update Log
+                await tx.update(cycleLogs)
+                    .set({
+                        valueChange: input.newAmount,
+                        note: input.reason ? `Correction: ${input.reason}` : log.note,
+                        newValue: input.newAmount
+                    })
+                    .where(eq(cycleLogs.id, input.logId));
+
+                // Update Cycle
+                const [updatedCycle] = await tx.update(cycles)
+                    .set({
+                        mortality: newTotal,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(cycles.id, cycleId))
+                    .returning();
+
+                // Recalculate Feed
+                if (updatedCycle) {
+                    await updateCycleFeed(
+                        updatedCycle,
+                        ctx.user.id,
+                        true,
+                        tx,
+                        `Mortality Log Edited from ${oldMortality} to ${input.newAmount}`
+                    );
+                }
+
+                return { success: true };
+            });
+        }),
+
+    correctMortality: officerProcedure
+        .input(z.object({
+            cycleId: z.string(),
+            newTotalMortality: z.number().int().min(0),
+            reason: z.string().min(3)
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                // 1. Fetch Cycle
+                const [cycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
+                if (!cycle) {
+                    throw new TRPCError({ code: "NOT_FOUND" });
+                }
+
+                // 2. Access Check
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: eq(farmer.id, cycle.farmerId)
+                });
+
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
+
+                const oldTotalMortality = cycle.mortality || 0;
+                const doc = cycle.doc || 0;
+
+                if (input.newTotalMortality > doc) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `New total mortality (${input.newTotalMortality}) cannot exceed initial birds (${doc}).`
+                    });
+                }
+
+                if (oldTotalMortality === input.newTotalMortality) return { success: true, message: "No change" };
+
+                // 3. Update Cycle
+                const [updatedCycle] = await tx.update(cycles)
+                    .set({
+                        mortality: input.newTotalMortality,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(cycles.id, input.cycleId))
+                    .returning();
+
+                // 4. Recalculate Feed
+                if (updatedCycle) {
+                    await updateCycleFeed(
+                        updatedCycle,
+                        ctx.user.id,
+                        true,
+                        tx,
+                        `Mortality Corrected from ${oldTotalMortality} to ${input.newTotalMortality}. Reason: ${input.reason}`
+                    );
+                }
+
+                // 5. Log Correction
+                await tx.insert(cycleLogs).values({
+                    cycleId: input.cycleId,
+                    userId: ctx.user.id,
+                    type: "CORRECTION",
+                    valueChange: input.newTotalMortality - oldTotalMortality,
+                    previousValue: oldTotalMortality,
+                    newValue: input.newTotalMortality,
+                    note: `Mortality Correction: ${input.reason}`
+                });
+
+                return { success: true };
+            });
+        }),
+
 });

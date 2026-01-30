@@ -17,11 +17,12 @@ import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Pencil, Power, RotateCcw, Skull, Trash2 } from "lucide-react";
+import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Pencil, Power, RotateCcw, Skull, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddMortalityModal } from "../cycles/add-mortality-modal";
+import { CorrectMortalityModal } from "../cycles/correct-mortality-modal";
 import { EditDocModal } from "../cycles/edit-doc-modal";
 import { EndCycleModal } from "../cycles/end-cycle-modal";
 import { ReopenCycleModal } from "../cycles/reopen-cycle-modal";
@@ -37,6 +38,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
     const [showEditDoc, setShowEditDoc] = useState(false);
+    const [showCorrectMortality, setShowCorrectMortality] = useState(false);
 
     if (cycle.status === "history") return null;
 
@@ -63,6 +65,11 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                         Edit Initial Birds (DOC)
                     </DropdownMenuItem>
 
+                    <DropdownMenuItem onClick={() => setShowCorrectMortality(true)}>
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Correct Total Mortality
+                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
 
                     <DropdownMenuItem
@@ -87,6 +94,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 farmerName={cycle.name}
                 intake={parseFloat(String(cycle.intake || 0))}
                 open={showEndCycle}
+                prefix={prefix}
                 onOpenChange={setShowEndCycle}
             />
 
@@ -95,6 +103,13 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 currentDoc={parseInt(String(cycle.doc || 0))}
                 open={showEditDoc}
                 onOpenChange={setShowEditDoc}
+            />
+
+            <CorrectMortalityModal
+                cycleId={cycle.id}
+                currentMortality={cycle.mortality || 0}
+                open={showCorrectMortality}
+                onOpenChange={setShowCorrectMortality}
             />
         </>
     );
