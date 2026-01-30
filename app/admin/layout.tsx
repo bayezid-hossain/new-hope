@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import AdminSidebar from "@/modules/admin/components/admin-sidebar";
+import { NotificationCenter } from "@/modules/notifications/components/notification-center";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import React from "react";
@@ -35,6 +36,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                     <SidebarTrigger className="text-slate-500 hover:text-slate-900 transition-colors" />
                     <div className="h-4 w-[1px] bg-slate-200" />
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">System Administration</span>
+                    <div className="ml-auto flex items-center gap-2">
+                        <NotificationCenter />
+                    </div>
                 </header>
                 {children}
             </main>

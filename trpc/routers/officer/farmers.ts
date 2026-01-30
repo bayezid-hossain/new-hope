@@ -158,6 +158,24 @@ export const officerFarmersRouter = createTRPCRouter({
                         note: "Initial Stock Assignment"
                     });
                 }
+
+                // NOTIFICATION: Notify Managers
+                try {
+                    // We need to import NotificationService dynamically or at top level if not circular
+                    // Assuming dynamic import to avoid circular dep risks or just use it if standard
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: input.orgId,
+                        title: "New Farmer Created",
+                        message: `Officer ${ctx.user.name} created farmer "${newFarmer.name}"`,
+                        type: "INFO",
+                        link: `/management/farmers/${newFarmer.id}`,
+                        metadata: { farmerId: newFarmer.id, actorId: ctx.user.id }
+                    });
+                } catch (e) {
+                    console.error("Failed to send notification for farmer creation", e);
+                }
+
                 return newFarmer;
             });
         }),

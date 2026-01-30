@@ -281,3 +281,30 @@ export const logRelations = relations(cycleLogs, ({ one }) => ({
   history: one(cycleHistory, { fields: [cycleLogs.historyId], references: [cycleHistory.id] }),
   editor: one(user, { fields: [cycleLogs.userId], references: [user.id] })
 }));
+
+// =========================================================
+// 6. NOTIFICATIONS
+// =========================================================
+
+export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE"]);
+
+export const notification = pgTable("notification", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  details: text("details"),
+  type: notificationTypeEnum("type").notNull().default("INFO"),
+  link: text("link"),
+
+  isRead: boolean("is_read").notNull().default(false),
+  metadata: text("metadata"), // Storing JSON as text to be safe with all drivers, or use json() if postgres specific
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_notification_user").on(t.userId),
+  index("idx_notification_org").on(t.organizationId),
+  index("idx_notification_created").on(t.createdAt),
+]);
