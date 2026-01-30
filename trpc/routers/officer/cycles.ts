@@ -216,6 +216,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     },
                     logs,
                     history: combinedHistory,
+
                     farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name }
                 };
             }
