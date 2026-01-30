@@ -115,7 +115,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     );
 };
 
-export const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
+export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory; prefix?: string }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();
@@ -198,6 +198,7 @@ export const HistoryActionsCell = ({ history }: { history: FarmerHistory }) => {
                 cycleName={history.cycleName}
                 open={showReopenModal}
                 onOpenChange={setShowReopenModal}
+                prefix={prefix}
             />
 
             <ResponsiveDialog
@@ -459,7 +460,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
     if (enableActions) {
         columns.push({
             id: "actions",
-            cell: ({ row }) => <HistoryActionsCell history={row.original} />,
+            cell: ({ row }) => <HistoryActionsCell history={row.original} prefix={prefix} />,
         });
     }
 

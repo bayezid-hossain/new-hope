@@ -18,9 +18,10 @@ interface ReopenCycleModalProps {
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    prefix?: string;
 }
 
-export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: ReopenCycleModalProps) => {
+export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange, prefix }: ReopenCycleModalProps) => {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen ?? internalOpen;
     const setOpen = controlledOnOpenChange ?? setInternalOpen;
@@ -37,7 +38,7 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
                 toast.success("Cycle reopened successfully");
                 // Immediately redirect to the new active cycle
                 if (data.cycleId) {
-                    router.push(`/cycles/${data.cycleId}`);
+                    router.push(`${prefix || ''}/cycles/${data.cycleId}`);
                 }
                 const baseOptions = { orgId: orgId! };
                 showLoading("Redirecting to activated cycle details...")

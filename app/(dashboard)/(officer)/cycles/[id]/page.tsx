@@ -14,9 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
-import { getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { ActionsCell, getHistoryColumns, HistoryActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -27,7 +28,6 @@ import {
     Calculator,
     History,
     Lightbulb,
-    RotateCcw,
     Scale,
     TrendingUp,
     Wheat,
@@ -38,8 +38,9 @@ import { useParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
-import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
-import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
+// EndCycle/ReopenCycle modals imported via columns-factory now
+// import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
+// import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
 
 // ... existing imports
 
@@ -374,17 +375,6 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
-                        {isActive && (
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="h-8 text-xs font-semibold gap-2 shadow-sm"
-                                onClick={() => setShowEndCycleModal(true)}
-                            >
-                                <Archive className="h-3.5 w-3.5" />
-                                End Cycle
-                            </Button>
-                        )}
                         <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 sm:gap-1 text-xs sm:text-sm text-muted-foreground sm:text-right">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-1 sm:gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
                                 <span className="font-semibold sm:font-medium text-slate-500 text-[10px] sm:text-sm uppercase sm:normal-case">Started</span>
@@ -397,36 +387,45 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 </div>
                             )}
                         </div>
-                        {!isActive && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs font-semibold gap-2 shadow-sm"
-                                onClick={() => setShowReopenModal(true)}
-                            >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                                Reopen Cycle
-                            </Button>
-                        )}
+
+                        {/* Unified Actions Dropdown */}
+                        <div className="bg-white border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
+                            {isActive ? (
+                                <ActionsCell
+                                    cycle={{
+                                        ...cycle,
+                                        farmerName: farmerContext.name,
+                                        farmerId: farmerContext.id,
+                                        organizationId: farmerContext.organizationId,
+                                        status: "active",
+                                        // Ensure mandatory fields for Farmer type
+                                        createdAt: cycle.startDate, // Approximate if not available, or add to NormalizedCycle
+                                        updatedAt: new Date(),
+                                        officerName: null,
+                                        // Ensure all required fields from Farmer type are present or mocked safely
+                                        age: cycle.age,
+                                        doc: cycle.doc,
+                                        mortality: cycle.mortality,
+                                        intake: cycle.intake.toString()
+                                    } as unknown as Farmer}
+                                />
+                            ) : (
+                                <HistoryActionsCell
+                                    history={{
+                                        ...cycle,
+                                        cycleName: cycle.name,
+                                        finalIntake: cycle.intake,
+                                        farmerId: farmerContext.id,
+                                        organizationId: farmerContext.organizationId,
+                                        status: "history",
+                                        officerName: null
+                                    } as unknown as FarmerHistory}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <EndCycleModal
-                cycleId={cycle.id}
-                farmerName={farmerContext.name}
-                open={showEndCycleModal}
-                intake={cycle.intake} // Pass total intake as default final intake
-                onOpenChange={setShowEndCycleModal}
-            />
-
-            <ReopenCycleModal
-                historyId={cycle.id}
-                farmerId={farmerContext.id}
-                cycleName={cycle.name}
-                open={showReopenModal}
-                onOpenChange={setShowReopenModal}
-            />
 
             <EditFarmerNameModal
                 farmerId={farmerContext.id}
@@ -434,6 +433,8 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 open={showEditFarmerModal}
                 onOpenChange={setShowEditFarmerModal}
             />
+
+
 
             <div className="grid gap-6 md:grid-cols-7 w-full overflow-hidden">
                 {/* LEFT SIDE: Stats & Overview */}

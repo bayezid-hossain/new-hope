@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
-import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
-import { getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { ActionsCell, getHistoryColumns, HistoryActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -24,7 +24,6 @@ import {
     History,
     Lightbulb,
     Loader2,
-    RotateCcw,
     Scale,
     TrendingUp,
     UsersIcon
@@ -325,17 +324,45 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                         </div>
                     </div>
                 </div>
-                {normalizedCycle.status !== 'active' && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setShowReopenModal(true)}
-                    >
-                        <RotateCcw className="h-4 w-4" />
-                        Reopen Cycle
-                    </Button>
-                )}
+                <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
+                    {/* Unified Actions Dropdown */}
+                    <div className="bg-white border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
+                        {normalizedCycle.status === "active" ? (
+                            <ActionsCell
+                                prefix={isAdmin ? `/admin` : (isManagement ? `/management` : undefined)}
+                                cycle={{
+                                    ...normalizedCycle,
+                                    id: cycleId,
+                                    farmerId: (response.data as any).farmerId, // or derive
+                                    organizationId: (response.data as any).organizationId,
+                                    status: "active",
+                                    officerName: null,
+                                    createdAt: new Date(normalizedCycle.createdAt),
+                                    updatedAt: new Date(),
+                                    intake: normalizedCycle.intake.toString()
+                                } as unknown as Farmer}
+                            />
+                        ) : (
+                            <HistoryActionsCell
+                                prefix={isAdmin ? `/admin` : (isManagement ? `/management` : undefined)}
+                                history={{
+                                    id: cycleId,
+                                    cycleName: normalizedCycle.name,
+                                    farmerName: normalizedCycle.farmerName,
+                                    finalIntake: normalizedCycle.intake,
+                                    doc: normalizedCycle.doc,
+                                    mortality: normalizedCycle.mortality,
+                                    age: normalizedCycle.age,
+                                    status: "history",
+                                    startDate: new Date(normalizedCycle.createdAt),
+                                    endDate: new Date(), // Mock end date or fetch it
+                                    farmerId: (response.data as any).farmerId,
+                                    organizationId: (response.data as any).organizationId,
+                                } as unknown as FarmerHistory}
+                            />
+                        )}
+                    </div>
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">
@@ -431,17 +458,6 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                 </TabsContent>
             </Tabs>
 
-            {
-                response?.data?.id && (
-                    <ReopenCycleModal
-                        historyId={response.data.id}
-                        farmerId={response.data.farmerId}
-                        cycleName={normalizedCycle.name}
-                        open={showReopenModal}
-                        onOpenChange={setShowReopenModal}
-                    />
-                )
-            }
         </div>
     );
 };
