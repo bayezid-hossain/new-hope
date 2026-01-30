@@ -31,9 +31,9 @@ export const NotificationCenter = () => {
     const { data: sessionData } = useQuery(trpc.auth.getSession.queryOptions());
     const { data: membershipData } = useQuery(trpc.auth.getMyMembership.queryOptions());
 
-    const isAdmin = sessionData?.user?.globalRole === "ADMIN";
-    const isManager = membershipData?.role === "MANAGER" || membershipData?.role === "OWNER";
-    const canSeeNotifications = isAdmin || isManager;
+    const isAdminMode = sessionData?.user?.activeMode === "ADMIN";
+    const isManagementMode = membershipData?.activeMode === "MANAGEMENT";
+    const canSeeNotifications = isAdminMode || isManagementMode;
 
     const { data: unreadData } = useQuery(trpc.notifications.getUnreadCount.queryOptions(
         undefined, {
@@ -51,10 +51,6 @@ export const NotificationCenter = () => {
             enabled: open && canSeeNotifications
         });
 
-    if (!canSeeNotifications) {
-        return null;
-    }
-
     const markAllReadMutation = useMutation(
         trpc.notifications.markAllAsRead.mutationOptions({
             onSuccess: () => {
@@ -65,13 +61,26 @@ export const NotificationCenter = () => {
         })
     );
 
+    const markReadMutation = useMutation(
+        trpc.notifications.markAsRead.mutationOptions({
+            onSuccess: () => {
+                queryClient.invalidateQueries(trpc.notifications.list.pathFilter());
+                queryClient.invalidateQueries(trpc.notifications.getUnreadCount.pathFilter());
+            }
+        })
+    );
+
+    if (!canSeeNotifications) {
+        return null;
+    }
+
     const handleNotificationClick = (n: any) => {
+        if (!n.isRead) {
+            markReadMutation.mutate({ id: n.id });
+        }
+
         if (n.link) {
             setOpen(false); // Close dropdown if navigating
-            // Mark read logic is handled by Link click usually but better to do explicitly if needed
-            // Actually Details Modal handles mark-read on open. 
-            // For direct links we might want to mark read async
-            // Let's just open details if it has details, otherwise link
         } else {
             setSelectedId(n.id);
             setDetailsOpen(true);
@@ -80,6 +89,15 @@ export const NotificationCenter = () => {
 
     const allItems = notifications?.pages.flatMap((page: any) => page.items) || [];
     const unreadCount = unreadData?.count || 0;
+
+    const getEffectiveLink = (link: string | null | undefined, orgId: string | null | undefined) => {
+        if (!link) return null;
+        const isAdminMode = sessionData?.user?.activeMode === "ADMIN";
+        if (isAdminMode && orgId) {
+            return link.replace(/^\/management/, `/admin/organizations/${orgId}`);
+        }
+        return link;
+    };
 
     return (
         <>
@@ -138,7 +156,7 @@ export const NotificationCenter = () => {
                                         type={item.type as NotificationType}
                                         createdAt={item.createdAt}
                                         isRead={item.isRead}
-                                        link={item.link}
+                                        link={getEffectiveLink(item.link, item.organizationId)}
                                         onClick={() => handleNotificationClick(item)}
                                     />
                                 ))}

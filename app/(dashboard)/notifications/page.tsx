@@ -21,9 +21,9 @@ export default function NotificationsPage() {
     const { data: sessionData, isLoading: sessionLoading } = useQuery(trpc.auth.getSession.queryOptions());
     const { data: membershipData, isLoading: membershipLoading } = useQuery(trpc.auth.getMyMembership.queryOptions());
 
-    const isAdmin = sessionData?.user?.globalRole === "ADMIN";
-    const isManager = membershipData?.role === "MANAGER" || membershipData?.role === "OWNER";
-    const canSeeNotifications = isAdmin || isManager;
+    const isAdminMode = sessionData?.user?.activeMode === "ADMIN";
+    const isManagementMode = membershipData?.activeMode === "MANAGEMENT";
+    const canSeeNotifications = isAdminMode || isManagementMode;
 
     const { data, isLoading: queryLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
         useInfiniteQuery({
@@ -36,6 +36,25 @@ export default function NotificationsPage() {
         });
 
     const isLoading = queryLoading || sessionLoading || membershipLoading;
+
+    const markAllReadMutation = useMutation(
+        trpc.notifications.markAllAsRead.mutationOptions({
+            onSuccess: () => {
+                toast.success("All notifications marked as read");
+                queryClient.invalidateQueries(trpc.notifications.list.pathFilter());
+                queryClient.invalidateQueries(trpc.notifications.getUnreadCount.pathFilter());
+            }
+        })
+    );
+
+    const markReadMutation = useMutation(
+        trpc.notifications.markAsRead.mutationOptions({
+            onSuccess: () => {
+                queryClient.invalidateQueries(trpc.notifications.list.pathFilter());
+                queryClient.invalidateQueries(trpc.notifications.getUnreadCount.pathFilter());
+            }
+        })
+    );
 
     if (!isLoading && !canSeeNotifications) {
         return (
@@ -50,17 +69,11 @@ export default function NotificationsPage() {
         );
     }
 
-    const markAllReadMutation = useMutation(
-        trpc.notifications.markAllAsRead.mutationOptions({
-            onSuccess: () => {
-                toast.success("All notifications marked as read");
-                queryClient.invalidateQueries(trpc.notifications.list.pathFilter());
-                queryClient.invalidateQueries(trpc.notifications.getUnreadCount.pathFilter());
-            }
-        })
-    );
-
     const handleNotificationClick = (n: any) => {
+        if (!n.isRead) {
+            markReadMutation.mutate({ id: n.id });
+        }
+
         if (!n.link) {
             setSelectedId(n.id);
             setDetailsOpen(true);
@@ -68,6 +81,15 @@ export default function NotificationsPage() {
     };
 
     const allItems = data?.pages.flatMap((page: any) => page.items) || [];
+
+    const getEffectiveLink = (link: string | null | undefined, orgId: string | null | undefined) => {
+        if (!link) return null;
+        const isAdminMode = sessionData?.user?.activeMode === "ADMIN";
+        if (isAdminMode && orgId) {
+            return link.replace(/^\/management/, `/admin/organizations/${orgId}`);
+        }
+        return link;
+    };
 
     return (
         <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -118,7 +140,7 @@ export default function NotificationsPage() {
                                     type={item.type as NotificationType}
                                     createdAt={item.createdAt}
                                     isRead={item.isRead}
-                                    link={item.link}
+                                    link={getEffectiveLink(item.link, item.organizationId)}
                                     onClick={() => handleNotificationClick(item)}
                                     className="px-4 py-4"
                                 />
