@@ -114,7 +114,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                         <div>
                             <h3 className="text-sm font-bold text-slate-900">Pro Feature Locked</h3>
                             <p className="text-xs text-slate-500 max-w-[200px] mx-auto mt-1">
-                                AI-powered supply chain predictions are available for Pro officers only.
+                                Pro-exclusive supply chain predictions are available for Pro officers only.
                             </p>
                         </div>
                         <Button

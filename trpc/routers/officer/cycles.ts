@@ -667,7 +667,7 @@ export const officerCyclesRouter = createTRPCRouter({
             reason: z.string().min(3).max(500)
         }))
         .mutation(async ({ ctx, input }) => {
-            // console.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
+            // //conosle.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
             return await ctx.db.transaction(async (tx) => {
                 // 1. Fetch Cycle
                 const [cycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
@@ -697,7 +697,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 const oldDoc = cycle.doc;
                 if (oldDoc === input.newDoc) return { success: true, message: "No change" };
 
-                // console.log(`[correctDoc] Updating doc from ${oldDoc} to ${input.newDoc}`);
+                // //conosle.log(`[correctDoc] Updating doc from ${oldDoc} to ${input.newDoc}`);
 
                 // 3. Update Cycle
                 const [updatedCycle] = await tx.update(cycles)
@@ -745,7 +745,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     console.error("Failed to send DOC correction notification", e);
                 }
 
-                // console.log(`[correctDoc] Successfully completed.`);
+                // //conosle.log(`[correctDoc] Successfully completed.`);
                 return { success: true };
             });
         }),

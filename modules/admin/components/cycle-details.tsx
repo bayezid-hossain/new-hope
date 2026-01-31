@@ -458,7 +458,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                         isAdmin={isAdmin}
                         isManagement={isManagement}
                         currentId={cycleId}
-                        orgId={orgId}
+                        orgId={orgId ?? ""}
                     />
                 </TabsContent>
             </Tabs>

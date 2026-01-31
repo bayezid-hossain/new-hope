@@ -16,7 +16,7 @@ export const auth = betterAuth({
         enabled: true,
         requireEmailVerification: false,
         async sendResetPassword({ user, url }) {
-            console.log(`Sending reset password email to: ${user.email}`);
+            // //conosle.log(`Sending reset password email to: ${user.email}`);
             const { error } = await sendEmail({
                 to: user.email,
                 subject: "Reset your password",
@@ -86,7 +86,7 @@ export const auth = betterAuth({
         twoFactor({
             otpOptions: {
                 async sendOTP({ user, otp }) {
-                    console.log(`Sending 2FA OTP to: ${user.email}`);
+                    // //conosle.log(`Sending 2FA OTP to: ${user.email}`);
                     const { error } = await sendEmail({
                         to: user.email,
                         subject: "Your 2FA Code",
@@ -104,7 +104,7 @@ export const auth = betterAuth({
             overrideDefaultEmailVerification: true,
             async sendVerificationOTP({ email, otp, type }) {
                 if (type === "email-verification") {
-                    console.log(`Sending Verification OTP to: ${email}`);
+                    //     //conosle.log(`Sending Verification OTP to: ${email}`);
                     const verificationUrl = `${process.env.BETTER_AUTH_URL || "http://localhost:3000"}/verify-email?otp=${otp}&email=${encodeURIComponent(email)}`;
 
                     const { error } = await sendEmail({

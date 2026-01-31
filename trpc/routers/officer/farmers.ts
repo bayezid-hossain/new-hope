@@ -1,7 +1,7 @@
 import { cycles, farmer, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerFarmersRouter = createTRPCRouter({
@@ -252,7 +252,7 @@ export const officerFarmersRouter = createTRPCRouter({
                     where: and(
                         eq(farmer.organizationId, orgId),
                         eq(farmer.officerId, ctx.user.id),
-                        sql`upper(${farmer.name}) IN ${namesToCheck}`
+                        inArray(sql`upper(${farmer.name})`, namesToCheck)
                     )
                 });
 
@@ -305,6 +305,46 @@ export const officerFarmersRouter = createTRPCRouter({
 
                 return results;
             });
+        }),
+
+    delete: protectedProcedure
+        .input(z.object({ id: z.string(), orgId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            // 1. Check for active cycles
+            const activeCycles = await ctx.db.query.cycles.findFirst({
+                where: and(eq(cycles.farmerId, input.id), eq(cycles.status, "active"))
+            });
+
+            if (activeCycles) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "Cannot delete farmer with active cycles. Please end all cycles first."
+                });
+            }
+
+            // 2. Perform deletion (cascade is handled by DB schema hopefully, otherwise we do it manually)
+            // Farmer table has officerId check for safety
+            const [deleted] = await ctx.db.delete(farmer)
+                .where(and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id)))
+                .returning();
+
+            if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // NOTIFICATION: Farmer Deleted
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                await NotificationService.sendToOrgManagers({
+                    organizationId: input.orgId,
+                    title: "Farmer Profile Deleted",
+                    message: `Officer ${ctx.user.name} deleted farmer profile "${deleted.name}"`,
+                    type: "WARNING",
+                    link: `/management/farmers`
+                });
+            } catch (e) {
+                console.error("Failed to send farmer deletion notification", e);
+            }
+
+            return deleted;
         }),
 
     getDetails: protectedProcedure
