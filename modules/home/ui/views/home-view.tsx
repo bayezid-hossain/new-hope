@@ -197,8 +197,11 @@ export const HomeView = ({ userId }: { userId?: string }) => {
           <p className="text-muted-foreground mt-1">Overview of your poultry operations</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button asChild>
+          <Button asChild variant="outline">
             <Link href="/cycles">Manage Cycles</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/farmers">Manage Farmers</Link>
           </Button>
         </div>
       </div>

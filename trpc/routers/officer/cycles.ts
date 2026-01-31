@@ -156,6 +156,29 @@ export const officerCyclesRouter = createTRPCRouter({
             });
 
             await updateCycleFeed(newCycle, ctx.user.id, true);
+
+            // NOTIFICATION: New Cycle
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                // Fetch farmer details for the message
+                const farmerData = await ctx.db.query.farmer.findFirst({
+                    where: eq(farmer.id, input.farmerId),
+                    columns: { name: true }
+                });
+
+                await NotificationService.sendToOrgManagers({
+                    organizationId: input.orgId,
+                    title: "New Cycle Started",
+                    message: `Officer ${ctx.user.name} started a new cycle for farmer "${farmerData?.name}"`,
+                    details: `Cycle: ${newCycle.name}, DOC: ${newCycle.doc}`,
+                    type: "INFO",
+                    link: `/management/cycles/${newCycle.id}`, // Managers see this via management route presumably or we handle redirects
+                    metadata: { cycleId: newCycle.id, farmerId: input.farmerId, actorId: ctx.user.id }
+                });
+            } catch (e) {
+                console.error("Failed to send notification for cycle creation", e);
+            }
+
             return newCycle;
         }),
 
@@ -343,6 +366,23 @@ export const officerCyclesRouter = createTRPCRouter({
                 }
 
                 await tx.delete(cycles).where(eq(cycles.id, input.id));
+
+                // NOTIFICATION: Cycle Ended
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: activeCycle.organizationId,
+                        title: "Cycle Ended",
+                        message: `Officer ${ctx.user.name} ended cycle "${activeCycle.name}" for farmer "${farmerData.name}"`,
+                        details: `Final Consumption: ${input.intake || 0} bags`,
+                        type: "WARNING", // Using WARNING to grab attention as this affects stock
+                        link: `/management/cycles/${history.id}`, // Linking to history view
+                        metadata: { historyId: history.id, farmerId: activeCycle.farmerId, actorId: ctx.user.id }
+                    });
+                } catch (e) {
+                    console.error("Failed to send notification for cycle end", e);
+                }
+
                 return { success: true };
             });
         }),

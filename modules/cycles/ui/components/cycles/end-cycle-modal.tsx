@@ -9,7 +9,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ export const EndCycleModal = ({
 }: EndCycleModalProps) => {
   const trpc = useTRPC();
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { orgId } = useCurrentOrg()
   // State to track manual remaining stock
@@ -59,14 +60,18 @@ export const EndCycleModal = ({
 
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
-        showLoading("Going back to cycles...")
 
-        if (prefix?.includes("/admin")) {
-          router.push(`/admin/organizations/${orgId}/cycles`);
-        } else if (prefix?.includes("/management")) {
-          router.push(`/management/cycles`);
-        } else {
-          router.push(`/cycles`);
+        const isOnCyclesPage = pathname.endsWith("/cycles");
+
+        if (!isOnCyclesPage) {
+          showLoading("Going back to cycles...")
+          if (prefix?.includes("/admin")) {
+            router.push(`/admin/organizations/${orgId}/cycles`);
+          } else if (prefix?.includes("/management")) {
+            router.push(`/management/cycles`);
+          } else {
+            router.push(`/cycles`);
+          }
         }
       },
       onError: (error) => toast.error(error.message),
