@@ -17,17 +17,17 @@ B2: 15 Bags
 
 
 // Test Match
-console.log("\n--- Testing Regex Match ---");
+//conosle.log("\n--- Testing Regex Match ---");
 const matchRegex = /Farm No[\s\S]*?(?=(?:Farm No)|$)/gi;
 const matches = inputText.match(matchRegex);
 
 if (matches) {
-    console.log(`Matches found: ${matches.length}`);
+    //conosle.log(`Matches found: ${matches.length}`);
     matches.forEach((m, i) => {
         const lines = m.split('\n').map(l => l.trim()).filter(l => l);
-        console.log(`[${i}] Lines: ${lines.length}, First: "${lines[0]}", Second: "${lines[1] || 'NONE'}"`);
+        //conosle.log(`[${i}] Lines: ${lines.length}, First: "${lines[0]}", Second: "${lines[1] || 'NONE'}"`);
     });
 } else {
-    console.log("No matches found.");
+    //conosle.log("No matches found.");
 }
 

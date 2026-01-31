@@ -8,7 +8,7 @@ export default function ManagementCycleDetailsPage() {
     const cycleId = params.id as string;
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
             <CycleDetails cycleId={cycleId} isManagement={true} />
         </div>
     );

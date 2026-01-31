@@ -3,28 +3,28 @@ import { db } from "../db";
 import { cycleHistory, cycleLogs, cycles, farmer, stockLogs } from "../db/schema";
 
 async function main() {
-    console.log("🚀 Starting database reset (Domain Data)...");
+    //conosle.log("🚀 Starting database reset (Domain Data)...");
 
     try {
         // Order matters if constraints are strict, but here we do it safely:
 
-        console.log("🗑 Clearing Cycle Logs...");
+        //conosle.log("🗑 Clearing Cycle Logs...");
         await db.delete(cycleLogs);
 
-        console.log("🗑 Clearing Stock Logs...");
+        //conosle.log("🗑 Clearing Stock Logs...");
         await db.delete(stockLogs);
 
-        console.log("🗑 Clearing Active Cycles...");
+        //conosle.log("🗑 Clearing Active Cycles...");
         await db.delete(cycles);
 
-        console.log("🗑 Clearing Cycle History...");
+        //conosle.log("🗑 Clearing Cycle History...");
         await db.delete(cycleHistory);
 
-        console.log("🗑 Clearing Farmers...");
+        //conosle.log("🗑 Clearing Farmers...");
         await db.delete(farmer);
 
-        console.log("✅ Successfully cleared all domain data.");
-        console.log("✨ Account, Users, Sessions, Members, and Organizations remain intact.");
+        //conosle.log("✅ Successfully cleared all domain data.");
+        //conosle.log("✨ Account, Users, Sessions, Members, and Organizations remain intact.");
 
         process.exit(0);
     } catch (error) {

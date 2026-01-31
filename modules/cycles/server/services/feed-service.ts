@@ -10,7 +10,7 @@ export const updateCycleFeed = async (
     tx?: any, // Optional transaction client
     reason?: string // Optional reason for the update
 ) => {
-    // console.log(`[updateCycleFeed] Starting for Cycle: ${cycle.id}, Doc: ${cycle.doc}`);
+    // //conosle.log(`[updateCycleFeed] Starting for Cycle: ${cycle.id}, Doc: ${cycle.doc}`);
 
     // 1. Calculate Age based on Cycle Creation Date
     const now = new Date();
@@ -27,11 +27,11 @@ export const updateCycleFeed = async (
     const diffTime = now.getTime() - start.getTime();
     const currentAge = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
 
-    // console.log(`[updateCycleFeed] currentAge: ${currentAge}, existingAge: ${cycle.age}`);
+    // //conosle.log(`[updateCycleFeed] currentAge: ${currentAge}, existingAge: ${cycle.age}`);
 
     // 2. CHECKPOINT: Don't update if age hasn't changed (unless forced)
     if (!forceUpdate && currentAge <= cycle.age) {
-        // console.log(`[updateCycleFeed] No update needed (currentAge ${currentAge} <= existingAge ${cycle.age})`);
+        // //conosle.log(`[updateCycleFeed] No update needed (currentAge ${currentAge} <= existingAge ${cycle.age})`);
         return null;
     }
 
@@ -47,12 +47,12 @@ export const updateCycleFeed = async (
     const previousIntake = Number(cycle.intake) || 0;
     const consumedAmount = totalNewBags - previousIntake;
 
-    // console.log(`[updateCycleFeed] liveBirds: ${liveBirds}, totalNewBags: ${totalNewBags.toFixed(2)}, consumedAmount: ${consumedAmount.toFixed(2)}`);
+    // //conosle.log(`[updateCycleFeed] liveBirds: ${liveBirds}, totalNewBags: ${totalNewBags.toFixed(2)}, consumedAmount: ${consumedAmount.toFixed(2)}`);
 
     // 4. Update Function (Reusable for both tx and non-tx cases)
     const performUpdate = async (client: any) => {
         try {
-            // console.log(`[updateCycleFeed] Performing database update...`);
+            // //conosle.log(`[updateCycleFeed] Performing database update...`);
             // A. Update Cycle State
             await client.update(cycles)
                 .set({
@@ -85,7 +85,7 @@ export const updateCycleFeed = async (
                     note: reason || "Forced feed intake recalculation due to cycle change."
                 });
             }
-            // console.log(`[updateCycleFeed] Database update completed.`);
+            // //conosle.log(`[updateCycleFeed] Database update completed.`);
         } catch (err) {
             // console.error(`[updateCycleFeed] Database update failed:`, err);
             throw err;

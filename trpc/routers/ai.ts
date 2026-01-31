@@ -8,7 +8,7 @@ import { createTRPCRouter, proProcedure } from "../init";
 
 const callAiWithFallback = async (groq: Groq, messages: any[]) => {
     // Fallback Model List (Order of preference)
-    const MODELS = [
+    const MODELS = ['meta-llama/llama-4-scout-17b-16e-instruct',
         "llama-3.3-70b-versatile",
         "mixtral-8x7b-32768",
         "gemma2-9b-it"
@@ -18,7 +18,7 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
 
     for (const model of MODELS) {
         try {
-            console.log(`[AI] Attempting with model: ${model}`);
+            //conosle.log(`[AI] Attempting with model: ${model}`);
             const completion = await groq.chat.completions.create({
                 messages,
                 model,
@@ -27,6 +27,12 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
                 response_format: { type: "json_object" }
             });
 
+            // Log Token Usage
+            const usage = completion.usage;
+            if (usage) {
+                console.log(`[AI Usage] Model: ${model} | Prompt: ${usage.prompt_tokens} | Completion: ${usage.completion_tokens} | Total: ${usage.total_tokens}`);
+            }
+
             return completion.choices[0]?.message?.content;
         } catch (error: any) {
             console.warn(`[AI] Failed with ${model}:`, error.message);
@@ -34,6 +40,63 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
         }
     }
     throw new Error(`All AI models failed. Last error: ${lastError?.message}`);
+};
+
+const sanitizeInput = (text: string) => {
+    // Labels that usually indicate noise lines
+    const noiseLabels = ["location", "phn", "phone", "address", "delivery date", "order date", "feed order", "feed delivery"];
+    const noiseLabelRegex = new RegExp(`^(${noiseLabels.join("|")})\\b:?`, "i");
+
+    // Explicit noise patterns
+    const noisePatterns = [
+        /^farm\s+no\s+\d+/i,  // "Farm No 01"
+        /^(dear\s+)?(sir|madam)\b:?$/i, // Just "Dear Sir" or "Sir" on a line
+        /^(regards|sincerely|hi|hello)\b:?$/i // Just "Regards" etc.
+    ];
+
+    const phoneRegex = /\b\d[\d\s-]{6,}\d\b/;
+    // Data Protection: If a line has a number followed by 'bags', 'bg', 'kg', or 'birds', keep it.
+    const dataLineRegex = /\d+\s*(bag|bg|kg|bird|doc)/i;
+    const protectedPrefixRegex = /^(farmer|name|customer):\s*/i;
+
+    const lines = text.split("\n");
+    const kept: string[] = [];
+    const removed: string[] = [];
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const isDataLine = dataLineRegex.test(trimmed);
+        const isProtected = protectedPrefixRegex.test(trimmed);
+
+        // If it starts with "Farmer:", "Name:", or looks like direct stock data, it's a keeper.
+        if (isProtected || isDataLine) {
+            kept.push(line);
+            return;
+        }
+
+        const isNoiseLabel = noiseLabelRegex.test(trimmed);
+        const isNoisePattern = noisePatterns.some(p => p.test(trimmed));
+        const hasPhone = phoneRegex.test(trimmed);
+
+        if (isNoiseLabel || isNoisePattern || hasPhone) {
+            removed.push(line);
+        } else {
+            kept.push(line);
+        }
+    });
+
+    const cleanText = kept.join("\n").trim();
+
+    console.log(`--- [AI Sanitization] ---`);
+    console.log(`Original lines: ${lines.length} | Kept: ${kept.length} | Removed: ${removed.length}`);
+    if (removed.length > 0) {
+        console.log(`Removed lines:`, removed.map(l => l.trim()));
+    }
+    console.log(`-------------------------`);
+
+    return cleanText;
 };
 
 export const aiRouter = createTRPCRouter({
@@ -48,8 +111,10 @@ export const aiRouter = createTRPCRouter({
         .mutation(async ({ input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+            // Sanitize Input Text
+            const cleanText = sanitizeInput(input.text);
             const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
-
+            console.log(cleanText)
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
             Goal: Extract farmer names and their TOTAL feed bag count.
@@ -67,7 +132,7 @@ export const aiRouter = createTRPCRouter({
                 // Use the fallback mechanism which enforces json_object mode
                 const aiResponse = await callAiWithFallback(groq, [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: input.text }
+                    { role: "user", content: cleanText }
                 ]);
 
                 // Robust JSON Parsing
@@ -95,7 +160,7 @@ export const aiRouter = createTRPCRouter({
                 else if (Array.isArray(parsed)) data = parsed;
                 else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
                 else return [];
-                console.log("Extracted Data:", data);
+                //conosle.log("Extracted Data:", data);
                 const mappedData = data.map((item: any) => ({
                     name: item.original_name || item.name || "Unknown",
                     amount: Number(item.amount) || 0,
@@ -166,7 +231,6 @@ export const aiRouter = createTRPCRouter({
                 }
             }
 
-            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
             const activeCycles = await ctx.db.select({
                 cycleId: cycles.id,
@@ -227,29 +291,22 @@ export const aiRouter = createTRPCRouter({
                 };
             }
 
-            const systemPrompt = `
-            You are a Poultry Risk Analyst. Review RISK FLAGS.
-            Goal: Prioritize risks (CRITICAL/WARNING) and provide 1-sentence action.
-            Return JSON: { "summary": "string", "risks": [{ "farmer": "string", "level": "CRITICAL"|"WARNING", "message": "string" }] }
-            `;
+            const criticalCount = riskFlags.filter(f => f.type === "HIGH_MORTALITY").length;
+            const warningCount = riskFlags.filter(f => f.type === "RISING_MORTALITY").length;
 
-            try {
-                const aiResponse = await callAiWithFallback(groq, [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: JSON.stringify(riskFlags) }
-                ]);
-
-                return aiResponse ? JSON.parse(aiResponse) : { risks: [], summary: "AI analysis failed." };
-            } catch (error) {
-                return {
-                    summary: "⚠️ AI Offline. Showing raw system alerts.",
-                    risks: riskFlags.map(f => ({
-                        farmer: f.farmer,
-                        level: f.type === "HIGH_MORTALITY" ? "CRITICAL" : "WARNING",
-                        message: f.detail
-                    }))
-                };
+            let summary = `✅ Smart Watchdog Scan: All active cycles appear stable.`;
+            if (criticalCount > 0 || warningCount > 0) {
+                summary = `⚠️ Watchdog Alert: Found ${criticalCount} critical and ${warningCount} warning conditions needing attention.`;
             }
+
+            return {
+                summary,
+                risks: riskFlags.map(f => ({
+                    farmer: f.farmer,
+                    level: f.type === "HIGH_MORTALITY" ? "CRITICAL" : "WARNING",
+                    message: f.detail
+                }))
+            };
         }),
 
     generateSupplyChainPrediction: proProcedure
@@ -345,32 +402,11 @@ export const aiRouter = createTRPCRouter({
                 return { status: "OK", message: "Supply chain healthy. No immediate stockouts predicted.", predictions: [] };
             }
 
-            const systemPrompt = `
-            You are a Logistics Manager.
-            Goal: Suggest restocking priority.
-            Input: [{ farmer, stock: bags, daysRemaining }]
-            Return JSON object with keys: "aiPlan" (suggestedRoute: string[], instructions: string).
-            `;
-
-            try {
-                const aiResponse = await callAiWithFallback(groq, [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: JSON.stringify(criticalFarmers) }
-                ]);
-
-                return {
-                    status: "WARNING",
-                    message: "Stockout risks detected.",
-                    predictions: criticalFarmers,
-                    aiPlan: aiResponse ? JSON.parse(aiResponse) : null
-                };
-            } catch (e) {
-                return {
-                    status: "WARNING",
-                    message: "Stockout risks detected (AI Plan Unavailable).",
-                    predictions: criticalFarmers,
-                    aiPlan: null
-                };
-            }
+            return {
+                status: "WARNING",
+                message: "Stockout risks detected.",
+                predictions: criticalFarmers,
+                aiPlan: null
+            };
         }),
 });

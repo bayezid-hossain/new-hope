@@ -94,7 +94,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             // Update matched rows for all created farmers
             setParsedData(prev => {
                 const updatedItems = prev.map(p => {
-                    const created = data.find(c => c.name.toLowerCase() === p.cleanName.toLowerCase());
+                    // Try to find if this item was just created
+                    const created = data.find(c => c.name.toUpperCase() === p.cleanName.toUpperCase());
                     if (created && !p.matchedFarmerId) {
                         return {
                             ...p,
@@ -172,17 +173,17 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         if (!farmersList?.items || !inputText.trim()) return;
 
         try {
-            console.log("Parsing text:", inputText);
+            //conosle.log("Parsing text:", inputText);
             // Prepare candidates for AI
             const candidates = farmersList.items.map(f => ({ id: f.id, name: f.name }));
-            console.log("Candidates count:", candidates.length);
+            //conosle.log("Candidates count:", candidates.length);
 
             const extractedData = await extractFarmersMutation.mutateAsync({
                 text: inputText,
                 candidates: candidates
             });
 
-            console.log("AI Extracted Data:", extractedData);
+            //conosle.log("AI Extracted Data:", extractedData);
 
             // Map AI result to ParsedItem structure
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,7 +229,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 };
             });
 
-            console.log("Parsed Results:", results);
+            //conosle.log("Parsed Results:", results);
 
             if (results.length === 0) {
                 toast.warning("The AI couldn't find any farmer data in the text. Please check the format.");
@@ -390,6 +391,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         const uniqueMissing = missing.filter(p => {
             const normalized = p.cleanName.toLowerCase().trim();
             if (uniqueNames.has(normalized)) return false;
+            // CHECK: Don't include if already being created individually
+            if (loadingRowIds.has(p.id)) return false;
             uniqueNames.add(normalized);
             return true;
         });
@@ -817,7 +820,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
                                         Back to Input
                                     </Button>
-                                    <div className="flex gap-2 w-full sm:w-auto justify-end">
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
                                         {parsedData.some(p => !p.matchedFarmerId) && (
                                             <Button
                                                 variant="outline"

@@ -150,7 +150,7 @@ export const officerCyclesRouter = createTRPCRouter({
             await ctx.db.insert(cycleLogs).values({
                 cycleId: newCycle.id,
                 userId: ctx.user.id,
-                type: "NOTE",
+                type: "SYSTEM",
                 valueChange: 0,
                 note: `Cycle started. Initial Age: ${input.age}, Birds: ${input.doc}`
             });
@@ -344,7 +344,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 await tx.insert(cycleLogs).values({
                     historyId: history.id,
                     userId: ctx.user.id,
-                    type: "NOTE",
+                    type: "SYSTEM",
                     valueChange: 0,
                     note: `Cycle Ended. Total Consumption: ${(input.intake || 0).toFixed(2)} bags.`
                 });
@@ -422,6 +422,21 @@ export const officerCyclesRouter = createTRPCRouter({
                 newValue: current.mortality + input.amount,
                 note: input.reason || "Reported Death"
             });
+
+            // NOTIFICATION: Mortality Added
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                const farmerData = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, current.farmerId) });
+                await NotificationService.sendToOrgManagers({
+                    organizationId: current.organizationId,
+                    title: "Mortality Reported",
+                    message: `Officer ${ctx.user.name} reported ${input.amount} dead birds for cycle "${current.name}" (${farmerData?.name || 'Unknown Farmer'}).`,
+                    type: "WARNING",
+                    link: `/management/cycles/${current.id}`
+                });
+            } catch (e) {
+                console.error("Failed to send mortality notification", e);
+            }
 
             return updated;
         }),
@@ -555,6 +570,20 @@ export const officerCyclesRouter = createTRPCRouter({
                     note: `Cycle Reopened: "${historyRecord.cycleName}" was moved back from archive.`,
                 });
 
+                // 9. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: historyRecord.organizationId!,
+                        title: "Cycle Reopened",
+                        message: `Officer ${ctx.user.name} reopened cycle "${historyRecord.cycleName}" for farmer "${historyRecord.farmer.name}".`,
+                        type: "UPDATE",
+                        link: `/management/cycles/${restoredCycle.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send cycle reopen notification", e);
+                }
+
                 return { success: true, cycleId: restoredCycle.id };
             });
         }),
@@ -638,7 +667,7 @@ export const officerCyclesRouter = createTRPCRouter({
             reason: z.string().min(3).max(500)
         }))
         .mutation(async ({ ctx, input }) => {
-            // console.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
+            // //conosle.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
             return await ctx.db.transaction(async (tx) => {
                 // 1. Fetch Cycle
                 const [cycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
@@ -668,7 +697,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 const oldDoc = cycle.doc;
                 if (oldDoc === input.newDoc) return { success: true, message: "No change" };
 
-                // console.log(`[correctDoc] Updating doc from ${oldDoc} to ${input.newDoc}`);
+                // //conosle.log(`[correctDoc] Updating doc from ${oldDoc} to ${input.newDoc}`);
 
                 // 3. Update Cycle
                 const [updatedCycle] = await tx.update(cycles)
@@ -701,7 +730,22 @@ export const officerCyclesRouter = createTRPCRouter({
                     note: `DOC Correction: ${input.reason}`
                 });
 
-                // console.log(`[correctDoc] Successfully completed.`);
+                // NOTIFICATION: DOC Corrected
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    const farmerData = await tx.query.farmer.findFirst({ where: eq(farmer.id, cycle.farmerId) });
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: cycle.organizationId!,
+                        title: "DOC Corrected",
+                        message: `Officer ${ctx.user.name} corrected initial birds (DOC) for cycle "${cycle.name}" (${farmerData?.name}). From ${cycle.doc} to ${input.newDoc}.`,
+                        type: "CRITICAL",
+                        link: `/management/cycles/${cycle.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send DOC correction notification", e);
+                }
+
+                // //conosle.log(`[correctDoc] Successfully completed.`);
                 return { success: true };
             });
         }),
@@ -791,6 +835,20 @@ export const officerCyclesRouter = createTRPCRouter({
                     );
                 }
 
+                // NOTIFICATION: Mortality Log Edited
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: currentCycle.organizationId!,
+                        title: "Mortality Entry Edited",
+                        message: `Officer ${ctx.user.name} edited a mortality log for cycle "${currentCycle.name}". Amount changed from ${oldMortality} to ${input.newAmount}.`,
+                        type: "UPDATE",
+                        link: `/management/cycles/${currentCycle.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send mortality edit notification", e);
+                }
+
                 return { success: true };
             });
         }),
@@ -869,6 +927,20 @@ export const officerCyclesRouter = createTRPCRouter({
                     newValue: input.newTotalMortality,
                     note: `Mortality Correction: ${input.reason}`
                 });
+
+                // NOTIFICATION: Mortality Corrected
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: cycle.organizationId!,
+                        title: "Mortality Corrected",
+                        message: `Officer ${ctx.user.name} corrected total mortality for cycle "${cycle.name}". From ${oldTotalMortality} to ${input.newTotalMortality}. Reason: ${input.reason}`,
+                        type: "UPDATE",
+                        link: `/management/cycles/${cycle.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send mortality correction notification", e);
+                }
 
                 return { success: true };
             });

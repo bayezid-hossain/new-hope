@@ -21,10 +21,11 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Wheat, Wrench } from "lucide-react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 
 export default function MainStockPage() {
@@ -61,6 +62,18 @@ export default function MainStockPage() {
   });
 
   const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string } | null>(null);
+
+  const deleteFarmerMutation = useMutation(trpc.officer.farmers.delete.mutationOptions({
+    onSuccess: () => {
+      toast.success("Farmer profile deleted");
+      queryClient.invalidateQueries({ queryKey: [["officer", "farmers"]] });
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete: ${err.message}`);
+    }
+  }));
+
+  const queryClient = useQueryClient();
 
   if (!orgId) return null;
   if (isPending) return <div className="p-8"><LoadingState title="Stock Information" description="Loading stock information..." /></div>;
@@ -155,6 +168,20 @@ export default function MainStockPage() {
                             }}
                           >
                             <Wrench className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all ml-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (confirm(`Are you sure you want to delete farmer "${row.name}"? This action cannot be undone.`)) {
+                                deleteFarmerMutation.mutate({ id: row.id, orgId: orgId! });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
