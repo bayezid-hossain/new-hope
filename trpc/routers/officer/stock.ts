@@ -11,7 +11,11 @@ export const officerStockRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             // Check ownership
             const f = await ctx.db.query.farmer.findFirst({
-                where: and(eq(farmer.id, input.farmerId), eq(farmer.officerId, ctx.user.id))
+                where: and(
+                    eq(farmer.id, input.farmerId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                )
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -31,7 +35,11 @@ export const officerStockRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             // Check ownership
             const f = await ctx.db.query.farmer.findFirst({
-                where: and(eq(farmer.id, input.farmerId), eq(farmer.officerId, ctx.user.id))
+                where: and(
+                    eq(farmer.id, input.farmerId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                )
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -78,7 +86,11 @@ export const officerStockRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             // Check ownership
             const f = await ctx.db.query.farmer.findFirst({
-                where: and(eq(farmer.id, input.farmerId), eq(farmer.officerId, ctx.user.id))
+                where: and(
+                    eq(farmer.id, input.farmerId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                )
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -132,7 +144,8 @@ export const officerStockRouter = createTRPCRouter({
                 const validFarmers = await tx.query.farmer.findMany({
                     where: and(
                         inArray(farmer.id, inputFarmerIds),
-                        eq(farmer.officerId, ctx.user.id)
+                        eq(farmer.officerId, ctx.user.id),
+                        eq(farmer.status, "active")
                     )
                 });
 
@@ -207,13 +220,17 @@ export const officerStockRouter = createTRPCRouter({
                 // 2. Fetch Source & Target (Verify Ownership)
                 const sourceFarmer = await tx.query.farmer.findFirst({
                     where: and(
-                        eq(farmer.id, input.sourceFarmerId), eq(farmer.officerId, ctx.user.id)
+                        eq(farmer.id, input.sourceFarmerId),
+                        eq(farmer.officerId, ctx.user.id),
+                        eq(farmer.status, "active")
                     )
                 });
 
                 const targetFarmer = await tx.query.farmer.findFirst({
                     where: and(
-                        eq(farmer.id, input.targetFarmerId), eq(farmer.officerId, ctx.user.id)
+                        eq(farmer.id, input.targetFarmerId),
+                        eq(farmer.officerId, ctx.user.id),
+                        eq(farmer.status, "active")
                     )
                 });
 
@@ -293,7 +310,7 @@ export const officerStockRouter = createTRPCRouter({
 
                 // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: eq(farmer.id, originalLog.farmerId!)
+                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.status, "active"))
                 });
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
@@ -398,7 +415,7 @@ export const officerStockRouter = createTRPCRouter({
 
                 // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: eq(farmer.id, originalLog.farmerId!)
+                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.status, "active"))
                 });
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });

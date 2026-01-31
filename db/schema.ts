@@ -151,6 +151,8 @@ export const farmer = pgTable("farmer", {
   // STRICT OWNERSHIP: Only the officer who created this farmer can manage them
   officerId: text("officer_id").notNull().references(() => user.id),
 
+  status: text("status").notNull().default("active"),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [

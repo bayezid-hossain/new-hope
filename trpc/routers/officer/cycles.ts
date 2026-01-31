@@ -32,6 +32,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 eq(cycles.organizationId, orgId),
                 eq(cycles.status, "active"),
                 eq(farmer.officerId, ctx.user.id),
+                eq(farmer.status, "active"),
                 farmerId ? eq(cycles.farmerId, farmerId) : undefined,
                 search ? ilike(cycles.name, `%${search}%`) : undefined,
             );
@@ -84,6 +85,7 @@ export const officerCyclesRouter = createTRPCRouter({
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
                 eq(farmer.officerId, ctx.user.id),
+                eq(farmer.status, "active"),
                 farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
                 search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
             );
@@ -193,7 +195,7 @@ export const officerCyclesRouter = createTRPCRouter({
 
             if (activeCycle) {
                 // Verify ownership: Record must belong to a farmer managed by this officer
-                if (activeCycle.farmer.officerId !== ctx.user.id) {
+                if (!activeCycle.farmer || activeCycle.farmer.officerId !== ctx.user.id || activeCycle.farmer.status !== "active") {
                     throw new TRPCError({
                         code: "FORBIDDEN",
                         message: "You do not have permission to view this cycle's details."
@@ -252,7 +254,7 @@ export const officerCyclesRouter = createTRPCRouter({
             if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
 
             // Verify ownership for history record as well
-            if (historyRecord.farmer.officerId !== ctx.user.id) {
+            if (!historyRecord.farmer || historyRecord.farmer.officerId !== ctx.user.id || historyRecord.farmer.status !== "active") {
                 throw new TRPCError({
                     code: "FORBIDDEN",
                     message: "You do not have permission to view this history record."
@@ -313,9 +315,9 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 // LOGIC CHECK: Ensure intake does not exceed farmer's stock
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: eq(farmer.id, activeCycle.farmerId)
+                    where: and(eq(farmer.id, activeCycle.farmerId), eq(farmer.status, "active"))
                 });
-                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found." });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found or archived." });
 
                 if ((input.intake || 0) > farmerData.mainStock) {
                     throw new TRPCError({
@@ -441,14 +443,18 @@ export const officerCyclesRouter = createTRPCRouter({
             // NOTIFICATION: Mortality Added
             try {
                 const { NotificationService } = await import("@/modules/notifications/server/notification-service");
-                const farmerData = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, current.farmerId) });
-                await NotificationService.sendToOrgManagers({
-                    organizationId: current.organizationId,
-                    title: "Mortality Reported",
-                    message: `Officer ${ctx.user.name} reported ${input.amount} dead birds for cycle "${current.name}" (${farmerData?.name || 'Unknown Farmer'}).`,
-                    type: "WARNING",
-                    link: `/management/cycles/${current.id}`
+                const farmerData = await ctx.db.query.farmer.findFirst({
+                    where: and(eq(farmer.id, current.farmerId), eq(farmer.status, "active"))
                 });
+                if (farmerData) {
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: current.organizationId,
+                        title: "Mortality Reported",
+                        message: `Officer ${ctx.user.name} reported ${input.amount} dead birds for cycle "${current.name}" (${farmerData.name}).`,
+                        type: "WARNING",
+                        link: `/management/cycles/${current.id}`
+                    });
+                }
             } catch (e) {
                 console.error("Failed to send mortality notification", e);
             }
@@ -462,7 +468,11 @@ export const officerCyclesRouter = createTRPCRouter({
         })
             .from(cycles)
             .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
-            .where(and(eq(cycles.status, "active"), eq(farmer.officerId, ctx.user.id)));
+            .where(and(
+                eq(cycles.status, "active"),
+                eq(farmer.officerId, ctx.user.id),
+                eq(farmer.status, "active")
+            ));
 
         const results = await Promise.all(
             activeCyclesData.map(d => updateCycleFeed(d.cycle, ctx.user.id))
@@ -484,10 +494,10 @@ export const officerCyclesRouter = createTRPCRouter({
             });
 
             if (!record) throw new TRPCError({ code: "NOT_FOUND" });
-            if (record.farmer.officerId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+            if (!record.farmer || record.farmer.officerId !== ctx.user.id || record.farmer.status !== "active") {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Farmer not found or archived." });
+            }
 
-            await ctx.db.delete(cycleHistory).where(eq(cycleHistory.id, input.id));
-            return { success: true };
             await ctx.db.delete(cycleHistory).where(eq(cycleHistory.id, input.id));
             return { success: true };
         }),
@@ -504,6 +514,12 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
 
                 if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
+                if (!historyRecord.farmer || historyRecord.farmer.status !== "active") {
+                    throw new TRPCError({
+                        code: "FORBIDDEN",
+                        message: "Cannot reopen cycle for an archived farmer."
+                    });
+                }
 
                 // Access Check: Officer, Manager, or Admin
                 if (ctx.user.globalRole !== "ADMIN" && historyRecord.farmer.officerId !== ctx.user.id) {
@@ -621,10 +637,10 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 // Check Access
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: eq(farmer.id, activeCycle.farmerId)
+                    where: and(eq(farmer.id, activeCycle.farmerId), eq(farmer.status, "active"))
                 });
 
-                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found or archived." });
 
                 if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
                     const membership = await tx.query.member.findFirst({
@@ -784,8 +800,10 @@ export const officerCyclesRouter = createTRPCRouter({
                 if (!currentCycle) throw new TRPCError({ code: "NOT_FOUND" });
 
                 // Check Access
-                const farmerData = await tx.query.farmer.findFirst({ where: eq(farmer.id, currentCycle.farmerId) });
-                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: and(eq(farmer.id, currentCycle.farmerId), eq(farmer.status, "active"))
+                });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found or archived." });
 
                 if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
                     // Check membership for manager logic if needed, reusing logic from other procedures

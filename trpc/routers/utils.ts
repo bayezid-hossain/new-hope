@@ -23,7 +23,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             totalMainStock: sql<number>`sum(${farmer.mainStock})`.as('totalMainStock'),
         })
             .from(farmer)
-            .where(eq(farmer.organizationId, orgId))
+            .where(and(eq(farmer.status, "active"), eq(farmer.organizationId, orgId)))
             .groupBy(farmer.officerId)
     );
 
@@ -37,7 +37,11 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         })
             .from(cycles)
             .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
-            .where(and(eq(cycles.organizationId, orgId), eq(cycles.status, 'active')))
+            .where(and(
+                eq(cycles.organizationId, orgId),
+                eq(cycles.status, 'active'),
+                eq(farmer.status, 'active')
+            ))
             .groupBy(farmer.officerId)
     );
 
@@ -51,7 +55,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         })
             .from(cycleHistory)
             .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
-            .where(eq(cycleHistory.organizationId, orgId))
+            .where(and(eq(cycleHistory.organizationId, orgId), eq(farmer.status, "active")))
             .groupBy(farmer.officerId)
     );
 

@@ -11,6 +11,7 @@ export const managementFarmersRouter = createTRPCRouter({
             page: z.number().default(1),
             pageSize: z.number().default(50),
             onlyMine: z.boolean().optional().default(false),
+            status: z.enum(["active", "deleted", "all"]).default("active"),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
         }))
@@ -21,7 +22,8 @@ export const managementFarmersRouter = createTRPCRouter({
             const whereClause = and(
                 eq(farmer.organizationId, orgId),
                 search ? ilike(farmer.name, `%${search}%`) : undefined,
-                onlyMine ? eq(farmer.officerId, ctx.user.id) : undefined
+                onlyMine ? eq(farmer.officerId, ctx.user.id) : undefined,
+                input.status === "all" ? undefined : eq(farmer.status, input.status)
             );
 
             const data = await ctx.db.query.farmer.findMany({
@@ -58,7 +60,8 @@ export const managementFarmersRouter = createTRPCRouter({
 
     getOrgFarmers: orgProcedure
         .input(z.object({
-            search: z.string().optional()
+            search: z.string().optional(),
+            status: z.enum(["active", "deleted", "all"]).default("active"),
         }))
         .query(async ({ ctx, input }) => {
             const search = input.search;
@@ -66,6 +69,7 @@ export const managementFarmersRouter = createTRPCRouter({
             const data = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
+                    input.status === "all" ? undefined : eq(farmer.status, input.status),
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
                 with: {
@@ -223,5 +227,116 @@ export const managementFarmersRouter = createTRPCRouter({
                 },
                 stockLogs: stockLogsData
             };
+        }),
+
+    restore: orgProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const archivedFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
+            });
+
+            if (!archivedFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (archivedFarmer.status === "active") return { success: true, message: "Farmer is already active" };
+
+            // Logic check: Can we restore? 
+            // We need to check if the ORIGINAL name (without suffix) is occupied by an active farmer for this officer
+            // Suffix pattern: " (Archived #...)"
+            const originalName = archivedFarmer.name.split(" (Archived #")[0];
+
+            const conflict = await ctx.db.query.farmer.findFirst({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, archivedFarmer.officerId),
+                    eq(farmer.status, "active"),
+                    eq(farmer.name, originalName)
+                )
+            });
+
+            if (conflict) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `Cannot restore "${originalName}". There is already another active farmer with this name for the assigned officer. Please rename the active farmer or archived record first.`
+                });
+            }
+
+            const [updated] = await ctx.db.update(farmer)
+                .set({
+                    status: "active",
+                    name: originalName,
+                    deletedAt: null,
+                    updatedAt: new Date()
+                })
+                .where(eq(farmer.id, input.farmerId))
+                .returning();
+
+            // NOTIFICATION: Farmer Restored
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                await NotificationService.sendToOrgManagers({
+                    organizationId: input.orgId,
+                    title: "Farmer Restored",
+                    message: `Manager ${ctx.user.name} restored farmer "${updated.name}"`,
+                    type: "SUCCESS",
+                    link: `/management/farmers/${updated.id}`
+                });
+            } catch (e) {
+                console.error("Failed to send farmer restoration notification", e);
+            }
+
+            return updated;
+        }),
+
+    delete: orgProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const archivedFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
+            });
+
+            if (!archivedFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (archivedFarmer.status === "deleted") throw new TRPCError({ code: "BAD_REQUEST", message: "Farmer is already archived" });
+
+            // 1. Check for active cycles
+            const activeCycles = await ctx.db.query.cycles.findFirst({
+                where: and(eq(cycles.farmerId, input.farmerId), eq(cycles.status, "active"))
+            });
+
+            if (activeCycles) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "Cannot archive farmer with active cycles. Please end all cycles first."
+                });
+            }
+
+            // 2. Perform soft deletion
+            const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const suffix = ` (Archived #${timestamp})`;
+
+            const [deleted] = await ctx.db.update(farmer)
+                .set({
+                    status: "deleted",
+                    deletedAt: new Date(),
+                    name: sql`${farmer.name} || ${suffix}`,
+                    updatedAt: new Date()
+                })
+                .where(eq(farmer.id, input.farmerId))
+                .returning();
+
+            // NOTIFICATION: Farmer Deleted
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                await NotificationService.sendToOrgManagers({
+                    organizationId: input.orgId,
+                    title: "Farmer Profile Archived",
+                    message: `Manager ${ctx.user.name} archived farmer profile "${deleted.name}"`,
+                    type: "WARNING",
+                    link: `/management/farmers`
+                });
+            } catch (e) {
+                console.error("Failed to send farmer deletion notification", e);
+            }
+
+            return deleted;
         }),
 });

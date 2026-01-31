@@ -5,6 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
     TableBody,
     TableCell,
     TableHead,
@@ -19,11 +27,12 @@ import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     Activity,
@@ -31,11 +40,14 @@ import {
     ArrowUpRight,
     ChevronLeft,
     Loader2,
+    MoreVertical,
     Scale,
+    Trash2,
     Wheat
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 // --- Sub-components (Simplified versions for Admin) ---
 
@@ -102,6 +114,7 @@ export default function AdminFarmerDetailsPage() {
 
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showRestockModal, setShowRestockModal] = useState(false);
+    const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
@@ -112,6 +125,18 @@ export default function AdminFarmerDetailsPage() {
     if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
 
     const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
+
+    const queryClient = useQueryClient();
+    const deleteMutation = useMutation(trpc.management.farmers.delete.mutationOptions({
+        onSuccess: () => {
+            toast.success("Farmer profile deleted");
+            queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
+            router.push(`/admin/organizations/${orgId}/farmers`);
+        },
+        onError: (err) => {
+            toast.error(`Failed to delete: ${err.message}`);
+        }
+    }));
 
     return (
         <AdminGuard>
@@ -137,14 +162,34 @@ export default function AdminFarmerDetailsPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 order-first sm:order-last">
-                        <Button onClick={() => setShowTransferModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit">
-                            <ArrowUpRight className="h-4 w-4" />
-                            Transfer Stock
-                        </Button>
-                        <Button onClick={() => setShowRestockModal(true)} variant="outline" className="gap-2 shadow-sm bg-white w-fit hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all">
-                            <Wheat className="h-4 w-4" />
-                            Restock
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button className="gap-2 shadow-sm font-bold">
+                                    <MoreVertical className="h-4 w-4" />
+                                    Actions
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[200px]">
+                                <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
+                                    <Wheat className="h-4 w-4 text-amber-500" />
+                                    Restock
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
+                                    <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                                    Transfer Stock
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setShowArchiveDialog(true)}
+                                    className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete Profile
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
@@ -217,6 +262,14 @@ export default function AdminFarmerDetailsPage() {
                     currentFarmerId={farmerId}
                     currentOfficerId={farmerData.officerId}
                     prefix={`/admin/organizations/${params.id}`}
+                />
+
+                <ArchiveFarmerDialog
+                    open={showArchiveDialog}
+                    onOpenChange={setShowArchiveDialog}
+                    farmerName={farmerData.name}
+                    isPending={deleteMutation.isPending}
+                    onConfirm={() => deleteMutation.mutate({ orgId, farmerId })}
                 />
             </div>
         </AdminGuard>

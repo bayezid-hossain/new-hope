@@ -3,9 +3,9 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowRight, Box, Wheat } from "lucide-react";
+import { ArrowRight, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 
 interface MobileFarmerCardProps {
     farmer: any;
@@ -13,9 +13,11 @@ interface MobileFarmerCardProps {
     variant?: "elevated" | "flat";
     className?: string;
     actions?: React.ReactNode;
+    onEdit?: () => void;
+    onDelete?: () => void;
 }
 
-export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", className, actions }: MobileFarmerCardProps) => {
+export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", className, actions, onEdit, onDelete }: MobileFarmerCardProps) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const detailLink = prefix ? `${prefix}/farmers/${farmer.id}` : `/farmers/${farmer.id}`;
 
@@ -50,13 +52,39 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                     >
                         {farmer.name}
                     </Link>
+                    {onEdit && (
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onEdit();
+                            }}
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-primary transition-colors inline-flex"
+                        >
+                            <Wrench className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onDelete();
+                            }}
+                            className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors inline-flex"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    )}
                     {farmer.officerName && (
                         <p className="text-[10px] text-slate-400 font-medium">
                             Officer: <span className="text-slate-600">{farmer.officerName}</span>
                         </p>
                     )}
                 </div>
-                {farmer.activeCyclesCount > 0 ? (
+                {farmer.status === "deleted" ? (
+                    <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 font-bold text-[10px] px-1.5 h-5">DELETED</Badge>
+                ) : farmer.activeCyclesCount > 0 ? (
                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] px-1.5 h-5">ACTIVE</Badge>
                 ) : (
                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] px-1.5 h-5">IDLE</Badge>
@@ -92,7 +120,6 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                 <div className="flex flex-col justify-center p-2 rounded-lg bg-blue-500 border border-white text-right items-end shadow-sm">
                     <span className="text-[10px] text-white font-bold uppercase tracking-wider mb-0.5">Total Stock</span>
                     <div className="flex items-baseline gap-1 justify-end">
-                        <Box className={cn("h-4 w-4", isLow ? "text-red-500" : "text-white")} />
                         <span className="text-xl font-black text-white leading-none">
                             {mainStock.toFixed(2)}
                         </span>
@@ -108,13 +135,20 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                 </div>
             )}
 
-            {/* Footer: Joined Date, Arrow */}
+            {/* Footer: Date, Arrow */}
             <div className={cn("flex justify-between items-center text-[10px] text-slate-400", actions ? "pt-2 border-t border-slate-50 mt-2" : "pt-2")}>
-                <span>Joined {farmer.createdAt ? format(new Date(farmer.createdAt), "MMM d, yyyy") : "-"}</span>
+                <span>
+                    {farmer.status === "deleted"
+                        ? `Archived ${farmer.deletedAt ? format(new Date(farmer.deletedAt), "MMM d, yyyy") : format(new Date(farmer.updatedAt), "MMM d, yyyy")}`
+                        : `Joined ${farmer.createdAt ? format(new Date(farmer.createdAt), "MMM d, yyyy") : "-"}`
+                    }
+                </span>
                 <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
                     View <ArrowRight className="h-2.5 w-2.5" />
                 </span>
             </div>
         </div>
     );
-};
+});
+
+MobileFarmerCard.displayName = "MobileFarmerCard";

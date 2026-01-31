@@ -21,6 +21,7 @@ export const officerFarmersRouter = createTRPCRouter({
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, orgId), eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
                 limit: pageSize,
@@ -40,6 +41,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 .where(and(
                     eq(farmer.organizationId, orgId),
                     eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ));
 
@@ -82,6 +84,7 @@ export const officerFarmersRouter = createTRPCRouter({
             const whereClause = and(
                 eq(farmer.organizationId, orgId),
                 eq(farmer.officerId, ctx.user.id),
+                eq(farmer.status, "active"),
                 search ? ilike(farmer.name, `%${search}%`) : undefined
             );
 
@@ -131,6 +134,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
                     ilike(farmer.name, input.name.toUpperCase())
                 )
             });
@@ -191,6 +195,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
                     ilike(farmer.name, input.name.toUpperCase()),
                     ne(farmer.id, input.id) // Exclude self
                 )
@@ -252,6 +257,7 @@ export const officerFarmersRouter = createTRPCRouter({
                     where: and(
                         eq(farmer.organizationId, orgId),
                         eq(farmer.officerId, ctx.user.id),
+                        eq(farmer.status, "active"),
                         inArray(sql`upper(${farmer.name})`, namesToCheck)
                     )
                 });
@@ -329,9 +335,18 @@ export const officerFarmersRouter = createTRPCRouter({
                 });
             }
 
-            // 2. Perform deletion (cascade is handled by DB schema hopefully, otherwise we do it manually)
-            // Farmer table has officerId check for safety
-            const [deleted] = await ctx.db.delete(farmer)
+            // 2. Perform soft deletion
+            // We append a timestamp to the name to free up the original name for reuse
+            const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const suffix = ` (Archived #${timestamp})`;
+
+            const [deleted] = await ctx.db.update(farmer)
+                .set({
+                    status: "deleted",
+                    deletedAt: new Date(),
+                    name: sql`${farmer.name} || ${suffix}`,
+                    updatedAt: new Date()
+                })
                 .where(and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id)))
                 .returning();
 
@@ -358,7 +373,11 @@ export const officerFarmersRouter = createTRPCRouter({
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             const data = await ctx.db.query.farmer.findFirst({
-                where: and(eq(farmer.id, input.farmerId), eq(farmer.officerId, ctx.user.id)),
+                where: and(
+                    eq(farmer.id, input.farmerId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                ),
                 with: {
                     cycles: { where: eq(cycles.status, 'active') },
                 }

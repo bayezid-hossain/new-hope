@@ -45,6 +45,7 @@ export const managementCyclesRouter = createTRPCRouter({
             const whereClause = and(
                 eq(cycles.organizationId, orgId),
                 eq(cycles.status, "active"),
+                eq(farmer.status, "active"),
                 farmerId ? eq(cycles.farmerId, farmerId) : undefined,
                 search ? or(
                     ilike(cycles.name, `%${search}%`),

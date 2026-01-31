@@ -247,6 +247,7 @@ export const aiRouter = createTRPCRouter({
                 .where(and(
                     eq(cycles.organizationId, input.orgId),
                     eq(cycles.status, "active"),
+                    eq(farmer.status, "active"),
                     input.officerId ? eq(farmer.officerId, input.officerId) : undefined
                 ));
 
@@ -355,6 +356,7 @@ export const aiRouter = createTRPCRouter({
                 .leftJoin(cycles, and(eq(cycles.farmerId, farmer.id), eq(cycles.status, "active")))
                 .where(and(
                     eq(farmer.organizationId, input.orgId),
+                    eq(farmer.status, "active"),
                     input.officerId ? eq(farmer.officerId, input.officerId) : undefined
                 ));
 

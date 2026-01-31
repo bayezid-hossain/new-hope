@@ -4,14 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, Loader2, Search, Wrench } from "lucide-react";
+import { Activity, Loader2, RotateCcw, Search, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 
 interface OrgFarmersListProps {
@@ -25,11 +28,46 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
     const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
+    const [archivingFarmer, setArchivingFarmer] = useState<{ id: string; name: string } | null>(null);
+    const [status, setStatus] = useState<"active" | "deleted">("active");
 
-    const { data: farmers, isLoading } = useQuery({
-        ...trpc.management.farmers.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch }),
+    const handleEdit = useCallback((id: string, name: string) => {
+        setEditingFarmer({ id, name });
+    }, []);
+
+    const handleArchive = useCallback((id: string, name: string) => {
+        setArchivingFarmer({ id, name });
+    }, []);
+
+    const { data: farmers, isLoading, refetch } = useQuery({
+        ...trpc.management.farmers.getOrgFarmers.queryOptions({ orgId, search: debouncedSearch, status }),
         placeholderData: keepPreviousData
     });
+
+    const queryClient = useQueryClient();
+
+    const deleteMutation = useMutation(
+        trpc.management.farmers.delete.mutationOptions({
+            onSuccess: () => {
+                toast.success("Farmer profile deleted");
+                setArchivingFarmer(null);
+                refetch();
+                queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
+            },
+            onError: (err) => toast.error(err.message || "Failed to delete farmer")
+        })
+    );
+
+    const restoreMutation = useMutation(
+        trpc.management.farmers.restore.mutationOptions({
+            onSuccess: () => {
+                toast.success("Farmer restored successfully");
+                refetch();
+                queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
+            },
+            onError: (err) => toast.error(err.message || "Failed to restore farmer")
+        })
+    );
 
     const filteredFarmers = farmers; // Data is already filtered by backend
 
@@ -49,14 +87,23 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
 
     return (
         <div className="space-y-4">
-            <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                <Input
-                    placeholder="Search farmers..."
-                    className="pl-9"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <Tabs value={status} onValueChange={(v: any) => setStatus(v)} className="w-full sm:w-auto">
+                    <TabsList className="grid w-full grid-cols-2 sm:w-[300px]">
+                        <TabsTrigger value="active" className="font-bold">Active</TabsTrigger>
+                        <TabsTrigger value="deleted" className="font-bold">deleted</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Search farmers..."
+                        className="pl-9"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
             </div>
 
             {!filteredFarmers || filteredFarmers.length === 0 ? (
@@ -76,7 +123,11 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                         <TableHead className="font-semibold">Status</TableHead>
                                         <TableHead className="font-semibold">Cycles (Live/Total)</TableHead>
                                         <TableHead className="font-semibold">Stock</TableHead>
-                                        <TableHead className="font-semibold">Joined</TableHead>
+                                        {status === "active" ? (
+                                            <TableHead className="font-semibold">Joined</TableHead>
+                                        ) : (
+                                            <TableHead className="font-semibold">deleted At</TableHead>
+                                        )}
                                         <TableHead className="w-[50px] px-6"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -92,7 +143,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
+                                                        onClick={() => handleEdit(farmer.id, farmer.name)}
                                                     >
                                                         <Wrench className="h-3 w-3" />
                                                     </Button>
@@ -109,7 +160,9 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                 </Link>
                                             </TableCell>
                                             <TableCell>
-                                                {farmer.activeCyclesCount > 0 ? (
+                                                {status === "deleted" ? (
+                                                    <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 font-bold text-[10px] uppercase tracking-wider">Deleted</Badge>
+                                                ) : farmer.activeCyclesCount > 0 ? (
                                                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                                 ) : (
                                                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
@@ -150,9 +203,43 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             </TableCell>
 
                                             <TableCell className="text-slate-400 text-[11px] font-medium">
-                                                {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                                {format(new Date(status === "active" ? farmer.createdAt : farmer.deletedAt || farmer.updatedAt), "MMM d, yyyy")}
                                             </TableCell>
-                                            <TableCell className="px-6"></TableCell>
+                                            <TableCell className="px-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    {status === "deleted" ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-primary hover:bg-primary/10 font-bold text-xs gap-1"
+                                                            disabled={restoreMutation.isPending}
+                                                            onClick={() => restoreMutation.mutate({ orgId, farmerId: farmer.id })}
+                                                        >
+                                                            {restoreMutation.isPending ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                            )}
+                                                            Restore
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50 font-bold text-xs gap-1"
+                                                            disabled={deleteMutation.isPending}
+                                                            onClick={() => handleArchive(farmer.id, farmer.name)}
+                                                        >
+                                                            {deleteMutation.isPending ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            )}
+                                                            delete
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -167,20 +254,46 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                 key={farmer.id}
                                 farmer={farmer}
                                 prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? '/management' : '')}
+                                onEdit={() => handleEdit(farmer.id, farmer.name)}
+                                onDelete={status === "active" ? (() => handleArchive(farmer.id, farmer.name)) : undefined}
+                                actions={
+                                    status === "deleted" ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full text-primary border-primary/20 bg-primary/5 font-bold gap-2"
+                                            disabled={restoreMutation.isPending}
+                                            onClick={() => restoreMutation.mutate({ orgId, farmerId: farmer.id })}
+                                        >
+                                            {restoreMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <RotateCcw className="h-4 w-4" />
+                                            )}
+                                            RESTORE FARMER PROFILE
+                                        </Button>
+                                    ) : undefined
+                                }
                             />
                         ))}
                     </div>
                 </>
             )}
 
-            {editingFarmer && (
-                <EditFarmerNameModal
-                    farmerId={editingFarmer.id}
-                    currentName={editingFarmer.name}
-                    open={!!editingFarmer}
-                    onOpenChange={(open) => !open && setEditingFarmer(null)}
-                />
-            )}
+            <EditFarmerNameModal
+                farmerId={editingFarmer?.id || ""}
+                currentName={editingFarmer?.name || ""}
+                open={!!editingFarmer}
+                onOpenChange={(open) => !open && setEditingFarmer(null)}
+            />
+
+            <ArchiveFarmerDialog
+                open={!!archivingFarmer}
+                onOpenChange={(v) => !v && setArchivingFarmer(null)}
+                farmerName={archivingFarmer?.name || ""}
+                isPending={deleteMutation.isPending}
+                onConfirm={() => deleteMutation.mutate({ orgId, farmerId: archivingFarmer?.id || "" })}
+            />
         </div>
     );
 };

@@ -18,19 +18,21 @@ import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-
 import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-import-modal";
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
+import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 
 export default function MainStockPage() {
   const { orgId } = useCurrentOrg();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 300);
@@ -62,18 +64,26 @@ export default function MainStockPage() {
   });
 
   const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string } | null>(null);
+  const [archivingFarmer, setArchivingFarmer] = useState<{ id: string, name: string } | null>(null);
+
+  const handleEdit = useCallback((id: string, name: string) => {
+    setEditingFarmer({ id, name });
+  }, []);
+
+  const handleDelete = useCallback((id: string, name: string) => {
+    setArchivingFarmer({ id, name });
+  }, []);
 
   const deleteFarmerMutation = useMutation(trpc.officer.farmers.delete.mutationOptions({
     onSuccess: () => {
       toast.success("Farmer profile deleted");
+      setArchivingFarmer(null);
       queryClient.invalidateQueries({ queryKey: [["officer", "farmers"]] });
     },
     onError: (err) => {
       toast.error(`Failed to delete: ${err.message}`);
     }
   }));
-
-  const queryClient = useQueryClient();
 
   if (!orgId) return null;
   if (isPending) return <div className="p-8"><LoadingState title="Stock Information" description="Loading stock information..." /></div>;
@@ -142,13 +152,9 @@ export default function MainStockPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((row) => {
-                  // Ensure we fallback to 0 safely
-                  const consumed = row.totalConsumed || 0;
                   const mainStock = row.mainStock || 0;
                   const activeConsumption = row.activeConsumption || 0;
                   const effectiveRemaining = mainStock - activeConsumption;
-                  // Calculate percentage of MAIN stock that is actively consumed
-                  const percentUsed = mainStock > 0 ? (activeConsumption / mainStock) * 100 : 0;
 
                   return (
                     <TableRow key={row.id}>
@@ -164,24 +170,10 @@ export default function MainStockPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setEditingFarmer({ id: row.id, name: row.name });
+                              handleEdit(row.id, row.name);
                             }}
                           >
                             <Wrench className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all ml-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (confirm(`Are you sure you want to delete farmer "${row.name}"? This action cannot be undone.`)) {
-                                deleteFarmerMutation.mutate({ id: row.id, orgId: orgId! });
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -239,6 +231,14 @@ export default function MainStockPage() {
                           >
                             <Wheat className="h-4 w-4 mr-2" /> Restock
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDelete(row.id, row.name)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -254,6 +254,8 @@ export default function MainStockPage() {
               <MobileFarmerCard
                 key={row.id}
                 farmer={row}
+                onEdit={() => handleEdit(row.id, row.name)}
+                onDelete={() => handleDelete(row.id, row.name)}
                 actions={
                   <div className="grid grid-cols-2 gap-2">
                     <Button
@@ -274,7 +276,7 @@ export default function MainStockPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
+                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
                       onClick={() => setFeedModal({ open: true, farmerId: row.id })}
                     >
                       <Wheat className="h-3.5 w-3.5 mr-2" /> Restock
@@ -298,14 +300,12 @@ export default function MainStockPage() {
         {feedModal.farmerId && (
           <AddFeedModal
             id={feedModal.farmerId}
-            // Pass open state if your component needs it, otherwise just ID is usually enough
             open={feedModal.open}
             onOpenChange={(v) => setFeedModal(prev => ({ ...prev, open: v }))}
           />
         )}
       </ResponsiveDialog>
 
-      {/* ✅ FIXED: Removed double wrapping. CreateFarmerModal already has ResponsiveDialog inside it */}
       <CreateFarmerModal
         open={createModal}
         onOpenChange={setCreateModal}
@@ -317,24 +317,30 @@ export default function MainStockPage() {
         orgId={orgId}
       />
 
-      {transferModal.data && (
+      {transferModal.open && (
         <TransferStockModal
           open={transferModal.open}
           onOpenChange={(v) => setTransferModal(prev => ({ ...prev, open: v }))}
-          sourceFarmerId={transferModal.data.farmerId}
-          sourceFarmerName={transferModal.data.farmerName}
-          currentStock={transferModal.data.currentStock}
+          sourceFarmerId={transferModal.data?.farmerId || ""}
+          sourceFarmerName={transferModal.data?.farmerName || ""}
+          currentStock={transferModal.data?.currentStock || 0}
         />
       )}
 
-      {editingFarmer && (
-        <EditFarmerNameModal
-          farmerId={editingFarmer.id}
-          currentName={editingFarmer.name}
-          open={!!editingFarmer}
-          onOpenChange={(open) => !open && setEditingFarmer(null)}
-        />
-      )}
+      <EditFarmerNameModal
+        farmerId={editingFarmer?.id || ""}
+        currentName={editingFarmer?.name || ""}
+        open={!!editingFarmer}
+        onOpenChange={(open) => !open && setEditingFarmer(null)}
+      />
+
+      <ArchiveFarmerDialog
+        open={!!archivingFarmer}
+        onOpenChange={(v) => !v && setArchivingFarmer(null)}
+        farmerName={archivingFarmer?.name || ""}
+        isPending={deleteFarmerMutation.isPending}
+        onConfirm={() => deleteFarmerMutation.mutate({ id: archivingFarmer?.id || "", orgId: orgId! })}
+      />
 
     </div>
   );

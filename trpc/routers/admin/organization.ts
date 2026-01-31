@@ -25,7 +25,7 @@ export const adminOrganizationRouter = createTRPCRouter({
 
             const [farmerCount] = await ctx.db.select({ count: count() })
                 .from(farmer)
-                .where(eq(farmer.organizationId, input.orgId));
+                .where(and(eq(farmer.organizationId, input.orgId), eq(farmer.status, "active")));
 
             const [activeCycles] = await ctx.db.select({ count: count() })
                 .from(cycles)

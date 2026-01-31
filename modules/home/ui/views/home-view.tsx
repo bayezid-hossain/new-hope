@@ -191,19 +191,21 @@ export const HomeView = ({ userId }: { userId?: string }) => {
     <div className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto bg-slate-50/50 min-h-screen">
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
-          <p className="text-muted-foreground mt-1">Overview of your poultry operations</p>
+      <div className="flex items-center justify-between flex-col w-full gap-y-2">
+        <div className="w-full">
+          <div className="flex items-center justify-between w-full gap-x-4">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
+
+            <div className="flex items-center space-x-2">
+              <Button asChild variant="outline">
+                <Link href="/cycles">Cycles</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/farmers">Farmers</Link>
+              </Button>
+            </div></div><p className="text-muted-foreground mt-1">Overview of your poultry operations</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button asChild variant="outline">
-            <Link href="/cycles">Manage Cycles</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/farmers">Manage Farmers</Link>
-          </Button>
-        </div>
+
       </div>
 
       {/* Tabs System */}
