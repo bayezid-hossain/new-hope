@@ -10,7 +10,7 @@ import { CheckCheck, Loader2, Search, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function NotificationsPage() {
+export const NotificationsView = () => {
     const [search, setSearch] = useState("");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -80,7 +80,8 @@ export default function NotificationsPage() {
         }
     };
 
-    const allItems = data?.pages.flatMap((page: any) => page.items) || [];
+    const rawItems = data?.pages.flatMap((page: any) => page.items) || [];
+    const allItems = Array.from(new Map(rawItems.map((item: any) => [item.id, item])).values());
 
     const getEffectiveLink = (link: string | null | undefined, orgId: string | null | undefined) => {
         if (!link) return null;
@@ -176,4 +177,4 @@ export default function NotificationsPage() {
             />
         </div>
     );
-}
+};

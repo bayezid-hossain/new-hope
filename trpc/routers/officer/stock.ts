@@ -51,6 +51,20 @@ export const officerStockRouter = createTRPCRouter({
                     type: "RESTOCK",
                     note: input.note || "Manual Restock",
                 });
+
+                // C. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: f.organizationId,
+                        title: "Stock Added",
+                        message: `Officer ${ctx.user.name} added ${input.amount} bags to ${f.name}.`,
+                        type: "SUCCESS",
+                        link: `/management/farmers/${f.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send stock notification", e);
+                }
             });
         }),
 
@@ -84,6 +98,20 @@ export const officerStockRouter = createTRPCRouter({
                     type: "CORRECTION",
                     note: input.note || "Manual Deduction",
                 });
+
+                // C. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: f.organizationId,
+                        title: "Stock Deducted",
+                        message: `Officer ${ctx.user.name} deducted ${input.amount} bags from ${f.name}.`,
+                        type: "WARNING",
+                        link: `/management/farmers/${f.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send stock notification", e);
+                }
             });
         }),
 
@@ -97,19 +125,18 @@ export const officerStockRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             if (input.length === 0) return { success: true, count: 0 };
 
-            return await ctx.db.transaction(async (tx) => {
+            const result = await ctx.db.transaction(async (tx) => {
                 let successCount = 0;
+                let orgId: string | undefined;
 
                 for (const item of input) {
-                    // Check ownership for each (or verify all at once efficiently)
-                    // For safety, we verify one by one or filter. 
                     const f = await tx.query.farmer.findFirst({
                         where: and(eq(farmer.id, item.farmerId), eq(farmer.officerId, ctx.user.id))
                     });
 
-                    if (!f) continue; // Skip if not found/owned (or throw?) - user wants "add it to those farmers that are available", so skipping matches logic.
+                    if (!f) continue;
+                    orgId = f.organizationId;
 
-                    // A. Update Farmer DB
                     await tx.update(farmer)
                         .set({
                             mainStock: sql`${farmer.mainStock} + ${item.amount}`,
@@ -117,7 +144,6 @@ export const officerStockRouter = createTRPCRouter({
                         })
                         .where(eq(farmer.id, item.farmerId));
 
-                    // B. Add Ledger Entry
                     await tx.insert(stockLogs).values({
                         farmerId: item.farmerId,
                         amount: item.amount.toString(),
@@ -128,8 +154,25 @@ export const officerStockRouter = createTRPCRouter({
                     successCount++;
                 }
 
-                return { success: true, count: successCount };
+                return { success: true, count: successCount, orgId };
             });
+
+            if (result.success && result.count > 0 && result.orgId) {
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: result.orgId,
+                        title: "Bulk Stock Update",
+                        message: `Officer ${ctx.user.name} performed a bulk stock update for ${result.count} farmers.`,
+                        type: "SUCCESS",
+                        link: `/management/farmers`
+                    });
+                } catch (e) {
+                    console.error("Failed to send bulk stock notification", e);
+                }
+            }
+
+            return result;
         }),
 
     // TRANSFER STOCK (Officer to Officer)
@@ -203,6 +246,20 @@ export const officerStockRouter = createTRPCRouter({
                     referenceId: transferId,
                     note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Received from ${sourceFarmer.name}`,
                 });
+
+                // C. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: sourceFarmer.organizationId,
+                        title: "Stock Transfer",
+                        message: `Officer ${ctx.user.name} transferred ${input.amount} bags from ${sourceFarmer.name} to ${targetFarmer.name}.`,
+                        type: "INFO",
+                        link: `/management/farmers/${targetFarmer.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send transfer notification", e);
+                }
 
                 return { success: true };
             });
@@ -294,6 +351,20 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
 
+                // 6. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: farmerData.organizationId,
+                        title: "Stock Log Reverted",
+                        message: `Officer ${ctx.user.name} reverted a stock log for ${farmerData.name} (${originalLog.amount} bags).`,
+                        type: "WARNING",
+                        link: `/management/farmers/${farmerData.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send revert notification", e);
+                }
+
                 return { success: true };
             });
         }),
@@ -376,8 +447,19 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
 
-                // 6. Log a system note about the correction?
-                // For now, updating the record is cleaner as per "correct box" request.
+                // 6. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: farmerData.organizationId,
+                        title: "Stock Log Edited",
+                        message: `Officer ${ctx.user.name} edited a stock log for ${farmerData.name}. Amount changed from ${oldAmount} to ${input.newAmount}.`,
+                        type: "UPDATE",
+                        link: `/management/farmers/${farmerData.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send edit notification", e);
+                }
 
                 return { success: true };
             });
@@ -465,6 +547,20 @@ export const officerStockRouter = createTRPCRouter({
                         referenceId: log.referenceId,
                         note: input.note || `Revert Transfer: ${log.note || "Original Entry"}`,
                     });
+                }
+
+                // 4. NOTIFICATION
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: (await tx.query.farmer.findFirst({ where: eq(farmer.id, logs[0].farmerId!) }))?.organizationId,
+                        title: "Transfer Reverted",
+                        message: `Officer ${ctx.user.name} reverted a stock transfer (Ref: ${input.referenceId}).`,
+                        type: "WARNING",
+                        link: `/management/farmers`
+                    });
+                } catch (e) {
+                    console.error("Failed to send transfer revert notification", e);
                 }
 
                 return { success: true };

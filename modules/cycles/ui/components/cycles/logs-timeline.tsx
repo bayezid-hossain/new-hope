@@ -22,7 +22,7 @@ export interface TimelineLog {
 
 // --- Log Item Component ---
 const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean; isActive?: boolean }) => {
-    const isConsumption = log.note?.includes("Consumption") || log.type === "CONSUMPTION";
+    const isConsumption = (log.note?.includes("Consumption") || log.type === "CONSUMPTION") && !log.note?.includes("Ended");
 
     let icon = <FileText className="h-4 w-4" />;
     let colorClass = "bg-slate-500";
@@ -42,10 +42,15 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         icon = <Wrench className="h-4 w-4" />;
         colorClass = "bg-orange-500";
         title = "Correction";
-    } else if (normalizedType === "SYSTEM") {
+    } else if (normalizedType === "SYSTEM" || normalizedType === "NOTE") {
         icon = <Settings className="h-4 w-4" />;
         colorClass = "bg-purple-500";
-        title = "System Update";
+        const note = log.note?.toLowerCase() || "";
+        if (note.includes("started")) title = "Cycle Started";
+        else if (note.includes("ended")) title = "Cycle Ended";
+        else if (note.includes("reopened")) title = "Cycle Reopened";
+        else if (note.includes("doc correction")) title = "Initial Stock Correction";
+        else title = "System Update";
     } else if (isConsumption || normalizedType === "CONSUMPTION" || normalizedType === "STOCK_OUT" || normalizedType === "TRANSFER_OUT") {
         icon = <Activity className="h-4 w-4" />;
         colorClass = "bg-blue-500";

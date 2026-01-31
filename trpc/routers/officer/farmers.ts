@@ -203,13 +203,31 @@ export const officerFarmersRouter = createTRPCRouter({
                 });
             }
 
-            return await ctx.db.update(farmer)
+            const [updated] = await ctx.db.update(farmer)
                 .set({
                     name: input.name.toUpperCase(),
                     updatedAt: new Date()
                 })
                 .where(eq(farmer.id, input.id))
                 .returning();
+
+            // NOTIFICATION: Farmer Renamed
+            if (updated) {
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: input.orgId,
+                        title: "Farmer Renamed",
+                        message: `Officer ${ctx.user.name} renamed a farmer. New name: ${updated.name}`,
+                        type: "INFO",
+                        link: `/management/farmers/${updated.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send farmer renamed notification", e);
+                }
+            }
+
+            return [updated];
         }),
 
     createBulk: protectedProcedure
@@ -266,6 +284,23 @@ export const officerFarmersRouter = createTRPCRouter({
                         });
                     }
                     results.push(created);
+                }
+
+                // 4. NOTIFICATION: Notify Managers
+                if (results.length > 0) {
+                    try {
+                        const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                        await NotificationService.sendToOrgManagers({
+                            organizationId: orgId,
+                            title: "Bulk Farmers Created",
+                            message: `Officer ${ctx.user.name} created ${results.length} new farmers.`,
+                            type: "INFO",
+                            link: `/management/farmers`,
+                            metadata: { count: results.length, actorId: ctx.user.id }
+                        });
+                    } catch (e) {
+                        console.error("Failed to send notification for bulk farmer creation", e);
+                    }
                 }
 
                 return results;

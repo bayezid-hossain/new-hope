@@ -84,120 +84,124 @@ const AnalysisContent = ({
     }
 
     return (
-        <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Card className="bg-slate-50 border-slate-200 shadow-sm py-2">
-                    <CardHeader className="pb-2 px-6">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Calculator className="h-4 w-4 text-blue-600" /> Intake Insights
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-6 pb-4">
-                        <div className="flex justify-between items-end mb-2">
-                            <div>
-                                <div className="text-2xl font-bold text-slate-900">
-                                    {avgDailyIntake.toFixed(2)} bags
+        <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-6">
+                <div className="space-y-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Card className="bg-slate-50 border-slate-200 shadow-sm py-2">
+                            <CardHeader className="pb-2 px-6">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                    <Calculator className="h-4 w-4 text-blue-600" /> Intake Insights
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-6 pb-4">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div>
+                                        <div className="text-2xl font-bold text-slate-900">
+                                            {avgDailyIntake.toFixed(2)} bags
+                                        </div>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Daily Avg Consumption</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-medium">{currentFeedPerBird.toFixed(3)}</div>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Bags per Bird</p>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Daily Avg Consumption</p>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-sm font-medium">{currentFeedPerBird.toFixed(3)}</div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Bags per Bird</p>
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-3 pt-3 border-t italic">
-                            Efficiency calculated on {liveBirds} live birds.
-                        </p>
-                    </CardContent>
-                </Card>
+                                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t italic">
+                                    Efficiency calculated on {liveBirds} live birds.
+                                </p>
+                            </CardContent>
+                        </Card>
 
-                <Card className="shadow-sm py-2">
-                    <CardHeader className="pb-2 px-6">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Scale className="h-4 w-4 text-purple-600" /> Historical Benchmark
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 px-6 pb-4">
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground uppercase tracking-tight text-[10px] font-medium">Mortality Status</span>
-                                <span className={currentMortalityRate <= historicalAvgMortality ? "text-emerald-600 font-bold" : "text-red-500 font-bold"}>
-                                    {currentMortalityRate <= historicalAvgMortality ? "Better" : "Worse"} than usual
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-muted-foreground">
-                                <span>Current: {currentMortalityRate.toFixed(1)}%</span>
-                                <span>Avg: {historicalAvgMortality.toFixed(1)}%</span>
-                            </div>
-                        </div>
-
-                        {historicalAvgFeedPerBird > 0 && (
-                            <div className="space-y-1 pt-2">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground uppercase tracking-tight text-[10px] font-medium">Avg Consumed</span>
-                                    <span className="font-medium text-[11px]">{historicalAvgFeedPerBird.toFixed(3)} bags/bird</span>
+                        <Card className="shadow-sm py-2">
+                            <CardHeader className="pb-2 px-6">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                    <Scale className="h-4 w-4 text-purple-600" /> Historical Benchmark
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4 px-6 pb-4">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground uppercase tracking-tight text-[10px] font-medium">Mortality Status</span>
+                                        <span className={currentMortalityRate <= historicalAvgMortality ? "text-emerald-600 font-bold" : "text-red-500 font-bold"}>
+                                            {currentMortalityRate <= historicalAvgMortality ? "Better" : "Worse"} than usual
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                        <span>Current: {currentMortalityRate.toFixed(1)}%</span>
+                                        <span>Avg: {historicalAvgMortality.toFixed(1)}%</span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="border-none shadow-sm bg-white">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-bold text-slate-400 uppercase tracking-widest">Production Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between py-2 border-b border-slate-50">
-                            <span className="text-slate-500 text-sm">Start Date</span>
-                            <span className="font-bold text-slate-900">{format(new Date(cycle.createdAt), "dd MMM, yyyy")}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-50">
-                            <span className="text-slate-500 text-sm">Initial Stock (DOC)</span>
-                            <span className="font-bold text-slate-900">{cycle.doc} Birds</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-50">
-                            <span className="text-slate-500 text-sm">Survival Rate</span>
-                            <span className={`font-bold ${currentMortalityRate < 5 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                {(100 - currentMortalityRate).toFixed(2)}%
-                            </span>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                                {historicalAvgFeedPerBird > 0 && (
+                                    <div className="space-y-1 pt-2">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground uppercase tracking-tight text-[10px] font-medium">Avg Consumed</span>
+                                            <span className="font-medium text-[11px]">{historicalAvgFeedPerBird.toFixed(3)} bags/bird</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
 
-            <Card className="shadow-sm py-2 overflow-hidden border-none bg-white">
-                <CardHeader className="px-6">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <Lightbulb className="h-5 w-5 text-amber-500" />
-                        Smart Suggestions
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 px-6 pb-6">
-                    {suggestions.length === 0 ? (
-                        <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-slate-50/50">
-                            Everything looks good! No critical alerts at this time.
-                        </div>
-                    ) : (suggestions.map((s, i) => (
-                        <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-50 border-amber-200' : ''}>
-                            {s.type === 'critical' ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-                            <AlertTitle className="text-sm font-bold">
-                                {s.title}
-                            </AlertTitle>
-                            <AlertDescription className="text-xs mt-1">
-                                {s.text}
-                            </AlertDescription>
-                        </Alert>
-                    )))}
-                </CardContent>
-            </Card>
-        </div>
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardHeader>
+                                <CardTitle className="text-sm font-bold text-slate-400 uppercase tracking-widest">Production Summary</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                                    <span className="text-slate-500 text-sm">Start Date</span>
+                                    <span className="font-bold text-slate-900">{format(new Date(cycle.createdAt), "dd MMM, yyyy")}</span>
+                                </div>
+                                <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                                    <span className="text-slate-500 text-sm">Initial Stock (DOC)</span>
+                                    <span className="font-bold text-slate-900">{cycle.doc} Birds</span>
+                                </div>
+                                <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                                    <span className="text-slate-500 text-sm">Survival Rate</span>
+                                    <span className={`font-bold ${currentMortalityRate < 5 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {(100 - currentMortalityRate).toFixed(2)}%
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card className="shadow-sm py-2 overflow-hidden border-none bg-white">
+                        <CardHeader className="px-6">
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <Lightbulb className="h-5 w-5 text-amber-500" />
+                                Smart Suggestions
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 px-6 pb-6">
+                            {suggestions.length === 0 ? (
+                                <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-slate-50/50">
+                                    Everything looks good! No critical alerts at this time.
+                                </div>
+                            ) : (suggestions.map((s, i) => (
+                                <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-50 border-amber-200' : ''}>
+                                    {s.type === 'critical' ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
+                                    <AlertTitle className="text-sm font-bold">
+                                        {s.title}
+                                    </AlertTitle>
+                                    <AlertDescription className="text-xs mt-1">
+                                        {s.text}
+                                    </AlertDescription>
+                                </Alert>
+                            )))}
+                        </CardContent>
+                    </Card>
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 
-const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId }: { history: any[], isAdmin?: boolean, isManagement?: boolean, currentId?: string }) => {
-    const prefix = isAdmin ? "/admin" : (isManagement ? "/management" : "");
+const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId, orgId }: { history: any[], isAdmin?: boolean, isManagement?: boolean, currentId?: string, orgId?: string }) => {
+    const prefix = isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? "/management" : "");
     return (
         <Card className="border-none shadow-sm bg-white overflow-hidden">
             <CardHeader className="border-b border-slate-50 pb-4">
@@ -296,7 +300,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
     const mortalityRate = normalizedCycle.doc > 0 ? (normalizedCycle.mortality / normalizedCycle.doc) * 100 : 0;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 w-full">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-white">
@@ -329,7 +333,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     <div className="bg-white border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
                         {normalizedCycle.status === "active" ? (
                             <ActionsCell
-                                prefix={isAdmin ? `/admin` : (isManagement ? `/management` : undefined)}
+                                prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
                                 cycle={{
                                     ...normalizedCycle,
                                     id: cycleId,
@@ -344,7 +348,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             />
                         ) : (
                             <HistoryActionsCell
-                                prefix={isAdmin ? `/admin` : (isManagement ? `/management` : undefined)}
+                                prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
                                 history={{
                                     id: cycleId,
                                     cycleName: normalizedCycle.name,
@@ -454,6 +458,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                         isAdmin={isAdmin}
                         isManagement={isManagement}
                         currentId={cycleId}
+                        orgId={orgId}
                     />
                 </TabsContent>
             </Tabs>

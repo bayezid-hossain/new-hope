@@ -10,7 +10,7 @@ export default function AdminCycleDetailsPage() {
 
     return (
         <AdminGuard>
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
                 <CycleDetails cycleId={cycleId} isAdmin={true} />
             </div>
         </AdminGuard>

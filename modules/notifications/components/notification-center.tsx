@@ -87,7 +87,8 @@ export const NotificationCenter = () => {
         }
     };
 
-    const allItems = notifications?.pages.flatMap((page: any) => page.items) || [];
+    const rawItems = notifications?.pages.flatMap((page: any) => page.items) || [];
+    const allItems = Array.from(new Map(rawItems.map((item: any) => [item.id, item])).values());
     const unreadCount = unreadData?.count || 0;
 
     const getEffectiveLink = (link: string | null | undefined, orgId: string | null | undefined) => {
@@ -188,7 +189,7 @@ export const NotificationCenter = () => {
                         >
                             <CheckCheck className="h-3.5 w-3.5 mr-1.5" /> Mark all read
                         </Button>
-                        <Link href="/notifications" onClick={() => setOpen(false)}>
+                        <Link href={isAdminMode ? "/admin/notification" : isManagementMode ? "/management/notification" : "/notification"} onClick={() => setOpen(false)}>
                             <Button variant="ghost" size="sm" className="h-8 text-xs text-primary font-medium hover:text-primary hover:bg-primary/5">
                                 View History
                             </Button>
