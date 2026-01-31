@@ -136,12 +136,12 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                             <>
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className={`font-bold text-sm ${isLow ? "text-red-600" : "text-slate-900"}`}>
-                                                                        {remaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
+                                                                        {remaining.toFixed(2)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
                                                                     </span>
                                                                 </div>
                                                                 <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                                                                    <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} used in active cycles</span>
-                                                                    <span className="text-slate-400">Total Prov: {farmer.mainStock.toFixed(1)}</span>
+                                                                    <span className="text-amber-600/90">+ {activeConsumption.toFixed(2)} used in active cycles</span>
+                                                                    <span className="text-slate-400">Total Prov: {farmer.mainStock.toFixed(2)}</span>
                                                                 </div>
                                                             </>
                                                         );

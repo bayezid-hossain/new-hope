@@ -1,5 +1,5 @@
 
-import { cycleHistory, cycles, farmer, member, user } from "@/db/schema";
+import { cycleHistory, cycles, farmer, featureRequest, member, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -158,9 +158,23 @@ export const adminOfficersRouter = createTRPCRouter({
             isPro: z.boolean()
         }))
         .mutation(async ({ ctx, input }) => {
-            await ctx.db.update(user)
-                .set({ isPro: input.isPro })
-                .where(eq(user.id, input.userId));
+            await ctx.db.transaction(async (tx) => {
+                // 1. Update User Pro Status
+                await tx.update(user)
+                    .set({ isPro: input.isPro })
+                    .where(eq(user.id, input.userId));
+
+                // 2. If disabling Pro, reset "APPROVED" feature requests to "REJECTED" 
+                // so they can request again if needed.
+                if (!input.isPro) {
+                    await tx.update(featureRequest)
+                        .set({ status: "REJECTED" })
+                        .where(and(
+                            eq(featureRequest.userId, input.userId),
+                            eq(featureRequest.status, "APPROVED")
+                        ));
+                }
+            });
 
             return { success: true };
         }),

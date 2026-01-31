@@ -173,7 +173,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                     <TableCell>
                                         <div className="flex items-center gap-1.5 font-bold text-slate-900">
                                             <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                            {officer.totalIntake.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                            {officer.totalIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -183,7 +183,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                                 ? "bg-red-100 text-red-700"
                                                 : "bg-emerald-50 text-emerald-600"
                                                 }`}>
-                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(1) : 0}%
+                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(2) : 0}%
                                             </Badge>
                                         </div>
                                     </TableCell>
@@ -247,7 +247,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                             <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Feed Intake</p>
                                             <div className="flex items-center gap-1 justify-end text-sm font-bold text-slate-900">
                                                 <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                                {officer.totalIntake.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                                {officer.totalIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
                                             </div>
                                         </div>
                                     </div>
@@ -263,7 +263,7 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                                 ? "bg-red-100 text-red-700"
                                                 : "bg-emerald-50 text-emerald-600"
                                                 }`}>
-                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(1) : 0}%
+                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(2) : 0}%
                                             </Badge>
                                         </div>
                                     </div>

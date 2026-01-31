@@ -132,13 +132,13 @@ const AnalysisContent = ({
         suggestions.push({
             type: "critical",
             title: "High Mortality Alert",
-            text: `Current mortality (${currentMortalityRate.toFixed(1)}%) is above the 5% warning threshold. Isolate sick birds immediately.`
+            text: `Current mortality (${currentMortalityRate.toFixed(2)}%) is above the 5% warning threshold. Isolate sick birds immediately.`
         });
     } else if (history.length > 0 && currentMortalityRate > historicalAvgMortality * 1.2) {
         suggestions.push({
             type: "warning",
             title: "Performance Dip",
-            text: `Mortality is 20% higher than your historical average (${historicalAvgMortality.toFixed(1)}%). Review ventilation or litter quality.`
+            text: `Mortality is 20% higher than your historical average (${historicalAvgMortality.toFixed(2)}%). Review ventilation or litter quality.`
         });
     }
 
@@ -188,8 +188,8 @@ const AnalysisContent = ({
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
-                                        <span>Current: {currentMortalityRate.toFixed(1)}%</span>
-                                        <span>Avg: {historicalAvgMortality.toFixed(1)}%</span>
+                                        <span>Current: {currentMortalityRate.toFixed(2)}%</span>
+                                        <span>Avg: {historicalAvgMortality.toFixed(2)}%</span>
                                     </div>
                                 </div>
 

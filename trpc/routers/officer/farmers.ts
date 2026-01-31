@@ -266,24 +266,31 @@ export const officerFarmersRouter = createTRPCRouter({
 
                 if (uniqueToCreate.length === 0) return existing;
 
-                // 3. Insert new farmers
-                for (const f of uniqueToCreate) {
-                    const [created] = await tx.insert(farmer).values({
-                        name: f.name.toUpperCase(),
-                        organizationId: orgId,
-                        officerId: ctx.user.id,
-                        mainStock: f.initialStock,
-                    }).returning();
+                // 3. Insert new farmers in bulk
+                const createdFarmers = await tx.insert(farmer).values(uniqueToCreate.map(f => ({
+                    name: f.name.toUpperCase(),
+                    organizationId: orgId,
+                    officerId: ctx.user.id,
+                    mainStock: f.initialStock,
+                }))).returning();
 
-                    if (f.initialStock > 0) {
-                        await tx.insert(stockLogs).values({
-                            farmerId: created.id,
-                            amount: f.initialStock.toString(),
+                results.push(...createdFarmers);
+
+                // 4. Create and insert stock logs in bulk
+                const stockLogsToInsert = createdFarmers
+                    .map(f => {
+                        const original = uniqueToCreate.find(u => u.name.toUpperCase() === f.name.toUpperCase());
+                        return {
+                            farmerId: f.id,
+                            amount: (original?.initialStock || 0).toString(),
                             type: "INITIAL",
                             note: "Initial Stock Assignment"
-                        });
-                    }
-                    results.push(created);
+                        };
+                    })
+                    .filter(log => parseFloat(log.amount) > 0);
+
+                if (stockLogsToInsert.length > 0) {
+                    await tx.insert(stockLogs).values(stockLogsToInsert);
                 }
 
                 // 4. NOTIFICATION: Notify Managers

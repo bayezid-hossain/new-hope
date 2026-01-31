@@ -273,7 +273,7 @@ export const aiRouter = createTRPCRouter({
                     riskFlags.push({
                         farmer: cycle.farmerName,
                         type: "HIGH_MORTALITY",
-                        detail: `Lost ${recentMortalitySum} birds (${(mortalityRate3Days * 100).toFixed(1)}%) in last 3 days.`
+                        detail: `Lost ${recentMortalitySum} birds (${(mortalityRate3Days * 100).toFixed(2)}%) in last 3 days.`
                     });
                 } else if (mortalityRate3Days > 0.005) {
                     riskFlags.push({
@@ -391,8 +391,8 @@ export const aiRouter = createTRPCRouter({
                     criticalFarmers.push({
                         farmer: row.farmerName,
                         stock: row.mainStock,
-                        burnRate: dailyBurnRate.toFixed(1),
-                        daysRemaining: daysRemaining.toFixed(1),
+                        burnRate: dailyBurnRate.toFixed(2),
+                        daysRemaining: daysRemaining.toFixed(2),
                         urgency: daysRemaining < 2 ? "CRITICAL" : "HIGH"
                     });
                 }

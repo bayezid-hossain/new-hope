@@ -405,22 +405,37 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
             }
 
-            const [updated] = await ctx.db.update(cycles)
-                .set({
-                    mortality: sql`${cycles.mortality} + ${input.amount}`,
-                    updatedAt: new Date(),
-                })
-                .where(eq(cycles.id, input.id))
-                .returning();
+            const updated = await ctx.db.transaction(async (tx) => {
+                const [result] = await tx.update(cycles)
+                    .set({
+                        mortality: sql`${cycles.mortality} + ${input.amount}`,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(cycles.id, input.id))
+                    .returning();
 
-            await ctx.db.insert(cycleLogs).values({
-                cycleId: input.id,
-                userId: ctx.user.id,
-                type: "MORTALITY",
-                valueChange: input.amount,
-                previousValue: current.mortality,
-                newValue: current.mortality + input.amount,
-                note: input.reason || "Reported Death"
+                await tx.insert(cycleLogs).values({
+                    cycleId: input.id,
+                    userId: ctx.user.id,
+                    type: "MORTALITY",
+                    valueChange: input.amount,
+                    previousValue: current.mortality,
+                    newValue: current.mortality + input.amount,
+                    note: input.reason || "Reported Death"
+                });
+
+                // RECALCULATE FEED INTAKE
+                await updateCycleFeed(
+                    result,
+                    ctx.user.id,
+                    true,
+                    tx,
+                    `Mortality added (${input.amount} birds). Recalculated intake based on ${result.doc - result.mortality} live birds.`
+                );
+
+                // Fetch full updated cycle to return
+                const [finalResult] = await tx.select().from(cycles).where(eq(cycles.id, input.id)).limit(1);
+                return finalResult;
             });
 
             // NOTIFICATION: Mortality Added

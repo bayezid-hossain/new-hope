@@ -211,7 +211,7 @@ export default function ManagementFarmerDetailsPage() {
                                     <div className="space-y-1">
                                         <div className="flex items-baseline gap-2">
                                             <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>
-                                                {remaining.toFixed(1)}
+                                                {remaining.toFixed(2)}
                                             </span>
                                             <span className="text-slate-500 font-medium text-sm">bags left</span>
                                         </div>
@@ -225,11 +225,11 @@ export default function ManagementFarmerDetailsPage() {
                                     <div className="space-y-3 pt-2 border-t border-slate-100">
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-slate-500">Active Consumption</span>
-                                            <span className="font-semibold text-amber-600">+{activeConsumption.toFixed(1)}</span>
+                                            <span className="font-semibold text-amber-600">+{activeConsumption.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-slate-500">Total Provisioned (Ledger)</span>
-                                            <span className="font-semibold text-slate-900">{farmerData.mainStock.toFixed(1)}</span>
+                                            <span className="font-semibold text-slate-900">{farmerData.mainStock.toFixed(2)}</span>
                                         </div>
                                         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
                                             <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
@@ -390,7 +390,7 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: any[]; mainStock: number 
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-slate-600 min-w-[200px]">{log.note || "-"}</TableCell>
                                         <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                                            {isPositive ? "+" : ""}{amount.toFixed(1)}
+                                            {isPositive ? "+" : ""}{amount.toFixed(2)}
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -416,7 +416,7 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: any[]; mainStock: number 
                                         </Badge>
                                     </div>
                                     <span className={`font-mono font-bold text-sm ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                                        {isPositive ? "+" : ""}{amount.toFixed(1)} <small className="font-normal text-[10px] opacity-70">bags</small>
+                                        {isPositive ? "+" : ""}{amount.toFixed(2)} <small className="font-normal text-[10px] opacity-70">bags</small>
                                     </span>
                                 </div>
                                 {log.note && (

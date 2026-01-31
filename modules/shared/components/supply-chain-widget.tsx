@@ -74,7 +74,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
     });
 
     const hasRequested = requestStatus?.status === "PENDING";
-    const isApprovedInDb = requestStatus?.status === "APPROVED";
+    const isApprovedInDb = (requestStatus?.status === "APPROVED") && isPro;
 
     const handleRequestAccess = () => {
         requestAccessMutation.mutate({ feature: "PRO_PACK" });

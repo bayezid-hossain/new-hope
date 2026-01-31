@@ -138,7 +138,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                         <span className="text-[12px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
                         <div className="flex items-center gap-1 justify-center">
                             <Wheat className="h-5 w-5 text-amber-500" />
-                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
+                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(2)}</p>
                         </div>
                     </div>
                 )}
@@ -148,7 +148,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                         <span className="text-[8px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
                         <div className="flex items-center gap-0.5 justify-center">
                             <Wheat className="h-3 w-3 text-amber-500" />
-                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
+                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(2)}</p>
                         </div>
                     </div>
                 ) : (

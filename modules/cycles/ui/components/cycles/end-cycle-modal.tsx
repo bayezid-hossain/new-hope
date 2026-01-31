@@ -10,7 +10,7 @@ import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface EndCycleModalProps {
@@ -37,6 +37,14 @@ export const EndCycleModal = ({
   const { orgId } = useCurrentOrg()
   // State to track manual remaining stock
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
+
+  // Sync state when prop changes or modal opens
+  useEffect(() => {
+    if (open) {
+      setIntake(intake?.toString() || "0");
+    }
+  }, [intake, open]);
+
   const { showLoading } = useLoading();
   const endMutation = useMutation(
     trpc.officer.cycles.end.mutationOptions({

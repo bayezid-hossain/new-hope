@@ -130,7 +130,7 @@ export const ProductionTree = ({
                                                                     <p className="font-bold text-slate-800 text-sm hover:text-primary hover:underline transition-colors">{farmer.name}</p>
                                                                 </Link>
                                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tight flex items-center gap-1">
-                                                                    <Wheat className="h-3 w-3" /> {farmer.mainStock.toFixed(1)} Bags
+                                                                    <Wheat className="h-3 w-3" /> {farmer.mainStock.toFixed(2)} Bags
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -171,7 +171,7 @@ export const ProductionTree = ({
                                                                                     </TableCell>
                                                                                     <TableCell className="py-2 text-xs text-slate-500">{cycle.age}d</TableCell>
                                                                                     <TableCell className="py-2 text-xs font-mono font-medium">{cycle.doc}</TableCell>
-                                                                                    <TableCell className="py-2 text-xs text-right font-bold text-emerald-600">{cycle.intake.toFixed(1)} b</TableCell>
+                                                                                    <TableCell className="py-2 text-xs text-right font-bold text-emerald-600">{cycle.intake.toFixed(2)} b</TableCell>
                                                                                 </TableRow>
                                                                             ))}
                                                                         </TableBody>

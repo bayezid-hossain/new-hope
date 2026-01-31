@@ -140,3 +140,13 @@
     cursor: pointer;
   }
 }
+
+@keyframes flash-highlight {
+  0% { background-color: transparent; }
+  20% { background-color: oklch(0.9 0.1 150 / 0.3); } /* Light emerald/primary highlight */
+  100% { background-color: transparent; }
+}
+
+.flash-highlight {
+  animation: flash-highlight 2s ease-out;
+}

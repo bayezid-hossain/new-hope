@@ -206,12 +206,12 @@ export default function MainStockPage() {
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
                             <span className={`font-bold text-sm ${effectiveRemaining < 3 ? "text-red-600" : "text-slate-900"}`}>
-                              {effectiveRemaining.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
+                              {effectiveRemaining.toFixed(2)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
                             </span>
                           </div>
                           <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(1)} consumption in active cycles</span>
-                            <span className="text-slate-400">Total Prov: {mainStock.toFixed(1)}</span>
+                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(2)} consumption in active cycles</span>
+                            <span className="text-slate-400">Total Prov: {mainStock.toFixed(2)}</span>
                           </div>
                         </div>
                       </TableCell>

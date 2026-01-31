@@ -72,7 +72,7 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                     <div className="flex items-baseline gap-1">
                         <Wheat className={cn("h-4 w-4", isLow ? "text-red-500" : "text-emerald-500")} />
                         <span className={cn("text-xl font-black leading-none", isLow ? "text-red-600" : "text-emerald-700")}>
-                            {remaining.toFixed(1)}
+                            {remaining.toFixed(2)}
                         </span>
                         <span className="text-[10px] font-medium text-emerald-600/60">bags</span>
                     </div>
@@ -83,7 +83,7 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                     <span className="text-[10px] text-amber-600/70 font-bold uppercase tracking-wider mb-0.5">Used in Cycles</span>
                     <div className="flex items-baseline gap-1 justify-end">
                         <span className="text-xl font-black text-amber-700 leading-none">
-                            {activeConsumption.toFixed(1)}
+                            {activeConsumption.toFixed(2)}
                         </span>
                         <span className="text-[10px] font-medium text-amber-600/60">bags</span>
                     </div>
@@ -94,7 +94,7 @@ export const MobileFarmerCard = ({ farmer, prefix, variant = "elevated", classNa
                     <div className="flex items-baseline gap-1 justify-end">
                         <Box className={cn("h-4 w-4", isLow ? "text-red-500" : "text-white")} />
                         <span className="text-xl font-black text-white leading-none">
-                            {mainStock.toFixed(1)}
+                            {mainStock.toFixed(2)}
                         </span>
                         <span className="text-[10px] font-medium text-white">bags</span>
                     </div>

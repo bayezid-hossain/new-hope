@@ -153,7 +153,7 @@ export const FarmersListView = () => {
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-1.5">
                                                     <Wheat className="h-4 w-4 text-amber-500/70" />
-                                                    <span className="font-bold text-slate-900 font-mono">{farmer.mainStock.toFixed(1)}</span>
+                                                    <span className="font-bold text-slate-900 font-mono">{farmer.mainStock.toFixed(2)}</span>
                                                     <span className="text-[10px] font-medium text-slate-400">bags</span>
                                                 </div>
                                             </TableCell>

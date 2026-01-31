@@ -204,7 +204,7 @@ export default function FarmerDetails() {
                   <div className="space-y-1">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Remaining</h3>
                     <div className="flex items-baseline gap-2">
-                      <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>{remaining.toFixed(1)}</span>
+                      <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>{remaining.toFixed(2)}</span>
                       <span className="text-sm font-medium text-slate-500">bags</span>
                     </div>
                     {isLow && (
@@ -218,11 +218,11 @@ export default function FarmerDetails() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="space-y-0.5">
                         <span className="text-slate-500">Active Cycle Use</span>
-                        <div className="font-semibold text-amber-600">+{activeConsumption.toFixed(1)} bags</div>
+                        <div className="font-semibold text-amber-600">+{activeConsumption.toFixed(2)} bags</div>
                       </div>
                       <div className="space-y-0.5">
                         <span className="text-slate-500">Total Provisioned (Ledger)</span>
-                        <div className="font-semibold text-slate-900">{mainStock.toFixed(1)} bags</div>
+                        <div className="font-semibold text-slate-900">{mainStock.toFixed(2)} bags</div>
                       </div>
                     </div>
                     <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
@@ -378,24 +378,48 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
             </TableHeader>
             <TableBody>
               {(() => {
-                // Find all logs that are corrections and track what they are correcting
+                // Find all logs that are corrections
                 const corrections = logs.filter(l => l.type === "CORRECTION");
-                const revertedLogIds = new Set(corrections.map(c => c.referenceId).filter(Boolean));
-                // For transfers, if any log with a referenceId is a correction, we consider the whole transfer reverted
-                const revertedTransferIds = new Set(corrections.map(c => c.referenceId).filter(Boolean));
+
+                // Group all corrections by what they are correcting (referenceId)
+                const correctionMap = new Map<string, number>();
+                corrections.forEach(c => {
+                  const refId = c.referenceId;
+                  if (refId) {
+                    const current = correctionMap.get(refId) || 0;
+                    correctionMap.set(refId, current + Number(c.amount));
+                  }
+                });
 
                 return logs.map((log) => {
-                  const amount = Number(log.amount);
-                  const isPositive = amount > 0;
+                  const originalAmount = Number(log.amount);
+                  const isPositive = originalAmount > 0;
                   const formattedType = log.type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
                   const isCorrection = log.type === "CORRECTION";
-                  const isReverted = revertedLogIds.has(log.id) || (log.referenceId && revertedTransferIds.has(log.referenceId));
+                  const correctionSum = correctionMap.get(log.id) || 0;
+                  const isCorrected = correctionMap.has(log.id);
+                  const isFullyReverted = isCorrected && Math.abs(originalAmount + correctionSum) < 0.001; // Handle floating point jitters
+                  const isEdited = isCorrected && !isFullyReverted;
+
                   const isCycleClose = log.type === "CYCLE_CLOSE";
-                  const showActions = !isCorrection && !isReverted && !isCycleClose;
+                  const showActions = !isCorrection && !isFullyReverted && !isCycleClose;
+
+                  const scrollToAndHighlight = (targetId: string) => {
+                    const element = document.getElementById(`log-${targetId}`);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      element.classList.add('flash-highlight');
+                      setTimeout(() => element.classList.remove('flash-highlight'), 2000);
+                    }
+                  };
 
                   return (
-                    <TableRow key={log.id} className="border-b transition-colors">
+                    <TableRow
+                      key={log.id}
+                      id={`log-${log.id}`}
+                      className="border-b transition-colors"
+                    >
                       <TableCell className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                         {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
                       </TableCell>
@@ -408,11 +432,23 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: StockLog[]; mainStock: nu
                         </div>
                       </TableCell>
                       <TableCell className="px-4 py-3 text-[10px] sm:text-xs text-muted-foreground whitespace-normal break-words min-w-[120px]">
-                        {log.note || "-"}
-                        {isReverted && <span className="ml-2 text-[8px] font-bold text-rose-500 uppercase tracking-tighter">[Reverted]</span>}
+                        <div className="flex flex-col gap-1">
+                          <span>{log.note || "-"}</span>
+                          {isFullyReverted && <span className="text-[8px] font-bold text-rose-500 uppercase tracking-tighter">[Reverted]</span>}
+                          {isEdited && <span className="text-[8px] font-bold text-amber-500 uppercase tracking-tighter">[Edited]</span>}
+                          {isCorrection && log.referenceId && (
+                            <button
+                              onClick={() => scrollToAndHighlight(log.referenceId!)}
+                              className="text-[9px] text-primary hover:underline font-bold text-left flex items-center gap-1"
+                            >
+                              <History className="h-2.5 w-2.5" />
+                              View Original Entry
+                            </button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className={`px-4 py-3 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                        {isPositive ? "+" : ""}{amount.toFixed(1)}
+                        {isPositive ? "+" : ""}{originalAmount.toFixed(2)}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-right">
                         {showActions && (

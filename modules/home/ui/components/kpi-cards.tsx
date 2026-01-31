@@ -34,15 +34,15 @@ export const KpiCards = ({ totalBirds, totalFeedStock, activeConsumption, availa
                     <Layers className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{availableStock.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">bags current</span></div>
+                    <div className="text-2xl font-bold">{availableStock.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">bags current</span></div>
                     <div className="mt-2 text-xs space-y-1">
                         <div className="flex justify-between text-amber-600/80">
                             <span>Active Cycle Use:</span>
-                            <span className="font-medium">+{activeConsumption.toFixed(1)}</span>
+                            <span className="font-medium">+{activeConsumption.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-muted-foreground pt-1 border-t border-dashed">
                             <span>Total Provisioned:</span>
-                            <span className="font-medium text-slate-500">{totalFeedStock.toFixed(1)}</span>
+                            <span className="font-medium text-slate-500">{totalFeedStock.toFixed(2)}</span>
                         </div>
                     </div>
                 </CardContent>

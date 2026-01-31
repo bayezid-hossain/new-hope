@@ -1,7 +1,7 @@
 import { farmer, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerStockRouter = createTRPCRouter({
@@ -126,35 +126,49 @@ export const officerStockRouter = createTRPCRouter({
             if (input.length === 0) return { success: true, count: 0 };
 
             const result = await ctx.db.transaction(async (tx) => {
-                let successCount = 0;
-                let orgId: string | undefined;
+                const inputFarmerIds = input.map(i => i.farmerId);
 
-                for (const item of input) {
-                    const f = await tx.query.farmer.findFirst({
-                        where: and(eq(farmer.id, item.farmerId), eq(farmer.officerId, ctx.user.id))
-                    });
+                // 1. Fetch all valid farmers for this user in one go
+                const validFarmers = await tx.query.farmer.findMany({
+                    where: and(
+                        inArray(farmer.id, inputFarmerIds),
+                        eq(farmer.officerId, ctx.user.id)
+                    )
+                });
 
-                    if (!f) continue;
-                    orgId = f.organizationId;
+                const validFarmerIds = new Set(validFarmers.map(f => f.id));
+                const orgId = validFarmers[0]?.organizationId;
 
+                // 2. Filter input to only include valid farmers
+                const validInputs = input.filter(item => validFarmerIds.has(item.farmerId));
+                if (validInputs.length === 0) return { success: true, count: 0, orgId };
+
+                // 3. Prepare Bulk Stock Logs
+                const logsToInsert = validInputs.map(item => ({
+                    farmerId: item.farmerId,
+                    amount: item.amount.toString(),
+                    type: "RESTOCK",
+                    note: item.note || "Bulk Import Restock",
+                }));
+
+                await tx.insert(stockLogs).values(logsToInsert);
+
+                // 4. Bulk Update Farmer Stock
+                // We'll use a CASE statement to update different farmers with different amounts in one query
+                // or just loop the updates if CASE is too complex, but for performance, CASE is better.
+                // However, since we are using Drizzle and the number of items is small (max 50), 
+                // we'll build a SQL expression for the update.
+
+                for (const item of validInputs) {
                     await tx.update(farmer)
                         .set({
                             mainStock: sql`${farmer.mainStock} + ${item.amount}`,
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, item.farmerId));
-
-                    await tx.insert(stockLogs).values({
-                        farmerId: item.farmerId,
-                        amount: item.amount.toString(),
-                        type: "RESTOCK",
-                        note: item.note || "Bulk Import Restock",
-                    });
-
-                    successCount++;
                 }
 
-                return { success: true, count: successCount, orgId };
+                return { success: true, count: validInputs.length, orgId };
             });
 
             if (result.success && result.count > 0 && result.orgId) {
@@ -308,7 +322,7 @@ export const officerStockRouter = createTRPCRouter({
                 if (farmerData.mainStock - amountToRevert < 0) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: `Cannot revert this log. It would result in negative stock (${(farmerData.mainStock - amountToRevert).toFixed(1)} bags).`
+                        message: `Cannot revert this log. It would result in negative stock (${(farmerData.mainStock - amountToRevert).toFixed(2)} bags).`
                     });
                 }
 
@@ -420,24 +434,24 @@ export const officerStockRouter = createTRPCRouter({
 
                 const oldAmount = typeof originalLog.amount === 'string' ? parseFloat(originalLog.amount) : originalLog.amount;
                 const delta = input.newAmount - oldAmount;
+                if (delta === 0) return { success: true };
 
                 // 3.5 Safety Check: Prevent negative stock
                 if (farmerData.mainStock + delta < 0) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: `This correction would result in negative stock (${(farmerData.mainStock + delta).toFixed(1)} bags).`
+                        message: `This correction would result in negative stock (${(farmerData.mainStock + delta).toFixed(2)} bags).`
                     });
                 }
 
-                if (delta === 0) return { success: true };
-
-                // 4. Update Log
-                await tx.update(stockLogs)
-                    .set({
-                        amount: input.newAmount.toString(),
-                        note: input.note || originalLog.note,
-                    })
-                    .where(eq(stockLogs.id, input.logId));
+                // 4. Insert CORRECTION Log with delta
+                await tx.insert(stockLogs).values({
+                    farmerId: originalLog.farmerId,
+                    amount: delta.toString(),
+                    type: "CORRECTION",
+                    referenceId: originalLog.id,
+                    note: input.note || `Correction: ${originalLog.note || "Original Entry"}`,
+                });
 
                 // 5. Update Farmer Stock by Delta
                 await tx.update(farmer)
@@ -452,8 +466,8 @@ export const officerStockRouter = createTRPCRouter({
                     const { NotificationService } = await import("@/modules/notifications/server/notification-service");
                     await NotificationService.sendToOrgManagers({
                         organizationId: farmerData.organizationId,
-                        title: "Stock Log Edited",
-                        message: `Officer ${ctx.user.name} edited a stock log for ${farmerData.name}. Amount changed from ${oldAmount} to ${input.newAmount}.`,
+                        title: "Stock Log Corrected",
+                        message: `Officer ${ctx.user.name} corrected a stock log for ${farmerData.name}. Adjustment: ${delta > 0 ? "+" : ""}${delta} bags.`,
                         type: "UPDATE",
                         link: `/management/farmers/${farmerData.id}`
                     });
@@ -485,14 +499,13 @@ export const officerStockRouter = createTRPCRouter({
                         throw new TRPCError({ code: "BAD_REQUEST", message: "Found non-transfer logs linked to this reference ID. Cannot revert." });
                     }
 
-                    // Check if a correction for THIS transfer already exists
-                    // We check if there's any CORRECTION log referencing this transferId
+                    // Check if *any* of the logs in this transfer have already been reverted/corrected
                     const [alreadyReverted] = await tx.select()
                         .from(stockLogs)
-                        .where(and(eq(stockLogs.referenceId, input.referenceId), eq(stockLogs.type, "CORRECTION")));
+                        .where(and(eq(stockLogs.referenceId, log.id), eq(stockLogs.type, "CORRECTION")));
 
                     if (alreadyReverted) {
-                        throw new TRPCError({ code: "BAD_REQUEST", message: "This transfer has already been reverted." });
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `A part of this transfer (Log: ${log.id}) has already been reverted.` });
                     }
 
                     // Check Access
@@ -521,7 +534,7 @@ export const officerStockRouter = createTRPCRouter({
                     if (reverseAmount < 0 && farmerData.mainStock + reverseAmount < 0) {
                         throw new TRPCError({
                             code: "BAD_REQUEST",
-                            message: `Cannot revert this transfer. Farmer ${farmerData.name} would end up with negative stock (${(farmerData.mainStock + reverseAmount).toFixed(1)} bags).`
+                            message: `Cannot revert this transfer. Farmer ${farmerData.name} would end up with negative stock (${(farmerData.mainStock + reverseAmount).toFixed(2)} bags).`
                         });
                     }
                 }
@@ -544,7 +557,7 @@ export const officerStockRouter = createTRPCRouter({
                         farmerId: log.farmerId,
                         amount: reverseAmount.toString(),
                         type: "CORRECTION",
-                        referenceId: log.referenceId,
+                        referenceId: log.id, // LINK TO ROW ID
                         note: input.note || `Revert Transfer: ${log.note || "Original Entry"}`,
                     });
                 }

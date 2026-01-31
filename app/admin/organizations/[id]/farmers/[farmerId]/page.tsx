@@ -155,7 +155,7 @@ export default function AdminFarmerDetailsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-bold text-slate-900">{farmerData.mainStock.toFixed(1)}</span>
+                                <span className="text-4xl font-bold text-slate-900">{farmerData.mainStock.toFixed(2)}</span>
                                 <span className="text-slate-500 font-medium">bags available</span>
                             </div>
                         </CardContent>
@@ -254,7 +254,7 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: any[]; mainStock: number 
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-slate-600">{log.note || "-"}</TableCell>
                                         <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                                            {isPositive ? "+" : ""}{amount.toFixed(1)}
+                                            {isPositive ? "+" : ""}{amount.toFixed(2)}
                                         </TableCell>
                                     </TableRow>
                                 );

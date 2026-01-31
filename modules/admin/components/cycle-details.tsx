@@ -73,13 +73,13 @@ const AnalysisContent = ({
         suggestions.push({
             type: "critical",
             title: "High Mortality Alert",
-            text: `Current mortality (${currentMortalityRate.toFixed(1)}%) is above the 5% warning threshold. Isolate sick birds immediately.`
+            text: `Current mortality (${currentMortalityRate.toFixed(2)}%) is above the 5% warning threshold. Isolate sick birds immediately.`
         });
     } else if (history.length > 0 && currentMortalityRate > historicalAvgMortality * 1.2) {
         suggestions.push({
             type: "warning",
             title: "Performance Dip",
-            text: `Mortality is 20% higher than your historical average (${historicalAvgMortality.toFixed(1)}%). Review ventilation or litter quality.`
+            text: `Mortality is 20% higher than your historical average (${historicalAvgMortality.toFixed(2)}%). Review ventilation or litter quality.`
         });
     }
 
@@ -128,8 +128,8 @@ const AnalysisContent = ({
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
-                                        <span>Current: {currentMortalityRate.toFixed(1)}%</span>
-                                        <span>Avg: {historicalAvgMortality.toFixed(1)}%</span>
+                                        <span>Current: {currentMortalityRate.toFixed(2)}%</span>
+                                        <span>Avg: {historicalAvgMortality.toFixed(2)}%</span>
                                     </div>
                                 </div>
 
@@ -401,7 +401,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             <span className={`text-3xl font-bold ${normalizedCycle.mortality > 0 ? "text-rose-600" : "text-slate-900"}`}>
                                 {normalizedCycle.mortality}
                             </span>
-                            <span className="text-xs text-rose-500 font-bold">({mortalityRate.toFixed(1)}%)</span>
+                            <span className="text-xs text-rose-500 font-bold">({mortalityRate.toFixed(2)}%)</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -411,7 +411,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-emerald-600">{normalizedCycle.intake.toFixed(1)}</span>
+                            <span className="text-3xl font-bold text-emerald-600">{normalizedCycle.intake.toFixed(2)}</span>
                             <span className="text-slate-400 text-xs font-medium">bags consumed</span>
                         </div>
                     </CardContent>

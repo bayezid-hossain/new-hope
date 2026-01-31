@@ -63,9 +63,9 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                                     </TableCell>
                                     <TableCell>
                                         <div className="text-xs">
-                                            <span className="font-semibold text-amber-600">{cycle.intake.toFixed(1)}</span>
+                                            <span className="font-semibold text-amber-600">{cycle.intake.toFixed(2)}</span>
                                             <span className="text-slate-400"> / </span>
-                                            <span className="text-slate-600">{cycle.farmerMainStock.toFixed(1)}</span>
+                                            <span className="text-slate-600">{cycle.farmerMainStock.toFixed(2)}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>{cycle.age} Days</TableCell>
