@@ -114,7 +114,7 @@ export const aiRouter = createTRPCRouter({
             // Sanitize Input Text
             const cleanText = sanitizeInput(input.text);
             const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
-            console.log(cleanText)
+            // console.log(cleanText)
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
             Goal: Extract farmer names and their TOTAL feed bag count.
