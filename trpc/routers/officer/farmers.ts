@@ -335,16 +335,22 @@ export const officerFarmersRouter = createTRPCRouter({
                 });
             }
 
+            // Fetch farmer to get name
+            const currentFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id))
+            });
+            if (!currentFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+
             // 2. Perform soft deletion
-            // We append a timestamp to the name to free up the original name for reuse
-            const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-            const suffix = ` (Archived #${timestamp})`;
+            // We append a unique shortId (from UUID) to the name to free up the original name for reuse
+            const shortId = input.id.slice(0, 4).toUpperCase();
+            const archivedName = `${currentFarmer.name}_${shortId}`;
 
             const [deleted] = await ctx.db.update(farmer)
                 .set({
                     status: "deleted",
                     deletedAt: new Date(),
-                    name: sql`${farmer.name} || ${suffix}`,
+                    name: archivedName,
                     updatedAt: new Date()
                 })
                 .where(and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id)))

@@ -28,8 +28,8 @@ import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
-
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
+import { RestoreFarmerModal } from "@/modules/farmers/ui/components/restore-farmer-modal";
 
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +41,7 @@ import {
     ChevronLeft,
     Loader2,
     MoreVertical,
+    RotateCcw,
     Scale,
     Trash2,
     Wheat
@@ -115,16 +116,12 @@ export default function AdminFarmerDetailsPage() {
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+    const [showRestoreModal, setShowRestoreModal] = useState(false);
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
         trpc.management.farmers.getManagementHub.queryOptions({ farmerId, orgId })
     );
-
-    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
-
-    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
     const queryClient = useQueryClient();
     const deleteMutation = useMutation(trpc.management.farmers.delete.mutationOptions({
@@ -137,6 +134,11 @@ export default function AdminFarmerDetailsPage() {
             toast.error(`Failed to delete: ${err.message}`);
         }
     }));
+
+    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+    if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
+
+    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
     return (
         <AdminGuard>
@@ -151,7 +153,9 @@ export default function AdminFarmerDetailsPage() {
                             <p className="text-sm text-slate-500 font-medium">Officer: {farmerData.officerName}</p>
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold">ADMIN VIEW</Badge>
-                                {activeCycles.items && activeCycles.items.length > 0 ? (
+                                {farmerData.status === "deleted" ? (
+                                    <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
+                                ) : activeCycles.items && activeCycles.items.length > 0 ? (
                                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                 ) : (
                                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
@@ -172,22 +176,34 @@ export default function AdminFarmerDetailsPage() {
                             <DropdownMenuContent align="end" className="w-[200px]">
                                 <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
-                                    <Wheat className="h-4 w-4 text-amber-500" />
-                                    Restock
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
-                                    <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                                    Transfer Stock
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setShowArchiveDialog(true)}
-                                    className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete Profile
-                                </DropdownMenuItem>
+                                {farmerData.status === "deleted" ? (
+                                    <DropdownMenuItem
+                                        onClick={() => setShowRestoreModal(true)}
+                                        className="gap-2 cursor-pointer font-medium text-emerald-600 focus:text-emerald-600"
+                                    >
+                                        <RotateCcw className="h-4 w-4" />
+                                        Restore Profile
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <>
+                                        <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
+                                            <Wheat className="h-4 w-4 text-amber-500" />
+                                            Restock
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
+                                            <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                                            Transfer Stock
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() => setShowArchiveDialog(true)}
+                                            className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Delete Profile
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -199,10 +215,37 @@ export default function AdminFarmerDetailsPage() {
                             <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Stock Status</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-bold text-slate-900">{farmerData.mainStock.toFixed(2)}</span>
-                                <span className="text-slate-500 font-medium">bags available</span>
-                            </div>
+                            {(() => {
+                                const activeCyclesList = (activeCycles?.items || []) as any[];
+                                const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                const remaining = farmerData.mainStock - activeConsumption;
+
+                                if (farmerData.status === "deleted") {
+                                    return (
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-4xl font-bold text-slate-400">{farmerData.mainStock.toFixed(2)}</span>
+                                                <span className="text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 font-medium italic mt-1">Archived - No active consumption</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-2">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
+                                            <span className="text-slate-500 font-medium lowercase">bags available</span>
+                                        </div>
+                                        {activeConsumption > 0 && (
+                                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
+                                                {activeConsumption.toFixed(2)} bags currently in-use
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </CardContent>
                     </Card>
 
@@ -271,6 +314,14 @@ export default function AdminFarmerDetailsPage() {
                     isPending={deleteMutation.isPending}
                     onConfirm={() => deleteMutation.mutate({ orgId, farmerId })}
                 />
+
+                <RestoreFarmerModal
+                    open={showRestoreModal}
+                    onOpenChange={setShowRestoreModal}
+                    farmerId={farmerId}
+                    archivedName={farmerData.name}
+                    orgId={orgId}
+                />
             </div>
         </AdminGuard>
     );
@@ -281,40 +332,46 @@ const StockLedgerTable = ({ logs, mainStock }: { logs: any[]; mainStock: number 
     return (
         <Card className="border-none shadow-sm overflow-hidden bg-white">
             <CardContent className="p-0">
-                <div className="overflow-auto max-h-[500px]">
-                    <table className="w-full text-sm">
-                        <TableHeader className="sticky top-0 bg-slate-50/90 backdrop-blur-sm border-b z-10">
-                            <TableRow>
-                                <TableHead className="px-6 py-3 font-bold text-slate-900">Date</TableHead>
-                                <TableHead className="px-6 py-3 font-bold text-slate-900">Type</TableHead>
-                                <TableHead className="px-6 py-3 font-bold text-slate-900">Note</TableHead>
-                                <TableHead className="px-6 py-3 font-bold text-slate-900 text-right">Change</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {logs.map((log) => {
-                                const amount = Number(log.amount);
-                                const isPositive = amount > 0;
-                                return (
-                                    <TableRow key={log.id} className="hover:bg-slate-50 transition-colors">
-                                        <TableCell className="px-6 py-4 text-slate-500">
-                                            {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4">
-                                            <Badge variant="outline" className={`font-medium ${isPositive ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"}`}>
-                                                {log.type.replace(/_/g, " ")}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-slate-600">{log.note || "-"}</TableCell>
-                                        <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                                            {isPositive ? "+" : ""}{amount.toFixed(2)}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </table>
-                </div>
+                {logs.length > 0 ? (
+                    <div className="overflow-auto max-h-[500px]">
+                        <table className="w-full text-sm">
+                            <TableHeader className="sticky top-0 bg-slate-50/90 backdrop-blur-sm border-b z-10">
+                                <TableRow>
+                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Date</TableHead>
+                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Type</TableHead>
+                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Note</TableHead>
+                                    <TableHead className="px-6 py-3 font-bold text-slate-900 text-right">Change</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {logs.map((log) => {
+                                    const amount = Number(log.amount);
+                                    const isPositive = amount > 0;
+                                    return (
+                                        <TableRow key={log.id} className="hover:bg-slate-50 transition-colors">
+                                            <TableCell className="px-6 py-4 text-slate-500">
+                                                {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
+                                            </TableCell>
+                                            <TableCell className="px-6 py-4">
+                                                <Badge variant="outline" className={`font-medium ${isPositive ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"}`}>
+                                                    {log.type.replace(/_/g, " ")}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="px-6 py-4 text-slate-600">{log.note || "-"}</TableCell>
+                                            <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
+                                                {isPositive ? "+" : ""}{amount.toFixed(2)}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                        No transaction history found
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

@@ -230,7 +230,10 @@ export const managementFarmersRouter = createTRPCRouter({
         }),
 
     restore: orgProcedure
-        .input(z.object({ farmerId: z.string() }))
+        .input(z.object({
+            farmerId: z.string(),
+            newName: z.string().optional()
+        }))
         .mutation(async ({ ctx, input }) => {
             const archivedFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
@@ -239,31 +242,34 @@ export const managementFarmersRouter = createTRPCRouter({
             if (!archivedFarmer) throw new TRPCError({ code: "NOT_FOUND" });
             if (archivedFarmer.status === "active") return { success: true, message: "Farmer is already active" };
 
-            // Logic check: Can we restore? 
-            // We need to check if the ORIGINAL name (without suffix) is occupied by an active farmer for this officer
-            // Suffix pattern: " (Archived #...)"
-            const originalName = archivedFarmer.name.split(" (Archived #")[0];
+            // The original name is the part before the LAST underscore
+            const lastUnderscoreIndex = archivedFarmer.name.lastIndexOf("_");
+            const originalName = lastUnderscoreIndex !== -1
+                ? archivedFarmer.name.substring(0, lastUnderscoreIndex)
+                : archivedFarmer.name;
+
+            const nameToRestore = input.newName || originalName;
 
             const conflict = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     eq(farmer.officerId, archivedFarmer.officerId),
                     eq(farmer.status, "active"),
-                    eq(farmer.name, originalName)
+                    eq(farmer.name, nameToRestore)
                 )
             });
 
             if (conflict) {
                 throw new TRPCError({
                     code: "CONFLICT",
-                    message: `Cannot restore "${originalName}". There is already another active farmer with this name for the assigned officer. Please rename the active farmer or archived record first.`
+                    message: `A farmer named "${nameToRestore}" already exists. Please provide a different name to restore this profile.`
                 });
             }
 
             const [updated] = await ctx.db.update(farmer)
                 .set({
                     status: "active",
-                    name: originalName,
+                    name: nameToRestore,
                     deletedAt: null,
                     updatedAt: new Date()
                 })
@@ -310,14 +316,14 @@ export const managementFarmersRouter = createTRPCRouter({
             }
 
             // 2. Perform soft deletion
-            const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-            const suffix = ` (Archived #${timestamp})`;
+            const shortId = input.farmerId.slice(0, 4).toUpperCase();
+            const archivedName = `${archivedFarmer.name}_${shortId}`;
 
             const [deleted] = await ctx.db.update(farmer)
                 .set({
                     status: "deleted",
                     deletedAt: new Date(),
-                    name: sql`${farmer.name} || ${suffix}`,
+                    name: archivedName,
                     updatedAt: new Date()
                 })
                 .where(eq(farmer.id, input.farmerId))

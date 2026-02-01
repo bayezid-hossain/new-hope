@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
+import { RestoreFarmerModal } from "@/modules/farmers/ui/components/restore-farmer-modal";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -48,6 +49,7 @@ import {
     History,
     Loader2,
     MoreVertical,
+    RotateCcw,
     Scale,
     Search,
     Trash2,
@@ -154,6 +156,19 @@ export default function ManagementFarmerDetailsPage() {
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+    const [showRestoreModal, setShowRestoreModal] = useState(false);
+
+    const queryClient = useQueryClient();
+    const deleteMutation = useMutation(trpc.management.farmers.delete.mutationOptions({
+        onSuccess: () => {
+            toast.success("Farmer profile deleted");
+            queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
+            router.push("/management/farmers");
+        },
+        onError: (err) => {
+            toast.error(`Failed to delete: ${err.message}`);
+        }
+    }));
 
     // 1. Get Organization Context (for orgId)
     const { data: statusData, isPending: isMembershipPending } = useQuery(
@@ -176,18 +191,6 @@ export default function ManagementFarmerDetailsPage() {
 
     const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
-    const queryClient = useQueryClient();
-    const deleteMutation = useMutation(trpc.management.farmers.delete.mutationOptions({
-        onSuccess: () => {
-            toast.success("Farmer profile deleted");
-            queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
-            router.push("/management/farmers");
-        },
-        onError: (err) => {
-            toast.error(`Failed to delete: ${err.message}`);
-        }
-    }));
-
     return (
         <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-slate-50/50 min-h-screen">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -200,7 +203,9 @@ export default function ManagementFarmerDetailsPage() {
                         <p className="text-sm text-slate-500 font-medium">Officer: {farmerData.officerName}</p>
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
-                            {activeCycles.items && activeCycles.items.length > 0 ? (
+                            {farmerData.status === "deleted" ? (
+                                <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
+                            ) : activeCycles.items && activeCycles.items.length > 0 ? (
                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                             ) : (
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
@@ -219,22 +224,34 @@ export default function ManagementFarmerDetailsPage() {
                         <DropdownMenuContent align="end" className="w-[200px]">
                             <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
-                                <Wheat className="h-4 w-4 text-amber-500" />
-                                Restock
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
-                                <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                                Transfer Stock
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={() => setShowArchiveDialog(true)}
-                                className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete Profile
-                            </DropdownMenuItem>
+                            {farmerData.status === "deleted" ? (
+                                <DropdownMenuItem
+                                    onClick={() => setShowRestoreModal(true)}
+                                    className="gap-2 cursor-pointer font-medium text-emerald-600 focus:text-emerald-600"
+                                >
+                                    <RotateCcw className="h-4 w-4" />
+                                    Restore Profile
+                                </DropdownMenuItem>
+                            ) : (
+                                <>
+                                    <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
+                                        <Wheat className="h-4 w-4 text-amber-500" />
+                                        Restock
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
+                                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                                        Transfer Stock
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={() => setShowArchiveDialog(true)}
+                                        className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete Profile
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -247,9 +264,32 @@ export default function ManagementFarmerDetailsPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {(() => {
-                            const activeConsumption = activeCycles.items.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                            const activeCyclesList = (activeCycles?.items || []) as any[];
+                            const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
                             const remaining = farmerData.mainStock - activeConsumption;
                             const isLow = remaining < 3;
+
+                            if (farmerData.status === "deleted") {
+                                return (
+                                    <div className="space-y-4">
+                                        <div className="space-y-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-4xl font-black text-slate-400">
+                                                    {farmerData.mainStock.toFixed(2)}
+                                                </span>
+                                                <span className="text-slate-400 font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 font-medium">Profile archived - no active cycles permitted.</p>
+                                        </div>
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-400 font-medium uppercase tracking-tighter">Archived Balance</span>
+                                                <span className="font-bold text-slate-500">{farmerData.mainStock.toFixed(2)} b</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
 
                             return (
                                 <>
@@ -395,6 +435,14 @@ export default function ManagementFarmerDetailsPage() {
                 farmerName={farmerData.name}
                 isPending={deleteMutation.isPending}
                 onConfirm={() => deleteMutation.mutate({ orgId: orgId as string, farmerId: farmerId })}
+            />
+
+            <RestoreFarmerModal
+                open={showRestoreModal}
+                onOpenChange={setShowRestoreModal}
+                farmerId={farmerId}
+                archivedName={farmerData.name}
+                orgId={orgId as string}
             />
         </div>
     );

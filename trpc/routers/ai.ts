@@ -225,9 +225,22 @@ export const aiRouter = createTRPCRouter({
                     }
                 }
             } else {
-                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override
+                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override or Manager/Owner
                 if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
-                    throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, input.orgId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+
+                    if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+                        throw new TRPCError({
+                            code: "FORBIDDEN",
+                            message: "Analyzing another officer's data requires Manager or Owner privileges."
+                        });
+                    }
                 }
             }
 
@@ -336,9 +349,22 @@ export const aiRouter = createTRPCRouter({
                     }
                 }
             } else {
-                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override
+                // OFFICER-SPECIFIC SCAN: Access to own data or Admin override or Manager/Owner
                 if (ctx.user.globalRole !== "ADMIN" && input.officerId !== ctx.user.id) {
-                    throw new TRPCError({ code: "FORBIDDEN", message: "You can only analyze your own data." });
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, input.orgId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+
+                    if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+                        throw new TRPCError({
+                            code: "FORBIDDEN",
+                            message: "Analyzing another officer's data requires Manager or Owner privileges."
+                        });
+                    }
                 }
             }
 

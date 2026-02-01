@@ -92,40 +92,58 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             </div>
 
             {/* Metrics: Stock & Consumption (Emphasized) */}
-            <div className={cn("grid grid-cols-3 gap-3", variant === "elevated" ? "py-2 border-y border-slate-50" : "py-1")}>
+            <div className={cn("grid gap-3", farmer.status === "deleted" ? "grid-cols-1" : "grid-cols-3", variant === "elevated" ? "py-2 border-y border-slate-50" : "py-1")}>
 
                 {/* Stock / Remaining */}
-                <div className="flex flex-col justify-center p-2 rounded-lg bg-emerald-50/50 border border-emerald-100/50">
-                    <span className="text-[10px] text-emerald-600/70 font-bold uppercase tracking-wider mb-0.5">Available Stock</span>
+                <div className={cn(
+                    "flex flex-col justify-center p-2 rounded-lg border",
+                    farmer.status === "deleted" ? "bg-slate-50 border-slate-200 items-center text-center" : "bg-emerald-50/50 border-emerald-100/50"
+                )}>
+                    <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider mb-0.5",
+                        farmer.status === "deleted" ? "text-slate-400" : "text-emerald-600/70"
+                    )}>
+                        {farmer.status === "deleted" ? "Remaining Stock" : "Available Stock"}
+                    </span>
                     <div className="flex items-baseline gap-1">
-                        <Wheat className={cn("h-4 w-4", isLow ? "text-red-500" : "text-emerald-500")} />
-                        <span className={cn("text-xl font-black leading-none", isLow ? "text-red-600" : "text-emerald-700")}>
+                        <Wheat className={cn("h-4 w-4", farmer.status === "deleted" ? "text-slate-300" : (isLow ? "text-red-500" : "text-emerald-500"))} />
+                        <span className={cn(
+                            "text-xl font-black leading-none",
+                            farmer.status === "deleted" ? "text-slate-600" : (isLow ? "text-red-600" : "text-emerald-700")
+                        )}>
                             {remaining.toFixed(2)}
                         </span>
-                        <span className="text-[10px] font-medium text-emerald-600/60">bags</span>
+                        <span className={cn(
+                            "text-[10px] font-medium",
+                            farmer.status === "deleted" ? "text-slate-400" : "text-emerald-600/60"
+                        )}>bags</span>
                     </div>
                 </div>
 
-                {/* Consumption / Used */}
-                <div className="flex flex-col justify-center p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 text-center items-center">
-                    <span className="text-[10px] text-amber-600/70 font-bold uppercase tracking-wider mb-0.5">Used in Cycles</span>
-                    <div className="flex items-baseline gap-1 justify-end">
-                        <span className="text-xl font-black text-amber-700 leading-none">
-                            {activeConsumption.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] font-medium text-amber-600/60">bags</span>
-                    </div>
-                </div>
-                {/* total stock */}
-                <div className="flex flex-col justify-center p-2 rounded-lg bg-blue-500 border border-white text-right items-end shadow-sm">
-                    <span className="text-[10px] text-white font-bold uppercase tracking-wider mb-0.5">Total Stock</span>
-                    <div className="flex items-baseline gap-1 justify-end">
-                        <span className="text-xl font-black text-white leading-none">
-                            {mainStock.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] font-medium text-white">bags</span>
-                    </div>
-                </div>
+                {farmer.status !== "deleted" && (
+                    <>
+                        {/* Consumption / Used */}
+                        <div className="flex flex-col justify-center p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 text-center items-center">
+                            <span className="text-[10px] text-amber-600/70 font-bold uppercase tracking-wider mb-0.5">Used in Cycles</span>
+                            <div className="flex items-baseline gap-1 justify-end">
+                                <span className="text-xl font-black text-amber-700 leading-none">
+                                    {activeConsumption.toFixed(2)}
+                                </span>
+                                <span className="text-[10px] font-medium text-amber-600/60">bags</span>
+                            </div>
+                        </div>
+                        {/* total stock */}
+                        <div className="flex flex-col justify-center p-2 rounded-lg bg-blue-500 border border-white text-right items-end shadow-sm">
+                            <span className="text-[10px] text-white font-bold uppercase tracking-wider mb-0.5">Total Stock</span>
+                            <div className="flex items-baseline gap-1 justify-end">
+                                <span className="text-xl font-black text-white leading-none">
+                                    {mainStock.toFixed(2)}
+                                </span>
+                                <span className="text-[10px] font-medium text-white">bags</span>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Actions (Optional) */}

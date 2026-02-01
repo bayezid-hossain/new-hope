@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   decimal,
@@ -158,8 +158,8 @@ export const farmer = pgTable("farmer", {
 }, (t) => [
   index("idx_farmer_org_id").on(t.organizationId),
   index("idx_farmer_officer_id").on(t.officerId),
-  // Case-Insensitive UNIQUE per Officer
-  uniqueIndex("unique_farmer_name_per_officer_ci").on(t.organizationId, t.officerId, t.name),
+  // Case-Insensitive UNIQUE per Officer (Partial: only active farmers)
+  uniqueIndex("unique_farmer_name_per_officer_ci").on(t.organizationId, t.officerId, t.name).where(sql`status = 'active'`),
 ]);
 
 export const cycles = pgTable("cycles", {
