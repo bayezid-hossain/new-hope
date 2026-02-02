@@ -62,7 +62,8 @@ export const managementFarmersRouter = createTRPCRouter({
                         officerName: off?.name || "Unknown",
                         activeCyclesCount: fCycles.length,
                         pastCyclesCount: fHistory.length,
-                        cycles: fCycles
+                        cycles: fCycles,
+                        history: fHistory
                     };
                 })),
                 total: Number(total.count),
@@ -110,7 +111,8 @@ export const managementFarmersRouter = createTRPCRouter({
                     officerName: off?.name || "Unknown",
                     activeCyclesCount: fCycles.length,
                     pastCyclesCount: fHistory.length,
-                    cycles: fCycles
+                    cycles: fCycles,
+                    history: fHistory
                 };
             }));
         }),
