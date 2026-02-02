@@ -16,6 +16,7 @@ const cycleSearchSchema = z.object({
     pageSize: z.number().default(10),
     orgId: z.string(),
     farmerId: z.string().optional(),
+    officerId: z.string().optional(),
     sortBy: z.enum(["name", "age", "createdAt"]).optional(),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -24,7 +25,7 @@ export const managementCyclesRouter = createTRPCRouter({
     listActive: managementProcedure
         .input(cycleSearchSchema)
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId, farmerId, sortBy, sortOrder } = input;
+            const { search, page, pageSize, orgId, farmerId, officerId, sortBy, sortOrder } = input;
             const users = aliasedTable(user, "officer");
 
             // Access Check
@@ -47,6 +48,7 @@ export const managementCyclesRouter = createTRPCRouter({
                 eq(cycles.status, "active"),
                 eq(farmer.status, "active"),
                 farmerId ? eq(cycles.farmerId, farmerId) : undefined,
+                officerId ? eq(farmer.officerId, officerId) : undefined,
                 search ? or(
                     ilike(cycles.name, `%${search}%`),
                     ilike(farmer.name, `%${search}%`),
@@ -221,7 +223,7 @@ export const managementCyclesRouter = createTRPCRouter({
             status: z.enum(["archived", "deleted", "all"]).default("archived")
         }))
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId, farmerId, status } = input;
+            const { search, page, pageSize, orgId, farmerId, officerId, status } = input;
 
             // Access Check
             if (ctx.user.globalRole !== "ADMIN") {
@@ -236,6 +238,7 @@ export const managementCyclesRouter = createTRPCRouter({
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
                 farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
+                officerId ? eq(farmer.officerId, officerId) : undefined,
                 status === "all" ? undefined : eq(cycleHistory.status, status),
                 search ? or(
                     ilike(cycleHistory.cycleName, `%${search}%`),

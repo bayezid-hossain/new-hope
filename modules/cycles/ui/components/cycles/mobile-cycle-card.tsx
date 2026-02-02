@@ -18,10 +18,11 @@ interface MobileCycleCardProps {
     prefix?: string;
     currentId?: string;
     variant?: "elevated" | "flat";
+    showName?: boolean;
     className?: string;
 }
 
-export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated", className }: MobileCycleCardProps) => {
+export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated", showName = true, className }: MobileCycleCardProps) => {
 
     const cardRef = useRef<HTMLDivElement>(null);
     const isCurrent = cycle.id === currentId;
@@ -66,14 +67,25 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                 <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 align-middle">
                         {variant === "flat" ? (
-                            <div className="flex items-center gap-1.5">
-                                <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[10px] px-1.5 h-4 leading-none flex items-center">
-                                    {cycle.age} {cycle.age > 1 ? "days" : "day"}
-                                </Badge>
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                    {createdAt ? format(new Date(createdAt), "MMM d") : ""}
-                                    {endDate ? ` - ${format(new Date(endDate), "MMM d")}` : ""}
-                                </span>
+                            <div className="flex flex-col gap-0.5">
+                                {showName && (
+                                    <Link
+                                        href={farmerLink}
+                                        className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-xs line-clamp-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {cycleName}
+                                    </Link>
+                                )}
+                                <div className="flex items-center gap-1.5">
+                                    <Badge className="bg-violet-50 text-violet-700 border-violet-100 font-bold text-[9px] px-1 h-3.5 leading-none flex items-center">
+                                        {cycle.age}d
+                                    </Badge>
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                        {createdAt ? format(new Date(createdAt), "MMM d") : ""}
+                                        {endDate ? ` - ${format(new Date(endDate), "MMM d")}` : ""}
+                                    </span>
+                                </div>
                             </div>
                         ) : (
                             <>

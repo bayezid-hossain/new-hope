@@ -227,7 +227,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         endDate: null,
                         status: 'active' as const
                     })),
-                    ...history.map(h => ({ ...h, status: 'archived' as const }))
+                    ...history.map(h => ({ ...h, status: h.status as any }))
                 ];
 
                 return {
@@ -286,7 +286,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     endDate: null,
                     status: 'active' as const
                 })),
-                ...otherHistory.map(h => ({ ...h, status: 'archived' as const }))
+                ...otherHistory.map(h => ({ ...h, status: h.status as any }))
             ];
 
             return {

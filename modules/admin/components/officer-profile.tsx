@@ -4,8 +4,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Archive, Bird, ChevronLeft, Loader2, Mail, User, Wheat } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { OrgCyclesList } from "./org-cycles-list";
 
 interface OfficerProfileProps {
     orgId: string;
@@ -74,129 +74,172 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
     ];
 
     return (
-        <div className="space-y-6 h-full flex flex-col">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6 h-full flex flex-col bg-slate-50/20 px-4 sm:px-6 py-6 font-sans">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" asChild className="text-slate-500 hover:text-slate-900">
+                    <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 lg:hidden">
                         <Link href={backUrl}>
-                            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                            <ChevronLeft className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <div className="h-8 w-[1px] bg-slate-200 mx-2" />
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm">
-                            <User className="h-5 w-5 text-indigo-600" />
+                        <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-white shadow-sm ring-1 ring-indigo-100">
+                            <User className="h-5 w-5 text-indigo-500" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-slate-900 leading-tight">{profile.officer.name}</h1>
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[10px] font-bold tracking-wider uppercase border-none bg-slate-100 text-slate-500">{profile.role}</Badge>
-                                <span>•</span>
-                                <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {profile.officer.email}</span>
-                                {isAdminView && (
-                                    <>
-                                        <span>•</span>
-                                        <div className="flex items-center gap-2 ml-2">
-                                            <Switch
-                                                id="pro-mode"
-                                                checked={profile.officer.isPro}
-                                                onCheckedChange={(checked) => togglePro({ userId: profile.officer.id, isPro: checked })}
-                                                disabled={isTogglingPro}
-                                                className="h-4 w-7 data-[state=checked]:bg-emerald-500"
-                                            />
-                                            <Label htmlFor="pro-mode" className="text-xs font-medium text-slate-600 cursor-pointer">
-                                                Pro Status
-                                            </Label>
-                                            {isTogglingPro && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
-                                        </div>
-                                    </>
-                                )}
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">{profile.officer.name}</h1>
+                                <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] font-bold tracking-wider uppercase border-none bg-indigo-50 text-indigo-600 rounded-md">{profile.role}</Badge>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5 font-medium">
+                                <Mail className="h-3 w-3" /> {profile.officer.email}
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <Button variant="outline" size="sm" asChild className="hidden lg:flex h-8 text-xs font-bold text-slate-500 hover:text-indigo-600 bg-white hover:border-indigo-100 transition-all">
+                        <Link href={backUrl}>
+                            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back
+                        </Link>
+                    </Button>
+                    {isAdminView && (
+                        <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Pro Mode</span>
+                            <Switch
+                                id="pro-mode"
+                                checked={profile.officer.isPro}
+                                onCheckedChange={(checked) => togglePro({ userId: profile.officer.id, isPro: checked })}
+                                disabled={isTogglingPro}
+                                className="h-4 w-7 data-[state=checked]:bg-emerald-500"
+                            />
+                            {isTogglingPro && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Analytics Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {/* Stats Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {statsItems.map((item) => (
-                    <Card key={item.label} className="border-slate-200 shadow-sm overflow-hidden">
-                        <CardContent className="p-4 flex flex-col gap-1">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
-                                <item.icon className={`h-3 w-3 ${item.color}`} />
-                                {item.label}
-                            </span>
-                            <span className="text-2xl font-bold text-slate-900">{item.value}</span>
-                        </CardContent>
-                    </Card>
+                    <div key={item.label} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-1.5 hover:border-indigo-100 transition-all hover:shadow-md group">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
+                            <item.icon className={`h-3 w-3 ${item.icon === Wheat ? (item.color.includes('emerald') ? 'text-emerald-500' : 'text-amber-500') : item.color} group-hover:scale-110 transition-transform`} />
+                            {item.label}
+                        </span>
+                        <span className="text-xl font-bold text-slate-900 tracking-tight">{item.value}</span>
+                    </div>
                 ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
-                {/* Left Column: Managed Farmers Table */}
-                <Card className="lg:col-span-2 border-slate-200 shadow-sm flex flex-col h-[600px] lg:h-auto overflow-hidden">
-                    <Tabs defaultValue="active" className="flex flex-col h-full">
-                        <CardHeader className="py-4 px-6 border-b bg-slate-50/50 flex flex-row items-center justify-between shrink-0">
-                            <div className="flex flex-col gap-1">
-                                <CardTitle className="text-base font-bold text-slate-900">Managed Farmers</CardTitle>
-                                <TabsList className="h-8 bg-slate-100/50 p-0.5 border">
-                                    <TabsTrigger value="active" className="text-[10px] h-7 px-3 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                        Active ({profile.farmers.filter(f => f.status === "active").length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="archived" className="text-[10px] h-7 px-3 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                        Archived ({profile.farmers.filter(f => f.status === "deleted").length})
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
-                            <Badge variant="outline" className="bg-white">{profile.farmers.length} Total</Badge>
-                        </CardHeader>
+                {/* Left Column: Data Tabs (Farmers & Cycles) */}
+                <Card className="lg:col-span-2 border-slate-200 shadow-sm flex flex-col h-[850px] lg:h-auto overflow-hidden rounded-2xl">
+                    <Tabs defaultValue="farmers" className="flex flex-col h-full">
+                        <div className="py-3 px-6 border-b bg-white flex flex-row items-center justify-between shrink-0">
+                            <TabsList className="h-8 bg-slate-100/50 p-1 rounded-lg">
+                                <TabsTrigger value="farmers" className="text-[10px] px-3 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm rounded-md transition-all">
+                                    Farmers
+                                </TabsTrigger>
+                                <TabsTrigger value="cycles" className="text-[10px] px-3 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm rounded-md transition-all">
+                                    Cycles
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
 
-                        <div className="flex-1 min-h-0 relative">
-                            {isFetching && !isLoading && (
-                                <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                </div>
-                            )}
-                            <ScrollArea className="h-[500px] lg:h-[600px] w-full">
-                                <TabsContent value="active" className="m-0 focus-visible:outline-none">
-                                    <ManagedFarmersTable
-                                        farmers={profile.farmers.filter(f => f.status === "active")}
-                                        isAdminView={isAdminView}
-                                        orgId={orgId}
-                                    />
-                                </TabsContent>
-                                <TabsContent value="archived" className="m-0 focus-visible:outline-none">
-                                    <ManagedFarmersTable
-                                        farmers={profile.farmers.filter(f => f.status === "deleted")}
-                                        isAdminView={isAdminView}
-                                        orgId={orgId}
-                                    />
-                                </TabsContent>
-                            </ScrollArea>
+                        <div className="flex-1 min-h-0 bg-white">
+                            <TabsContent value="farmers" className="m-0 h-full focus-visible:outline-none">
+                                <Tabs defaultValue="active" className="flex flex-col h-full">
+                                    <div className="px-6 py-2 border-b bg-slate-50/30 flex justify-between items-center shrink-0">
+                                        <TabsList className="h-7 bg-slate-200/40 p-0.5 rounded-md">
+                                            <TabsTrigger value="active" className="text-[9px] h-6 px-2.5 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-[4px] transition-all">
+                                                Active ({profile.farmers.filter(f => f.status === "active").length})
+                                            </TabsTrigger>
+                                            <TabsTrigger value="archived" className="text-[9px] h-6 px-2.5 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-[4px] transition-all">
+                                                Archived ({profile.farmers.filter(f => f.status === "deleted").length})
+                                            </TabsTrigger>
+                                        </TabsList>
+
+                                    </div>
+
+                                    <div className="flex-1 min-h-0 relative">
+                                        {isFetching && !isLoading && (
+                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                                                <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
+                                            </div>
+                                        )}
+                                        <ScrollArea className="h-[650px] lg:h-[750px] w-full">
+                                            <TabsContent value="active" className="m-0 focus-visible:outline-none">
+                                                <ManagedFarmersTable
+                                                    farmers={profile.farmers.filter(f => f.status === "active")}
+                                                    isAdminView={isAdminView}
+                                                    orgId={orgId}
+                                                />
+                                            </TabsContent>
+                                            <TabsContent value="archived" className="m-0 focus-visible:outline-none">
+                                                <ManagedFarmersTable
+                                                    farmers={profile.farmers.filter(f => f.status === "deleted")}
+                                                    isAdminView={isAdminView}
+                                                    orgId={orgId}
+                                                />
+                                            </TabsContent>
+                                        </ScrollArea>
+                                    </div>
+                                </Tabs>
+                            </TabsContent>
+
+                            <TabsContent value="cycles" className="m-0 h-full focus-visible:outline-none">
+                                <Tabs defaultValue="active" className="flex flex-col h-full">
+                                    <div className="px-6 py-2 border-b bg-slate-50/30 flex justify-between items-center shrink-0">
+                                        <TabsList className="h-7 bg-slate-200/40 p-0.5 rounded-md">
+                                            <TabsTrigger value="active" className="text-[9px] h-6 px-2.5 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-[4px] transition-all">
+                                                Active
+                                            </TabsTrigger>
+                                            <TabsTrigger value="past" className="text-[9px] h-6 px-2.5 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-[4px] transition-all">
+                                                History
+                                            </TabsTrigger>
+                                            <TabsTrigger value="deleted" className="text-[9px] h-6 px-2.5 font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-[4px] transition-all">
+                                                Deleted
+                                            </TabsTrigger>
+                                        </TabsList>
+                                    </div>
+
+                                    <div className="flex-1 h-full">
+                                        <ScrollArea className="h-[650px] lg:h-auto min-h-[650px] w-full">
+                                            <TabsContent value="active" className="m-0 focus-visible:outline-none">
+                                                <OrgCyclesList orgId={orgId} officerId={userId} isAdmin={isAdminView} isManagement={!isAdminView} status="active" />
+                                            </TabsContent>
+                                            <TabsContent value="past" className="m-0 focus-visible:outline-none">
+                                                <OrgCyclesList orgId={orgId} officerId={userId} isAdmin={isAdminView} isManagement={!isAdminView} status="past" />
+                                            </TabsContent>
+                                            <TabsContent value="deleted" className="m-0 focus-visible:outline-none">
+                                                <OrgCyclesList orgId={orgId} officerId={userId} isAdmin={isAdminView} isManagement={!isAdminView} status="deleted" />
+                                            </TabsContent>
+                                        </ScrollArea>
+                                    </div>
+                                </Tabs>
+                            </TabsContent>
                         </div>
                     </Tabs>
                 </Card>
 
                 {/* Right Column: AI Risk Watchdog */}
                 <div className="space-y-6">
-                    {/* Risk Watchdog Card */}
                     <SmartWatchdogWidget orgId={orgId} officerId={userId} />
 
-                    <Card className="border-slate-200 shadow-sm group">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-bold text-slate-900">Officer Actions</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Button variant="outline" className="w-full justify-start text-slate-600" disabled>
-                                <Mail className="h-4 w-4 mr-2" /> Send Message
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all group">
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">Management Actions</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                            <Button variant="outline" className="w-full justify-start text-[11px] font-bold uppercase tracking-tight h-10 border-slate-100 hover:bg-slate-50 transition-all hover:border-indigo-100 group" disabled>
+                                <Mail className="h-4 w-4 mr-2 text-indigo-300 group-hover:scale-110 transition-transform" /> Contact Officer
                             </Button>
-                            <Button variant="outline" className="w-full justify-start text-slate-600" disabled>
-                                <Archive className="h-4 w-4 mr-2" /> View Audit Logs
+                            <Button variant="outline" className="w-full justify-start text-[11px] font-bold uppercase tracking-tight h-10 border-slate-100 hover:bg-slate-50 transition-all hover:border-slate-200 group" disabled>
+                                <Archive className="h-4 w-4 mr-2 text-slate-300 group-hover:scale-110 transition-transform" /> Audit History
                             </Button>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    {/* Supply Chain Predictor */}
                     <SupplyChainWidget orgId={orgId} officerId={userId} viewMode="ADMIN" />
                 </div>
             </div>
@@ -214,7 +257,7 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
     }
 
     return (
-        <div className="min-w-[600px] md:min-w-0">
+        <div className="min-w-[600px] md:min-w-0 pb-12">
             <Table>
                 <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
                     <TableRow>

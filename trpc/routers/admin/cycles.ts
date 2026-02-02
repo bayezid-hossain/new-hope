@@ -20,6 +20,7 @@ const cycleSearchSchema = z.object({
     pageSize: z.number().default(10),
     orgId: z.string(),
     farmerId: z.string().optional(),
+    officerId: z.string().optional(),
     sortBy: z.enum(["name", "age", "createdAt"]).optional(),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -28,13 +29,14 @@ export const adminCyclesRouter = createTRPCRouter({
     listActive: adminProcedure
         .input(cycleSearchSchema)
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId, sortBy, sortOrder } = input;
+            const { search, page, pageSize, orgId, officerId, sortBy, sortOrder } = input;
             const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycles.organizationId, orgId),
                 eq(cycles.status, "active"),
+                officerId ? eq(farmer.officerId, officerId) : undefined,
                 search ? or(
                     ilike(cycles.name, `%${search}%`),
                     ilike(farmer.name, `%${search}%`),
@@ -207,12 +209,13 @@ export const adminCyclesRouter = createTRPCRouter({
             status: z.enum(["archived", "deleted", "all"]).default("archived")
         }))
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId, sortBy, sortOrder, status } = input;
+            const { search, page, pageSize, orgId, officerId, sortBy, sortOrder, status } = input;
             const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
+                officerId ? eq(farmer.officerId, officerId) : undefined,
                 status === "all" ? undefined : eq(cycleHistory.status, status),
                 search ? or(
                     ilike(cycleHistory.cycleName, `%${search}%`),
