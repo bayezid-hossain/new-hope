@@ -139,6 +139,17 @@ export const officerCyclesRouter = createTRPCRouter({
             age: z.number().int().min(0).max(30, "Maximum age is 30 days for new cycles").default(0),
         }))
         .mutation(async ({ input, ctx }) => {
+            const farmerData = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.farmerId), eq(farmer.status, "active"))
+            });
+
+            if (!farmerData) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot create cycle for an archived or non-existent farmer."
+                });
+            }
+
             const [newCycle] = await ctx.db.insert(cycles).values({
                 name: input.name,
                 farmerId: input.farmerId,
@@ -399,6 +410,17 @@ export const officerCyclesRouter = createTRPCRouter({
         .mutation(async ({ input, ctx }) => {
             const [current] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
             if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+
+            const farmerData = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, current.farmerId), eq(farmer.status, "active"))
+            });
+
+            if (!farmerData) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot add mortality to a cycle of an archived farmer."
+                });
+            }
 
             // LOGIC CHECK: New mortality + existing mortality should not exceed DOC
             if ((current.mortality + input.amount) > current.doc) {
@@ -717,6 +739,13 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
 
+                if (farmerData.status !== "active") {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "Cannot correct DOC for an archived farmer profile."
+                    });
+                }
+
                 if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
                     const membership = await tx.query.member.findFirst({
                         where: and(
@@ -909,6 +938,13 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (farmerData.status !== "active") {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "Cannot correct mortality for an archived farmer profile."
+                    });
+                }
 
                 if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
                     const membership = await tx.query.member.findFirst({

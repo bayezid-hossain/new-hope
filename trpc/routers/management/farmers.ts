@@ -297,31 +297,42 @@ export const managementFarmersRouter = createTRPCRouter({
                 });
             }
 
-            const [updated] = await ctx.db.update(farmer)
-                .set({
-                    status: "active",
-                    name: nameToRestore,
-                    deletedAt: null,
-                    updatedAt: new Date()
-                })
-                .where(eq(farmer.id, input.farmerId))
-                .returning();
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        status: "active",
+                        name: nameToRestore,
+                        deletedAt: null,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.farmerId))
+                    .returning();
 
-            // NOTIFICATION: Farmer Restored
-            try {
-                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
-                await NotificationService.sendToOrgManagers({
-                    organizationId: input.orgId,
-                    title: "Farmer Restored",
-                    message: `Manager ${ctx.user.name} restored farmer "${updated.name}"`,
-                    type: "SUCCESS",
-                    link: `/management/farmers/${updated.id}`
-                });
-            } catch (e) {
-                console.error("Failed to send farmer restoration notification", e);
-            }
+                if (!updated) {
+                    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update farmer status" });
+                }
 
-            return updated;
+                // 3. Move back deleted cycles to history ONLY if farmer becomes active
+                await tx.update(cycleHistory)
+                    .set({ status: "archived" })
+                    .where(and(eq(cycleHistory.farmerId, input.farmerId), eq(cycleHistory.status, "deleted")));
+
+                // NOTIFICATION: Farmer Restored
+                try {
+                    const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                    await NotificationService.sendToOrgManagers({
+                        organizationId: input.orgId,
+                        title: "Farmer Restored",
+                        message: `Manager ${ctx.user.name} restored farmer "${updated.name}"`,
+                        type: "SUCCESS",
+                        link: `/management/farmers/${updated.id}`
+                    });
+                } catch (e) {
+                    console.error("Failed to send farmer restoration notification", e);
+                }
+
+                return updated;
+            });
         }),
 
     delete: orgProcedure

@@ -25,8 +25,13 @@ import { UrgentActions } from "../components/urgent-actions";
 const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: string }) => {
   const trpc = useTRPC();
 
-  // Fetch Active Cycles
-  const { data } = useSuspenseQuery(
+  // Fetch Dashboard Stats
+  const { data: stats } = useSuspenseQuery(
+    trpc.officer.getDashboardStats.queryOptions({ orgId })
+  );
+
+  // Fetch Active Cycles (for lists/charts)
+  const { data: cyclesData } = useSuspenseQuery(
     trpc.officer.cycles.listActive.queryOptions({
       orgId,
       page: 1,
@@ -34,34 +39,11 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
     })
   );
 
-  const cycles = data.items;
+  const cycles = cyclesData.items;
 
-  // --- Derived Metrics ---
-  const totalBirds = cycles.reduce((acc, f) => acc + ((f.doc) - f.mortality), 0);
+  // --- DERIVED LISTS (Still using cycles for details) ---
 
-  // Calculate Total Feed Stock (Sum of UNIQUE Farmers' mainStock)
-  const uniqueFarmers = new Map();
-  cycles.forEach(c => {
-    if (!uniqueFarmers.has(c.farmerId)) {
-      uniqueFarmers.set(c.farmerId, c.farmerMainStock || 0);
-    }
-  });
-  const totalMainStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
-
-  // Calculate Total Active Consumption
-  const totalActiveConsumption = cycles.reduce((acc, c) => acc + c.intake, 0);
-
-  // Effective Available Stock
-  const totalAvailableStock = totalMainStock - totalActiveConsumption;
-
-  const avgMortality = cycles.length
-    ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + (f.doc), 0) * 100).toFixed(2)
-    : "0";
-
-  // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
-  // Logic: Available = FarmerMainStock - (Sum of intakes for all active cycles of that farmer)
-  // Note: 'cycles' is a flat list of cycles. We need to aggregate per farmer first to find their total consumption.
-
+  // Urgent: Less than 3 bags remaining (Deduplicated by Farmer)
   const farmerConsumptionMap = new Map<string, number>();
   cycles.forEach(c => {
     const current = farmerConsumptionMap.get(c.farmerId) || 0;
@@ -75,14 +57,7 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
       const availableStock = initialStock - totalConsumption;
       return { ...c, availableStock };
     })
-    // Filter out duplicates per farmer (show only the one with lowest stock or just one rep)
-    // Actually, UrgentActions list cycles. Showing multiple cycles for same farmer is fine,
-    // but the 'stock' is a farmer-level property. Let's deduplicate by farmer for the alert list properly?
-    // The current UI shows "Cycle: Name", implying per-cycle alert. But stock is shared.
-    // Let's keep it simple: Show all active cycles for low-stock farmers?
-    // Or better: Filter distinct farmers.
     .filter((c, index, self) =>
-      // Only show one entry per farmer to avoid spamming the list if they have multiple batches
       index === self.findIndex((t) => t.farmerId === c.farmerId)
     )
     .filter(c => c.availableStock < 3)
@@ -151,13 +126,13 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
 
       {/* 1. Top Row KPIs */}
       <KpiCards
-        totalBirds={totalBirds}
-        totalFeedStock={totalMainStock}
-        activeConsumption={totalActiveConsumption}
-        availableStock={totalAvailableStock}
-        lowStockCount={lowStockCycles.length}
-        avgMortality={avgMortality}
-        activeCyclesCount={cycles.length}
+        totalBirds={stats.totalBirds}
+        totalFeedStock={stats.totalFeedStock}
+        activeConsumption={stats.activeConsumption}
+        availableStock={stats.availableStock}
+        lowStockCount={stats.lowStockCount}
+        avgMortality={stats.avgMortality}
+        activeCyclesCount={stats.activeCyclesCount}
       />
 
       {/* 2. Urgent Actions & Performance */}

@@ -69,7 +69,7 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
         { label: "Active Cycles", value: profile.stats.activeCycles, icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
         { label: "Past Cycles", value: profile.stats.pastCycles, icon: Archive, color: "text-slate-600", bg: "bg-slate-50" },
         { label: "Active Birds", value: profile.stats.activeDoc.toLocaleString(), icon: Bird, color: "text-blue-600", bg: "bg-blue-50" },
-        { label: "Active Feed", value: `${profile.stats.activeIntake.toFixed(1)} b`, icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
+        { label: "Active Consumption", value: `${profile.stats.activeIntake.toFixed(1)} b`, icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
         { label: "Main Stock", value: `${profile.stats.totalMainStock.toLocaleString()} b`, icon: Wheat, color: "text-amber-800", bg: "bg-amber-100/50" },
     ];
 
@@ -382,6 +382,14 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
                                 <div className="space-y-1 text-right">
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Stock Balance</span>
                                     <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                            <span className="text-[9px] font-medium text-slate-400">Main stock:</span>
+                                            <span className="text-[10px] font-bold text-slate-500">{farmer.mainStock.toFixed(1)}</span>
+                                        </div>
+
+                                        {activeConsumption > 0 && (
+                                            <p className="text-[9px] text-slate-400 font-medium">{activeConsumption.toFixed(1)} used</p>
+                                        )}
                                         <div className="flex items-center gap-1">
                                             <Wheat className={`h-3 w-3 ${remaining < 3 && farmer.status !== 'deleted' ? 'text-red-500' : 'text-amber-500'}`} />
                                             <span className={`text-xs font-bold ${remaining < 3 && farmer.status !== 'deleted' ? 'text-red-600' : 'text-slate-700'}`}>
@@ -389,9 +397,6 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
                                             </span>
                                             <span className="text-[9px] font-normal text-slate-400">bags</span>
                                         </div>
-                                        {activeConsumption > 0 && (
-                                            <p className="text-[9px] text-slate-400 font-medium">{activeConsumption.toFixed(1)} used in batches</p>
-                                        )}
                                     </div>
                                 </div>
                             </div>
