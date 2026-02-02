@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminGuard } from "@/modules/admin/components/admin-guard";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Building2, Users, Wheat } from "lucide-react";
+import { Activity, Bird, Building2, Users, Wheat } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDashboard() {
@@ -68,8 +68,8 @@ function AdminStats() {
 
     if (isPending) {
         return (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                {[...Array(4)].map((_, i) => (
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+                {[...Array(5)].map((_, i) => (
                     <Card key={i} className="border-none shadow-sm overflow-hidden relative">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <Skeleton className="h-4 w-24" />
@@ -90,10 +90,11 @@ function AdminStats() {
         { label: "Total Users", value: stats?.users, icon: Users, gradient: "from-emerald-500 to-teal-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
         { label: "Farmers", value: stats?.farmers, icon: Wheat, gradient: "from-amber-400 to-orange-500", iconBg: "bg-amber-100", iconColor: "text-amber-600" },
         { label: "Active Cycles", value: stats?.activeCycles, icon: Activity, gradient: "from-violet-500 to-purple-600", iconBg: "bg-violet-100", iconColor: "text-violet-600" },
+        { label: "Active Birds", value: stats?.totalActiveBirds, icon: Bird, gradient: "from-pink-500 to-rose-600", iconBg: "bg-pink-100", iconColor: "text-pink-600" },
     ];
 
     return (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             {items.map((item) => (
                 <Card key={item.label} className=" py-2border-none shadow-sm overflow-hidden relative group">
                     <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.gradient}`} />

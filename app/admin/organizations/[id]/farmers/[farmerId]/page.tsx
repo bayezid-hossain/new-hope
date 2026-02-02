@@ -28,8 +28,10 @@ import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
+import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { RestoreFarmerModal } from "@/modules/farmers/ui/components/restore-farmer-modal";
+import { SecurityMoneyHistoryModal } from "@/modules/farmers/ui/components/security-money-history-modal";
 
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,8 +41,11 @@ import {
     Archive,
     ArrowUpRight,
     ChevronLeft,
+    Coins,
+    FileClock,
     Loader2,
     MoreVertical,
+    Pencil,
     RotateCcw,
     Scale,
     Trash2,
@@ -119,6 +124,8 @@ export default function AdminFarmerDetailsPage() {
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [showArchiveDialog, setShowArchiveDialog] = useState(false);
     const [showRestoreModal, setShowRestoreModal] = useState(false);
+    const [showEditSecurityMoneyModal, setShowEditSecurityMoneyModal] = useState(false);
+    const [showSecurityHistoryModal, setShowSecurityHistoryModal] = useState(false);
 
     // Consolidated Fetch
     const { data: hubData, isLoading } = useQuery(
@@ -221,44 +228,88 @@ export default function AdminFarmerDetailsPage() {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-3">
-                    <Card className="border-none shadow-sm md:col-span-1">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Stock Status</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {(() => {
-                                const activeCyclesList = (activeCycles?.items || []) as any[];
-                                const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                const remaining = farmerData.mainStock - activeConsumption;
+                    <div className="md:col-span-1 space-y-6">
+                        <Card className="border-none shadow-sm h-fit">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-500 uppercase tracking-wider">
+                                    <Coins className="h-4 w-4" />
+                                    Security Deposit
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-col gap-4">
+                                    <div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-3xl font-bold text-slate-900">
+                                                <span className="text-lg text-slate-400 font-normal mr-1">TK.</span>
+                                                {parseFloat(farmerData.securityMoney || "0").toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-1">Refundable upon account closure</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 gap-2 text-xs font-bold h-8"
+                                            onClick={() => setShowEditSecurityMoneyModal(true)}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 gap-2 text-xs font-bold h-8"
+                                            onClick={() => setShowSecurityHistoryModal(true)}
+                                        >
+                                            <FileClock className="h-3 w-3" />
+                                            History
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
 
-                                if (farmerData.status === "deleted") {
-                                    return (
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-4xl font-bold text-slate-400">{farmerData.mainStock.toFixed(2)}</span>
-                                                <span className="text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                        <Card className="border-none shadow-sm h-fit">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Stock Status</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {(() => {
+                                    const activeCyclesList = (activeCycles?.items || []) as any[];
+                                    const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                    const remaining = farmerData.mainStock - activeConsumption;
+
+                                    if (farmerData.status === "deleted") {
+                                        return (
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-4xl font-bold text-slate-400">{farmerData.mainStock.toFixed(2)}</span>
+                                                    <span className="text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 font-medium italic mt-1">Archived - No active consumption</p>
                                             </div>
-                                            <p className="text-[10px] text-slate-400 font-medium italic mt-1">Archived - No active consumption</p>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="space-y-2">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
+                                                <span className="text-slate-500 font-medium lowercase">bags available</span>
+                                            </div>
+                                            {activeConsumption > 0 && (
+                                                <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
+                                                    {activeConsumption.toFixed(2)} bags currently in-use
+                                                </p>
+                                            )}
                                         </div>
                                     );
-                                }
-
-                                return (
-                                    <div className="space-y-2">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
-                                            <span className="text-slate-500 font-medium lowercase">bags available</span>
-                                        </div>
-                                        {activeConsumption > 0 && (
-                                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
-                                                {activeConsumption.toFixed(2)} bags currently in-use
-                                            </p>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-                        </CardContent>
-                    </Card>
+                                })()}
+                            </CardContent>
+                        </Card>
+                    </div>
 
                     <div className="md:col-span-2">
                         <Tabs defaultValue="active" className="w-full space-y-6">
@@ -296,6 +347,7 @@ export default function AdminFarmerDetailsPage() {
                     sourceFarmerId={farmerId}
                     sourceFarmerName={farmerData.name}
                     currentStock={farmerData.mainStock}
+                    officerId={farmerData.officerId}
                     open={showTransferModal}
                     onOpenChange={setShowTransferModal}
                 />
@@ -331,6 +383,23 @@ export default function AdminFarmerDetailsPage() {
                     onOpenChange={setShowRestoreModal}
                     farmerId={farmerId}
                     archivedName={farmerData.name}
+                    orgId={orgId}
+                />
+
+                <EditSecurityMoneyModal
+                    farmerId={farmerId}
+                    currentAmount={parseFloat(farmerData.securityMoney || "0")}
+                    open={showEditSecurityMoneyModal}
+                    onOpenChange={setShowEditSecurityMoneyModal}
+                    variant="management"
+                    orgId={orgId}
+                />
+                <SecurityMoneyHistoryModal
+                    farmerId={farmerId}
+                    farmerName={farmerData.name}
+                    open={showSecurityHistoryModal}
+                    onOpenChange={setShowSecurityHistoryModal}
+                    variant="management"
                     orgId={orgId}
                 />
             </div>

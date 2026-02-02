@@ -151,6 +151,9 @@ export const farmer = pgTable("farmer", {
   // STRICT OWNERSHIP: Only the officer who created this farmer can manage them
   officerId: text("officer_id").notNull().references(() => user.id),
 
+  // SECURITY MONEY
+  securityMoney: decimal("security_money").notNull().default("0"),
+
   status: text("status").notNull().default("active"),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -160,6 +163,20 @@ export const farmer = pgTable("farmer", {
   index("idx_farmer_officer_id").on(t.officerId),
   // Case-Insensitive UNIQUE per Officer (Partial: only active farmers)
   uniqueIndex("unique_farmer_name_per_officer_ci").on(t.organizationId, t.officerId, t.name).where(sql`status = 'active'`),
+]);
+
+export const farmerSecurityMoneyLogs = pgTable("farmer_security_money_logs", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  previousAmount: decimal("previous_amount").notNull(),
+  newAmount: decimal("new_amount").notNull(),
+
+  changedBy: text("changed_by").notNull().references(() => user.id),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  reason: text("reason"),
+}, (t) => [
+  index("idx_security_logs_farmer_id").on(t.farmerId),
 ]);
 
 export const cycles = pgTable("cycles", {
@@ -282,6 +299,11 @@ export const logRelations = relations(cycleLogs, ({ one }) => ({
   cycle: one(cycles, { fields: [cycleLogs.cycleId], references: [cycles.id] }),
   history: one(cycleHistory, { fields: [cycleLogs.historyId], references: [cycleHistory.id] }),
   editor: one(user, { fields: [cycleLogs.userId], references: [user.id] })
+}));
+
+export const securityLogRelations = relations(farmerSecurityMoneyLogs, ({ one }) => ({
+  farmer: one(farmer, { fields: [farmerSecurityMoneyLogs.farmerId], references: [farmer.id] }),
+  editor: one(user, { fields: [farmerSecurityMoneyLogs.changedBy], references: [user.id] }),
 }));
 
 // =========================================================

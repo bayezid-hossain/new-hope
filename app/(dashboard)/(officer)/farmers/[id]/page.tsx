@@ -37,7 +37,9 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
+import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
+import { SecurityMoneyHistoryModal } from "@/modules/farmers/ui/components/security-money-history-modal";
 
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,9 +49,12 @@ import {
   Archive,
   ArrowDownLeft,
   ArrowUpRight,
+  Coins,
+  FileClock,
   History,
   Loader2,
   MoreVertical,
+  Pencil,
   Scale,
   Trash2,
   Wheat
@@ -150,6 +155,8 @@ export default function FarmerDetails() {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showEditSecurityMoneyModal, setShowEditSecurityMoneyModal] = useState(false);
+  const [showSecurityHistoryModal, setShowSecurityHistoryModal] = useState(false);
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
@@ -283,6 +290,45 @@ export default function FarmerDetails() {
         </CardContent>
       </Card>
 
+      {/* Security Money Card */}
+      <Card className="border-none shadow-md bg-white overflow-hidden">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Coins className="h-3 w-3" />
+                Security Deposit
+              </h3>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-slate-900">
+                  TK. {(farmerQuery.data?.securityMoney || 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-slate-500 hover:text-primary"
+                onClick={() => setShowEditSecurityMoneyModal(true)}
+                title="Edit Amount"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-slate-500 hover:text-primary"
+                onClick={() => setShowSecurityHistoryModal(true)}
+                title="View History"
+              >
+                <FileClock className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="w-full min-w-0">
         {/* Desktop View: Tabs */}
         <div className="hidden sm:block">
@@ -362,6 +408,7 @@ export default function FarmerDetails() {
         sourceFarmerId={farmerId}
         sourceFarmerName={farmerQuery.data?.name || "Farmer"}
         currentStock={farmerQuery.data?.mainStock || 0}
+        officerId={farmerQuery.data?.officerId}
         open={showTransferModal}
         onOpenChange={setShowTransferModal}
       />
@@ -378,17 +425,19 @@ export default function FarmerDetails() {
         />
       </ResponsiveDialog>
 
-      {farmerQuery.data && (
-        <CreateCycleModal
-          open={showCreateCycleModal}
-          onOpenChange={setShowCreateCycleModal}
-          preSelectedFarmer={{
-            id: farmerId,
-            name: farmerQuery.data.name,
-            mainStock: farmerQuery.data.mainStock
-          }}
-        />
-      )}
+      {
+        farmerQuery.data && (
+          <CreateCycleModal
+            open={showCreateCycleModal}
+            onOpenChange={setShowCreateCycleModal}
+            preSelectedFarmer={{
+              id: farmerId,
+              name: farmerQuery.data.name,
+              mainStock: farmerQuery.data.mainStock
+            }}
+          />
+        )
+      }
       <FarmerNavigation
         orgId={orgId!}
         currentFarmerId={farmerId}
@@ -403,7 +452,21 @@ export default function FarmerDetails() {
         isPending={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate({ id: farmerId, orgId: orgId! })}
       />
-    </div>
+
+      <EditSecurityMoneyModal
+        farmerId={farmerId}
+        currentAmount={Number.parseFloat(farmerQuery.data?.securityMoney ?? "0")}
+        open={showEditSecurityMoneyModal}
+        onOpenChange={setShowEditSecurityMoneyModal}
+      />
+
+      <SecurityMoneyHistoryModal
+        farmerId={farmerId}
+        farmerName={farmerQuery.data?.name || "Farmer"}
+        open={showSecurityHistoryModal}
+        onOpenChange={setShowSecurityHistoryModal}
+      />
+    </div >
   );
 };
 

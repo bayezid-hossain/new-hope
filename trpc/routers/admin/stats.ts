@@ -22,11 +22,19 @@ export const adminStatsRouter = createTRPCRouter({
             .from(cycles)
             .where(eq(cycles.status, "active"));
 
+        // Calculate Total Active Birds
+        const activeCyclesData = await ctx.db.select({ doc: cycles.doc, mortality: cycles.mortality })
+            .from(cycles)
+            .where(eq(cycles.status, "active"));
+
+        const totalActiveBirds = activeCyclesData.reduce((acc, c) => acc + (c.doc - c.mortality), 0);
+
         return {
             orgs: orgCount.count,
             users: userCount.count,
             farmers: farmerCount.count,
-            activeCycles: activeCycles.count
+            activeCycles: activeCycles.count,
+            totalActiveBirds
         };
     }),
 });

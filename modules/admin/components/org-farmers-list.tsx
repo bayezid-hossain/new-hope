@@ -64,7 +64,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
         setRestoringFarmer({ id, name });
     };
 
-    const filteredFarmers = farmers; // Data is already filtered by backend
+    const filteredFarmers = farmers as any[]; // Data is already filtered by backend
 
     const getFarmerLink = (farmerId: string) => {
         if (isAdmin) return `/admin/organizations/${orgId}/farmers/${farmerId}`;
@@ -125,6 +125,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                             <TableHead className="font-semibold">Officer</TableHead>
                                             <TableHead className="font-semibold">Status</TableHead>
                                             <TableHead className="font-semibold">Cycles (Live/Total)</TableHead>
+                                            <TableHead className="font-semibold">Active Birds</TableHead>
                                             <TableHead className="font-semibold">Stock</TableHead>
                                             {status === "active" ? (
                                                 <TableHead className="font-semibold">Joined</TableHead>
@@ -180,6 +181,11 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                         <div className="flex items-center gap-1.5 font-medium text-slate-400 text-[10px]">
                                                             <span className="uppercase tracking-wider">Live / Total</span>
                                                         </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-bold text-slate-900 text-sm">
+                                                        {farmer.activeBirdsCount?.toLocaleString() || 0}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -308,6 +314,6 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                 archivedName={restoringFarmer?.name || ""}
                 orgId={orgId}
             />
-        </div>
+        </div >
     );
 };

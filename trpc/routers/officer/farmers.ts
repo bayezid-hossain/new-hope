@@ -1,4 +1,4 @@
-import { cycles, farmer, stockLogs } from "@/db/schema";
+import { cycles, farmer, farmerSecurityMoneyLogs, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
@@ -14,13 +14,16 @@ export const officerFarmersRouter = createTRPCRouter({
             pageSize: z.number().default(10),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
+            officerId: z.string().optional(), // Allow filtering by specific officer (for Admin actions)
         }))
         .query(async ({ ctx, input }) => {
-            const { orgId, search, page, pageSize } = input;
+            const { orgId, search, page, pageSize, officerId } = input;
 
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
-                    eq(farmer.organizationId, orgId), eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.organizationId, orgId),
+                    // Use provided officerId or fallback to current user
+                    eq(farmer.officerId, officerId || ctx.user.id),
                     eq(farmer.status, "active"),
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
@@ -391,5 +394,54 @@ export const officerFarmersRouter = createTRPCRouter({
 
             if (!data) throw new TRPCError({ code: "NOT_FOUND" });
             return data;
+        }),
+
+    getSecurityMoneyHistory: protectedProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            return await ctx.db.query.farmerSecurityMoneyLogs.findMany({
+                where: eq(farmerSecurityMoneyLogs.farmerId, input.farmerId),
+                orderBy: [desc(farmerSecurityMoneyLogs.changedAt)],
+                with: {
+                    editor: true
+                }
+            });
+        }),
+
+    updateSecurityMoney: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+            amount: z.number().min(0),
+            reason: z.string().optional()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const currentFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id))
+            });
+
+            if (!currentFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+
+            const oldAmount = currentFarmer.securityMoney || "0";
+            if (parseFloat(oldAmount) === input.amount) return currentFarmer;
+
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        securityMoney: input.amount.toString(),
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.id))
+                    .returning();
+
+                await tx.insert(farmerSecurityMoneyLogs).values({
+                    farmerId: input.id,
+                    previousAmount: oldAmount,
+                    newAmount: input.amount.toString(),
+                    changedBy: ctx.user.id,
+                    reason: input.reason
+                });
+
+                return updated;
+            });
         }),
 });

@@ -116,7 +116,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                         <span className={cn(
                             "text-[9px] xs:text-[10px] font-medium",
                             farmer.status === "deleted" ? "text-slate-400" : "text-emerald-600/60"
-                        )}>bags</span>
+                        )}>b</span>
                     </div>
                 </div>
 
@@ -129,7 +129,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                 <span className="text-base xs:text-lg sm:text-xl font-black text-amber-700 leading-none">
                                     {activeConsumption.toFixed(1)}
                                 </span>
-                                <span className="text-[9px] xs:text-[10px] font-medium text-amber-600/60">bags</span>
+                                <span className="text-[9px] xs:text-[10px] font-medium text-amber-600/60">b</span>
                             </div>
                         </div>
                         {/* total stock */}
@@ -139,7 +139,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                 <span className="text-base xs:text-lg sm:text-xl font-black text-white leading-none">
                                     {mainStock.toFixed(1)}
                                 </span>
-                                <span className="text-[9px] xs:text-[10px] font-medium text-white">bags</span>
+                                <span className="text-[9px] xs:text-[10px] font-medium text-white">b</span>
                             </div>
                         </div>
                     </>

@@ -44,6 +44,7 @@ interface TransferStockModalProps {
     currentStock: number;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    officerId?: string;
 }
 
 export function TransferStockModal({
@@ -52,6 +53,7 @@ export function TransferStockModal({
     currentStock,
     open,
     onOpenChange,
+    officerId,
 }: TransferStockModalProps) {
     const trpc = useTRPC();
     const { orgId } = useCurrentOrg();
@@ -72,6 +74,7 @@ export function TransferStockModal({
         ...trpc.officer.farmers.listWithStock.queryOptions({
             orgId: orgId!,
             pageSize: 100, // Fetch top 100 for now
+            officerId: officerId,
         }),
         enabled: open && !!orgId,
     });
@@ -87,6 +90,9 @@ export function TransferStockModal({
                 queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! }));
                 queryClient.invalidateQueries(trpc.officer.stock.getHistory.queryOptions({ farmerId: sourceFarmerId }));
                 queryClient.invalidateQueries(trpc.officer.farmers.getDetails.queryOptions({ farmerId: sourceFarmerId }));
+
+                // management Query validations
+                queryClient.invalidateQueries({ queryKey: [["management", "farmers"]] });
                 onOpenChange(false);
                 form.reset();
             },

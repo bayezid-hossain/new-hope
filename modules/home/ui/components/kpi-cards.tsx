@@ -17,7 +17,7 @@ export const KpiCards = ({ totalBirds, totalFeedStock, activeConsumption, availa
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                    <CardTitle className="text-[10px] xs:text-sm font-medium">Total Birds</CardTitle>
+                    <CardTitle className="text-[10px] xs:text-sm font-medium">Active Birds</CardTitle>
                     <Bird className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>

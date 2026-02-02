@@ -57,7 +57,7 @@ export default function MainStockPage() {
 
   const [transferModal, setTransferModal] = useState<{
     open: boolean;
-    data: { farmerId: string; farmerName: string; currentStock: number } | null;
+    data: { farmerId: string; farmerName: string; currentStock: number; officerId?: string } | null;
   }>({
     open: false,
     data: null
@@ -218,7 +218,8 @@ export default function MainStockPage() {
                               data: {
                                 farmerId: row.id,
                                 farmerName: row.name,
-                                currentStock: effectiveRemaining
+                                officerId: row.officerId,
+                                currentStock: mainStock
                               }
                             })}
                           >
@@ -267,7 +268,8 @@ export default function MainStockPage() {
                         data: {
                           farmerId: row.id,
                           farmerName: row.name,
-                          currentStock: (row.mainStock || 0) - (row.activeConsumption || 0)
+                          officerId: row.officerId,
+                          currentStock: row.mainStock || 0
                         }
                       })}
                     >
@@ -324,6 +326,7 @@ export default function MainStockPage() {
           sourceFarmerId={transferModal.data?.farmerId || ""}
           sourceFarmerName={transferModal.data?.farmerName || ""}
           currentStock={transferModal.data?.currentStock || 0}
+          officerId={(transferModal.data as any)?.officerId}
         />
       )}
 

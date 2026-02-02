@@ -1,4 +1,4 @@
-import { cycleHistory, cycles, farmer, stockLogs, user } from "@/db/schema";
+import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -61,6 +61,7 @@ export const managementFarmersRouter = createTRPCRouter({
                         ...f,
                         officerName: off?.name || "Unknown",
                         activeCyclesCount: fCycles.length,
+                        activeBirdsCount: fCycles.reduce((acc, c) => acc + (c.doc - c.mortality), 0),
                         pastCyclesCount: fHistory.length,
                         cycles: fCycles,
                         history: fHistory
@@ -110,6 +111,7 @@ export const managementFarmersRouter = createTRPCRouter({
                     ...f,
                     officerName: off?.name || "Unknown",
                     activeCyclesCount: fCycles.length,
+                    activeBirdsCount: fCycles.reduce((acc, c) => acc + (c.doc - c.mortality), 0),
                     pastCyclesCount: fHistory.length,
                     cycles: fCycles,
                     history: fHistory
@@ -373,5 +375,66 @@ export const managementFarmersRouter = createTRPCRouter({
             }
 
             return deleted;
+        }),
+    // Update Security Money
+    updateSecurityMoney: orgProcedure
+        .input(z.object({
+            id: z.string(),
+            amount: z.number().min(0, "Amount must be positive"),
+            reason: z.string().optional()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const oldFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.organizationId, input.orgId))
+            });
+
+            if (!oldFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+
+            const oldAmount = oldFarmer.securityMoney || "0";
+
+            // If no change, return early
+            if (Math.abs(parseFloat(oldAmount) - input.amount) < 0.01) {
+                return oldFarmer;
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        securityMoney: input.amount.toString(),
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.id))
+                    .returning();
+
+                await tx.insert(farmerSecurityMoneyLogs).values({
+                    farmerId: input.id,
+                    previousAmount: oldAmount,
+                    newAmount: input.amount.toString(),
+                    changedBy: ctx.user.id,
+                    reason: input.reason
+                });
+
+                return updated;
+            });
+        }),
+
+    // Get Security Money History
+    getSecurityMoneyHistory: orgProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            // Check access first
+            const f = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
+            });
+
+            if (!f) throw new TRPCError({ code: "NOT_FOUND" });
+
+            return await ctx.db.query.farmerSecurityMoneyLogs.findMany({
+                where: eq(farmerSecurityMoneyLogs.farmerId, input.farmerId),
+                with: {
+                    editor: true
+                },
+                orderBy: (logs, { desc }) => [desc(logs.changedAt)]
+            });
         }),
 });
