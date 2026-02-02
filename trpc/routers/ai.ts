@@ -268,18 +268,28 @@ export const aiRouter = createTRPCRouter({
                 return { risks: [], summary: "No active cycles to analyze." };
             }
 
+            // Performance Fix: Bulk query all recent mortality logs
+            const cycleIds = activeCycles.map(c => c.cycleId);
+            const allRecentLogs = await ctx.db.select()
+                .from(cycleLogs)
+                .where(and(
+                    sql`${cycleLogs.cycleId} IN ${cycleIds}`,
+                    eq(cycleLogs.type, "MORTALITY"),
+                    gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
+                ))
+                .orderBy(desc(cycleLogs.createdAt));
+
+            // Group logs by cycle
+            const logsByCycle = new Map<string, typeof allRecentLogs>();
+            for (const log of allRecentLogs) {
+                if (!logsByCycle.has(log.cycleId!)) logsByCycle.set(log.cycleId!, []);
+                logsByCycle.get(log.cycleId!)!.push(log);
+            }
+
             const riskFlags: { farmer: string; type: string; detail: string }[] = [];
 
             for (const cycle of activeCycles) {
-                const recentLogs = await ctx.db.select()
-                    .from(cycleLogs)
-                    .where(and(
-                        eq(cycleLogs.cycleId, cycle.cycleId),
-                        eq(cycleLogs.type, "MORTALITY"),
-                        gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
-                    ))
-                    .orderBy(desc(cycleLogs.createdAt));
-
+                const recentLogs = logsByCycle.get(cycle.cycleId) || [];
                 const recentMortalitySum = recentLogs.reduce((sum, log) => sum + log.valueChange, 0);
                 const mortalityRate3Days = (recentMortalitySum / cycle.doc);
 
@@ -329,6 +339,7 @@ export const aiRouter = createTRPCRouter({
             officerId: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            console.log("OFFICER:" + input.officerId)
             // Security Check
             if (!input.officerId) {
                 // ORG-WIDE SCAN: Requires Global Admin or Org Admin/Owner
@@ -368,13 +379,13 @@ export const aiRouter = createTRPCRouter({
                 }
             }
 
-            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
             const rows = await ctx.db.select({
                 farmerId: farmer.id,
                 farmerName: farmer.name,
                 mainStock: farmer.mainStock,
                 cycleId: cycles.id,
+                consumed: cycles.intake,
                 doc: cycles.doc,
                 age: cycles.age,
             })
@@ -385,55 +396,108 @@ export const aiRouter = createTRPCRouter({
                     eq(farmer.status, "active"),
                     input.officerId ? eq(farmer.officerId, input.officerId) : undefined
                 ));
-
-            const criticalFarmers: { farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: string }[] = [];
+            // Group by Farmer
+            const farmerData = new Map<string, {
+                name: string,
+                stock: number,
+                cycles: Array<{ id: string, doc: number, age: number, intake: number }>
+            }>();
 
             for (const row of rows) {
-                if (!row.cycleId) continue;
-
-                const recentFeedLogs = await ctx.db.select()
-                    .from(cycleLogs)
-                    .where(and(
-                        eq(cycleLogs.cycleId, row.cycleId),
-                        eq(cycleLogs.type, "FEED"),
-                        gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
-                    ));
-
-                let dailyBurnRate = 0;
-                if (recentFeedLogs.length > 0) {
-                    const totalRecentIntake = recentFeedLogs.reduce((sum, log) => sum + (log.valueChange || 0), 0);
-                    dailyBurnRate = totalRecentIntake / 3;
-                }
-
-                if (dailyBurnRate === 0) {
-                    const estimatedGramsPerBird = Math.min(180, Math.max(20, (row?.age ?? 0) * 5));
-                    dailyBurnRate = ((row?.doc ?? 0) * estimatedGramsPerBird) / 1000;
-                    dailyBurnRate = dailyBurnRate / 50;
-                }
-
-                if (dailyBurnRate <= 0) dailyBurnRate = 1;
-
-                const daysRemaining = row.mainStock / dailyBurnRate;
-
-                if (daysRemaining < 4) {
-                    criticalFarmers.push({
-                        farmer: row.farmerName,
+                if (!farmerData.has(row.farmerId)) {
+                    farmerData.set(row.farmerId, {
+                        name: row.farmerName,
                         stock: row.mainStock,
-                        burnRate: dailyBurnRate.toFixed(2),
-                        daysRemaining: daysRemaining.toFixed(2),
-                        urgency: daysRemaining < 2 ? "CRITICAL" : "HIGH"
+                        cycles: []
+                    });
+                }
+                if (row.cycleId) {
+                    farmerData.get(row.farmerId)!.cycles.push({
+                        id: row.cycleId,
+                        doc: row.doc!,
+                        age: row.age!,
+                        intake: row.consumed || 0
                     });
                 }
             }
 
-            if (criticalFarmers.length === 0) {
+            const allCycleIds = rows.map(r => r.cycleId).filter(Boolean) as string[];
+
+            // Performance Fix: Bulk query all recent feed logs
+            const allRecentFeedLogs = allCycleIds.length > 0
+                ? await ctx.db.select()
+                    .from(cycleLogs)
+                    .where(and(
+                        sql`${cycleLogs.cycleId} IN ${allCycleIds}`,
+                        eq(cycleLogs.type, "FEED"),
+                        gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
+                    ))
+                : [];
+
+            const feedLogsByCycle = new Map<string, typeof allRecentFeedLogs>();
+            for (const log of allRecentFeedLogs) {
+                if (!feedLogsByCycle.has(log.cycleId!)) feedLogsByCycle.set(log.cycleId!, []);
+                feedLogsByCycle.get(log.cycleId!)!.push(log);
+            }
+
+            const predictions: { farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: "CRITICAL" | "HIGH" }[] = [];
+
+            for (const [farmerId, data] of farmerData.entries()) {
+                let totalDailyBurnRate = 0;
+                let totalConsumedInActiveCycles = 0;
+
+                // 1. Calculate combined burn rate and total intake for all active cycles
+                for (const cycle of data.cycles) {
+                    totalConsumedInActiveCycles += cycle.intake;
+
+                    const recentFeedLogs = feedLogsByCycle.get(cycle.id) || [];
+
+                    let cycleBurnRate = 0;
+                    if (recentFeedLogs.length > 0) {
+                        const totalRecentIntake = recentFeedLogs.reduce((sum, log) => sum + (log.valueChange || 0), 0);
+                        cycleBurnRate = totalRecentIntake / 3;
+                    }
+
+                    if (cycleBurnRate === 0) {
+                        const estimatedGramsPerBird = Math.min(180, Math.max(20, cycle.age * 5));
+                        cycleBurnRate = (cycle.doc * estimatedGramsPerBird) / 50000; // 1000g/kg * 50kg/bag
+                    }
+                    totalDailyBurnRate += cycleBurnRate;
+                }
+
+                // 2. Calculate Actual Remaining Stock
+                const actualRemainingStock = data.stock - totalConsumedInActiveCycles;
+
+                // 3. Determine urgency and prediction
+                // Fix: Properly handle zero/negative stock for daysRemaining
+                let daysRemaining = 999;
+                if (actualRemainingStock <= 0) {
+                    daysRemaining = 0;
+                } else if (totalDailyBurnRate > 0) {
+                    daysRemaining = actualRemainingStock / totalDailyBurnRate;
+                }
+
+                // Logic Refinement: Risk is based purely on burn-rate (days remaining) 
+                // OR actual negative/zero stock state.
+                if (actualRemainingStock <= 0 || daysRemaining < 4) {
+                    predictions.push({
+                        farmer: data.name,
+                        stock: actualRemainingStock,
+                        burnRate: totalDailyBurnRate.toFixed(2),
+                        daysRemaining: daysRemaining.toFixed(2),
+                        urgency: (daysRemaining < 1.5 || actualRemainingStock <= 0) ? "CRITICAL" : "HIGH"
+                    });
+                }
+            }
+
+            if (predictions.length === 0) {
                 return { status: "OK", message: "Supply chain healthy. No immediate stockouts predicted.", predictions: [] };
             }
 
             return {
                 status: "WARNING",
                 message: "Stockout risks detected.",
-                predictions: criticalFarmers,
+                predictions: predictions.sort((a, b) => parseFloat(a.daysRemaining) - parseFloat(b.daysRemaining)),
                 aiPlan: null
             };
         }),

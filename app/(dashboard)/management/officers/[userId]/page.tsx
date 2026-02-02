@@ -10,7 +10,7 @@ export default function ManagementOfficerDetailPage() {
     const params = useParams();
     const userId = params.userId as string;
     const trpc = useTRPC();
-
+    // console.log("OFFICER:" + userId)
     const { data: status, isLoading: isStatusLoading } = useQuery(
         trpc.auth.getMyMembership.queryOptions()
     );
