@@ -1,6 +1,6 @@
 import { cycleHistory, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, orgProcedure } from "../../init";
 
@@ -41,12 +41,25 @@ export const managementOfficersRouter = createTRPCRouter({
             let stats = {
                 activeCycles: 0,
                 pastCycles: 0,
+                activeDoc: 0,
+                activeIntake: 0,
+                activeMortality: 0,
+                pastDoc: 0,
+                pastIntake: 0,
+                pastMortality: 0,
                 totalDoc: 0,
                 totalIntake: 0,
-                totalMortality: 0
+                totalMortality: 0,
+                totalMainStock: 0
             };
 
-            if (farmerIds.length > 0) {
+            const activeIds = managedFarmers
+                .filter(f => f.status === "active")
+                .map(f => f.id);
+
+            const allManagedIds = managedFarmers.map(f => f.id);
+
+            if (activeIds.length > 0) {
                 const activeBatch = await ctx.db.select({
                     totalDoc: sql<number>`sum(${cycles.doc})`,
                     totalIntake: sql<number>`sum(${cycles.intake})`,
@@ -57,7 +70,7 @@ export const managementOfficersRouter = createTRPCRouter({
                     .where(
                         and(
                             eq(cycles.organizationId, input.orgId),
-                            sql`${cycles.farmerId} IN ${farmerIds}`,
+                            inArray(cycles.farmerId, activeIds),
                             eq(cycles.status, "active")
                         )
                     );
@@ -72,16 +85,26 @@ export const managementOfficersRouter = createTRPCRouter({
                     .where(
                         and(
                             eq(cycleHistory.organizationId, input.orgId),
-                            sql`${cycleHistory.farmerId} IN ${farmerIds}`
+                            inArray(cycleHistory.farmerId, allManagedIds),
+                            ne(cycleHistory.status, "deleted")
                         )
                     );
 
                 stats = {
                     activeCycles: Number(activeBatch[0]?.count || 0),
                     pastCycles: Number(pastBatch[0]?.count || 0),
-                    totalDoc: Number(activeBatch[0]?.totalDoc || 0) + Number(pastBatch[0]?.totalDoc || 0),
-                    totalIntake: Number(activeBatch[0]?.totalIntake || 0) + Number(pastBatch[0]?.totalIntake || 0),
-                    totalMortality: Number(activeBatch[0]?.totalMortality || 0) + Number(pastBatch[0]?.totalMortality || 0)
+                    activeDoc: Number(activeBatch[0]?.totalDoc || 0),
+                    activeIntake: Number(activeBatch[0]?.totalIntake || 0),
+                    activeMortality: Number(activeBatch[0]?.totalMortality || 0),
+                    pastDoc: Number(pastBatch[0]?.totalDoc || 0),
+                    pastIntake: Number(pastBatch[0]?.totalIntake || 0),
+                    pastMortality: Number(pastBatch[0]?.totalMortality || 0),
+                    totalDoc: Number(activeBatch[0]?.totalDoc || 0),
+                    totalIntake: Number(activeBatch[0]?.totalIntake || 0),
+                    totalMortality: Number(activeBatch[0]?.totalMortality || 0),
+                    totalMainStock: managedFarmers
+                        .filter(f => f.status === "active")
+                        .reduce((acc, f) => acc + f.mainStock, 0)
                 };
             }
 
@@ -89,11 +112,13 @@ export const managementOfficersRouter = createTRPCRouter({
                 officer: membership.user,
                 role: membership.role,
                 stats,
-                farmers: managedFarmers.map(f => ({
-                    ...f,
-                    activeCyclesCount: f.cycles.length,
-                    pastCyclesCount: f.history.length
-                }))
+                farmers: managedFarmers
+                    .filter(f => f.status === "active")
+                    .map(f => ({
+                        ...f,
+                        activeCyclesCount: f.cycles.length,
+                        pastCyclesCount: f.history.length
+                    }))
             };
         }),
 

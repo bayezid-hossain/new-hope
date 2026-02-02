@@ -35,7 +35,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
 
             const [memberCount] = await ctx.db.select({ count: count() })
                 .from(member)
-                .where(eq(member.organizationId, input.orgId));
+                .where(and(eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE")));
 
             const [farmerCount] = await ctx.db.select({ count: count() })
                 .from(farmer)

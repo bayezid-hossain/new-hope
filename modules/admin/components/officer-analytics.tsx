@@ -48,9 +48,9 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
     const totalOfficers = filtered.length;
     const totalActiveCycles = filtered.reduce((acc, curr) => acc + curr.activeCycles, 0);
     const totalFarmers = filtered.reduce((acc, curr) => acc + curr.farmersCount, 0);
-    const totalFeedDistributed = filtered.reduce((acc, curr) => acc + curr.totalIntake, 0);
+    const totalActiveFeed = filtered.reduce((acc, curr) => acc + curr.activeIntake, 0);
     const totalMainStock = filtered.reduce((acc, curr) => acc + (curr.totalMainStock || 0), 0);
-    const totalBirds = filtered.reduce((acc, curr) => acc + curr.totalDoc, 0);
+    const totalActiveBirds = filtered.reduce((acc, curr) => acc + curr.activeDoc, 0);
 
     return (
         <div className="space-y-8">
@@ -76,19 +76,19 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                 </Card>
                 <Card className="col-span-1 shadow-sm border-slate-200">
                     <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Bird Capacity</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Bird Capacity</span>
                         <div className="flex items-center gap-2">
                             <Bird className="h-4 w-4 text-blue-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalBirds.toLocaleString()}</span>
+                            <span className="text-2xl font-bold text-slate-900">{totalActiveBirds.toLocaleString()}</span>
                         </div>
                     </CardContent>
                 </Card>
                 <Card className="col-span-1 shadow-sm border-slate-200">
                     <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Feed Consumed</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Feed Usage</span>
                         <div className="flex items-center gap-2">
                             <Wheat className="h-4 w-4 text-amber-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalFeedDistributed.toLocaleString()} <span className="text-xs font-normal text-slate-400">bags</span></span>
+                            <span className="text-2xl font-bold text-slate-900">{totalActiveFeed.toLocaleString()} <span className="text-xs font-normal text-slate-400">bags</span></span>
                         </div>
                     </CardContent>
                 </Card>
@@ -125,10 +125,10 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                 <TableHead className="font-semibold px-6 py-4 text-xs uppercase tracking-wider text-slate-500">Officer</TableHead>
                                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Farmers</TableHead>
                                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Cycles (Active/Past)</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Total DOC</TableHead>
+                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Active DOC</TableHead>
                                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Main Stock</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Feed Usage</TableHead>
-                                <TableHead className="font-semibold px-6 text-xs uppercase tracking-wider text-slate-500">Mortality</TableHead>
+                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Active Feed</TableHead>
+                                <TableHead className="font-semibold px-6 text-xs uppercase tracking-wider text-slate-500">Active Mort.</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -161,7 +161,8 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                     <TableCell>
                                         <div className="flex items-center gap-1.5 font-bold text-slate-900">
                                             <Bird className="h-3.5 w-3.5 text-primary/40" />
-                                            {officer.totalDoc.toLocaleString()}
+                                            {officer.activeDoc.toLocaleString()}
+                                            {officer.pastDoc > 0 && <span className="text-[9px] text-slate-400 font-normal ml-1">({officer.pastDoc.toLocaleString()} past)</span>}
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -173,17 +174,17 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                     <TableCell>
                                         <div className="flex items-center gap-1.5 font-bold text-slate-900">
                                             <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                            {officer.totalIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                            {officer.activeIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-red-600 font-mono">{officer.totalMortality}</span>
-                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.totalDoc > 0 ? (officer.totalMortality / officer.totalDoc) : 0) > 0.05
+                                            <span className="text-sm font-bold text-red-600 font-mono">{officer.activeMortality}</span>
+                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
                                                 ? "bg-red-100 text-red-700"
                                                 : "bg-emerald-50 text-emerald-600"
                                                 }`}>
-                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(2) : 0}%
+                                                {officer.activeDoc > 0 ? ((officer.activeMortality / officer.activeDoc) * 100).toFixed(2) : 0}%
                                             </Badge>
                                         </div>
                                     </TableCell>
@@ -237,17 +238,17 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                             <p className="text-sm font-bold text-slate-900"><span className="text-emerald-600">{officer.activeCycles}</span> / {officer.pastCycles}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Birds (DOC)</p>
+                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Birds</p>
                                             <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
                                                 <Bird className="h-3.5 w-3.5 text-slate-400" />
-                                                {officer.totalDoc.toLocaleString()}
+                                                {officer.activeDoc.toLocaleString()}
                                             </div>
                                         </div>
                                         <div className="space-y-1 text-right">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Feed Intake</p>
+                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Feed</p>
                                             <div className="flex items-center gap-1 justify-end text-sm font-bold text-slate-900">
                                                 <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                                {officer.totalIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                                {officer.activeIntake.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
                                             </div>
                                         </div>
                                     </div>
@@ -258,12 +259,12 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                                             <span className="text-xs text-slate-500 font-medium">Mortality Records</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-red-600">{officer.totalMortality}</span>
-                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.totalDoc > 0 ? (officer.totalMortality / officer.totalDoc) : 0) > 0.05
+                                            <span className="text-sm font-bold text-red-600">{officer.activeMortality}</span>
+                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
                                                 ? "bg-red-100 text-red-700"
                                                 : "bg-emerald-50 text-emerald-600"
                                                 }`}>
-                                                {officer.totalDoc > 0 ? ((officer.totalMortality / officer.totalDoc) * 100).toFixed(2) : 0}%
+                                                {officer.activeDoc > 0 ? ((officer.activeMortality / officer.activeDoc) * 100).toFixed(2) : 0}%
                                             </Badge>
                                         </div>
                                     </div>

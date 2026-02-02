@@ -1,5 +1,5 @@
 import { cycleHistory, cycles, farmer, member, user } from "@/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 export interface OfficerAnalyticsData {
     officerId: string;
@@ -9,6 +9,12 @@ export interface OfficerAnalyticsData {
     farmersCount: number;
     activeCycles: number;
     pastCycles: number;
+    activeDoc: number;
+    activeIntake: number;
+    activeMortality: number;
+    pastDoc: number;
+    pastIntake: number;
+    pastMortality: number;
     totalDoc: number;
     totalIntake: number;
     totalMortality: number;
@@ -55,7 +61,10 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         })
             .from(cycleHistory)
             .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
-            .where(and(eq(cycleHistory.organizationId, orgId), eq(farmer.status, "active")))
+            .where(and(
+                eq(cycleHistory.organizationId, orgId),
+                ne(cycleHistory.status, "deleted")
+            ))
             .groupBy(farmer.officerId)
     );
 
@@ -70,9 +79,16 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             totalMainStock: sql<number>`COALESCE(${farmersStats.totalMainStock}, 0)`,
             activeCycles: sql<number>`COALESCE(${activeCycleStats.activeCount}, 0)`,
             pastCycles: sql<number>`COALESCE(${pastCycleStats.pastCount}, 0)`,
-            totalDoc: sql<number>`COALESCE(${activeCycleStats.activeTotalDoc}, 0) + COALESCE(${pastCycleStats.pastTotalDoc}, 0)`,
-            totalIntake: sql<number>`COALESCE(${activeCycleStats.activeTotalIntake}, 0) + COALESCE(${pastCycleStats.pastTotalIntake}, 0)`,
-            totalMortality: sql<number>`COALESCE(${activeCycleStats.activeTotalMortality}, 0) + COALESCE(${pastCycleStats.pastTotalMortality}, 0)`,
+            activeDoc: sql<number>`COALESCE(${activeCycleStats.activeTotalDoc}, 0)`,
+            activeIntake: sql<number>`COALESCE(${activeCycleStats.activeTotalIntake}, 0)`,
+            activeMortality: sql<number>`COALESCE(${activeCycleStats.activeTotalMortality}, 0)`,
+            pastDoc: sql<number>`COALESCE(${pastCycleStats.pastTotalDoc}, 0)`,
+            pastIntake: sql<number>`COALESCE(${pastCycleStats.pastTotalIntake}, 0)`,
+            pastMortality: sql<number>`COALESCE(${pastCycleStats.pastTotalMortality}, 0)`,
+            // Total fields reflect CURRENT load (Active batches of active farmers)
+            totalDoc: sql<number>`COALESCE(${activeCycleStats.activeTotalDoc}, 0)`,
+            totalIntake: sql<number>`COALESCE(${activeCycleStats.activeTotalIntake}, 0)`,
+            totalMortality: sql<number>`COALESCE(${activeCycleStats.activeTotalMortality}, 0)`,
         })
         .from(member)
         .innerJoin(user, eq(member.userId, user.id))
@@ -87,6 +103,12 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
         farmersCount: Number(r.farmersCount || 0),
         activeCycles: Number(r.activeCycles || 0),
         pastCycles: Number(r.pastCycles || 0),
+        activeDoc: Number(r.activeDoc || 0),
+        activeIntake: Number(r.activeIntake || 0),
+        activeMortality: Number(r.activeMortality || 0),
+        pastDoc: Number(r.pastDoc || 0),
+        pastIntake: Number(r.pastIntake || 0),
+        pastMortality: Number(r.pastMortality || 0),
         totalDoc: Number(r.totalDoc || 0),
         totalIntake: Number(r.totalIntake || 0),
         totalMortality: Number(r.totalMortality || 0),

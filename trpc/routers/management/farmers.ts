@@ -360,6 +360,11 @@ export const managementFarmersRouter = createTRPCRouter({
                 .where(eq(farmer.id, input.farmerId))
                 .returning();
 
+            // 3. Mark all past cycles as deleted
+            await ctx.db.update(cycleHistory)
+                .set({ status: "deleted" })
+                .where(eq(cycleHistory.farmerId, input.farmerId));
+
             // NOTIFICATION: Farmer Deleted
             try {
                 const { NotificationService } = await import("@/modules/notifications/server/notification-service");

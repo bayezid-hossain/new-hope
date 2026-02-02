@@ -68,9 +68,9 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
     const statsItems = [
         { label: "Active Cycles", value: profile.stats.activeCycles, icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
         { label: "Past Cycles", value: profile.stats.pastCycles, icon: Archive, color: "text-slate-600", bg: "bg-slate-50" },
-        { label: "Total Birds", value: profile.stats.totalDoc.toLocaleString(), icon: Bird, color: "text-blue-600", bg: "bg-blue-50" },
-        { label: "Total Feed", value: `${profile.stats.totalIntake.toFixed(2)} b`, icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
-        { label: "Main Stock", value: `${profile.farmers.reduce((acc, f) => acc + f.mainStock, 0).toLocaleString()} b`, icon: Wheat, color: "text-amber-800", bg: "bg-amber-100/50" },
+        { label: "Active Birds", value: profile.stats.activeDoc.toLocaleString(), icon: Bird, color: "text-blue-600", bg: "bg-blue-50" },
+        { label: "Active Feed", value: `${profile.stats.activeIntake.toFixed(1)} b`, icon: Wheat, color: "text-amber-600", bg: "bg-amber-50" },
+        { label: "Main Stock", value: `${profile.stats.totalMainStock.toLocaleString()} b`, icon: Wheat, color: "text-amber-800", bg: "bg-amber-100/50" },
     ];
 
     return (
