@@ -257,84 +257,148 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
     }
 
     return (
-        <div className="min-w-[600px] md:min-w-0 pb-12">
-            <Table>
-                <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
-                    <TableRow>
-                        <TableHead className="w-[40%] font-semibold pl-6">Farmer Name</TableHead>
-                        <TableHead className="font-semibold">Status</TableHead>
-                        <TableHead className="font-semibold text-right">Cycles</TableHead>
-                        <TableHead className="font-semibold text-right pr-6">Stock</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {farmers.map((farmer) => (
-                        <TableRow key={farmer.id} className="hover:bg-slate-50/50 transition-colors group">
-                            <TableCell className="pl-6 py-3">
-                                <Link
-                                    href={isAdminView ? `/admin/organizations/${orgId}/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}
-                                    className={`font-bold hover:text-primary hover:underline decoration-primary/30 underline-offset-4 transition-all ${farmer.status === 'deleted' ? 'text-slate-400' : 'text-slate-900'}`}
-                                >
-                                    {farmer.name}
-                                </Link>
-                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {farmer.id.slice(0, 8)}</div>
-                            </TableCell>
-                            <TableCell>
-                                {farmer.status === 'deleted' ? (
-                                    <Badge variant="outline" className="text-slate-400 border-slate-200 font-bold text-[10px] px-2">ARCHIVED</Badge>
-                                ) : farmer.activeCyclesCount > 0 ? (
-                                    <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold text-[10px] px-2">ACTIVE</Badge>
-                                ) : (
-                                    <Badge className="bg-slate-100 text-slate-400 border-none font-bold text-[10px] px-2">IDLE</Badge>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <div className="flex flex-col items-end gap-1">
-                                    <div className={`flex items-center gap-1.5 font-bold text-xs px-1.5 py-0.5 rounded-md ${farmer.status === 'deleted' ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
-                                        <Activity className="h-3 w-3" />
-                                        {farmer.activeCyclesCount}
-                                    </div>
-                                    {farmer.pastCyclesCount > 0 && (
-                                        <div className="text-[10px] text-slate-400 font-medium px-1.5">
-                                            {farmer.pastCyclesCount} past
-                                        </div>
+        <div className="pb-12">
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+                <Table>
+                    <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
+                        <TableRow>
+                            <TableHead className="w-[40%] font-semibold pl-6">Farmer Name</TableHead>
+                            <TableHead className="font-semibold">Status</TableHead>
+                            <TableHead className="font-semibold text-right">Cycles</TableHead>
+                            <TableHead className="font-semibold text-right pr-6">Stock</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {farmers.map((farmer) => (
+                            <TableRow key={farmer.id} className="hover:bg-slate-50/50 transition-colors group">
+                                <TableCell className="pl-6 py-3">
+                                    <Link
+                                        href={isAdminView ? `/admin/organizations/${orgId}/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}
+                                        className={`font-bold hover:text-primary hover:underline decoration-primary/30 underline-offset-4 transition-all ${farmer.status === 'deleted' ? 'text-slate-400' : 'text-slate-900'}`}
+                                    >
+                                        {farmer.name}
+                                    </Link>
+                                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {farmer.id.slice(0, 8)}</div>
+                                </TableCell>
+                                <TableCell>
+                                    {farmer.status === 'deleted' ? (
+                                        <Badge variant="outline" className="text-slate-400 border-slate-200 font-bold text-[10px] px-2">ARCHIVED</Badge>
+                                    ) : farmer.activeCyclesCount > 0 ? (
+                                        <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold text-[10px] px-2">ACTIVE</Badge>
+                                    ) : (
+                                        <Badge className="bg-slate-100 text-slate-400 border-none font-bold text-[10px] px-2">IDLE</Badge>
                                     )}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-slate-700 pr-6">
-                                {(() => {
-                                    const activeConsumption = (farmer.cycles || []).reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                    const remaining = farmer.mainStock - activeConsumption;
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className={`flex items-center gap-1.5 font-bold text-xs px-1.5 py-0.5 rounded-md ${farmer.status === 'deleted' ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
+                                            <Activity className="h-3 w-3" />
+                                            {farmer.activeCyclesCount}
+                                        </div>
+                                        {farmer.pastCyclesCount > 0 && (
+                                            <div className="text-[10px] text-slate-400 font-medium px-1.5">
+                                                {farmer.pastCyclesCount} past
+                                            </div>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-slate-700 pr-6">
+                                    {(() => {
+                                        const activeConsumption = (farmer.cycles || []).reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                        const remaining = farmer.mainStock - activeConsumption;
 
-                                    if (farmer.status === 'deleted') {
+                                        if (farmer.status === 'deleted') {
+                                            return (
+                                                <div className="flex items-center justify-end gap-1.5 opacity-60">
+                                                    <Wheat className="h-3.5 w-3.5 text-slate-400" />
+                                                    <span className="text-slate-500 font-bold">{farmer.mainStock.toFixed(2)}</span>
+                                                    <span className="text-[9px] font-normal uppercase tracking-wider text-slate-400">Remaining</span>
+                                                </div>
+                                            );
+                                        }
+
                                         return (
-                                            <div className="flex items-center justify-end gap-1.5 opacity-60">
-                                                <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                                <span className="text-slate-500 font-bold">{farmer.mainStock.toFixed(2)}</span>
-                                                <span className="text-[9px] font-normal uppercase tracking-wider text-slate-400">Remaining</span>
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Wheat className="h-3.5 w-3.5 text-amber-500" />
+                                                    <span className={`${remaining < 3 ? 'text-red-600' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
+                                                </div>
+                                                {activeConsumption > 0 && (
+                                                    <div className="text-[9px] text-slate-400 font-medium">
+                                                        {activeConsumption.toFixed(2)} used
+                                                    </div>
+                                                )}
                                             </div>
                                         );
-                                    }
+                                    })()}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
 
-                                    return (
-                                        <div className="flex flex-col items-end gap-0.5">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <Wheat className="h-3.5 w-3.5 text-amber-500" />
-                                                <span className={`${remaining < 3 ? 'text-red-600' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
-                                            </div>
-                                            {activeConsumption > 0 && (
-                                                <div className="text-[9px] text-slate-400 font-medium">
-                                                    {activeConsumption.toFixed(2)} used
-                                                </div>
-                                            )}
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3 p-4">
+                {farmers.map((farmer) => {
+                    const activeConsumption = (farmer.cycles || []).reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                    const remaining = farmer.mainStock - activeConsumption;
+
+                    return (
+                        <div key={farmer.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-0.5">
+                                    <Link
+                                        href={isAdminView ? `/admin/organizations/${orgId}/farmers/${farmer.id}` : `/management/farmers/${farmer.id}`}
+                                        className={`block font-bold text-sm hover:text-primary ${farmer.status === 'deleted' ? 'text-slate-400' : 'text-slate-900'}`}
+                                    >
+                                        {farmer.name}
+                                    </Link>
+                                    <p className="text-[10px] text-slate-400 font-mono">ID: {farmer.id.slice(0, 8)}</p>
+                                </div>
+                                {farmer.status === 'deleted' ? (
+                                    <Badge variant="outline" className="text-[9px] font-bold text-slate-400 border-slate-200">ARCHIVED</Badge>
+                                ) : farmer.activeCyclesCount > 0 ? (
+                                    <Badge className="text-[9px] font-bold bg-emerald-100 text-emerald-700 border-none">ACTIVE</Badge>
+                                ) : (
+                                    <Badge className="text-[9px] font-bold bg-slate-100 text-slate-400 border-none">IDLE</Badge>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-1">
+                                <div className="space-y-1">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Cycles</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${farmer.status === 'deleted' ? 'bg-slate-50 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
+                                            <Activity className="h-2.5 w-2.5" />
+                                            {farmer.activeCyclesCount} Active
                                         </div>
-                                    );
-                                })()}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                                        {farmer.pastCyclesCount > 0 && (
+                                            <span className="text-[10px] text-slate-400 font-medium">{farmer.pastCyclesCount} past</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="space-y-1 text-right">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Stock Balance</span>
+                                    <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-1">
+                                            <Wheat className={`h-3 w-3 ${remaining < 3 && farmer.status !== 'deleted' ? 'text-red-500' : 'text-amber-500'}`} />
+                                            <span className={`text-xs font-bold ${remaining < 3 && farmer.status !== 'deleted' ? 'text-red-600' : 'text-slate-700'}`}>
+                                                {remaining.toFixed(2)}
+                                            </span>
+                                            <span className="text-[9px] font-normal text-slate-400">bags</span>
+                                        </div>
+                                        {activeConsumption > 0 && (
+                                            <p className="text-[9px] text-slate-400 font-medium">{activeConsumption.toFixed(1)} used in batches</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 };
