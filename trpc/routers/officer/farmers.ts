@@ -59,6 +59,7 @@ export const officerFarmersRouter = createTRPCRouter({
                         ...f,
                         activeCycles: f.cycles,
                         activeCyclesCount: f.cycles.length,
+                        activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
                         pastCyclesCount: f.history.length,
                         mainStock: f.mainStock,
                         totalConsumed: f.totalConsumed,
@@ -118,6 +119,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 items: data.map(f => ({
                     ...f,
                     activeCyclesCount: f.cycles.length,
+                    activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
                     pastCyclesCount: f.history.length,
                     officerName: "Me"
                 })),
