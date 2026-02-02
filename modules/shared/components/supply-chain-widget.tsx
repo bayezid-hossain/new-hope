@@ -24,6 +24,7 @@ interface PredictionResult {
     status: "OK" | "WARNING";
     message: string;
     predictions: Array<{
+        farmerId: string;
         farmer: string;
         stock: number;
         burnRate: string;
@@ -90,6 +91,16 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
 
     // Officer Dashboard View (Compact/Widget style) vs Admin View (Detailed)
     const isCompact = viewMode === "OFFICER";
+
+    const getFarmerLink = (farmerId: string) => {
+        if (user?.globalRole === "ADMIN") {
+            return `/admin/organizations/${orgId}/farmers/${farmerId}`;
+        }
+        if (viewMode === "ADMIN") {
+            return `/management/farmers/${farmerId}`;
+        }
+        return `/farmers/${farmerId}`;
+    };
 
     return (
         <Card className={`shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/20 relative overflow-hidden ${isCompact ? "col-span-1" : "w-full"}`}>
@@ -316,10 +327,14 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                         </TableHeader>
                                         <TableBody className="divide-y divide-slate-50">
                                             {result?.predictions.map((p, i) => (
-                                                <TableRow key={i} className="hover:bg-slate-50/80 transition-all duration-300 group border-none">
+                                                <TableRow
+                                                    key={i}
+                                                    className="hover:bg-indigo-50/50 transition-all duration-300 group border-none cursor-pointer"
+                                                    onClick={() => window.location.href = getFarmerLink(p.farmerId)}
+                                                >
                                                     <TableCell className="py-4 md:py-6 px-4 md:px-8">
                                                         <div className="flex flex-col">
-                                                            <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{p.farmer}</span>
+                                                            <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{p.farmer}</span>
                                                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
                                                         </div>
                                                     </TableCell>
@@ -368,7 +383,11 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                 {/* Mobile Card View */}
                                 <div className="md:hidden divide-y divide-slate-100">
                                     {result?.predictions.map((p, i) => (
-                                        <div key={i} className="p-5 space-y-4 hover:bg-slate-50/50 transition-colors">
+                                        <div
+                                            key={i}
+                                            className="p-5 space-y-4 hover:bg-slate-50 transition-colors active:bg-slate-100 cursor-pointer"
+                                            onClick={() => window.location.href = getFarmerLink(p.farmerId)}
+                                        >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex flex-col">
                                                     <span className="font-black text-slate-900 text-base">{p.farmer}</span>

@@ -440,7 +440,7 @@ export const aiRouter = createTRPCRouter({
                 feedLogsByCycle.get(log.cycleId!)!.push(log);
             }
 
-            const predictions: { farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: "CRITICAL" | "HIGH" }[] = [];
+            const predictions: { farmerId: string; farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: "CRITICAL" | "HIGH" }[] = [];
 
             for (const [farmerId, data] of farmerData.entries()) {
                 let totalDailyBurnRate = 0;
@@ -480,12 +480,14 @@ export const aiRouter = createTRPCRouter({
                 // Logic Refinement: Risk is based purely on burn-rate (days remaining) 
                 // OR actual negative/zero stock state.
                 if (actualRemainingStock <= 0 || daysRemaining < 4) {
+                    const urgency = (daysRemaining < 1.5 || actualRemainingStock <= 0) ? "CRITICAL" : "HIGH";
                     predictions.push({
+                        farmerId,
                         farmer: data.name,
                         stock: actualRemainingStock,
                         burnRate: totalDailyBurnRate.toFixed(2),
                         daysRemaining: daysRemaining.toFixed(2),
-                        urgency: (daysRemaining < 1.5 || actualRemainingStock <= 0) ? "CRITICAL" : "HIGH"
+                        urgency
                     });
                 }
             }

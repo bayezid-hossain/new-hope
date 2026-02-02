@@ -25,6 +25,7 @@ import {
     Lightbulb,
     Loader2,
     Scale,
+    Trash2,
     TrendingUp,
     UsersIcon
 } from "lucide-react";
@@ -280,7 +281,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             intake: type === 'active' ? (cycle as any).intake : (cycle as any).finalIntake,
             createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
-            status: type === 'active' ? 'active' : 'archived'
+            status: type === 'active' ? 'active' : (cycle as any).status
         };
     }, [response]);
 
@@ -318,6 +319,10 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             {normalizedCycle.status === 'active' ? (
                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">
                                     <Activity className="h-3 w-3 mr-1" /> Active
+                                </Badge>
+                            ) : normalizedCycle.status === 'deleted' ? (
+                                <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 font-bold text-[10px] uppercase tracking-wider">
+                                    <Trash2 className="h-3 w-3 mr-1" /> Deleted by Officer
                                 </Badge>
                             ) : (
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">

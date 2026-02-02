@@ -1,6 +1,6 @@
-import { cycleHistory, cycles, farmer, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { aliasedTable, and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, orgProcedure } from "../../init";
 
@@ -19,40 +19,52 @@ export const managementFarmersRouter = createTRPCRouter({
             const { search, page, pageSize, onlyMine } = input;
             const orgId = input.orgId;
 
+            const officers = aliasedTable(user, "officers");
             const whereClause = and(
                 eq(farmer.organizationId, orgId),
-                search ? ilike(farmer.name, `%${search}%`) : undefined,
+                search ? or(
+                    ilike(farmer.name, `%${search}%`),
+                    ilike(officers.name, `%${search}%`)
+                ) : undefined,
                 onlyMine ? eq(farmer.officerId, ctx.user.id) : undefined,
                 input.status === "all" ? undefined : eq(farmer.status, input.status)
             );
 
-            const data = await ctx.db.query.farmer.findMany({
-                where: whereClause,
-                limit: pageSize,
-                offset: (page - 1) * pageSize,
-                orderBy: [desc(farmer.createdAt)],
-                with: {
-                    cycles: { where: eq(cycles.status, 'active') },
-                    history: true,
-                    officer: true
-                }
-            });
+            const data = await ctx.db.select({
+                farmer: farmer,
+                officer: user
+            })
+                .from(farmer)
+                .leftJoin(user, eq(farmer.officerId, user.id))
+                .leftJoin(officers, eq(farmer.officerId, officers.id))
+                .where(whereClause)
+                .limit(pageSize)
+                .offset((page - 1) * pageSize)
+                .orderBy(desc(farmer.createdAt));
 
             const [total] = await ctx.db.select({ count: sql<number>`count(*)` })
                 .from(farmer)
+                .leftJoin(officers, eq(farmer.officerId, officers.id))
                 .where(whereClause);
 
             return {
-                items: data.map(f => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { officer, ...rest } = f;
+                items: await Promise.all(data.map(async d => {
+                    const f = d.farmer;
+                    const off = d.officer;
+
+                    const [fCycles, fHistory] = await Promise.all([
+                        ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) }),
+                        ctx.db.query.cycleHistory.findMany({ where: eq(cycleHistory.farmerId, f.id) })
+                    ]);
+
                     return {
-                        ...rest,
-                        officerName: officer?.name || "Unknown",
-                        activeCyclesCount: f.cycles.length,
-                        pastCyclesCount: f.history.length
+                        ...f,
+                        officerName: off?.name || "Unknown",
+                        activeCyclesCount: fCycles.length,
+                        pastCyclesCount: fHistory.length,
+                        cycles: fCycles
                     };
-                }),
+                })),
                 total: Number(total.count),
                 totalPages: Math.ceil(Number(total.count) / pageSize)
             };
@@ -66,25 +78,40 @@ export const managementFarmersRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const search = input.search;
 
-            const data = await ctx.db.query.farmer.findMany({
-                where: and(
+            const officers = aliasedTable(user, "officers");
+            const data = await ctx.db.select({
+                farmer: farmer,
+                officer: user
+            })
+                .from(farmer)
+                .leftJoin(user, eq(farmer.officerId, user.id))
+                .leftJoin(officers, eq(farmer.officerId, officers.id))
+                .where(and(
                     eq(farmer.organizationId, input.orgId),
                     input.status === "all" ? undefined : eq(farmer.status, input.status),
-                    search ? ilike(farmer.name, `%${search}%`) : undefined
-                ),
-                with: {
-                    cycles: { where: eq(cycles.status, 'active') },
-                    history: true,
-                    officer: true
-                },
-                orderBy: [desc(farmer.createdAt)]
-            });
+                    search ? or(
+                        ilike(farmer.name, `%${search}%`),
+                        ilike(officers.name, `%${search}%`)
+                    ) : undefined
+                ))
+                .orderBy(desc(farmer.createdAt));
 
-            return data.map(f => ({
-                ...f,
-                officerName: f.officer.name,
-                activeCyclesCount: f.cycles.length,
-                pastCyclesCount: f.history.length
+            return await Promise.all(data.map(async d => {
+                const f = d.farmer;
+                const off = d.officer;
+
+                const [fCycles, fHistory] = await Promise.all([
+                    ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) }),
+                    ctx.db.query.cycleHistory.findMany({ where: eq(cycleHistory.farmerId, f.id) })
+                ]);
+
+                return {
+                    ...f,
+                    officerName: off?.name || "Unknown",
+                    activeCyclesCount: fCycles.length,
+                    pastCyclesCount: fHistory.length,
+                    cycles: fCycles
+                };
             }));
         }),
 
@@ -162,7 +189,7 @@ export const managementFarmersRouter = createTRPCRouter({
                     createdAt: d.history.startDate,
                     updatedAt: d.history.endDate,
                     intake: d.history.finalIntake,
-                    status: 'archived'
+                    status: d.history.status
                 }))
             };
         }),
@@ -222,7 +249,7 @@ export const managementFarmersRouter = createTRPCRouter({
                         createdAt: h.startDate,
                         updatedAt: h.endDate,
                         intake: h.finalIntake,
-                        status: 'archived' as const
+                        status: h.status
                     }))
                 },
                 stockLogs: stockLogsData

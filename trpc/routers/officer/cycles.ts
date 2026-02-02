@@ -86,6 +86,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 eq(cycleHistory.organizationId, orgId),
                 eq(farmer.officerId, ctx.user.id),
                 eq(farmer.status, "active"),
+                ne(cycleHistory.status, "deleted"),
                 farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
                 search ? ilike(cycleHistory.cycleName, `%${search}%`) : undefined
             );
@@ -206,7 +207,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     .orderBy(desc(cycleLogs.createdAt));
 
                 const history = await ctx.db.select().from(cycleHistory)
-                    .where(eq(cycleHistory.farmerId, activeCycle.farmerId))
+                    .where(and(eq(cycleHistory.farmerId, activeCycle.farmerId), ne(cycleHistory.status, "deleted")))
                     .orderBy(desc(cycleHistory.endDate));
 
                 const otherActiveCycles = await ctx.db.select().from(cycles)
@@ -247,7 +248,7 @@ export const officerCyclesRouter = createTRPCRouter({
             }
 
             const historyRecord = await ctx.db.query.cycleHistory.findFirst({
-                where: eq(cycleHistory.id, input.id),
+                where: and(eq(cycleHistory.id, input.id), ne(cycleHistory.status, "deleted")),
                 with: { farmer: true }
             });
 
@@ -266,7 +267,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 .orderBy(desc(cycleLogs.createdAt));
 
             const otherHistory = await ctx.db.select().from(cycleHistory)
-                .where(and(eq(cycleHistory.farmerId, historyRecord.farmerId), ne(cycleHistory.id, historyRecord.id)))
+                .where(and(eq(cycleHistory.farmerId, historyRecord.farmerId), ne(cycleHistory.id, historyRecord.id), ne(cycleHistory.status, "deleted")))
                 .orderBy(desc(cycleHistory.endDate));
 
             const activeCycles = await ctx.db.select().from(cycles)
@@ -498,7 +499,9 @@ export const officerCyclesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "FORBIDDEN", message: "Farmer not found or archived." });
             }
 
-            await ctx.db.delete(cycleHistory).where(eq(cycleHistory.id, input.id));
+            await ctx.db.update(cycleHistory)
+                .set({ status: "deleted" })
+                .where(eq(cycleHistory.id, input.id));
             return { success: true };
         }),
 

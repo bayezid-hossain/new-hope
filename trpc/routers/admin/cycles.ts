@@ -133,7 +133,7 @@ export const adminCyclesRouter = createTRPCRouter({
                         endDate: null,
                         status: 'active' as const
                     })),
-                    ...history.map(h => ({ ...h, status: 'archived' as const }))
+                    ...history.map(h => ({ ...h, status: h.status as any }))
                 ];
 
                 return {
@@ -184,7 +184,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     endDate: null,
                     status: 'active' as const
                 })),
-                ...otherHistory.map(h => ({ ...h, status: 'archived' as const }))
+                ...otherHistory.map(h => ({ ...h, status: h.status as any }))
             ];
 
             return {
@@ -203,14 +203,17 @@ export const adminCyclesRouter = createTRPCRouter({
         }),
 
     listPast: adminProcedure
-        .input(cycleSearchSchema)
+        .input(cycleSearchSchema.extend({
+            status: z.enum(["archived", "deleted", "all"]).default("archived")
+        }))
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, orgId, sortBy, sortOrder } = input;
+            const { search, page, pageSize, orgId, sortBy, sortOrder, status } = input;
             const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
 
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
+                status === "all" ? undefined : eq(cycleHistory.status, status),
                 search ? or(
                     ilike(cycleHistory.cycleName, `%${search}%`),
                     ilike(farmer.name, `%${search}%`),
@@ -248,7 +251,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     age: d.history.age,
                     intake: d.history.finalIntake,
                     mortality: d.history.mortality,
-                    status: 'archived' as const,
+                    status: d.history.status as "archived" | "deleted",
                     createdAt: d.history.startDate,
                     updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,

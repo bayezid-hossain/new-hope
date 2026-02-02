@@ -25,7 +25,7 @@ type CycleItem = {
     age: number;
     intake: string | number | null;
     mortality: number;
-    status: "active" | "archived";
+    status: "active" | "archived" | "deleted";
     createdAt: Date;
     updatedAt: Date;
     farmerName: string;
@@ -41,7 +41,7 @@ type CyclesQueryResult = {
     totalPages: number;
 };
 
-export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, status = "active" }: { orgId: string; isAdmin?: boolean; isManagement?: boolean; useOfficerRouter?: boolean; status?: "active" | "past" }) => {
+export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, status = "active" }: { orgId: string; isAdmin?: boolean; isManagement?: boolean; useOfficerRouter?: boolean; status?: "active" | "past" | "deleted" }) => {
     const trpc = useTRPC();
     const [viewMode, setViewMode] = useState<"group" | "list">("group");
     const [search, setSearch] = useState("");
@@ -68,10 +68,16 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
             }
             return trpc.management.cycles.listActive.queryOptions(queryInput);
         }
+
+        const historyInput = {
+            ...queryInput,
+            status: status === "deleted" ? "deleted" as const : "archived" as const
+        };
+
         if (useOfficerRouter) {
-            return trpc.officer.cycles.listPast.queryOptions(queryInput);
+            return trpc.officer.cycles.listPast.queryOptions(historyInput as any);
         }
-        return trpc.management.cycles.listPast.queryOptions(queryInput);
+        return (isAdmin ? trpc.admin.cycles.listPast : trpc.management.cycles.listPast).queryOptions(historyInput as any);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -189,7 +195,14 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             <div key={cycle.id} className="group hover:bg-slate-50/50 transition-colors">
                                                 {/* Desktop Row */}
                                                 <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-3 items-center">
-                                                    <div className="col-span-2 text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span></div>
+                                                    <div className="col-span-2 flex flex-col gap-1">
+                                                        <div className="text-sm font-bold text-slate-700">{cycle.age} <span className="text-[10px] text-slate-400 font-normal lowercase">{cycle.age > 1 ? "days" : "day"}</span></div>
+                                                        {cycle.status === "deleted" && (
+                                                            <Badge variant="destructive" className="w-fit bg-red-50 text-red-600 border-red-100 text-[8px] font-bold py-0 h-3.5 uppercase leading-none">
+                                                                Deleted
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     <div className="col-span-3 flex flex-col gap-y-1">
                                                         <div className="flex items-center gap-1.5">
                                                             <Bird className="h-3.5 w-3.5 text-violet-500" />
@@ -264,7 +277,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                                        {cycle.status === "deleted" ? (
+                                                            <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 font-bold text-[10px] uppercase tracking-wider">Deleted</Badge>
+                                                        ) : (
+                                                            <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-1.5 font-bold text-slate-700">

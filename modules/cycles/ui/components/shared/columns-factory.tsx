@@ -122,10 +122,12 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
     const queryClient = useQueryClient();
     const { orgId } = useCurrentOrg();
 
+    const isAdmin = prefix?.includes("/admin");
+
     const deleteMutation = useMutation(
-        trpc.admin.cycles.deleteHistory.mutationOptions({
+        (isAdmin ? trpc.admin.cycles.deleteHistory : trpc.officer.cycles.deleteHistory).mutationOptions({
             onSuccess: async () => {
-                toast.success("Record deleted successfully");
+                toast.success(isAdmin ? "Record deleted permanently" : "Record deleted successfully");
 
                 const baseOptions = { orgId: orgId! };
                 // Invalidate across ALL routers to ensure all views update
@@ -142,6 +144,7 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
                     // Invalidate detailed farmer views
                     queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: history.farmerId, orgId: orgId! })),
                     queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.farmers.getHistory.queryOptions({ farmerId: history.farmerId, orgId: orgId! })),
                 ]);
                 setShowDeleteModal(false);
             },
@@ -357,6 +360,11 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                         {isCurrent && (
                             <Badge variant="outline" className="h-5 gap-1 px-2 text-[10px] uppercase tracking-wider border-primary text-primary">
                                 Current
+                            </Badge>
+                        )}
+                        {row.original.status === "deleted" && (
+                            <Badge variant="destructive" className="h-5 px-2 text-[10px] uppercase tracking-wider bg-red-50 text-red-600 border-red-100">
+                                Deleted by Officer
                             </Badge>
                         )}
                     </div>

@@ -88,6 +88,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                                     <Badge variant="outline" className="text-[8px] h-3.5 bg-white border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
                                 )}
                                 {!isCurrent && cycle.status === 'active' && <Badge className="bg-violet-100 text-violet-700 border-none font-bold text-[8px] h-3.5 px-1">ACTIVE</Badge>}
+                                {cycle.status === 'deleted' && <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 font-bold text-[8px] h-3.5 px-1 uppercase leading-none">DELETED BY OFFICER</Badge>}
                             </>
                         )}
                     </div>
