@@ -55,9 +55,8 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                 window.location.href = detailLink;
             }}
             className={cn(
-                "transition-transform cursor-pointer active:scale-[0.98]",
                 variant === "elevated"
-                    ? "bg-white p-2 rounded-lg border border-slate-200 shadow-sm"
+                    ? "group relative bg-white rounded-2xl border border-slate-200 p-2 xs:p-0.5 sm:p-4 shadow-sm active:scale-[0.98] transition-all overflow-hidden"
                     : "p-2 space-y-1 active:bg-slate-50 border-b border-slate-100 last:border-0",
                 isCurrent && variant === "elevated" && "ring-2 ring-primary border-primary/20 bg-primary/5",
                 className
@@ -91,7 +90,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                             <>
                                 <Link
                                     href={farmerLink}
-                                    className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-sm line-clamp-1"
+                                    className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm line-clamp-1"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {cycleName}
@@ -122,59 +121,59 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                 </div>
             </div>
 
-            <div className={cn("grid grid-cols-4 gap-1", variant === "elevated" ? "py-1 border-y border-slate-50" : "py-0.5")}>
+            <div className={cn("grid grid-cols-4 gap-1", variant === "elevated" ? "py-1 xs:py-1.5 sm:py-2 border-y border-slate-50" : "py-0.5")}>
                 {variant === "elevated" ? (
                     <div className="flex flex-col justify-center">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Age</span>
+                        <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Age</span>
                         <p className="text-sm font-bold text-slate-900 leading-none">{cycle.age} <small className="text-[8px] font-normal">d</small></p>
                     </div>
                 ) : (
-                    <div className="flex flex-col justify-center p-1 rounded bg-blue-50 border border-blue-100 gap-y-1">
-                        <span className="text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                    <div className="flex flex-col justify-center p-1 rounded bg-blue-50 border border-blue-100 gap-y-0.5">
+                        <span className="text-[10px] xs:text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
                         <div className="flex items-center gap-1">
-                            <Bird className="h-5 w-5 text-blue-500" />
-                            <p className="text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
+                            <Bird className="h-4 w-4 xs:h-5 xs:w-5 text-blue-500" />
+                            <p className="text-[12px] xs:text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
                         </div>
                     </div>
                 )}
 
                 {variant === "elevated" ? (
                     <div className="flex flex-col justify-center text-center p-1 rounded bg-blue-50 border border-blue-100">
-                        <span className="text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                        <span className="text-[10px] xs:text-[12px] text-blue-600/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
                         <div className="flex items-center gap-1 justify-center">
-                            <Bird className="h-5 w-5 text-blue-500" />
-                            <p className="text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
+                            <Bird className="h-4 w-4 xs:h-5 xs:w-5 text-blue-500" />
+                            <p className="text-[12px] xs:text-sm font-bold text-blue-700 leading-none">{docValue.toLocaleString()}</p>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-50 border border-amber-100">
-                        <span className="text-[12px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
-                        <div className="flex items-center gap-1 justify-center">
-                            <Wheat className="h-5 w-5 text-amber-500" />
-                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(2)}</p>
+                        <span className="text-[10px] xs:text-[12px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                        <div className="flex items-center gap-0.5 xs:gap-1 justify-center">
+                            <Wheat className="h-4 w-4 xs:h-5 xs:w-5 text-amber-500" />
+                            <p className="text-[12px] xs:text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
                         </div>
                     </div>
                 )}
 
                 {variant === "elevated" ? (
                     <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-50 border border-amber-100">
-                        <span className="text-[8px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                        <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
                         <div className="flex items-center gap-0.5 justify-center">
-                            <Wheat className="h-3 w-3 text-amber-500" />
-                            <p className="text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(2)}</p>
+                            <Wheat className="h-3 w-3 xs:h-4 xs:w-4 text-amber-500" />
+                            <p className="text-[12px] xs:text-sm font-bold text-amber-700 leading-none">{intakeValue.toFixed(1)}</p>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col justify-center text-right col-span-2">
-                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Mortality</span>
+                        <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Mortality</span>
                         <div className="flex items-center gap-0.5 justify-end">
                             {mortalityValue > 0 ? (
                                 <div className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded leading-none">
-                                    <Skull className="h-3 w-3" />
-                                    <span className="text-xs">{mortalityValue}</span>
+                                    <Skull className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                    <span className="text-[10px] xs:text-xs">{mortalityValue}</span>
                                 </div>
                             ) : (
-                                <span className="text-xs font-bold text-slate-300">-</span>
+                                <span className="text-[10px] xs:text-xs font-bold text-slate-300">-</span>
                             )}
                         </div>
                     </div>
@@ -195,6 +194,6 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
             </div>
 
 
-        </div>
+        </div >
     );
 };

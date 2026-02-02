@@ -93,8 +93,8 @@ export default function MainStockPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">Main Stock Inventory</h1>
-          <p className="text-muted-foreground">Manage centralized feed stock for all farmers.</p>
+          <h1 className="text-xl xs:text-2xl font-bold tracking-tight">Main Stock Inventory</h1>
+          <p className="text-muted-foreground text-xs xs:text-sm">Centralized feed stock management.</p>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
@@ -115,11 +115,11 @@ export default function MainStockPage() {
           >
             <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="secondary" className="border shadow-sm bg-white hover:bg-slate-50 text-emerald-600" onClick={() => setBulkImportModal(true)}>
-            <Sparkles className="mr-2 h-4 w-4" /> Bulk Import
+          <Button variant="secondary" className="border shadow-sm bg-white hover:bg-slate-50 text-emerald-600 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
+            <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
           </Button>
-          <Button onClick={() => setCreateModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Register Farmer
+          <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
+            <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
           </Button>
         </div>
       </div>
@@ -133,8 +133,8 @@ export default function MainStockPage() {
           <p className="text-slate-500 text-sm max-w-sm text-center mt-2 mb-6">
             There are no farmers with stock records yet. Register a farmer to start tracking feed inventory.
           </p>
-          <Button onClick={() => setCreateModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Register First Farmer
+          <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
+            <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register First Farmer</span><span className="sm:hidden">Register First</span>
           </Button>
         </div>
       ) : (

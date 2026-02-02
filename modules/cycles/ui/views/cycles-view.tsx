@@ -30,23 +30,26 @@ const CyclesContent = () => {
     return (
         <div className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto bg-slate-50/50 min-h-screen">
             <Tabs defaultValue="active" className="w-full">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col items-start gap-4 mb-6 xs:flex-row xs:items-center xs:justify-between xs:gap-0">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                            <Bird className="h-8 w-8 text-primary" />
+                        <h1 className="text-xl xs:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                            <Bird className="h-6 w-6 xs:h-8 xs:w-8 text-primary" />
                             Production Cycles
                         </h1>
-                        <p className="text-slate-500 text-sm mt-1">Manage all your production cycles.</p>
+                        <p className="text-slate-500 text-xs xs:text-sm mt-1">Manage all your production cycles.</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <Button onClick={() => setIsCreateOpen(true)}>
-                            <PlusIcon className="mr-2 size-4" />
+                    <div className="flex items-center gap-4 ">
+                        <Button
+                            onClick={() => setIsCreateOpen(true)}
+                            className="h-8 px-3 text-xs xs:h-10 xs:px-4 xs:text-sm"
+                        >
+                            <PlusIcon className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             Start Cycle
                         </Button>
                     </div>
                 </div>
-                <TabsList className="bg-slate-100 p-1 h-11">
-                    <TabsTrigger value="active" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
+                <TabsList className="bg-slate-100 p-1 h-9 xs:h-11">
+                    <TabsTrigger value="active" className="px-3 xs:px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-[10px] xs:text-xs flex items-center gap-1 xs:gap-2">
                         Active Cycles
                         {activeCount?.total !== undefined && (
                             <span className="ml-1 bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[20px] text-center">
@@ -54,8 +57,8 @@ const CyclesContent = () => {
                             </span>
                         )}
                     </TabsTrigger>
-                    <TabsTrigger value="past" className="px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-xs flex items-center gap-2">
-                        <History className="h-3.5 w-3.5" />
+                    <TabsTrigger value="past" className="px-3 xs:px-6 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold text-[10px] xs:text-xs flex items-center gap-1 xs:gap-2">
+                        <History className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
                         History
                         {pastCount?.total !== undefined && (
                             <span className="ml-1 bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[20px] text-center">

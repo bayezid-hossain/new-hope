@@ -11,7 +11,7 @@ import { ActionsCell, HistoryActionsCell } from "@/modules/cycles/ui/components/
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Bird, ChevronLeft, ChevronRight, Eye, Loader2, RefreshCcw, Search, Skull, Wheat } from "lucide-react";
+import { Bird, ChevronLeft, ChevronRight, Eye, LayoutGrid, Loader2, RefreshCcw, Search, Skull, Table as TableIcon, Wheat } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -179,24 +179,28 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                             placeholder="Search by farmer, officer or cycle..."
-                            className="pl-10 h-10 bg-slate-100/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-slate-400 text-sm"
+                            className="pl-10 h-9 sm:h-10 bg-slate-100/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-slate-400 text-xs sm:text-sm"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center bg-slate-200/50 p-1 rounded-xl w-fit">
-                        <button
+                    <div className="flex items-center bg-slate-200/50 p-1 rounded-xl w-fit gap-x-2">
+                        <Button
                             onClick={() => setViewMode("group")}
-                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "group" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                            variant={viewMode === "group" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
-                            Group
-                        </button>
-                        <button
+                            <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
+                        </Button>
+                        <Button
                             onClick={() => setViewMode("list")}
-                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "list" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                            variant={viewMode === "list" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
-                            Detailed
-                        </button>
+                            <TableIcon className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Detailed
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -401,9 +405,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 disabled={page === 1}
-                                className="h-8 text-xs font-bold hover:bg-slate-100"
+                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-slate-100"
                             >
-                                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                                <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Previous
                             </Button>
                             <Button
                                 variant="ghost"
@@ -413,9 +417,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 disabled={page === data.totalPages}
-                                className="h-8 text-xs font-bold hover:bg-slate-100"
+                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-slate-100"
                             >
-                                Next <ChevronRight className="h-4 w-4 ml-1" />
+                                Next <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1" />
                             </Button>
                         </div>
                     </div>

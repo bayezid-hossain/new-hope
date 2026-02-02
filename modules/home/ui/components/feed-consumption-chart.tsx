@@ -16,9 +16,9 @@ export const FeedConsumptionChart = ({ feedChartData, history }: FeedConsumption
     return (
         <Card className="col-span-1 md:col-span-2 lg:col-span-4">
             <CardHeader>
-                <CardTitle>Feed Consumption</CardTitle>
-                <CardDescription>
-                    Top feed consumers for {history ? "past" : " current active"}  cycles
+                <CardTitle className="text-sm xs:text-base">Feed Consumption</CardTitle>
+                <CardDescription className="text-[10px] xs:text-xs">
+                    Top feed consumers {history ? "(past)" : "(active)"}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -30,10 +30,11 @@ export const FeedConsumptionChart = ({ feedChartData, history }: FeedConsumption
                             <YAxis
                                 dataKey="name"
                                 type="category"
-                                tick={{ fontSize: 12 }}
-                                width={100}
+                                tick={{ fontSize: 9 }}
+                                width={60}
                                 tickLine={false}
                                 axisLine={false}
+                                className="xs:text-[12px]"
                             />
                             <Tooltip
                                 cursor={{ fill: 'transparent' }}

@@ -1,5 +1,4 @@
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,25 +23,24 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
         <Card className="col-span-1 md:col-span-2 lg:col-span-3">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div className="space-y-1">
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-sm xs:text-base">Recent Activity</CardTitle>
+                    <CardDescription className="text-[10px] xs:text-xs">
                         Latest active cycles overview
                     </CardDescription>
                 </div>
-                <Button asChild size="sm" className="ml-auto gap-1">
+                <Button asChild size="sm" className="ml-auto gap-1 h-7 text-[10px] xs:h-8 xs:text-xs">
                     <Link href="/cycles">
-                        View All <ArrowUpRight className="h-4 w-4" />
+                        View <ArrowUpRight className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Link>
                 </Button>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>Desc</TableHead>
-                            <TableHead>Feed Use</TableHead>
-                            <TableHead>Age</TableHead>
-                            <TableHead className="text-right">Status</TableHead>
+                        <TableRow className="text-[10px] xs:text-xs">
+                            <TableHead className="px-1 xs:px-4">Farmer</TableHead>
+                            <TableHead className="px-1 xs:px-4 text-center">Bags</TableHead>
+                            <TableHead className="px-1 xs:px-4 text-right">Age</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -54,25 +52,19 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                             </TableRow>
                         ) : (
                             cycles.slice(0, 5).map((cycle) => (
-                                <TableRow key={cycle.id}>
-                                    <TableCell>
-                                        <div className="font-medium">{cycle.farmerName}</div>
-                                        <div className="hidden text-sm text-muted-foreground md:inline">
+                                <TableRow key={cycle.id} className="text-[10px] xs:text-xs">
+                                    <TableCell className="px-1 xs:px-4">
+                                        <div className="font-bold">{cycle.farmerName}</div>
+                                        <div className="text-[9px] text-muted-foreground xs:text-xs">
                                             {cycle.name}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="text-xs">
-                                            <span className="font-semibold text-amber-600">{cycle.intake.toFixed(2)}</span>
-                                            <span className="text-slate-400"> / </span>
-                                            <span className="text-slate-600">{cycle.farmerMainStock.toFixed(2)}</span>
-                                        </div>
+                                    <TableCell className="px-1 xs:px-4 text-center">
+                                        <div className="font-semibold text-amber-700">{cycle.intake.toFixed(1)}</div>
+                                        <div className="text-[9px] text-slate-400 xs:text-[10px]">/{cycle.farmerMainStock.toFixed(0)}</div>
                                     </TableCell>
-                                    <TableCell>{cycle.age} Days</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                            Active
-                                        </Badge>
+                                    <TableCell className="px-1 xs:px-4 text-right whitespace-nowrap">
+                                        {cycle.age}d
                                     </TableCell>
                                 </TableRow>
                             ))

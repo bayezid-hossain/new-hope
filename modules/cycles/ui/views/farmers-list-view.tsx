@@ -60,15 +60,15 @@ export const FarmersListView = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Farmers Directory</h1>
-                    <p className="text-muted-foreground">Manage and monitor all farmers in your organization.</p>
+                    <h1 className="text-xl xs:text-2xl font-bold tracking-tight">Farmers Directory</h1>
+                    <p className="text-muted-foreground text-xs xs:text-sm">Manage and monitor all farmers.</p>
                 </div>
                 {/* Search Bar */}
                 <div className="relative w-full md:w-72">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search name or phone..."
-                        className="pl-9"
+                        className="pl-9 h-8 xs:h-9 sm:h-10 text-[11px] xs:text-xs sm:text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -79,12 +79,12 @@ export const FarmersListView = () => {
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="flex items-center gap-2">
-                                <Users className="h-5 w-5 text-muted-foreground" />
+                        <div className="space-y-0.5 xs:space-y-1">
+                            <CardTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
+                                <Users className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
                                 All Farmers
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-[10px] xs:text-xs">
                                 Total Registered: {data?.total || 0}
                             </CardDescription>
                         </div>

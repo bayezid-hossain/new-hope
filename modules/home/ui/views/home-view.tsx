@@ -194,25 +194,27 @@ export const HomeView = ({ userId }: { userId?: string }) => {
       <div className="flex items-center justify-between flex-col w-full gap-y-2">
         <div className="w-full">
           <div className="flex items-center justify-between w-full gap-x-4">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
+            <h2 className="text-xl xs:text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
 
-            <div className="flex items-center space-x-2">
-              <Button asChild variant="outline">
+            <div className="flex items-center space-x-1.5 xs:space-x-2 gap-x-2">
+              <Button asChild variant="outline" className="h-7 px-2 text-[10px] xs:h-9 xs:px-4 xs:text-xs sm:text-sm">
                 <Link href="/cycles">Cycles</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="h-7 px-2 text-[10px] xs:h-9 xs:px-4 xs:text-xs sm:text-sm">
                 <Link href="/farmers">Farmers</Link>
               </Button>
-            </div></div><p className="text-muted-foreground mt-1">Overview of your poultry operations</p>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-xs xs:text-sm mt-1">Overview of your poultry operations</p>
         </div>
 
       </div>
 
       {/* Tabs System */}
       <Tabs defaultValue="operations" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
-          <TabsTrigger value="operations">Operations (Active)</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics (History)</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px] h-9 xs:h-10">
+          <TabsTrigger value="operations" className="text-[10px] xs:text-xs sm:text-sm">Operations</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-[10px] xs:text-xs sm:text-sm">Analytics</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Operations */}

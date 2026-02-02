@@ -805,12 +805,12 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                         ) : !isPro ? (
                                             <>
                                                 <Sparkles className="mr-2 h-4 w-4 text-amber-300" />
-                                                Analyze with AI <Badge className="ml-2 bg-amber-400 text-amber-950 text-[10px] items-center px-1 h-4">PRO</Badge>
+                                                <span className="hidden sm:inline">Analyze with AI</span><span className="sm:hidden">Analyze</span> <Badge className="ml-2 bg-amber-400 text-amber-950 text-[10px] items-center px-1 h-4">PRO</Badge>
                                             </>
                                         ) : (
                                             <>
                                                 <Sparkles className="mr-2 h-4 w-4" />
-                                                Analyze with AI
+                                                <span className="hidden sm:inline">Analyze with AI</span><span className="sm:hidden">Analyze</span>
                                             </>
                                         )}
                                     </Button>
@@ -829,7 +829,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                 className="w-full sm:w-auto border-blue-200 text-blue-700 hover:bg-blue-50"
                                             >
                                                 {isCreatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                                                Create Missing ({parsedData.filter(p => !p.matchedFarmerId).length})
+                                                <span className="hidden sm:inline">Create Missing ({parsedData.filter(p => !p.matchedFarmerId).length})</span>
+                                                <span className="sm:hidden">Create ({parsedData.filter(p => !p.matchedFarmerId).length})</span>
                                             </Button>
                                         )}
                                         <Button
@@ -855,7 +856,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             {(() => {
                                                 const count = parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate && !p.stockAdded).length;
                                                 if (count === 0) return "Done";
-                                                return `Import ${count} Items`;
+                                                return <><span className="hidden sm:inline">Import {count} Items</span><span className="sm:hidden">Import {count}</span></>;
                                             })()}
                                         </Button>
                                     </div>

@@ -18,12 +18,12 @@ export const UrgentActions = ({ lowStockCycles }: UrgentActionsProps) => {
     return (
         <Card className="col-span-1 md:col-span-2 lg:col-span-3 border-amber-200">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-amber-500" />
-                    Urgent Supply Needs
+                <CardTitle className="flex items-center gap-2 text-sm xs:text-base">
+                    <AlertCircle className="h-4 w-4 xs:h-5 xs:w-5 text-amber-500" />
+                    Urgent Needs
                 </CardTitle>
-                <CardDescription>
-                    Farmers with critically low feed stock (Less than 3 bags)
+                <CardDescription className="text-[10px] xs:text-xs">
+                    Farmers with critically low supply
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -36,12 +36,10 @@ export const UrgentActions = ({ lowStockCycles }: UrgentActionsProps) => {
                     <div className="space-y-4">
                         {lowStockCycles.slice(0, 3).map((cycle) => (
                             <div key={cycle.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 shadow-sm">
-                                <div className="space-y-1">
-                                    <p className="font-semibold text-sm text-slate-900">{cycle.farmerName}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Cycle: {cycle.name} &bull; Available: <span className="font-medium text-amber-600">
-                                            {cycle.availableStock < 0 ? 0 : cycle.availableStock.toFixed(2)} bags
-                                        </span>
+                                <div className="space-y-0.5 xs:space-y-1">
+                                    <p className="font-semibold text-xs xs:text-sm text-slate-900">{cycle.farmerName}</p>
+                                    <p className="text-[10px] xs:text-xs text-muted-foreground">
+                                        {cycle.availableStock < 0 ? 0 : cycle.availableStock.toFixed(1)} bags left
                                     </p>
                                 </div>
                                 <Button size="sm" variant="outline" className="h-8 border-amber-200 hover:bg-amber-50 text-amber-700" asChild>

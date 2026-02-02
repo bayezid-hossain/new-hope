@@ -131,7 +131,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
           />
 
           <Button type="submit" className="w-full" disabled={createMutation.isPending}>
-            {createMutation.isPending ? "Registering..." : "Register Farmer"}
+            {createMutation.isPending ? "Registering..." : <><span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span></>}
           </Button>
         </form>
       </Form>
