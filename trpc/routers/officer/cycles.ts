@@ -150,10 +150,18 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
             }
 
+            // SECURITY CHECK: Verify ownership
+            if (farmerData.officerId !== ctx.user.id) {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You do not have permission to create cycles for this farmer."
+                });
+            }
+
             const [newCycle] = await ctx.db.insert(cycles).values({
                 name: input.name,
                 farmerId: input.farmerId,
-                organizationId: input.orgId,
+                organizationId: farmerData.organizationId, // STRICT: Use farmer's org, ignore input.orgId
                 doc: input.doc,
                 age: input.age,
                 createdAt: input.age > 1

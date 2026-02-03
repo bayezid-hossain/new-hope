@@ -14,7 +14,7 @@ export const auth = betterAuth({
     }),
     emailAndPassword: {
         enabled: true,
-        requireEmailVerification: false,
+        requireEmailVerification: process.env.NODE_ENV === "production",
         async sendResetPassword({ user, url }) {
             // //conosle.log(`Sending reset password email to: ${user.email}`);
             const { error } = await sendEmail({
@@ -145,7 +145,7 @@ export const auth = betterAuth({
     ],
     trustedOrigins: [
         process.env.BETTER_AUTH_URL || "http://localhost:3000",
-        "http://192.168.0.186:3000",
+        ...(process.env.NODE_ENV !== "production" ? ["http://192.168.0.186:3000"] : []),
         "https://feed-newhope.vercel.app"
     ],
 })

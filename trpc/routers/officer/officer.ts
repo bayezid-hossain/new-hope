@@ -1,4 +1,5 @@
-import { cycles, farmer, featureRequest } from "@/db/schema";
+import { cycles, farmer, featureRequest, member } from "@/db/schema";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
@@ -16,6 +17,20 @@ export const officerRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { orgId } = input;
             const officerId = ctx.user.id;
+
+            // SECURITY: Verify user is a member of this organization
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, orgId),
+                        eq(member.status, "ACTIVE")
+                    )
+                });
+                if (!membership) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
+                }
+            }
 
             // 1. Get all active farmers managed by this officer
             const activeFarmers = await ctx.db.select({
