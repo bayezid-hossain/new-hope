@@ -68,10 +68,10 @@ export const NotificationDetailsModal = ({ id, open, onOpenChange }: Notificatio
                 <div className="h-40 flex items-center justify-center">Loading...</div>
             ) : notification ? (
                 <div className="space-y-6 py-4">
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <p className="text-sm font-medium text-slate-900 mb-2">{notification.message}</p>
+                    <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
+                        <p className="text-sm font-medium text-foreground mb-2">{notification.message}</p>
                         {notification.details && (
-                            <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
                                 {notification.details}
                             </p>
                         )}

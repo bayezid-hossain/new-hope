@@ -64,7 +64,7 @@ const MetricRow = ({ icon: Icon, value, label, valueColor = "text-foreground" }:
 );
 
 const GroupRowActions = ({ cycle, prefix, isAdmin, isManagement, orgId }: { cycle: CycleItem, prefix: string, isAdmin?: boolean, isManagement?: boolean, orgId: string }) => (
-    <div className="col-span-1 text-right flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="col-span-1 text-right flex items-center justify-end gap-1 transition-opacity">
         <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground/50 hover:text-primary hover:bg-primary/5" asChild>
             <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                 <Eye className="h-3.5 w-3.5" />
@@ -252,7 +252,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                     </div>
 
                                     {group.cycles.map((cycle) => (
-                                        <div key={cycle.id} className="group hover:bg-slate-50/50 transition-colors">
+                                        <div key={cycle.id} className="group hover:bg-muted/30 transition-colors">
                                             <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-4 items-center">
                                                 <div className="col-span-2">
                                                     <MetricRow icon={RefreshCcw} value={cycle.age} label={cycle.age > 1 ? "days" : "day"} />
@@ -312,20 +312,20 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                 </TableHeader>
                                 <TableBody>
                                     {cycles.map((cycle) => (
-                                        <TableRow key={cycle.id} className="hover:bg-slate-50/50 group transition-colors border-slate-50">
+                                        <TableRow key={cycle.id} className="hover:bg-muted/30 group transition-colors border-border/50">
                                             <TableCell>
                                                 <div className="flex flex-col">
-                                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="font-bold text-slate-900 group-hover:text-primary transition-colors text-sm">
+                                                    <Link href={isAdmin ? `/admin/organizations/${orgId}/farmers/${cycle.farmerId}` : (isManagement ? `/management/farmers/${cycle.farmerId}` : `/farmers/${cycle.farmerId}`)} className="font-bold text-foreground group-hover:text-primary transition-colors text-sm">
                                                         {cycle.farmerName}
                                                     </Link>
                                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
                                                             {cycle.name}
                                                         </span>
                                                         {cycle.officerName && (
                                                             <>
-                                                                <span className="text-[10px] text-slate-300">•</span>
-                                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                                <span className="text-[10px] text-muted-foreground/30">•</span>
+                                                                <span className="text-[10px] text-muted-foreground/70 font-medium">
                                                                     {cycle.officerName}
                                                                 </span>
                                                             </>
@@ -337,8 +337,8 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <StatusBadge status={cycle.status} />
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <span className="text-sm font-bold text-slate-700">{cycle.age}</span>
-                                                <span className="text-[9px] text-slate-400 ml-1 font-medium lowercase">d</span>
+                                                <span className="text-sm font-bold text-foreground">{cycle.age}</span>
+                                                <span className="text-[9px] text-muted-foreground ml-1 font-medium lowercase">d</span>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
@@ -358,7 +358,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 {format(new Date(cycle.createdAt), "MMM d, y") === format(new Date(), "MMM d, y") ? "Today" : format(new Date(cycle.createdAt), "MMM d, y")}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center justify-end gap-1 opacity-10 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center justify-end gap-1 transition-opacity">
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5" asChild>
                                                         <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                                                             <Eye className="h-4 w-4" />

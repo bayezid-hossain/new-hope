@@ -229,7 +229,7 @@ export default function FarmerDetails() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setShowArchiveDialog(true)}
-                className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
+                className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Profile
@@ -258,7 +258,7 @@ export default function FarmerDetails() {
                       <span className="text-sm font-medium text-muted-foreground">bags</span>
                     </div>
                     {isLow && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
                         Urgent Restock
                       </span>
                     )}

@@ -30,23 +30,23 @@ export const ManagementGuard = ({ children }: { children: React.ReactNode }) => 
 
     if (!statusData?.orgId) {
         return (
-            <div className="p-8 text-center shrink-0 min-h-screen bg-slate-50 flex flex-col justify-center items-center">
-                <Building2 className="size-12 mx-auto text-slate-300 mb-4" />
-                <h1 className="text-2xl font-bold text-slate-900">No Organization Found</h1>
-                <p className="text-slate-500">You are not currently part of an organization.</p>
+            <div className="p-8 text-center shrink-0 min-h-screen bg-background flex flex-col justify-center items-center">
+                <Building2 className="size-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h1 className="text-2xl font-bold text-foreground">No Organization Found</h1>
+                <p className="text-muted-foreground">You are not currently part of an organization.</p>
             </div>
         );
     }
 
     if (!isAuthorized) {
         return (
-            <div className="p-12 text-center shrink-0 min-h-screen bg-slate-50 flex flex-col justify-center items-center">
-                <Users className="size-12 mx-auto text-slate-300 mb-4" />
-                <h1 className="text-2xl font-bold text-slate-900">Management Mode Required</h1>
-                <p className="text-slate-500 mb-6">Please enable Management Mode in the sidebar to access this area.</p>
+            <div className="p-12 text-center shrink-0 min-h-screen bg-background flex flex-col justify-center items-center">
+                <Users className="size-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h1 className="text-2xl font-bold text-foreground">Management Mode Required</h1>
+                <p className="text-muted-foreground mb-6">Please enable Management Mode in the sidebar to access this area.</p>
                 <button
                     onClick={() => router.push("/")}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
                 >
                     Return to Dashboard
                 </button>

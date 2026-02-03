@@ -146,7 +146,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-6 w-6 text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                                                            className="h-6 w-6 text-muted-foreground/30 hover:text-foreground transition-all"
                                                             onClick={() => handleEdit(farmer.id, farmer.name)}
                                                         >
                                                             <Wrench className="h-3 w-3" />

@@ -68,9 +68,9 @@ export const OfficerProfile = ({ orgId, userId, backUrl, isAdminView }: OfficerP
     const statsItems = [
         { label: "Active Cycles", value: profile.stats.activeCycles, icon: Activity, color: "text-primary", bg: "bg-primary/10" },
         { label: "Past Cycles", value: profile.stats.pastCycles, icon: Archive, color: "text-muted-foreground", bg: "bg-muted" },
-        { label: "Active Birds", value: profile.stats.activeDoc.toLocaleString(), icon: Bird, color: "text-blue-500", bg: "bg-blue-500/10" },
-        { label: "Active Consumption", value: `${profile.stats.activeIntake.toFixed(1)} b`, icon: Wheat, color: "text-amber-500", bg: "bg-amber-500/10" },
-        { label: "Main Stock", value: `${profile.stats.totalMainStock.toLocaleString()} b`, icon: Wheat, color: "text-amber-600", bg: "bg-amber-700/10" },
+        { label: "Active Birds", value: profile.stats.activeDoc.toLocaleString(), icon: Bird, color: "text-blue-500", bg: "bg-blue-500/10 dark:bg-blue-900/30" },
+        { label: "Active Consumption", value: `${profile.stats.activeIntake.toFixed(1)} b`, icon: Wheat, color: "text-amber-500", bg: "bg-amber-500/10 dark:bg-amber-900/30" },
+        { label: "Main Stock", value: `${profile.stats.totalMainStock.toLocaleString()} b`, icon: Wheat, color: "text-amber-600 dark:text-amber-500", bg: "bg-amber-700/10 dark:bg-amber-900/30" },
     ];
 
     return (
@@ -321,7 +321,7 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
                                         return (
                                             <div className="flex flex-col items-end gap-0.5">
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    <Wheat className="h-3.5 w-3.5 text-amber-500" />
+                                                    <Wheat className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                                                     <span className={`${remaining < 3 ? 'text-destructive' : 'text-foreground'}`}>{remaining.toFixed(2)}</span>
                                                 </div>
                                                 {activeConsumption > 0 && (
@@ -391,7 +391,7 @@ const ManagedFarmersTable = ({ farmers, isAdminView, orgId }: { farmers: any[], 
                                             <p className="text-[9px] text-muted-foreground/60 font-medium">{activeConsumption.toFixed(1)} used</p>
                                         )}
                                         <div className="flex items-center gap-1">
-                                            <Wheat className={`h-3 w-3 ${remaining < 3 && farmer.status !== 'deleted' ? 'text-destructive' : 'text-amber-500'}`} />
+                                            <Wheat className={`h-3 w-3 ${remaining < 3 && farmer.status !== 'deleted' ? 'text-destructive' : 'text-amber-500 dark:text-amber-400'}`} />
                                             <span className={`text-xs font-bold ${remaining < 3 && farmer.status !== 'deleted' ? 'text-destructive' : 'text-foreground'}`}>
                                                 {remaining.toFixed(2)}
                                             </span>

@@ -33,9 +33,9 @@ export default function OrganizationDetailsPage() {
 
     if (isPending) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
                 <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                <p className="text-slate-500 font-medium">Loading organization dashboard...</p>
+                <p className="text-muted-foreground font-medium">Loading organization dashboard...</p>
             </div>
         );
     }

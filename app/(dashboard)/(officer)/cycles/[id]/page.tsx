@@ -220,12 +220,12 @@ const AnalysisContent = ({
                                     Everything looks good! No critical alerts at this time.
                                 </div>
                             ) : (suggestions.map((s, i) => (
-                                <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-50 border-amber-200' : ''}>
+                                <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : ''}>
                                     {s.type === 'critical' ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-                                    <AlertTitle className={s.type === 'warning' ? 'text-amber-800 text-sm' : 'text-sm'}>
+                                    <AlertTitle className={s.type === 'warning' ? 'text-amber-800 dark:text-amber-400 text-sm' : 'text-sm'}>
                                         {s.title}
                                     </AlertTitle>
-                                    <AlertDescription className={s.type === 'warning' ? 'text-amber-700 text-xs mt-1' : 'text-xs mt-1'}>
+                                    <AlertDescription className={s.type === 'warning' ? 'text-amber-700 dark:text-amber-500 text-xs mt-1' : 'text-xs mt-1'}>
                                         {s.text}
                                     </AlertDescription>
                                 </Alert>
