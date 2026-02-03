@@ -10,6 +10,7 @@ import { SmartWatchdogWidget } from "@/modules/shared/components/smart-watchdog-
 import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Activity } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
@@ -163,54 +164,62 @@ export const HomeView = ({ userId }: { userId?: string }) => {
   }
 
   return (
-    <div className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto bg-slate-50/50 min-h-screen">
-
-      {/* Page Header */}
-      <div className="flex items-center justify-between flex-col w-full gap-y-2">
-        <div className="w-full">
-          <div className="flex items-center justify-between w-full gap-x-4">
-            <h2 className="text-xl xs:text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
-
-            <div className="flex items-center space-x-1.5 xs:space-x-2 gap-x-2">
-              <Button asChild variant="outline" className="h-7 px-2 text-[10px] xs:h-9 xs:px-4 xs:text-xs sm:text-sm">
-                <Link href="/cycles">Cycles</Link>
+    <div className="flex-1 space-y-6 overflow-y-auto bg-background min-h-screen pb-10">
+      {/* Premium Sticky Header */}
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border/50 shadow-sm">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm ring-1 ring-primary/20">
+                <Activity className="h-5 w-5 md:h-6 md:w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground uppercase mb-0.5">
+                  Dashboard
+                </h1>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Poultry Operations Intelligence</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button asChild variant="secondary" className="flex-1 sm:flex-initial h-10 px-4 text-xs font-bold rounded-xl bg-muted/50 hover:bg-muted text-foreground border-none transition-all">
+                <Link href="/cycles">Active Cycles</Link>
               </Button>
-              <Button asChild variant="outline" className="h-7 px-2 text-[10px] xs:h-9 xs:px-4 xs:text-xs sm:text-sm">
-                <Link href="/farmers">Farmers</Link>
+              <Button asChild variant="secondary" className="flex-1 sm:flex-initial h-10 px-4 text-xs font-bold rounded-xl bg-muted/50 hover:bg-muted text-foreground border-none transition-all">
+                <Link href="/farmers">Farmer Directory</Link>
               </Button>
             </div>
           </div>
-          <p className="text-muted-foreground text-xs xs:text-sm mt-1">Overview of your poultry operations</p>
         </div>
-
       </div>
 
-      {/* Tabs System */}
-      <Tabs defaultValue="operations" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px] h-9 xs:h-10">
-          <TabsTrigger value="operations" className="text-[10px] xs:text-xs sm:text-sm">Operations</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-[10px] xs:text-xs sm:text-sm">Analytics</TabsTrigger>
-        </TabsList>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-8">
 
-        {/* Tab 1: Operations */}
-        <TabsContent value="operations" className="space-y-4">
-          <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load operations data" />}>
-            <Suspense fallback={<LoadingState title="Loading Operations" description="Gathering active metrics..." />}>
-              {userId ? <OperationsContent orgId={orgId} officerId={userId} /> : <ErrorState title="User Error" description="User ID missing" />}
-            </Suspense>
-          </ErrorBoundary>
-        </TabsContent>
+        {/* Tabs System */}
+        <Tabs defaultValue="operations" className="space-y-6">
+          <TabsList className="inline-flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 text-muted-foreground border border-border/50 backdrop-blur-sm">
+            <TabsTrigger value="operations" className="rounded-lg px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Operations</TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-lg px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Analytics</TabsTrigger>
+          </TabsList>
 
-        {/* Tab 2: Analytics */}
-        <TabsContent value="analytics" className="space-y-4">
-          <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load historical analysis" />}>
-            <Suspense fallback={<LoadingState title="Loading History" description="Analyzing past cycles..." />}>
-              <HistoricalAnalysis variant="officer" />
-            </Suspense>
-          </ErrorBoundary>
-        </TabsContent>
-      </Tabs>
+          {/* Tab 1: Operations */}
+          <TabsContent value="operations" className="space-y-4">
+            <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load operations data" />}>
+              <Suspense fallback={<LoadingState title="Loading Operations" description="Gathering active metrics..." />}>
+                {userId ? <OperationsContent orgId={orgId} officerId={userId} /> : <ErrorState title="User Error" description="User ID missing" />}
+              </Suspense>
+            </ErrorBoundary>
+          </TabsContent>
 
+          {/* Tab 2: Analytics */}
+          <TabsContent value="analytics" className="space-y-4">
+            <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load historical analysis" />}>
+              <Suspense fallback={<LoadingState title="Loading History" description="Analyzing past cycles..." />}>
+                <HistoricalAnalysis variant="officer" />
+              </Suspense>
+            </ErrorBoundary>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

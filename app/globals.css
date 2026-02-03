@@ -44,6 +44,9 @@
   --breakpoint-xs: 355px;
   --color-scrollbar-thumb: var(--scrollbar-thumb);
   --color-scrollbar-thumb-hover: var(--scrollbar-thumb-hover);
+  --color-sidebar-management-from: var(--sidebar-management-from);
+  --color-sidebar-management-to: var(--sidebar-management-to);
+  --color-card-hover: var(--card-hover);
 }
 
 :root {
@@ -86,6 +89,9 @@
   --sidebar-ring: oklch(0.708 0 0);
   --scrollbar-thumb: oklch(0.85 0.04 150);
   --scrollbar-thumb-hover: oklch(0.75 0.08 150);
+  --sidebar-management-from: oklch(0.25 0.05 240);
+  --sidebar-management-to: oklch(0.15 0.05 240);
+  --card-hover: oklch(0.97 0 0);
 }
 
 .dark {
@@ -112,16 +118,14 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
   --scrollbar-thumb: oklch(0.3 0.04 150);
   --scrollbar-thumb-hover: oklch(0.4 0.08 150);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-management-from: oklch(0.18 0.04 240);
+  --sidebar-management-to: oklch(0.12 0.04 240);
+  --card-hover: oklch(0.18 0 0);
 }
 
 @layer base {

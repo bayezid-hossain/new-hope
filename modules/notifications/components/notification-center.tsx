@@ -104,17 +104,17 @@ export const NotificationCenter = () => {
         <>
             <DropdownMenu open={open} onOpenChange={setOpen}>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-900">
+                    <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                         <Bell className="h-5 w-5" />
                         {unreadCount > 0 && (
-                            <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-600 border-2 border-white box-content" />
+                            <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background box-content" />
                         )}
                         <span className="sr-only">Toggle notifications</span>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 overflow-hidden" sideOffset={8}>
                     {/* Header */}
-                    <div className="p-4 border-b bg-white relative z-10">
+                    <div className="p-4 border-b bg-card relative z-10">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="font-semibold text-sm">Notifications</h3>
                             {unreadCount > 0 && (
@@ -124,7 +124,7 @@ export const NotificationCenter = () => {
                             )}
                         </div>
                         <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search notifications..."
                                 className="pl-9 h-9 text-xs"
@@ -137,17 +137,17 @@ export const NotificationCenter = () => {
                     {/* List */}
                     <ScrollArea className="h-[400px]">
                         {isLoading ? (
-                            <div className="flex items-center justify-center h-20 text-slate-400">
+                            <div className="flex items-center justify-center h-20 text-muted-foreground">
                                 <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
                             </div>
                         ) : allItems.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-40 text-slate-500 text-center px-6">
+                            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-center px-6">
                                 <Bell className="h-8 w-8 mb-2 opacity-20" />
                                 <p className="text-sm">No notifications yet</p>
                                 {search && <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>}
                             </div>
                         ) : (
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-border/50">
                                 {allItems.map((item: any) => (
                                     <NotificationItem
                                         key={item.id}
@@ -179,11 +179,11 @@ export const NotificationCenter = () => {
                     </ScrollArea>
 
                     {/* Footer */}
-                    <div className="p-2 border-t bg-slate-50 flex items-center justify-between">
+                    <div className="p-2 border-t bg-muted/50 flex items-center justify-between">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-xs text-slate-500"
+                            className="h-8 text-xs text-muted-foreground"
                             onClick={() => markAllReadMutation.mutate()}
                             disabled={unreadCount === 0 || markAllReadMutation.isPending}
                         >

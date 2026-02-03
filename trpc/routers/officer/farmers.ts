@@ -218,6 +218,19 @@ export const officerFarmersRouter = createTRPCRouter({
             orgId: z.string()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Fetch farmer first to check status
+            const currentFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id))
+            });
+
+            if (!currentFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (currentFarmer.status === "deleted") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot modify a deleted farmer profile."
+                });
+            }
+
             const existing = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
@@ -444,6 +457,12 @@ export const officerFarmersRouter = createTRPCRouter({
             });
 
             if (!currentFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (currentFarmer.status === "deleted") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot modify security money for a deleted farmer profile."
+                });
+            }
 
             const oldAmount = currentFarmer.securityMoney || "0";
             if (parseFloat(oldAmount) === input.amount) return currentFarmer;

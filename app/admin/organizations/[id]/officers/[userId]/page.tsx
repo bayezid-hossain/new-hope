@@ -11,7 +11,7 @@ export default function AdminOfficerDetailPage() {
     // console.log("OFFICER:" + userId)
     return (
         <AdminGuard>
-            <div className="p-4 sm:p-8 bg-slate-50/50 min-h-screen">
+            <div className="p-4 sm:p-8 bg-background min-h-screen">
                 <OfficerProfile
                     orgId={id}
                     userId={userId}

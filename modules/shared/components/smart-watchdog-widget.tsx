@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Clock, Loader2, Lock, ShieldAlert, Sparkles } from "lucide-react";
@@ -80,50 +81,56 @@ export const SmartWatchdogWidget = ({ orgId, officerId, className }: SmartWatchd
     }, [assessment, isScanning, runRiskScan, orgId, officerId, isPro]);
 
     return (
-        <Card className={`shadow-sm relative overflow-hidden transition-all duration-500 ${assessment?.risks.length
-            ? "border-red-100 bg-red-50/30"
-            : "border-emerald-100 bg-emerald-50/20"
-            } ${className}`}>
-            <CardHeader className="pb-3 border-b border-black/5">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+        <Card className={cn(
+            "shadow-sm relative overflow-hidden transition-all duration-500 border-border/50",
+            assessment?.risks.length
+                ? "bg-destructive/5 dark:bg-destructive/10"
+                : "bg-primary/5 dark:bg-primary/5",
+            className
+        )}>
+            <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.1em]">
                     {isScanning ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                     ) : assessment?.risks.length ? (
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                        <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                     ) : (
-                        <ShieldAlert className="h-4 w-4 text-emerald-500" />
+                        <ShieldAlert className="h-3.5 w-3.5 text-primary" />
                     )}
-                    <span className={assessment?.risks.length ? "text-red-900" : "text-emerald-900"}>
+                    <span className={assessment?.risks.length ? "text-destructive" : "text-primary"}>
                         Smart Watchdog
                     </span>
                 </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 min-h-[140px] relative">
                 {!isPro ? (
-                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
-                        <div className="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-2">
+                    <div className="absolute inset-0 z-10 bg-background/40 dark:bg-background/60 backdrop-blur-[6px] flex flex-col items-center justify-center text-center p-4">
+                        <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-3 shadow-inner">
                             <Lock className="h-5 w-5" />
                         </div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-1">Smart Watchdog Locked</h3>
-                        <p className="text-xs text-slate-500 mb-3 max-w-[200px]">
-                            Automated risk detection is a Pro feature.
+                        <h3 className="text-sm font-bold text-foreground mb-1">PRO ACCESS REQUIRED</h3>
+                        <p className="text-[11px] text-muted-foreground mb-4 max-w-[200px] leading-relaxed">
+                            AI-driven mortality trends and automated risk analysis is a Pro feature.
                         </p>
                         <Button
                             size="sm"
                             onClick={handleRequestAccess}
                             disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus || isApprovedInDb}
-                            className={`w-full max-w-[180px] h-8 text-xs ${hasRequested ? "bg-slate-100 text-slate-500 hover:bg-slate-200" :
-                                "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                }`}
+                            className={cn(
+                                "w-full max-w-[180px] h-9 text-xs font-bold rounded-xl transition-all shadow-sm",
+                                hasRequested
+                                    ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 active:scale-95"
+                            )}
                         >
                             {requestAccessMutation.isPending || isLoadingStatus ? (
-                                <Loader2 className="animate-spin h-3 w-3 mr-2" />
+                                <Loader2 className="animate-spin h-3.5 w-3.5 mr-2" />
                             ) : isApprovedInDb ? (
-                                <CheckCircle2 className="h-3 w-3 mr-2" />
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
                             ) : hasRequested ? (
-                                <Clock className="h-3 w-3 mr-2" />
+                                <Clock className="h-3.5 w-3.5 mr-2" />
                             ) : (
-                                <Sparkles className="h-3 w-3 mr-2" />
+                                <Sparkles className="h-3.5 w-3.5 mr-2" />
                             )}
                             {isLoadingStatus ? "Checking..." : isApprovedInDb ? "Approved (Refresh)" : hasRequested ? "Requested" : "Unlock Watchdog"}
                         </Button>
@@ -132,47 +139,52 @@ export const SmartWatchdogWidget = ({ orgId, officerId, className }: SmartWatchd
 
                 {isScanning ? (
                     <div className="space-y-3 p-1">
-                        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             Scanning cycle logs...
                         </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500/50 w-1/3 animate-loading-bar" />
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-primary/50 w-1/3 animate-loading-bar" />
                         </div>
-                        <p className="text-xs text-slate-400">Analyzing mortality trends & feed intake...</p>
+                        <p className="text-xs text-muted-foreground/70">Analyzing mortality trends & feed intake...</p>
                     </div>
                 ) : assessment ? (
                     <div className="space-y-4">
-                        <p className={`text-sm font-medium leading-relaxed ${assessment.risks.length ? "text-red-900" : "text-emerald-900"
-                            }`}>
+                        <p className={cn(
+                            "text-sm font-bold leading-relaxed",
+                            assessment.risks.length ? "text-destructive" : "text-primary"
+                        )}>
                             {assessment.summary}
                         </p>
 
                         {assessment.risks.length > 0 && (
                             <div className="space-y-2">
                                 {assessment.risks.map((risk, i) => (
-                                    <div key={i} className="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-bold text-xs text-slate-900">{risk.farmer}</span>
-                                            <Badge className={
-                                                risk.level === "CRITICAL" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
-                                            }>{risk.level}</Badge>
+                                    <div key={i} className="bg-card/50 dark:bg-card/30 p-3 rounded-xl border border-border/50 shadow-sm backdrop-blur-sm">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="font-black text-[11px] uppercase tracking-tight">{risk.farmer}</span>
+                                            <Badge variant={risk.level === "CRITICAL" ? "destructive" : "secondary"} className={cn(
+                                                "font-black text-[9px] uppercase tracking-wider px-2 py-0.5",
+                                                risk.level === "CRITICAL"
+                                                    ? "bg-destructive/10 text-destructive border-destructive/20"
+                                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20"
+                                            )}>{risk.level}</Badge>
                                         </div>
-                                        <p className="text-xs text-slate-600 leading-snug">{risk.message}</p>
+                                        <p className="text-xs text-muted-foreground leading-relaxed font-medium">{risk.message}</p>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
-                        <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-sm">
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/20">
                             <CheckCircle2 className="h-6 w-6" />
                         </div>
                         <div>
-                            <p className="text-emerald-900 font-bold text-sm">System Secure</p>
-                            <p className="text-emerald-700/70 text-xs mt-1 px-4">
-                                Smart Watchdog has not detected any immediate mortality or growth risks in the last scan.
+                            <p className="text-primary font-black text-[11px] uppercase tracking-[0.2em]">All Systems Nominal</p>
+                            <p className="text-muted-foreground text-[11px] mt-2 px-6 leading-relaxed font-medium">
+                                No immediate mortality or growth risks detected in current production cycles.
                             </p>
                         </div>
                         <Button
@@ -180,7 +192,7 @@ export const SmartWatchdogWidget = ({ orgId, officerId, className }: SmartWatchd
                             size="sm"
                             onClick={() => runRiskScan({ orgId, officerId })}
                             disabled={isScanning}
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-7 text-xs"
+                            className="text-primary hover:text-primary/90 hover:bg-primary/10 h-7 text-xs"
                         >
                             <Sparkles className="h-3 w-3 mr-1.5" />
                             Run New Scan

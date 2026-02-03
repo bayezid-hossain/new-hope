@@ -63,15 +63,15 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
     return (
         <div className="flex gap-4 group">
             <div className="flex flex-col items-center">
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-white z-10", colorClass)}>
+                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-background z-10", colorClass)}>
                     {icon}
                 </div>
-                {!isLast && <div className="w-px h-full bg-slate-200 my-1 group-hover:bg-slate-300 transition-colors" />}
+                {!isLast && <div className="w-px h-full bg-border/50 my-1 group-hover:bg-border/80 transition-colors" />}
             </div>
 
             <div className="pb-8 space-y-1.5 flex-1">
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-slate-900">{title}</span>
+                    <span className="font-semibold text-sm text-foreground">{title}</span>
                     <div className="flex items-center gap-2">
                         {/* Edit Action for Mortality */}
                         {isActive && normalizedType === "MORTALITY" && (
@@ -92,7 +92,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
                 <div className="text-sm">
                     {normalizedType === "NOTE" && !isConsumption ? (
-                        <div className="bg-slate-50 p-2 rounded-md border border-slate-100 text-slate-600 italic text-xs">
+                        <div className="bg-muted/30 p-2 rounded-md border border-border/50 text-muted-foreground italic text-xs">
                             &quot;{log.note}&quot;
                         </div>
                     ) : (
@@ -171,14 +171,14 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
     const hasActiveFilters = filter !== "ALL" || searchQuery || dateQuery;
 
     if (!logs || logs.length === 0) {
-        return <div className="text-muted-foreground text-sm py-8 text-center border border-dashed rounded-lg bg-slate-50/50">No activity recorded yet.</div>;
+        return <div className="text-muted-foreground text-sm py-8 text-center border border-dashed rounded-lg bg-muted/30 border-border/50">No activity recorded yet.</div>;
     }
 
     return (
         <div className="space-y-4">
 
             {/* CONTROLS HEADER */}
-            <div className="flex flex-col gap-3 pb-4 border-b border-slate-100">
+            <div className="flex flex-col gap-3 pb-4 border-b border-border/50">
 
                 {/* Row 1: Search and Date Inputs */}
                 <div className="flex gap-2">

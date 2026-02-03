@@ -54,7 +54,7 @@ const layout = async ({ children }: Props) => {
     <OrgGuard>
       <SidebarProvider>
         <DashboardSidebar initialSession={session} initialMembership={membershipData} />
-        <main className="flex flex-col min-h-screen w-full bg-muted bg-white">
+        <main className="flex flex-col min-h-screen w-full bg-background">
           <DashboardNavbar />
           {children}
         </main>

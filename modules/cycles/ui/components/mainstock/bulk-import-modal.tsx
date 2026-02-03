@@ -415,7 +415,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChangeWrapper}>
-            <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl">
+            <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl">
                 {showProGate ? (
                     <div className="h-full w-full flex flex-col animate-in fade-in zoom-in-95 duration-200">
                         <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
@@ -429,34 +429,34 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                 <X className="h-5 w-5" />
                             </Button>
 
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 opacity-90" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 opacity-90" />
                             <div className="z-10 text-center text-white p-4">
                                 <Sparkles className="h-10 w-10 mx-auto mb-2 text-amber-300" />
                                 <h3 className="text-xl font-bold">Pro Feature</h3>
                             </div>
-                            <div className="absolute -top-10 -left-10 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-50" />
-                            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-50" />
+                            <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl opacity-50" />
+                            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-primary/30 rounded-full blur-3xl opacity-50" />
                         </div>
 
                         <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                             <div className="text-center space-y-2">
-                                <DialogTitle className="text-lg font-semibold text-slate-900">AI Stock Extraction</DialogTitle>
-                                <DialogDescription className="text-sm text-slate-500">
+                                <DialogTitle className="text-lg font-semibold text-foreground">AI Stock Extraction</DialogTitle>
+                                <DialogDescription className="text-sm text-muted-foreground">
                                     Import thousands of farmer records in seconds using our AI-powered engine. Exclusive to Pro officers.
                                 </DialogDescription>
                             </div>
 
-                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 flex flex-col gap-2">
-                                <div className="flex items-center gap-2 text-sm text-slate-700">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            <div className="bg-muted rounded-lg p-4 border border-border/50 flex flex-col gap-2">
+                                <div className="flex items-center gap-2 text-sm text-foreground/80">
+                                    <CheckCircle2 className="h-4 w-4 text-primary" />
                                     <span>Parse WhatsApp/SMS reports</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-slate-700">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                <div className="flex items-center gap-2 text-sm text-foreground/80">
+                                    <CheckCircle2 className="h-4 w-4 text-primary" />
                                     <span>Auto-match existing farmers</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-slate-700">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                <div className="flex items-center gap-2 text-sm text-foreground/80">
+                                    <CheckCircle2 className="h-4 w-4 text-primary" />
                                     <span>Detect duplicates automatically</span>
                                 </div>
                             </div>
@@ -465,8 +465,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                 onClick={handleRequestAccess}
                                 disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus}
                                 className={`w-full shadow-lg text-white transition-all ${hasRequested || isLoadingStatus
-                                    ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
-                                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted"
+                                    : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
                                     }`}
                             >
                                 {requestAccessMutation.isPending || isLoadingStatus ? (
@@ -485,15 +485,15 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                 {isLoadingStatus ? (
                                     <span className="animate-pulse">Verifying access...</span>
                                 ) : isApprovedInDb ? (
-                                    <span className="text-emerald-600 font-medium italic">Approved! Refresh page to enable features.</span>
+                                    <span className="text-primary font-medium italic">Approved! Refresh page to enable features.</span>
                                 ) : hasRequested ? (
-                                    <span className="text-amber-600 font-medium">Pending admin approval.</span>
+                                    <span className="text-amber-500 font-medium">Pending admin approval.</span>
                                 ) : (
                                     "Usually approved within 24 hours."
                                 )}
                             </p>
 
-                            <Button variant="ghost" className="w-full text-slate-400" onClick={() => setShowProGate(false)}>
+                            <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setShowProGate(false)}>
                                 No thanks, I'll type manually
                             </Button>
                         </div>
@@ -501,34 +501,34 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 ) : (
                     <>
                         {/* Header */}
-                        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-slate-50 to-white border-b sticky top-0 z-10 relative">
+                        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 bg-gradient-to-r from-muted to-background border-b sticky top-0 z-10 relative">
                             {/* Close Button for Main Modal */}
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-4 top-4 h-8 w-8 text-slate-500 hover:text-slate-900 bg-slate-100/50 hover:bg-slate-200/50 rounded-full"
+                                className="absolute right-4 top-4 h-8 w-8 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-full"
                                 onClick={() => handleOpenChangeWrapper(false)}
                             >
                                 <X className="h-4 w-4" />
                             </Button>
 
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pr-8">
-                                <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-slate-900">
-                                    <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                                <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-foreground">
+                                    <div className="p-2 bg-primary/10 text-primary rounded-lg">
                                         <Sparkles className="h-5 w-5" />
                                     </div>
                                     <div className="flex flex-col">
                                         <span>Bulk Stock Import</span>
-                                        <span className="text-xs font-medium text-slate-500 font-normal">AI Powered Extraction</span>
+                                        <span className="text-xs font-medium text-muted-foreground font-normal">AI Powered Extraction</span>
                                     </div>
                                 </DialogTitle>
                                 {step === "REVIEW" && (
                                     <div className="flex gap-2 self-end sm:self-auto">
-                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm">
+                                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs sm:text-sm">
                                             <CheckCircle2 className="w-3 h-3 mr-1" />
                                             {parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate).length} Ready
                                         </Badge>
-                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs sm:text-sm">
+                                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20 text-xs sm:text-sm">
                                             <AlertCircle className="w-3 h-3 mr-1" />
                                             {parsedData.filter(p => !p.matchedFarmerId || p.isDuplicate).length} Check
                                         </Badge>
@@ -541,17 +541,17 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                         </DialogHeader>
 
                         {/* Content */}
-                        <div className="flex-1 overflow-hidden bg-slate-50/50 relative">
+                        <div className="flex-1 overflow-hidden bg-muted/30 relative">
                             {step === "INPUT" ? (
                                 <div className="h-full flex flex-col p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
-                                    <div className="bg-white border rounded-xl shadow-sm p-1 flex-1 flex flex-col">
+                                    <div className="bg-card border border-border/50 rounded-xl shadow-sm p-1 flex-1 flex flex-col">
                                         <Textarea
                                             placeholder={`Example:\nFarm No 1\nFarmer: Rabby Traders\nB2: 15 Bags\n\nFarm No 02\nAbdul Hamid...`}
                                             className="flex-1 border-0 focus-visible:ring-0 resize-none p-4 text-sm sm:text-base font-mono leading-relaxed bg-transparent overflow-y-auto max-h-[500px]"
                                             value={inputText}
                                             onChange={(e) => setInputText(e.target.value)}
                                         />
-                                        <div className="p-2 border-t bg-slate-50 text-xs text-slate-400 flex justify-between items-center rounded-b-xl">
+                                        <div className="p-2 border-t bg-muted/50 text-xs text-muted-foreground flex justify-between items-center rounded-b-xl">
                                             <span>Paste your daily report text above</span>
                                             <span>{inputText.length} chars</span>
                                         </div>
@@ -560,7 +560,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                             ) : (
                                 <ScrollArea className="h-full p-4 sm:p-6">
                                     {parsedData.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 min-h-[300px]">
+                                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 min-h-[300px]">
                                             <Search className="h-8 w-8 opacity-20" />
                                             <p>No items found</p>
                                         </div>
@@ -571,8 +571,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                     key={row.id}
                                                     className={`
                                                 group relative p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md
-                                                ${row.isDuplicate ? "bg-red-50/50 border-red-100" :
-                                                            !row.matchedFarmerId ? "bg-amber-50/30 border-amber-100" : "bg-white border-slate-100 hover:border-emerald-200"}
+                                                ${row.isDuplicate ? "bg-destructive/5 border-destructive/20" :
+                                                            !row.matchedFarmerId ? "bg-amber-500/5 border-amber-500/10" : "bg-card border-border/50 hover:border-primary/50"}
                                             `}
                                                 >
                                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -581,20 +581,20 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                             {/* Icon Status */}
                                                             <div className="shrink-0">
                                                                 {row.isDuplicate ? (
-                                                                    <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                                                    <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
                                                                         <AlertTriangle className="h-5 w-5" />
                                                                     </div>
                                                                 ) : row.matchedFarmerId ? (
-                                                                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 relative">
+                                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary relative">
                                                                         <Check className="h-5 w-5" />
                                                                         {row.confidence === "HIGH" && (
-                                                                            <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border">
+                                                                            <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 shadow-sm border border-border/50">
                                                                                 <Sparkles className="h-3 w-3 text-amber-500" />
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                                                    <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-500">
                                                                         <Search className="h-5 w-5" />
                                                                     </div>
                                                                 )}
@@ -603,7 +603,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                             {/* Input / Name */}
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-1">
-                                                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                                                         Extracted: "{row.rawName}"
                                                                     </span>
                                                                     {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
@@ -621,11 +621,11 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center gap-2">
-                                                                        <h3 className="font-semibold text-slate-800 text-lg truncate">
+                                                                        <h3 className="font-semibold text-foreground text-lg truncate">
                                                                             {row.cleanName}
                                                                         </h3>
                                                                         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingId(row.id)}>
-                                                                            <Edit2 className="h-3 w-3 text-slate-400 hover:text-blue-500" />
+                                                                            <Edit2 className="h-3 w-3 text-muted-foreground hover:text-primary" />
                                                                         </Button>
                                                                     </div>
                                                                 )}
@@ -633,7 +633,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                         </div>
 
                                                         {/* Middle Arrow (Hidden on Mobile) */}
-                                                        <div className="hidden sm:block text-slate-300">
+                                                        <div className="hidden sm:block text-muted-foreground/30">
                                                             <ArrowRight className="h-5 w-5" />
                                                         </div>
 
@@ -641,14 +641,14 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                         <div className="flex-1 w-full sm:w-auto min-w-0 pl-[56px] sm:pl-0 mt-2 sm:mt-0 flex items-center justify-between gap-2">
                                                             <div className="flex-1">
                                                                 {row.matchedFarmerId ? (
-                                                                    <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
+                                                                    <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="h-8 w-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                                                                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                                                                                 <User className="h-4 w-4" />
                                                                             </div>
                                                                             <div>
-                                                                                <p className="text-sm font-semibold text-emerald-900">{row.matchedName}</p>
-                                                                                <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">
+                                                                                <p className="text-sm font-semibold text-foreground">{row.matchedName}</p>
+                                                                                <p className="text-[10px] text-primary/70 font-medium uppercase tracking-wide">
                                                                                     {row.stockAdded ? "Created & Stock Added" : "Database Match"}
                                                                                 </p>
                                                                             </div>
@@ -656,7 +656,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                         {editingAmountId === row.id && !row.stockAdded ? (
                                                                             <Input
                                                                                 type="number"
-                                                                                className="h-6 w-20 bg-emerald-50 border-emerald-200 focus-visible:ring-emerald-500 p-1 text-right"
+                                                                                className="h-6 w-20 bg-background border-primary/20 focus-visible:ring-primary p-1 text-right"
                                                                                 value={row.amount}
                                                                                 onChange={(e) => handleAmountEdit(row.id, e.target.value)}
                                                                                 onBlur={() => setEditingAmountId(null)}
@@ -665,16 +665,16 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                         ) : (
                                                                             <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => !row.stockAdded && setEditingAmountId(row.id)}>
                                                                                 {row.stockAdded ? (
-                                                                                    <Badge className="bg-emerald-600 text-white hover:bg-emerald-700 border-0 h-6">
+                                                                                    <Badge className="bg-primary text-primary-foreground hover:opacity-90 border-0 h-6">
                                                                                         <CheckCircle2 className="h-3 w-3 mr-1" />
                                                                                         {row.amount} Added
                                                                                     </Badge>
                                                                                 ) : (
                                                                                     <>
-                                                                                        <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-300 border-0 h-6">
+                                                                                        <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-0 h-6">
                                                                                             +{row.amount} Bags
                                                                                         </Badge>
-                                                                                        <Pencil className="h-3 w-3 text-emerald-600 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                                        <Pencil className="h-3 w-3 text-primary/70 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
                                                                                     </>
                                                                                 )}
                                                                             </div>
@@ -684,14 +684,14 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                     <div className="flex flex-col gap-2">
                                                                         <div className="flex items-center justify-between gap-3">
                                                                             <div className="flex flex-col">
-                                                                                <span className="text-sm font-medium text-amber-700">No Match Found</span>
-                                                                                <span className="text-xs text-amber-600/70">Create new or select suggestion</span>
+                                                                                <span className="text-sm font-medium text-amber-600 dark:text-amber-500">No Match Found</span>
+                                                                                <span className="text-xs text-muted-foreground/70">Create new or select suggestion</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-2">
                                                                                 {editingAmountId === row.id ? (
                                                                                     <Input
                                                                                         type="number"
-                                                                                        className="h-7 w-20 bg-white border-slate-200 text-right"
+                                                                                        className="h-7 w-20 bg-background border-border text-right"
                                                                                         value={row.amount}
                                                                                         onChange={(e) => handleAmountEdit(row.id, e.target.value)}
                                                                                         onBlur={() => setEditingAmountId(null)}
@@ -699,10 +699,10 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                                     />
                                                                                 ) : (
                                                                                     <div className="flex items-center gap-1 group/amount cursor-pointer" onClick={() => setEditingAmountId(row.id)}>
-                                                                                        <Badge variant="outline" className="bg-white text-slate-600 px-2 h-7 font-mono border-slate-200">
+                                                                                        <Badge variant="outline" className="bg-background text-muted-foreground px-2 h-7 font-mono border-border">
                                                                                             +{row.amount}
                                                                                         </Badge>
-                                                                                        <Pencil className="h-3 w-3 text-slate-400 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
+                                                                                        <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover/amount:opacity-100 transition-opacity" />
                                                                                     </div>
                                                                                 )}
                                                                                 <Button
@@ -721,12 +721,12 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                         {/* AI Suggestions */}
                                                                         {row.suggestions && row.suggestions.length > 0 && (
                                                                             <div className="flex flex-wrap gap-2 mt-1">
-                                                                                <span className="text-xs text-slate-400 font-medium py-1">Did you mean:</span>
+                                                                                <span className="text-xs text-muted-foreground font-medium py-1">Did you mean:</span>
                                                                                 {row.suggestions.map(s => (
                                                                                     <Badge
                                                                                         key={s.id}
                                                                                         variant="secondary"
-                                                                                        className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors border border-transparent hover:border-blue-200"
+                                                                                        className="cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors border border-transparent hover:border-primary/30"
                                                                                         onClick={() => handleSuggestionClick(row.id, s)}
                                                                                     >
                                                                                         {s.name}
@@ -742,7 +742,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                                                                className="h-8 w-8 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
                                                                 onClick={() => handleDismiss(row.id)}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
@@ -758,7 +758,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                         </div>
 
                         {/* Footer */}
-                        <DialogFooter className="p-4 sm:p-6 bg-white border-t z-10">
+                        <DialogFooter className="p-4 sm:p-6 bg-muted/30 border-t border-border/50 z-10">
                             {step === "INPUT" ? (
                                 <div className="w-full flex justify-between items-center sm:justify-end gap-3">
                                     {!isPro && (
@@ -766,7 +766,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             variant="ghost"
                                             onClick={handleRequestAccess}
                                             disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus || isApprovedInDb}
-                                            className={`text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all ${hasRequested ? "opacity-50 cursor-not-allowed" : ""
+                                            className={`text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all ${hasRequested ? "opacity-50 cursor-not-allowed" : ""
                                                 }`}
                                             size="sm"
                                         >
@@ -777,7 +777,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             ) : hasRequested ? (
                                                 <Clock className="h-3.5 w-3.5 mr-2" />
                                             ) : (
-                                                <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-500" />
+                                                <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
                                             )}
                                             {isLoadingStatus ? "Checking..." : isApprovedInDb ? "Approved" : hasRequested ? "Access Requested" : "Request Pro Access"}
                                         </Button>
@@ -792,8 +792,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                         }}
                                         disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
                                         className={`text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto ${!isPro
-                                            ? "bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900"
-                                            : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                            ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
+                                            : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
                                             }`}
                                         size="lg"
                                     >
@@ -817,7 +817,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                 </div>
                             ) : (
                                 <div className="flex flex-col-reverse sm:flex-row gap-3 w-full justify-between items-center">
-                                    <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-slate-500 hover:text-slate-900 w-full sm:w-auto">
+                                    <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-muted-foreground hover:text-foreground w-full sm:w-auto">
                                         Back to Input
                                     </Button>
                                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
@@ -826,7 +826,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                 variant="outline"
                                                 onClick={handleCreateAll}
                                                 disabled={isCreatingAll}
-                                                className="w-full sm:w-auto border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                className="w-full sm:w-auto border-primary/20 text-primary hover:bg-primary/5"
                                             >
                                                 {isCreatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                                                 <span className="hidden sm:inline">Create Missing ({parsedData.filter(p => !p.matchedFarmerId).length})</span>
@@ -849,7 +849,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                 bulkAddMutation.isPending ||
                                                 parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
                                             }
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-emerald-200 shadow-lg w-full sm:w-auto"
+                                            className="bg-primary hover:opacity-90 text-primary-foreground min-w-[140px] shadow-primary/20 shadow-lg w-full sm:w-auto"
                                             size="lg"
                                         >
                                             {bulkAddMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}

@@ -12,16 +12,16 @@ const DashboardNavbar = () => {
 
   return (
     <>
-      <nav className="flex px-4 gap-x-2 items-center bg-background py-3 border-b">
+      <nav className="sticky top-0 z-20 flex px-4 h-16 items-center bg-background/80 backdrop-blur-md border-b border-border/50 gap-x-2 shrink-0">
         <Button
-          className="size-9"
+          className="size-9 bg-transparent hover:bg-muted/50 border-border/50 transition-all rounded-xl"
           variant={"outline"}
           onClick={toggleSidebar}
         >
           {state === "collapsed" || isMobile ? (
-            <PanelLeftIcon className="size-4" />
+            <PanelLeftIcon className="size-4 text-muted-foreground" />
           ) : (
-            <PanelLeftCloseIcon className="size-4" />
+            <PanelLeftCloseIcon className="size-4 text-muted-foreground" />
           )}
         </Button>
         <div className="ml-auto">

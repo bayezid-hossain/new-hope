@@ -140,101 +140,125 @@ export const HistoricalAnalysis = ({ variant = "officer" }: { variant?: "officer
         <div className="space-y-6">
             {/* Row 1: High Level KPIs */}
             <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Cycles</CardTitle>
-                        <History className="h-4 w-4 text-muted-foreground" />
+                <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group rounded-2xl md:rounded-[2rem]">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 opacity-20 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-5 md:p-6">
+                        <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Total Cycles</span>
+                        <div className="p-2.5 rounded-xl md:rounded-2xl ring-1 ring-border/50 bg-primary/5 text-primary transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
+                            <History className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalCycles}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Completed cycles
-                        </p>
+                    <CardContent className="px-5 md:px-6 pb-5 md:pb-6">
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-foreground group-hover:translate-x-1 transition-transform">{totalCycles}</div>
+                        <p className="mt-2 text-[10px] md:text-xs text-muted-foreground/50 font-bold uppercase tracking-widest">Completed cycles</p>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Avg. Mortality</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
+                <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group rounded-2xl md:rounded-[2rem]">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-violet-500/20 opacity-20 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-5 md:p-6">
+                        <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Avg. Mortality</span>
+                        <div className="p-2.5 rounded-xl md:rounded-2xl ring-1 ring-border/50 bg-violet-500/5 text-violet-500 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
+                            <Activity className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{globalAvgMortality}%</div>
-                        <p className="text-xs text-muted-foreground">
-                            Historical average
-                        </p>
+                    <CardContent className="px-5 md:px-6 pb-5 md:pb-6">
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-foreground group-hover:translate-x-1 transition-transform">{globalAvgMortality}%</div>
+                        <p className="mt-2 text-[10px] md:text-xs text-muted-foreground/50 font-bold uppercase tracking-widest">Historical average</p>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Birds Processed</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group rounded-2xl md:rounded-[2rem]">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20 opacity-20 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-5 md:p-6">
+                        <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Birds Processed</span>
+                        <div className="p-2.5 rounded-xl md:rounded-2xl ring-1 ring-border/50 bg-emerald-500/5 text-emerald-500 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
+                            <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalBirdsProcessed.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Total birds reared
-                        </p>
+                    <CardContent className="px-5 md:px-6 pb-5 md:pb-6">
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-foreground group-hover:translate-x-1 transition-transform">{totalBirdsProcessed.toLocaleString()}</div>
+                        <p className="mt-2 text-[10px] md:text-xs text-muted-foreground/50 font-bold uppercase tracking-widest">Total birds reared</p>
                     </CardContent>
                 </Card>
             </div>
 
             {/* Row 2: Charts */}
             <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Farmer Mortality Benchmark</CardTitle>
-                        <CardDescription>Cumulative avg. mortality % per farmer (Lower is better)</CardDescription>
+                <Card className="border-border/50 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-300">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-sm font-black uppercase tracking-tight">Farmer Mortality Benchmark</CardTitle>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">Cumulative avg. mortality % per farmer</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px]">
+                        <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={benchmarkData} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
                                     <XAxis
                                         dataKey="name"
                                         angle={-45}
                                         textAnchor="end"
                                         interval={0}
                                         height={60}
-                                        tick={{ fontSize: 10 }}
+                                        tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--muted-foreground)' }}
+                                        className="uppercase tracking-tighter"
+                                        axisLine={false}
+                                        tickLine={false}
                                     />
-                                    <YAxis />
+                                    <YAxis tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        labelStyle={{ color: '#64748b' }}
+                                        contentStyle={{
+                                            borderRadius: '16px',
+                                            backgroundColor: 'var(--card)',
+                                            border: '1px solid var(--border)',
+                                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                            padding: '12px'
+                                        }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}
+                                        labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}
                                     />
-                                    <Line type="monotone" dataKey="mortality" stroke="#10b981" strokeWidth={2} activeDot={{ r: 8 }} name="Avg Mortality %" />
+                                    <Line type="monotone" dataKey="mortality" stroke="var(--primary)" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} name="Avg Mortality %" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Farmer Efficiency Benchmark</CardTitle>
-                        <CardDescription>Cumulative bags/100 birds per farmer</CardDescription>
+                <Card className="border-border/50 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-300">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-sm font-black uppercase tracking-tight">Farmer Efficiency Benchmark</CardTitle>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">Cumulative bags/100 birds per farmer</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px]">
+                        <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={benchmarkData} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
                                     <XAxis
                                         dataKey="name"
                                         angle={-45}
                                         textAnchor="end"
                                         interval={0}
                                         height={60}
-                                        tick={{ fontSize: 10 }}
+                                        tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--muted-foreground)' }}
+                                        className="uppercase tracking-tighter"
+                                        axisLine={false}
+                                        tickLine={false}
                                     />
-                                    <YAxis />
+                                    <YAxis tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        contentStyle={{
+                                            borderRadius: '16px',
+                                            backgroundColor: 'var(--card)',
+                                            border: '1px solid var(--border)',
+                                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                            padding: '12px'
+                                        }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}
+                                        labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}
                                     />
-                                    <Line type="monotone" dataKey="efficiency" stroke="#f59e0b" strokeWidth={2} name="Bags/100 Birds" />
+                                    <Line type="monotone" dataKey="efficiency" stroke="oklch(0.7 0.15 70)" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} name="Bags/100 Birds" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>

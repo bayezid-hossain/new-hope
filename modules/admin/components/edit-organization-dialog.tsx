@@ -56,8 +56,8 @@ export function EditOrgDialog({ org }: EditOrgDialogProps) {
 
   return (
     <>
-      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
-        <Settings className="h-4 w-4" />
+      <Button variant="ghost" size="icon" onClick={() => setOpen(true)} className="rounded-full hover:bg-muted transition-all">
+        <Settings className="h-4 w-4 text-muted-foreground" />
       </Button>
 
       <ResponsiveDialog
@@ -79,7 +79,7 @@ export function EditOrgDialog({ org }: EditOrgDialogProps) {
           <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" type="button" className="w-full text-white sm:w-auto">
+                <Button variant="destructive" type="button" className="w-full text-white sm:w-auto font-bold rounded-xl h-11 shadow-sm transition-all active:scale-[0.98]">
                   <Trash2 className="h-4 w-4 mr-2" /> Delete Org
                 </Button>
               </AlertDialogTrigger>
@@ -104,7 +104,7 @@ export function EditOrgDialog({ org }: EditOrgDialogProps) {
 
             <Button
               onClick={() => updateMutation.mutate({ id: org.id, name, slug })}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto font-bold rounded-xl h-11 shadow-sm transition-all active:scale-[0.98]"
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}

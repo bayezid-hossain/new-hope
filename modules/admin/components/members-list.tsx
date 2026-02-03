@@ -95,26 +95,26 @@ export function MembersList({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+      <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
         {/* Desktop Table View */}
-        <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <div className="max-h-[600px] overflow-y-auto">
             <Table>
-              <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
-                <TableRow>
-                  <TableHead className="font-semibold text-slate-700">User</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Role</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-700">Actions</TableHead>
+              <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm border-b border-border">
+                <TableRow className="border-border/50">
+                  <TableHead className="font-semibold text-foreground/70">User</TableHead>
+                  <TableHead className="font-semibold text-foreground/70">Status</TableHead>
+                  <TableHead className="font-semibold text-foreground/70">Role</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground/70">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {members?.map((member) => (
-                  <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
+                  <TableRow key={member.id} className="hover:bg-muted/30 transition-colors border-border/50">
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-slate-900 text-sm">{member.name}</span>
-                        <span className="text-[11px] text-slate-500 truncate">{member.email}</span>
+                        <span className="font-semibold text-foreground text-sm">{member.name}</span>
+                        <span className="text-[11px] text-muted-foreground truncate">{member.email}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -122,10 +122,10 @@ export function MembersList({ orgId }: { orgId: string }) {
                         variant={member.status === "ACTIVE" ? "default" : "secondary"}
                         className={
                           member.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-semibold text-[10px]"
+                            ? "bg-primary/10 text-primary hover:bg-primary/20 border-none font-semibold text-[10px]"
                             : member.status === "INACTIVE"
-                              ? "bg-slate-100 text-slate-600 hover:bg-slate-100 border-none font-semibold text-[10px]"
-                              : "bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-semibold text-[10px]"
+                              ? "bg-muted text-muted-foreground hover:bg-muted/80 border-none font-semibold text-[10px]"
+                              : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-none font-semibold text-[10px]"
                         }
                       >
                         {member.status}
@@ -141,7 +141,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                         })}
                         disabled={member.role === "OWNER" || member.userId === currentUserId}
                       >
-                        <SelectTrigger className="w-[110px] h-7 text-[11px] bg-slate-50 border-slate-200">
+                        <SelectTrigger className="w-[110px] h-7 text-[11px] bg-muted/50 border-none shadow-none focus:ring-1 focus:ring-primary/20">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -158,7 +158,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-emerald-600 border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 h-7 w-7 p-0 flex-shrink-0"
+                              className="text-primary border-primary/20 hover:text-primary hover:bg-primary/10 h-7 w-7 p-0 flex-shrink-0"
                               onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
                               title="Approve Member"
                             >
@@ -167,7 +167,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-rose-600 border-rose-200 hover:text-rose-700 hover:bg-rose-50 h-7 w-7 p-0 flex-shrink-0"
+                              className="text-destructive border-destructive/20 hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0 flex-shrink-0"
                               onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
                               title="Reject Request"
                             >
@@ -182,9 +182,9 @@ export function MembersList({ orgId }: { orgId: string }) {
                             size="sm"
                             variant="ghost"
                             className={`${member.status === "ACTIVE"
-                              ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                              : "text-amber-600 hover:text-emerald-600 hover:bg-emerald-50"
-                              } h-7 w-7 p-0 flex-shrink-0`}
+                              ? "text-muted-foreground/50 hover:text-amber-500 hover:bg-amber-500/10"
+                              : "text-amber-500 hover:text-primary hover:bg-primary/10"
+                              } h-7 w-7 p-0 flex-shrink-0 transition-all`}
                             title={member.userId === currentUserId ? "You cannot deactivate yourself" : (member.status === "ACTIVE" ? "Deactivate Member" : "Activate Member")}
                             onClick={() => statusMutation.mutate({
                               memberId: member.id,
@@ -207,7 +207,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-slate-400 hover:text-destructive hover:bg-destructive/5 h-7 w-7 p-0 flex-shrink-0"
+                              className="text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0 flex-shrink-0 transition-all"
                               disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
                               title={member.userId === currentUserId ? "You cannot remove yourself" : ""}
                             >
@@ -218,25 +218,25 @@ export function MembersList({ orgId }: { orgId: string }) {
                               )}
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl">
+                          <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl bg-card border-border shadow-xl">
                             <AlertDialogHeader>
-                              <AlertDialogTitle className="flex items-center gap-2 text-xl">
-                                <div className="p-2 rounded-full bg-red-100 text-red-600">
+                              <AlertDialogTitle className="flex items-center gap-2 text-xl text-foreground">
+                                <div className="p-2 rounded-full bg-destructive/10 text-destructive">
                                   <Trash2 className="h-5 w-5" />
                                 </div>
                                 Remove Member?
                               </AlertDialogTitle>
-                              <AlertDialogDescription className="text-slate-600 pt-2 text-sm leading-relaxed">
-                                Are you sure you want to remove <span className="font-bold text-slate-900">{member.name}</span>?
+                              <AlertDialogDescription className="text-muted-foreground pt-2 text-sm leading-relaxed">
+                                Are you sure you want to remove <span className="font-bold text-foreground">{member.name}</span>?
                                 <br /><br />
                                 They will lose all access to organization data and production monitoring tools immediately.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter className="pt-4">
-                              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                              <AlertDialogCancel className="rounded-xl bg-muted text-foreground border-none hover:bg-muted/80">Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white rounded-xl"
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
                               >
                                 Remove Member
                               </AlertDialogAction>
@@ -252,22 +252,22 @@ export function MembersList({ orgId }: { orgId: string }) {
           </div>
         </div>
         {/* Mobile Card View */}
-        <div className="sm:hidden divide-y divide-slate-100">
+        <div className="sm:hidden divide-y divide-border/50">
           {members?.map((member) => (
-            <div key={member.id} className="p-4 space-y-4">
+            <div key={member.id} className="p-4 space-y-4 bg-card">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col">
-                  <span className="font-bold text-slate-900">{member.name}</span>
-                  <span className="text-[11px] text-slate-500">{member.email}</span>
+                  <span className="font-bold text-foreground">{member.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{member.email}</span>
                 </div>
                 <Badge
                   variant={member.status === "ACTIVE" ? "default" : "secondary"}
                   className={
                     member.status === "ACTIVE"
-                      ? "bg-emerald-100 text-emerald-700 border-none font-bold text-[9px]"
+                      ? "bg-primary/10 text-primary border-none font-bold text-[9px]"
                       : member.status === "INACTIVE"
-                        ? "bg-slate-100 text-slate-600 border-none font-bold text-[9px]"
-                        : "bg-amber-100 text-amber-700 border-none font-bold text-[9px]"
+                        ? "bg-muted text-muted-foreground border-none font-bold text-[9px]"
+                        : "bg-amber-500/10 text-amber-600 border-none font-bold text-[9px]"
                   }
                 >
                   {member.status}
@@ -276,7 +276,7 @@ export function MembersList({ orgId }: { orgId: string }) {
 
               <div className="flex items-center justify-between gap-4 pt-2">
                 <div className="flex gap-2">
-                  <span className=" items-center flex text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Role</span>
+                  <span className=" items-center flex text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1 block">Role</span>
                   <Select
                     defaultValue={member.role}
                     onValueChange={(val) => roleMutation.mutate({
@@ -286,7 +286,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                     })}
                     disabled={member.role === "OWNER" || member.userId === currentUserId}
                   >
-                    <SelectTrigger className="w-full h-8 text-xs bg-slate-50 border-slate-200">
+                    <SelectTrigger className="w-full h-8 text-xs bg-muted/50 border-none shadow-none focus:ring-1 focus:ring-primary/20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -302,7 +302,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-emerald-600 border-emerald-200 h-8 w-8 p-0"
+                      className="text-primary border-primary/20 h-8 w-8 p-0 hover:bg-primary/10"
                       onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
                     >
                       <Check className="h-4 w-4" />
@@ -315,8 +315,8 @@ export function MembersList({ orgId }: { orgId: string }) {
                       size="sm"
                       variant="outline"
                       className={`${member.status === "ACTIVE"
-                        ? "text-slate-400 border-slate-200"
-                        : "text-amber-600 border-amber-200 bg-amber-50"
+                        ? "text-muted-foreground/40 border-border"
+                        : "text-amber-600 border-amber-500/20 bg-amber-500/10"
                         } h-8 w-8 p-0`}
                       onClick={() => statusMutation.mutate({
                         memberId: member.id,
@@ -339,7 +339,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-destructive border-red-100 hover:bg-red-50 h-8 w-8 p-0"
+                        className="text-destructive border-destructive/20 hover:bg-destructive/10 h-8 w-8 p-0"
                         disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
                       >
                         {deletingId === member.id ? (
@@ -349,18 +349,18 @@ export function MembersList({ orgId }: { orgId: string }) {
                         )}
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl">
+                    <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl bg-card border-border shadow-xl">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remove Member?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to remove {member.name}?
+                        <AlertDialogTitle className="text-foreground text-lg">Remove Member?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
+                          Are you sure you want to remove <span className="font-bold text-foreground">{member.name}</span>?
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-muted text-foreground border-none hover:bg-muted/80 rounded-xl">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
-                          className="bg-destructive text-white"
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
                         >
                           Remove
                         </AlertDialogAction>
@@ -374,7 +374,7 @@ export function MembersList({ orgId }: { orgId: string }) {
 
           {/* Empty State */}
           {members?.length === 0 && (
-            <div className="p-8 text-center text-slate-400 italic text-sm">
+            <div className="p-8 text-center text-muted-foreground italic text-sm">
               <Users className="h-8 w-8 mb-2 mx-auto opacity-20" />
               No members found.
             </div>

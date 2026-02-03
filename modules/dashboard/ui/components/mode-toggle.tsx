@@ -77,18 +77,18 @@ export const ModeToggle = () => {
     if (!isGlobalAdmin && !isOrgManager) return null;
 
     return (
-        <div className="flex flex-col gap-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">View Mode</p>
+        <div className="flex flex-col gap-2 p-4 dark:bg-black bg-white rounded-xl border border-border">
+            <p className="text-[10px] font-bold text-foreground dark:text-white uppercase tracking-widest px-1">View Mode</p>
 
             <div className="flex flex-col gap-1">
                 {isGlobalAdmin && (
-                    <div className="grid grid-cols-2 gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="grid grid-cols-2 gap-1 bg-card p-1 rounded-lg border border-border shadow-sm">
                         <Button
                             variant="ghost"
                             size="sm"
                             className={cn(
                                 "h-8 text-[11px] font-bold gap-1.5 rounded-md transition-all",
-                                globalMode === "ADMIN" ? "bg-primary text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+                                globalMode === "ADMIN" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
                             )}
                             onClick={() => {
                                 if (globalMode !== "ADMIN") {
@@ -105,7 +105,7 @@ export const ModeToggle = () => {
                             size="sm"
                             className={cn(
                                 "h-8 text-[11px] font-bold gap-1.5 rounded-md transition-all",
-                                globalMode === "USER" ? "bg-primary text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+                                globalMode === "USER" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
                             )}
                             onClick={() => {
                                 if (globalMode !== "USER") {
@@ -121,13 +121,13 @@ export const ModeToggle = () => {
                 )}
 
                 {isOrgManager && (
-                    <div className="grid grid-cols-2 gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm mt-1">
+                    <div className="grid grid-cols-2 gap-1 bg-card p-1 rounded-lg border border-border shadow-sm mt-1">
                         <Button
                             variant="ghost"
                             size="sm"
                             className={cn(
                                 "h-8 text-[11px] font-bold gap-1.5 rounded-md transition-all",
-                                orgMode === "MANAGEMENT" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+                                orgMode === "MANAGEMENT" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
                             )}
                             onClick={() => {
                                 if (orgMode !== "MANAGEMENT") {
@@ -144,7 +144,7 @@ export const ModeToggle = () => {
                             size="sm"
                             className={cn(
                                 "h-8 text-[11px] font-bold gap-1.5 rounded-md transition-all",
-                                orgMode === "OFFICER" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+                                orgMode === "OFFICER" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
                             )}
                             onClick={() => {
                                 if (orgMode !== "OFFICER") {

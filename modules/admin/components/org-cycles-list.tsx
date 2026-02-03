@@ -47,25 +47,25 @@ type CyclesQueryResult = {
 const StatusBadge = ({ status }: { status: CycleItem["status"] }) => {
     switch (status) {
         case "active":
-            return <Badge className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100 shadow-none font-bold text-[9px] uppercase tracking-wider">Active</Badge>;
+            return <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Active</Badge>;
         case "deleted":
-            return <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 shadow-none font-bold text-[9px] uppercase tracking-wider">Deleted</Badge>;
+            return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Deleted</Badge>;
         default:
-            return <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none shadow-none font-bold text-[9px] uppercase tracking-wider">Past</Badge>;
+            return <Badge variant="secondary" className="bg-muted text-muted-foreground border-none shadow-none font-bold text-[9px] uppercase tracking-wider">Past</Badge>;
     }
 };
 
-const MetricRow = ({ icon: Icon, value, label, valueColor = "text-slate-900" }: { icon: any, value: string | number, label: string, valueColor?: string }) => (
+const MetricRow = ({ icon: Icon, value, label, valueColor = "text-foreground" }: { icon: any, value: string | number, label: string, valueColor?: string }) => (
     <div className="flex items-center gap-1.5">
-        <Icon className="h-3 w-3 text-slate-400" />
+        <Icon className="h-3 w-3 text-muted-foreground/50" />
         <span className={`text-sm font-bold ${valueColor}`}>{value}</span>
-        <span className="text-[10px] text-slate-400 font-normal lowercase">{label}</span>
+        <span className="text-[10px] text-muted-foreground font-normal lowercase">{label}</span>
     </div>
 );
 
 const GroupRowActions = ({ cycle, prefix, isAdmin, isManagement, orgId }: { cycle: CycleItem, prefix: string, isAdmin?: boolean, isManagement?: boolean, orgId: string }) => (
     <div className="col-span-1 text-right flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-primary hover:bg-primary/5" asChild>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground/50 hover:text-primary hover:bg-primary/5" asChild>
             <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                 <Eye className="h-3.5 w-3.5" />
             </Link>
@@ -172,19 +172,19 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
     // Let's implement grouping as the primary view for this component now since it's cleaner.
 
     return (
-        <div className="flex flex-col h-full bg-slate-50/30">
-            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/50 pb-4 pt-4 px-4 sm:px-6">
+        <div className="flex flex-col h-full bg-background">
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 pb-4 pt-4 px-4 sm:px-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-center max-w-7xl mx-auto w-full">
                     <div className="relative flex-1 w-full max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search by farmer, officer or cycle..."
-                            className="pl-10 h-9 sm:h-10 bg-slate-100/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-slate-400 text-xs sm:text-sm"
+                            className="pl-10 h-9 sm:h-10 bg-muted/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-xs sm:text-sm"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center bg-slate-200/50 p-1 rounded-xl w-fit gap-x-2">
+                    <div className="flex items-center bg-muted p-1 rounded-xl w-fit gap-x-2">
                         <Button
                             onClick={() => setViewMode("group")}
                             variant={viewMode === "group" ? "default" : "outline"}
@@ -209,41 +209,41 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                 {isPending ? (
                     <div className="flex flex-col items-center justify-center p-20 gap-3">
                         <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
-                        <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Updating Data...</span>
+                        <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase">Updating Data...</span>
                     </div>
                 ) : cycles.length === 0 ? (
-                    <div className="text-center p-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm">
-                        <div className="bg-slate-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Search className="h-5 w-5 text-slate-300" />
+                    <div className="text-center p-12 text-muted-foreground bg-card rounded-2xl border border-dashed border-border shadow-sm">
+                        <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Search className="h-5 w-5 text-muted-foreground/30" />
                         </div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-1">No cycles found</h3>
+                        <h3 className="text-sm font-bold text-foreground mb-1">No cycles found</h3>
                         <p className="text-xs">{search ? "Try adjusting your search terms." : "There are currently no production cycles to display."}</p>
                     </div>
                 ) : viewMode === "group" ? (
                     <div className="space-y-6">
                         {sortedGroups.map((group) => (
-                            <div key={group.farmerId} className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] overflow-hidden transition-all hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08)]">
-                                <div className="px-6 py-4 bg-slate-50/30 border-b border-slate-100 flex justify-between items-center">
+                            <div key={group.farmerId} className="bg-card rounded-2xl border border-border shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] overflow-hidden transition-all hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08)]">
+                                <div className="px-6 py-4 bg-muted/30 border-b border-border/50 flex justify-between items-center">
                                     <div className="flex flex-col">
                                         <Link
                                             href={isAdmin ? `/admin/organizations/${orgId}/farmers/${group.farmerId}` : (isManagement ? `/management/farmers/${group.farmerId}` : `/farmers/${group.farmerId}`)}
-                                            className="font-bold text-slate-900 hover:text-primary transition-colors flex items-center group/title"
+                                            className="font-bold text-foreground hover:text-primary transition-colors flex items-center group/title"
                                         >
                                             {group.farmerName}
-                                            <span className="mx-2 text-slate-300 font-light opacity-50">|</span>
-                                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-tight bg-indigo-50 px-2.5 py-1 rounded-lg">
+                                            <span className="mx-2 text-muted-foreground/30 font-light opacity-50">|</span>
+                                            <span className="text-[10px] font-bold text-primary uppercase tracking-tight bg-primary/10 px-2.5 py-1 rounded-lg">
                                                 {group.cycles.length} Cycle{group.cycles.length !== 1 ? 's' : ''}
                                             </span>
                                         </Link>
                                         {group.cycles[0]?.officerName && (
-                                            <span className="text-[10px] font-medium text-slate-400 mt-1">
+                                            <span className="text-[10px] font-medium text-muted-foreground/70 mt-1">
                                                 Managed by {group.cycles[0].officerName}
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                <div className="divide-y divide-slate-50">
-                                    <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-2.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/10">
+                                <div className="divide-y divide-border/50">
+                                    <div className="hidden md:grid grid-cols-10 gap-4 px-6 py-2.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/10">
                                         <div className="col-span-2">Growth</div>
                                         <div className="col-span-3">Status & Health</div>
                                         <div className="col-span-2">Consumption</div>
@@ -264,7 +264,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                             <StatusBadge status={cycle.status} />
                                                         </div>
                                                         {cycle.mortality > 0 && (
-                                                            <div className="flex items-center gap-1.5 text-[10px] text-red-500 font-bold bg-red-50/50 w-fit px-2 py-0.5 rounded-full border border-red-100/30">
+                                                            <div className="flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/10 w-fit px-2 py-0.5 rounded-full border border-destructive/20">
                                                                 <Skull className="h-3 w-3" />
                                                                 {cycle.mortality} deaths
                                                             </div>
@@ -272,11 +272,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                     </div>
                                                 </div>
                                                 <div className="col-span-2">
-                                                    <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(2)} label="bags" valueColor="text-amber-700" />
+                                                    <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(2)} label="bags" valueColor="text-primary" />
                                                 </div>
                                                 <div className="col-span-2">
-                                                    <div className="text-[11px] font-medium text-slate-500 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                    <div className="text-[11px] font-medium text-muted-foreground/70 flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-border" />
                                                         {format(new Date(cycle.createdAt), "MMM d, yyyy")}
                                                     </div>
                                                 </div>
@@ -297,16 +297,16 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                         <div className="hidden md:block">
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
+                                <TableHeader className="bg-muted/50">
                                     <TableRow className="hover:bg-transparent border-none">
-                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-400 py-4 h-auto">Farmer</TableHead>
-                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-400 py-4 h-auto">Status</TableHead>
-                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-400 py-4 h-auto text-center">Age</TableHead>
-                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-400 py-4 h-auto">Stocks & Health</TableHead>
-                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-400 py-4 h-auto text-right">Started</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 h-auto">Farmer</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 h-auto">Status</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 h-auto text-center">Age</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 h-auto">Stocks & Health</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 h-auto text-right">Started</TableHead>
                                         <TableHead className="w-[80px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -344,22 +344,22 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-4">
                                                         <MetricRow icon={Bird} value={cycle.doc.toLocaleString()} label="birds" />
-                                                        <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-amber-700" />
+                                                        <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
                                                     </div>
                                                     {cycle.mortality > 0 && (
-                                                        <div className="flex items-center gap-1.5 text-[9px] text-red-500 font-bold bg-red-50/30 w-fit px-1.5 py-0.5 rounded-full border border-red-100/20">
+                                                        <div className="flex items-center gap-1.5 text-[9px] text-destructive font-bold bg-destructive/10 w-fit px-1.5 py-0.5 rounded-full border border-destructive/20">
                                                             <Skull className="h-2.5 w-2.5" />
                                                             {cycle.mortality} deaths
                                                         </div>
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right text-[11px] font-medium text-slate-400">
+                                            <TableCell className="text-right text-[11px] font-medium text-muted-foreground/60">
                                                 {format(new Date(cycle.createdAt), "MMM d, y") === format(new Date(), "MMM d, y") ? "Today" : format(new Date(cycle.createdAt), "MMM d, y")}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center justify-end gap-1 opacity-10 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5" asChild>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5" asChild>
                                                         <Link href={isAdmin ? `/admin/organizations/${orgId}/cycles/${cycle.id}` : (isManagement ? `/management/cycles/${cycle.id}` : `/cycles/${cycle.id}`)}>
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
@@ -376,7 +376,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                 </TableBody>
                             </Table>
                         </div>
-                        <div className="md:hidden divide-y divide-slate-100">
+                        <div className="md:hidden divide-y divide-border/30">
                             {cycles.map((cycle) => (
                                 <MobileCycleCard
                                     key={cycle.id}
@@ -391,10 +391,10 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
             </div>
 
             {data && data.totalPages > 1 && (
-                <div className="sticky bottom-0 z-30 bg-white/80 backdrop-blur-md border-t border-slate-200/50 py-4 px-4 sm:px-6">
+                <div className="sticky bottom-0 z-30 bg-background/80 backdrop-blur-md border-t border-border/50 py-4 px-4 sm:px-6">
                     <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
-                        <p className="text-xs font-medium text-slate-500">
-                            Page <span className="text-slate-900">{page}</span> of <span className="text-slate-900">{data.totalPages}</span>
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Page <span className="text-foreground font-bold">{page}</span> of <span className="text-foreground font-bold">{data.totalPages}</span>
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
@@ -405,7 +405,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 disabled={page === 1}
-                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-slate-100"
+                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-muted"
                             >
                                 <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Previous
                             </Button>
@@ -417,7 +417,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 disabled={page === data.totalPages}
-                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-slate-100"
+                                className="h-7 sm:h-8 text-[10px] sm:text-xs font-bold hover:bg-muted"
                             >
                                 Next <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1" />
                             </Button>

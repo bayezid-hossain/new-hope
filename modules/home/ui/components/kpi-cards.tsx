@@ -1,5 +1,8 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Activity, AlertTriangle, Bird, Layers } from "lucide-react";
 
 interface KpiCardsProps {
@@ -13,66 +16,84 @@ interface KpiCardsProps {
 }
 
 export const KpiCards = ({ totalBirds, totalFeedStock, activeConsumption, availableStock, lowStockCount, avgMortality, activeCyclesCount }: KpiCardsProps) => {
+    const items = [
+        {
+            label: "Active Birds",
+            value: totalBirds.toLocaleString(),
+            icon: Bird,
+            color: "text-emerald-500",
+            bg: "bg-emerald-500/10",
+            description: `Across ${activeCyclesCount} active cycles`
+        },
+        {
+            label: "Feed Inventory",
+            value: `${availableStock.toFixed(1)} Bags`,
+            icon: Layers,
+            color: "text-amber-500",
+            bg: "bg-amber-500/10",
+            subValue: `+${activeConsumption.toFixed(1)} active`,
+            description: `Total: ${totalFeedStock.toFixed(1)}`
+        },
+        {
+            label: "Avg. Mortality",
+            value: `${avgMortality}%`,
+            icon: Activity,
+            color: "text-violet-500",
+            bg: "bg-violet-500/10",
+            description: "Active average"
+        },
+        {
+            label: "Low Stock",
+            value: lowStockCount,
+            icon: AlertTriangle,
+            color: lowStockCount > 0 ? "text-destructive" : "text-muted-foreground",
+            bg: lowStockCount > 0 ? "bg-destructive/10" : "bg-muted/50",
+            description: "Immediate alerts",
+            isAlert: lowStockCount > 0
+        }
+    ];
+
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                    <CardTitle className="text-[10px] xs:text-sm font-medium">Active Birds</CardTitle>
-                    <Bird className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-lg xs:text-2xl font-bold">{totalBirds.toLocaleString()}</div>
-                    <p className="text-[9px] xs:text-xs text-muted-foreground">
-                        Across {activeCyclesCount} active cycles
-                    </p>
-                </CardContent>
-            </Card>
+        <div className="grid gap-4 xs:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {items.map((item, i) => (
+                <Card key={i} className={cn(
+                    "relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group rounded-2xl md:rounded-[2rem]",
+                    item.isAlert && "border-destructive/20 bg-destructive/5"
+                )}>
+                    <div className={cn(
+                        "absolute top-0 left-0 w-1 h-full opacity-20 group-hover:opacity-100 transition-opacity",
+                        item.isAlert ? "bg-destructive" : item.color.replace("text-", "bg-")
+                    )} />
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                    <CardTitle className="text-[10px] xs:text-sm font-medium">Feed Inventory</CardTitle>
-                    <Layers className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-lg xs:text-2xl font-bold">{availableStock.toFixed(2)} <span className="text-[10px] xs:text-sm font-normal text-muted-foreground">bags</span></div>
-                    <div className="mt-1 xs:mt-2 text-[9px] xs:text-xs space-y-0.5 xs:space-y-1">
-                        <div className="flex justify-between text-amber-600/80">
-                            <span>Active:</span>
-                            <span className="font-medium">+{activeConsumption.toFixed(2)}</span>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-5 md:p-6">
+                        <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">{item.label}</span>
+                        <div className={cn(
+                            "p-2.5 rounded-xl md:rounded-2xl ring-1 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm",
+                            item.bg,
+                            item.isAlert ? "ring-destructive/20" : "ring-border/50"
+                        )}>
+                            <item.icon className={cn("h-4 w-4 md:h-5 md:w-5", item.color)} />
                         </div>
-                        <div className="flex justify-between text-muted-foreground pt-0.5 xs:pt-1 border-t border-dashed">
-                            <span>Total:</span>
-                            <span className="font-medium text-slate-500">{totalFeedStock.toFixed(2)}</span>
+                    </CardHeader>
+
+                    <CardContent className="px-5 md:px-6 pb-5 md:pb-6">
+                        <div className={cn(
+                            "text-2xl md:text-3xl font-black tracking-tighter text-foreground group-hover:translate-x-1 transition-transform",
+                            item.isAlert && "text-destructive"
+                        )}>
+                            {item.value || 0}
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                    <CardTitle className="text-[10px] xs:text-sm font-medium">Avg. Mortality</CardTitle>
-                    <Activity className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-lg xs:text-2xl font-bold">{avgMortality}%</div>
-                    <p className="text-[9px] xs:text-xs text-muted-foreground">
-                        Active average
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card className={lowStockCount > 0 ? "border-red-200 bg-red-50" : ""}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                    <CardTitle className="text-[10px] xs:text-sm font-medium">Low Stock</CardTitle>
-                    <AlertTriangle className={`h-3 w-3 xs:h-4 xs:w-4 ${lowStockCount > 0 ? "text-red-500" : "text-muted-foreground"}`} />
-                </CardHeader>
-                <CardContent>
-                    <div className={`text-lg xs:text-2xl font-bold ${lowStockCount > 0 ? "text-red-600" : ""}`}>{lowStockCount}</div>
-                    <p className={`text-[9px] xs:text-xs ${lowStockCount > 0 ? "text-red-600/80" : "text-muted-foreground"}`}>
-                        Alerts
-                    </p>
-                </CardContent>
-            </Card>
+                        <div className="mt-2 flex items-center justify-between gap-1">
+                            <p className="text-[10px] md:text-xs text-muted-foreground/50 font-bold uppercase tracking-widest truncate">{item.description}</p>
+                            {item.subValue && (
+                                <span className="text-[10px] font-black text-amber-500/80 bg-amber-500/5 px-2 py-0.5 rounded-full border border-amber-500/10 whitespace-nowrap">
+                                    {item.subValue}
+                                </span>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
     );
 };

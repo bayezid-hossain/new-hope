@@ -59,7 +59,7 @@ export const NotificationsView = () => {
     if (!isLoading && !canSeeNotifications) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-center h-[50vh]">
-                <ShieldAlert className="h-12 w-12 text-red-500 mb-4" />
+                <ShieldAlert className="h-12 w-12 text-destructive mb-4" />
                 <h3 className="text-xl font-bold">Access Denied</h3>
                 <p className="text-muted-foreground mt-2 max-w-md">
                     Notifications are only available for Administrators and Managers.
@@ -114,13 +114,13 @@ export const NotificationsView = () => {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search notifications..."
-                        className="pl-9 bg-white"
+                        className="pl-9 bg-background"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
 
-                <div className="bg-white rounded-lg border shadow-sm">
+                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     {isLoading ? (
                         <div className="flex items-center justify-center p-12 text-muted-foreground">
                             <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading notifications...
@@ -131,7 +131,7 @@ export const NotificationsView = () => {
                             {search && <Button variant="link" onClick={() => setSearch("")} className="mt-2">Clear search</Button>}
                         </div>
                     ) : (
-                        <div className="divide-y">
+                        <div className="divide-y divide-border/50">
                             {allItems.map((item: any) => (
                                 <NotificationItem
                                     key={item.id}
@@ -150,7 +150,7 @@ export const NotificationsView = () => {
                     )}
 
                     {hasNextPage && (
-                        <div className="p-4 border-t bg-slate-50 flex justify-center sticky bottom-0">
+                        <div className="p-4 border-t bg-muted/50 flex justify-center sticky bottom-0 backdrop-blur-sm">
                             <Button
                                 variant="outline"
                                 onClick={() => fetchNextPage()}

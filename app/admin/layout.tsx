@@ -31,11 +31,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     return (
         <SidebarProvider>
             <AdminSidebar />
-            <main className="flex flex-col min-h-screen w-full bg-slate-50/50">
-                <header className="flex h-14 items-center gap-4 border-b bg-white px-4 shrink-0">
-                    <SidebarTrigger className="text-slate-500 hover:text-slate-900 transition-colors" />
-                    <div className="h-4 w-[1px] bg-slate-200" />
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">System Administration</span>
+            <main className="flex flex-col min-h-screen w-full bg-background">
+                <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/50 bg-background/80 backdrop-blur-md px-6 shrink-0">
+                    <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
+                    <div className="h-4 w-[1px] bg-border/60" />
+                    <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">System Administration</span>
                     <div className="ml-auto flex items-center gap-2">
                         <NotificationCenter />
                     </div>

@@ -405,6 +405,12 @@ export const managementFarmersRouter = createTRPCRouter({
             });
 
             if (!oldFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (oldFarmer.status === "deleted") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot modify security money for an archived farmer profile."
+                });
+            }
 
             const oldAmount = oldFarmer.securityMoney || "0";
 

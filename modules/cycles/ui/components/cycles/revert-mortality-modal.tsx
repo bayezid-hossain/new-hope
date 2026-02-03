@@ -38,7 +38,7 @@ export const RevertMortalityModal = ({ logId, amount, note }: RevertMortalityMod
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-slate-300 hover:text-red-600 hover:bg-red-50 ml-auto"
+                className="h-6 w-6 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 ml-auto transition-colors"
                 onClick={() => setOpen(true)}
                 title="Revert Change"
             >
@@ -52,13 +52,13 @@ export const RevertMortalityModal = ({ logId, amount, note }: RevertMortalityMod
                 description="This will undo the mortality entry and creating a correction log."
             >
                 <div className="space-y-4 py-4">
-                    <div className="rounded-md bg-slate-50 p-3 text-sm border border-slate-100">
-                        <p className="font-medium text-slate-700">Entry to Revert:</p>
-                        <div className="flex justify-between mt-1 text-slate-600">
+                    <div className="rounded-md bg-muted/30 p-3 text-sm border border-border/50">
+                        <p className="font-medium text-foreground">Entry to Revert:</p>
+                        <div className="flex justify-between mt-1 text-muted-foreground font-medium">
                             <span>Mortality</span>
-                            <span className="font-mono font-bold text-red-600">-{amount} Birds</span>
+                            <span className="font-mono font-bold text-destructive">-{amount} Birds</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 italic">{note || "No note"}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1 italic">{note || "No note"}</p>
                     </div>
 
                     <div className="flex justify-end gap-2 pt-2">

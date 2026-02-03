@@ -130,7 +130,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
   // Sidebar color classes based on mode
   const sidebarModeStyles = {
     officer: "", // Default styling
-    management: "[&_[data-slot=sidebar-inner]]:bg-gradient-to-b [&_[data-slot=sidebar-inner]]:from-blue-900 [&_[data-slot=sidebar-inner]]:to-blue-950 [&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-blue-900 [&_[data-sidebar=sidebar]]:to-blue-950",
+    management: "[&_[data-slot=sidebar-inner]]:bg-gradient-to-b [&_[data-slot=sidebar-inner]]:from-sidebar-management-from [&_[data-slot=sidebar-inner]]:to-sidebar-management-to [&_[data-sidebar=sidebar]]:bg-gradient-to-b [&_[data-sidebar=sidebar]]:from-sidebar-management-from [&_[data-sidebar=sidebar]]:to-sidebar-management-to",
   };
 
 
@@ -158,7 +158,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
       </SidebarHeader>
 
       <div className="px-4 py-2">
-        <Separator className="opacity-10 text-[#5D6B68]" />
+        <Separator className="opacity-10" />
       </div>
 
       <SidebarContent>
@@ -178,9 +178,9 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                        "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                         pathname === item.href &&
-                        "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                        "bg-sidebar-accent border-border/10"
                       )}
                       isActive={pathname === item.href}
                     >
@@ -204,7 +204,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
         {(showManagementLinks || showAdminLinks) && (
           <>
             <div className="px-4 py-2">
-              <Separator className="opacity-10 text-[#5D6B68]" />
+              <Separator className="opacity-10" />
             </div>
             <SidebarGroup>
               <SidebarGroupContent>
@@ -247,7 +247,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
         )}
 
         <div className="px-4 py-2">
-          <Separator className="opacity-10 text-[#5D6B68]" />
+          <Separator className="opacity-10" />
         </div>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -257,9 +257,9 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                   <SidebarMenuButton
                     asChild
                     className={cn(
-                      "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                      "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                       pathname === item.href &&
-                      "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                      "bg-sidebar-accent border-border/10"
                     )}
                     isActive={pathname === item.href}
                   >
@@ -279,7 +279,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="text-white">
+      <SidebarFooter>
         <DashboardUserButton />
       </SidebarFooter>
     </Sidebar>

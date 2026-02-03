@@ -186,7 +186,7 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                        className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20 cursor-pointer"
                         onClick={() => setShowDeleteModal(true)}
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -250,7 +250,7 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
             cell: ({ row }) => (
                 <Link
                     href={`${prefix}/farmers/${row.original.farmerId}`}
-                    className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors underline decoration-slate-200"
+                    className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-foreground hover:underline hover:text-primary transition-colors underline decoration-border"
                 >
                     {row.getValue("name")}
                 </Link>
@@ -285,7 +285,7 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
                 return (
                     <div className={cn(
                         "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-sm font-medium",
-                        mortality > 0 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"
+                        mortality > 0 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-muted text-muted-foreground"
                     )}>
                         {mortality > 0 ? '-' : ""}{mortality}
                     </div>
@@ -347,7 +347,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                 return (
                     <div className={cn("flex items-center gap-2", isCurrent && "bg-primary/5 p-1 rounded-md border border-primary/20")}>
                         <Link
-                            className={cn("p-2 sm:p-4 text-xs sm:text-sm font-medium transition-colors hover:underline hover:text-primary underline decoration-slate-200", (isActive || isCurrent) ? "text-primary font-bold" : "text-foreground")}
+                            className={cn("p-2 sm:p-4 text-xs sm:text-sm font-medium transition-colors hover:underline hover:text-primary underline decoration-border", (isActive || isCurrent) ? "text-primary font-bold" : "text-foreground")}
                             href={`${prefix}/farmers/${row.original.farmerId}`}
                         >
                             {row.original.cycleName}
@@ -363,7 +363,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                             </Badge>
                         )}
                         {row.original.status === "deleted" && (
-                            <Badge variant="destructive" className="h-5 px-2 text-[10px] uppercase tracking-wider bg-red-50 text-red-600 border-red-100">
+                            <Badge variant="destructive" className="h-5 px-2 text-[10px] uppercase tracking-wider bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800">
                                 Deleted by Officer
                             </Badge>
                         )}
@@ -410,7 +410,7 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
             cell: ({ row }) => {
                 // @ts-ignore
                 const val = parseFloat(row.getValue("intake") || row.original.finalIntake || "0");
-                return <div className="text-right font-mono text-xs sm:text-sm font-medium text-slate-600">{val.toFixed(2)}</div>;
+                return <div className="text-right font-mono text-xs sm:text-sm font-medium text-muted-foreground">{val.toFixed(2)}</div>;
             },
         },
         {
@@ -438,10 +438,10 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                 const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: '2-digit' };
 
                 return (
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                         <CalendarDays className="size-4 opacity-30" />
                         <div className="flex flex-col">
-                            <span className="font-medium leading-none text-slate-800">{diffDays} {diffDays > 1 ? "days" : "day"}</span>
+                            <span className="font-medium leading-none text-foreground">{diffDays} {diffDays > 1 ? "days" : "day"}</span>
                             <span className="mt-1 text-[9px] uppercase tracking-wide opacity-70">
                                 {start.toLocaleDateString('en-US', options)} - {end.toLocaleDateString('en-US', options)}
                             </span>

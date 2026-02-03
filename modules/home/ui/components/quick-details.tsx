@@ -20,57 +20,61 @@ interface QuickDetailsProps {
 
 export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
     return (
-        <Card className="col-span-1 md:col-span-2 lg:col-span-3">
-            <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="col-span-1 md:col-span-2 lg:col-span-3 border-border/50 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between pb-6">
                 <div className="space-y-1">
-                    <CardTitle className="text-sm xs:text-base">Recent Activity</CardTitle>
-                    <CardDescription className="text-[10px] xs:text-xs">
-                        Latest active cycles overview
+                    <CardTitle className="text-sm font-black uppercase tracking-tight">Recent Activity</CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                        Operational Overview
                     </CardDescription>
                 </div>
-                <Button asChild size="sm" className="ml-auto gap-1 h-7 text-[10px] xs:h-8 xs:text-xs">
+                <Button asChild size="sm" variant="secondary" className="h-9 px-4 font-black uppercase text-[10px] tracking-widest rounded-xl bg-background border-border/50 hover:bg-primary hover:text-white transition-all shadow-sm">
                     <Link href="/cycles">
-                        View <ArrowUpRight className="h-3 w-3 xs:h-4 xs:w-4" />
+                        View All <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
                     </Link>
                 </Button>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow className="text-[10px] xs:text-xs">
-                            <TableHead className="px-1 xs:px-4">Farmer</TableHead>
-                            <TableHead className="px-1 xs:px-4 text-center">Bags</TableHead>
-                            <TableHead className="px-1 xs:px-4 text-right">Age</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {cycles.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                                    No active cycles found.
-                                </TableCell>
+                <div className="rounded-2xl border border-border/50 overflow-hidden">
+                    <Table>
+                        <TableHeader className="bg-muted/30">
+                            <TableRow className="border-border/50 hover:bg-transparent">
+                                <TableHead className="px-4 py-3 font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Farmer</TableHead>
+                                <TableHead className="px-4 py-3 text-center font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Metrics</TableHead>
+                                <TableHead className="px-4 py-3 text-right font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Age</TableHead>
                             </TableRow>
-                        ) : (
-                            cycles.slice(0, 5).map((cycle) => (
-                                <TableRow key={cycle.id} className="text-[10px] xs:text-xs">
-                                    <TableCell className="px-1 xs:px-4">
-                                        <div className="font-bold">{cycle.farmerName}</div>
-                                        <div className="text-[9px] text-muted-foreground xs:text-xs">
-                                            {cycle.name}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="px-1 xs:px-4 text-center">
-                                        <div className="font-semibold text-amber-700">{cycle.intake.toFixed(1)}</div>
-                                        <div className="text-[9px] text-slate-400 xs:text-[10px]">/{cycle.farmerMainStock.toFixed(0)}</div>
-                                    </TableCell>
-                                    <TableCell className="px-1 xs:px-4 text-right whitespace-nowrap">
-                                        {cycle.age}d
+                        </TableHeader>
+                        <TableBody>
+                            {cycles.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="h-24 text-center">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">No active cycles found.</p>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                cycles.slice(0, 5).map((cycle) => (
+                                    <TableRow key={cycle.id} className="border-border/50 group/row hover:bg-muted/30 transition-colors">
+                                        <TableCell className="px-4 py-4">
+                                            <div className="font-black text-xs uppercase tracking-tight group-hover/row:text-primary transition-colors">{cycle.farmerName}</div>
+                                            <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
+                                                {cycle.name}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-4 py-4 text-center">
+                                            <div className="font-black text-sm text-amber-500">{cycle.intake.toFixed(0)}</div>
+                                            <div className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">/{cycle.farmerMainStock.toFixed(0)} BAGS</div>
+                                        </TableCell>
+                                        <TableCell className="px-4 py-4 text-right">
+                                            <span className="inline-flex items-center justify-center bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[10px] font-black">
+                                                {cycle.age}D
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     );

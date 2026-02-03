@@ -62,9 +62,9 @@ export const FarmerNavigation = ({ currentFarmerId, currentOfficerId, orgId, pre
     if (suggestions.length === 0) return null;
 
     return (
-        <Card className="border-none shadow-sm bg-white overflow-hidden mt-8">
+        <Card className="border border-border/50 shadow-sm bg-card overflow-hidden mt-8">
             <CardHeader className="pb-2 px-6">
-                <CardTitle className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     {heading}
                 </CardTitle>
@@ -76,19 +76,18 @@ export const FarmerNavigation = ({ currentFarmerId, currentOfficerId, orgId, pre
                             <Link
                                 key={farmer.id}
                                 href={`${prefix}/farmers/${farmer.id}`}
-                                className="flex flex-col gap-1 w-[140px] md:w-auto p-3 rounded-xl border bg-slate-50/50 hover:bg-primary/5 hover:border-primary/20 transition-all group"
+                                className="flex flex-col gap-1 w-[140px] md:w-auto p-3 rounded-xl border border-border/50 bg-muted/30 hover:bg-primary/5 hover:border-primary/20 transition-all group"
                             >
-                                <div className="h-8 w-8 rounded-full bg-white border shadow-sm flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                    <span className="font-bold text-xs text-slate-600 group-hover:text-primary">
+                                <div className="h-8 w-8 rounded-full bg-card border border-border/50 shadow-sm flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                                    <span className="font-bold text-xs text-muted-foreground group-hover:text-primary">
                                         {farmer.name.charAt(0).toUpperCase()}
                                     </span>
                                 </div>
-                                <span className="font-bold text-sm text-slate-900 truncate group-hover:text-primary">
+                                <span className="font-bold text-sm text-foreground truncate group-hover:text-primary">
                                     {farmer.name}
                                 </span>
                                 <div className="flex items-center text-[10px] text-muted-foreground">
-
-                                    <span className={farmer.activeCyclesCount > 0 ? "text-emerald-600 font-medium" : ""}>
+                                    <span className={farmer.activeCyclesCount > 0 ? "text-emerald-500 font-medium" : ""}>
                                         {farmer.activeCyclesCount} Active Cycle{farmer.activeCyclesCount !== 1 ? 's' : ''}
                                     </span>
                                 </div>
@@ -97,12 +96,12 @@ export const FarmerNavigation = ({ currentFarmerId, currentOfficerId, orgId, pre
                         <div className="md:hidden">
                             <Link
                                 href={`${prefix}/farmers`}
-                                className="flex flex-col items-center justify-center gap-1 w-[100px] p-3 rounded-xl border border-dashed bg-transparent hover:bg-slate-50 transition-all group"
+                                className="flex flex-col items-center justify-center gap-1 w-[100px] p-3 rounded-xl border border-dashed border-border/50 bg-transparent hover:bg-muted/30 transition-all group"
                             >
-                                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center mb-1 group-hover:bg-white transition-colors">
-                                    <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center mb-1 group-hover:bg-card transition-colors">
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
                                 </div>
-                                <span className="font-bold text-xs text-slate-400 group-hover:text-slate-600">
+                                <span className="font-bold text-xs text-muted-foreground group-hover:text-foreground">
                                     View All
                                 </span>
                             </Link>

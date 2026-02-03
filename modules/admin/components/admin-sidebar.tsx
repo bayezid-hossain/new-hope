@@ -67,7 +67,7 @@ const AdminSidebar = () => {
             </SidebarHeader>
 
             <div className="px-4 py-2">
-                <Separator className="opacity-10 text-[#5D6B68]" />
+                <Separator className="opacity-10" />
             </div>
 
             <SidebarContent>
@@ -82,9 +82,9 @@ const AdminSidebar = () => {
                                     <SidebarMenuButton
                                         asChild
                                         className={cn(
-                                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                            "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                                             pathname === item.href &&
-                                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                            "bg-sidebar-accent border-border/10"
                                         )}
                                         isActive={pathname === item.href}
                                     >
@@ -136,8 +136,8 @@ const AdminSidebar = () => {
                         return (
                             <>
                                 <div className="px-4 py-2">
-                                    <Separator className="opacity-10 text-[#5D6B68]" />
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-4 mb-2">
+                                    <Separator className="opacity-10" />
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-4 mb-2">
                                         Organization Management
                                     </p>
                                 </div>
@@ -149,9 +149,9 @@ const AdminSidebar = () => {
                                                     <SidebarMenuButton
                                                         asChild
                                                         className={cn(
-                                                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                                            "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                                                             pathname === item.href &&
-                                                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                                            "bg-sidebar-accent border-border/10"
                                                         )}
                                                         isActive={pathname === item.href}
                                                     >
