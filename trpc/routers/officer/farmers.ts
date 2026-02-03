@@ -1,8 +1,53 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, member, stockLogs } from "@/db/schema";
-import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
+import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
+
+// Helper function for benchmark calculations
+type CycleHistoryRow = {
+    doc: number;
+    mortality: number;
+    finalIntake: number;
+    age: number;
+};
+
+function calculateCycleStats(history: CycleHistoryRow[]) {
+    if (history.length === 0) {
+        return {
+            mortalityRate: 0,
+            fcr: 0,
+            cycleCount: 0,
+            totalDoc: 0,
+            totalMortality: 0,
+            totalIntake: 0,
+            avgAge: 0
+        };
+    }
+
+    const totalDoc = history.reduce((sum, h) => sum + h.doc, 0);
+    const totalMortality = history.reduce((sum, h) => sum + h.mortality, 0);
+    const totalIntake = history.reduce((sum, h) => sum + h.finalIntake, 0);
+    const totalAge = history.reduce((sum, h) => sum + h.age, 0);
+    const liveBirds = totalDoc - totalMortality;
+
+    // Mortality rate as percentage
+    const mortalityRate = totalDoc > 0 ? (totalMortality / totalDoc) * 100 : 0;
+
+    // FCR = Total Feed / Live Birds (approximation - ideally would include weight)
+    // Lower FCR = better efficiency
+    const fcr = liveBirds > 0 ? totalIntake / liveBirds : 0;
+
+    return {
+        mortalityRate: Math.round(mortalityRate * 100) / 100,
+        fcr: Math.round(fcr * 1000) / 1000,
+        cycleCount: history.length,
+        totalDoc,
+        totalMortality,
+        totalIntake: Math.round(totalIntake * 100) / 100,
+        avgAge: Math.round(totalAge / history.length)
+    };
+}
 
 export const officerFarmersRouter = createTRPCRouter({
     // DASHBOARD: "Warehouse View" / List for Officer
@@ -502,5 +547,74 @@ export const officerFarmersRouter = createTRPCRouter({
 
                 return updated;
             });
+        }),
+
+    // PRO FEATURE: Performance Benchmarking
+    getBenchmark: proProcedure
+        .input(z.object({
+            farmerId: z.string(),
+            orgId: z.string()
+        }))
+        .query(async ({ ctx, input }) => {
+            const { farmerId, orgId } = input;
+
+            // 1. Get farmer's completed cycles (from history)
+            const farmerHistory = await ctx.db.query.cycleHistory.findMany({
+                where: and(
+                    eq(cycleHistory.farmerId, farmerId),
+                    eq(cycleHistory.organizationId, orgId),
+                    ne(cycleHistory.status, "deleted")
+                )
+            });
+
+            // 2. Get all org's completed cycles for comparison
+            const orgHistory = await ctx.db.query.cycleHistory.findMany({
+                where: and(
+                    eq(cycleHistory.organizationId, orgId),
+                    ne(cycleHistory.status, "deleted")
+                )
+            });
+
+            // Calculate farmer's metrics
+            const farmerStats = calculateCycleStats(farmerHistory);
+            const orgStats = calculateCycleStats(orgHistory);
+
+            // Calculate performance score (0-100)
+            // Lower mortality = better, Lower FCR = better
+            let score = 50; // baseline
+
+            if (farmerStats.cycleCount > 0 && orgStats.cycleCount > 0) {
+                // Mortality comparison: +25 if better than avg, -25 if worse
+                if (orgStats.mortalityRate > 0) {
+                    const mortalityDiff = (orgStats.mortalityRate - farmerStats.mortalityRate) / orgStats.mortalityRate;
+                    score += Math.max(-25, Math.min(25, mortalityDiff * 50));
+                }
+
+                // FCR comparison: +25 if better than avg, -25 if worse
+                if (orgStats.fcr > 0) {
+                    const fcrDiff = (orgStats.fcr - farmerStats.fcr) / orgStats.fcr;
+                    score += Math.max(-25, Math.min(25, fcrDiff * 50));
+                }
+            }
+
+            return {
+                farmer: {
+                    mortalityRate: farmerStats.mortalityRate,
+                    fcr: farmerStats.fcr,
+                    totalCycles: farmerStats.cycleCount,
+                    totalBirds: farmerStats.totalDoc,
+                    totalMortality: farmerStats.totalMortality,
+                    totalFeed: farmerStats.totalIntake,
+                    avgAge: farmerStats.avgAge
+                },
+                organization: {
+                    mortalityRate: orgStats.mortalityRate,
+                    fcr: orgStats.fcr,
+                    totalCycles: orgStats.cycleCount,
+                    avgAge: orgStats.avgAge
+                },
+                score: Math.round(Math.max(0, Math.min(100, score))),
+                hasEnoughData: farmerStats.cycleCount >= 1
+            };
         }),
 });
