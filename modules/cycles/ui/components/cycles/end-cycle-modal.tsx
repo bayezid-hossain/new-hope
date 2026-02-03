@@ -69,9 +69,12 @@ export const EndCycleModal = ({
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
 
-        const isOnCyclesPage = pathname.endsWith("/cycles");
+        const isCycleDetailsPage =
+          pathname === `/cycles/${cycleId}` ||
+          pathname === `/management/cycles/${cycleId}` ||
+          (pathname.includes(`/cycles/`) && pathname.endsWith(cycleId));
 
-        if (!isOnCyclesPage) {
+        if (isCycleDetailsPage) {
           showLoading("Going back to cycles...")
           if (prefix?.includes("/admin")) {
             router.push(`/admin/organizations/${orgId}/cycles`);
