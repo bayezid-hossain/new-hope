@@ -430,6 +430,22 @@ export const managementFarmersRouter = createTRPCRouter({
                     reason: input.reason
                 });
 
+                // NOTIFICATION: Security Money Updated
+                if (updated) {
+                    try {
+                        const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                        await NotificationService.sendToOrgManagers({
+                            organizationId: input.orgId,
+                            title: "Security Money Updated",
+                            message: `Manager ${ctx.user.name} updated security money for farmer "${updated.name}" from ${oldAmount} to ${input.amount}`,
+                            type: "INFO",
+                            link: `/management/farmers/${updated.id}`
+                        });
+                    } catch (e) {
+                        console.error("Failed to send security money update notification", e);
+                    }
+                }
+
                 return updated;
             });
         }),
