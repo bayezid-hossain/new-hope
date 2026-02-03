@@ -145,7 +145,7 @@ export default function MainStockPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Farmer</TableHead>
-                  <TableHead>Cycles (Live/Total)</TableHead>
+                  <TableHead>Cycles (Live/Past)</TableHead>
                   <TableHead className="w-[250px]">Stock Overview</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -181,7 +181,7 @@ export default function MainStockPage() {
                       <TableCell>
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider">
-                            <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.activeCyclesCount + row.pastCyclesCount} Live
+                            <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.pastCyclesCount}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {row.activeCycles.map((c: any) => (

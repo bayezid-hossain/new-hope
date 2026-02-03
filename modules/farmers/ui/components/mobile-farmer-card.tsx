@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowRight, Trash2, Wheat, Wrench } from "lucide-react";
+import { ArrowRight, Bird, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { memo, useRef } from "react";
 
@@ -45,50 +45,61 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             {/* Header: Name, Status, Officer */}
             <div className="flex justify-between items-start mb-2">
                 <div className="space-y-0.5">
-                    <Link
-                        href={detailLink}
-                        className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {farmer.name}
-                    </Link>
-                    {onEdit && (
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onEdit();
-                            }}
-                            className="p-1 xs:p-1 sm:p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-primary transition-colors inline-flex"
+                    <div className="flex flex-wrap items-center gap-1.5 xs:gap-2">
+                        <Link
+                            href={detailLink}
+                            className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base leading-none"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <Wrench className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
-                        </button>
-                    )}
-                    {onDelete && (
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onDelete();
-                            }}
-                            className="p-1 xs:p-1 sm:p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors inline-flex"
-                        >
-                            <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
-                        </button>
-                    )}
+                            {farmer.name}
+                        </Link>
+                        {onEdit && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onEdit();
+                                }}
+                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-primary transition-colors inline-flex"
+                            >
+                                <Wrench className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
+                            </button>
+                        )}
+                        {onDelete && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onDelete();
+                                }}
+                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors inline-flex"
+                            >
+                                <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
+                            </button>
+                        )}
+                        {farmer.status === "deleted" ? (
+                            <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">DELETED</Badge>
+                        ) : farmer.activeCyclesCount > 0 ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">ACTIVE</Badge>
+
+                        ) : (
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">IDLE</Badge>
+                        )}
+                    </div>
+
                     {farmer.officerName && (
                         <p className="text-[10px] text-slate-400 font-medium">
                             Officer: <span className="text-slate-600">{farmer.officerName}</span>
                         </p>
                     )}
                 </div>
-                {farmer.status === "deleted" ? (
-                    <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5">DELETED</Badge>
-                ) : farmer.activeCyclesCount > 0 ? (
-                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5">ACTIVE</Badge>
-                ) : (
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5">IDLE</Badge>
-                )}
+
+
+                <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider">
+                    <Bird className="h-3 w-3" /> {farmer.activeCyclesCount} / {farmer.pastCyclesCount}
+
+                </div>
+
             </div>
 
             {/* Metrics: Stock & Consumption (Emphasized) */}

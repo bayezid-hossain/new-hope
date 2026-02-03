@@ -1,4 +1,4 @@
-import { cycles, farmer, farmerSecurityMoneyLogs, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
@@ -35,10 +35,12 @@ export const officerFarmersRouter = createTRPCRouter({
                         where: eq(cycles.status, "active"),
                         orderBy: [desc(cycles.createdAt)]
                     },
-                    history: true
+                    history: {
+                        where: ne(cycleHistory.status, "deleted")
+                    }
                 }
             });
-
+            // console.log(farmersData)
             const [total] = await ctx.db.select({ count: sql<number>`count(*)` })
                 .from(farmer)
                 .where(and(
@@ -107,7 +109,9 @@ export const officerFarmersRouter = createTRPCRouter({
                 orderBy: orderBy,
                 with: {
                     cycles: { where: eq(cycles.status, 'active') },
-                    history: true
+                    history: {
+                        where: ne(cycleHistory.status, "deleted")
+                    }
                 }
             });
 
