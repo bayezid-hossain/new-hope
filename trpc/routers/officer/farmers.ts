@@ -1,4 +1,4 @@
-import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
@@ -14,16 +14,16 @@ export const officerFarmersRouter = createTRPCRouter({
             pageSize: z.number().default(10),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
-            officerId: z.string().optional(), // Allow filtering by specific officer (for Admin actions)
+            officerId: z.string().optional(), // REMOVED: Strict security enforcement
         }))
         .query(async ({ ctx, input }) => {
-            const { orgId, search, page, pageSize, officerId } = input;
+            const { orgId, search, page, pageSize } = input;
 
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, orgId),
-                    // Use provided officerId or fallback to current user
-                    eq(farmer.officerId, officerId || ctx.user.id),
+                    // STRICT SECURITY: Only show farmers owned by this officer
+                    eq(farmer.officerId, ctx.user.id),
                     eq(farmer.status, "active"),
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
@@ -139,6 +139,24 @@ export const officerFarmersRouter = createTRPCRouter({
             initialStock: z.number().min(0).max(1000, "Initial stock cannot exceed 1000 bags")
         }))
         .mutation(async ({ ctx, input }) => {
+            // SECURITY CHECK: Verify user is a member of the organization
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, input.orgId),
+                        eq(member.status, "ACTIVE")
+                    )
+                });
+
+                if (!membership) {
+                    throw new TRPCError({
+                        code: "FORBIDDEN",
+                        message: "You are not a member of this organization."
+                    });
+                }
+            }
+
             const existing = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
