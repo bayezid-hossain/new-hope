@@ -97,16 +97,15 @@ export function SecurityMoneyHistoryModal({
                             ))}
                         </div>
 
-                        {/* Desktop View: Table */}
-                        <div className="hidden sm:block overflow-x-auto pb-4">
+                        <div className="hidden sm:block overflow-x-auto pb-4 scrollbar-thin">
                             <Table className="min-w-full">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Changed By</TableHead>
-                                        <TableHead className="text-right">Old</TableHead>
-                                        <TableHead className="text-right">New</TableHead>
-                                        <TableHead>Reason</TableHead>
+                                <TableHeader className="bg-muted/50 sticky top-0 z-10 backdrop-blur-md border-b border-border/50">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="font-bold text-foreground/70 uppercase tracking-wider text-[10px] py-3">Date</TableHead>
+                                        <TableHead className="font-bold text-foreground/70 uppercase tracking-wider text-[10px] py-3">Changed By</TableHead>
+                                        <TableHead className="font-bold text-foreground/70 uppercase tracking-wider text-[10px] py-3 text-right">Old</TableHead>
+                                        <TableHead className="font-bold text-foreground/70 uppercase tracking-wider text-[10px] py-3 text-right">New</TableHead>
+                                        <TableHead className="font-bold text-foreground/70 uppercase tracking-wider text-[10px] py-3">Reason</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

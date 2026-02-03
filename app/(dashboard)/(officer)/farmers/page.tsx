@@ -97,10 +97,10 @@ export default function MainStockPage() {
           <p className="text-muted-foreground text-xs xs:text-sm">Centralized feed stock management.</p>
         </div>
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search farmers..."
-            className="pl-9 bg-white"
+            className="pl-9 bg-background"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -115,7 +115,7 @@ export default function MainStockPage() {
           >
             <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="secondary" className="border shadow-sm bg-white hover:bg-slate-50 text-emerald-600 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
+          <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
           </Button>
           <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
@@ -125,12 +125,12 @@ export default function MainStockPage() {
       </div>
 
       {(!data?.items || data.items.length === 0) ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed rounded-xl bg-slate-50/50">
-          <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-            <Wheat className="h-8 w-8 text-slate-300" />
+        <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed rounded-xl bg-muted/30">
+          <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Wheat className="h-8 w-8 text-muted-foreground/50" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">No Stock Inventory</h3>
-          <p className="text-slate-500 text-sm max-w-sm text-center mt-2 mb-6">
+          <h3 className="text-lg font-bold text-foreground">No Stock Inventory</h3>
+          <p className="text-muted-foreground text-sm max-w-sm text-center mt-2 mb-6">
             There are no farmers with stock records yet. Register a farmer to start tracking feed inventory.
           </p>
           <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
@@ -140,7 +140,7 @@ export default function MainStockPage() {
       ) : (
         <>
           {/* Main Data Table - Desktop */}
-          <div className="hidden sm:block border rounded-md bg-white shadow-sm overflow-hidden">
+          <div className="hidden sm:block border rounded-md bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -166,7 +166,7 @@ export default function MainStockPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -180,12 +180,12 @@ export default function MainStockPage() {
 
                       <TableCell>
                         <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-[10px] uppercase tracking-wider">
                             <Bird className="h-3 w-3" /> {row.activeCyclesCount} / {row.pastCyclesCount}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {row.activeCycles.map((c: any) => (
-                              <Badge key={c.id} variant="secondary" className="text-[9px] font-normal border-gray-200 py-0 h-4">
+                              <Badge key={c.id} variant="secondary" className="text-[9px] font-normal border-border py-0 h-4">
                                 Age: {c.age}d
                               </Badge>
                             ))}
@@ -197,13 +197,13 @@ export default function MainStockPage() {
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`font-bold text-sm ${effectiveRemaining < 3 ? "text-red-600" : "text-slate-900"}`}>
+                            <span className={`font-bold text-sm ${effectiveRemaining < 3 ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>
                               {effectiveRemaining.toFixed(2)} <span className="text-[10px] font-normal text-muted-foreground">current</span>
                             </span>
                           </div>
                           <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                            <span className="text-amber-600/90">+ {activeConsumption.toFixed(2)} consumption in active cycles</span>
-                            <span className="text-slate-400">Total Prov: {mainStock.toFixed(2)}</span>
+                            <span className="text-amber-600 dark:text-amber-400">+ {activeConsumption.toFixed(2)} consumption in active cycles</span>
+                            <span className="text-muted-foreground">Total Prov: {mainStock.toFixed(2)}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -235,7 +235,7 @@ export default function MainStockPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                             onClick={() => handleDelete(row.id, row.name)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -262,7 +262,7 @@ export default function MainStockPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
+                      className="h-8 text-xs font-semibold rounded-lg border-border text-muted-foreground"
                       onClick={() => setTransferModal({
                         open: true,
                         data: {
@@ -278,7 +278,7 @@ export default function MainStockPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs font-semibold rounded-lg border-slate-200 text-slate-600"
+                      className="h-8 text-xs font-semibold rounded-lg border-border text-muted-foreground"
                       onClick={() => setFeedModal({ open: true, farmerId: row.id })}
                     >
                       <Wheat className="h-3.5 w-3.5 mr-2" /> Restock

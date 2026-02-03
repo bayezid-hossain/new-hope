@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, CheckCircle2, Clock, Loader2, Lock, Package, Sparkles, Truck } from "lucide-react";
@@ -103,49 +104,56 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
     };
 
     return (
-        <Card className={`shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/20 relative overflow-hidden ${isCompact ? "col-span-1" : "w-full"}`}>
-            <div className="absolute top-0 right-0 p-3 opacity-5">
-                <Truck className="h-24 w-24 text-indigo-900" />
+        <Card className={cn(
+            "shadow-sm relative overflow-hidden border-border/50 transition-all duration-500",
+            "bg-gradient-to-br from-card via-card to-primary/5 dark:to-primary/10",
+            isCompact ? "col-span-1" : "w-full"
+        )}>
+            <div className="absolute top-0 right-0 p-3 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
+                <Truck className="h-24 w-24 text-primary" />
             </div>
 
-            <CardHeader className="pb-2 border-b border-indigo-100/50">
+            <CardHeader className="pb-2 border-b border-border/50">
                 <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-indigo-900 text-sm font-bold uppercase tracking-wider">
-                        <Package className="h-4 w-4 text-indigo-600" />
+                    <div className="flex items-center gap-2 text-primary text-[11px] font-black uppercase tracking-[0.1em]">
+                        <Package className="h-3.5 w-3.5" />
                         Supply Chain Predictor
                     </div>
-                    {isPending && <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />}
+                    {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
                 </CardTitle>
             </CardHeader>
 
             <CardContent className="pt-4 h-[250px] relative">
                 {!isPro ? (
-                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 space-y-3">
-                        <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-2">
+                    <div className="absolute inset-0 z-10 bg-background/40 dark:bg-background/60 backdrop-blur-[6px] flex flex-col items-center justify-center text-center p-4 space-y-3">
+                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-2 shadow-inner">
                             <Lock className="h-6 w-6" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900">Pro Feature Locked</h3>
-                            <p className="text-xs text-slate-500 max-w-[200px] mx-auto mt-1">
-                                Pro-exclusive supply chain predictions are available for Pro officers only.
+                            <h3 className="text-sm font-bold text-foreground">PRO FEATURES LOCKED</h3>
+                            <p className="text-[11px] text-muted-foreground max-w-[200px] mx-auto mt-1 leading-relaxed">
+                                Advanced supply chain forecasting and AI route optimization requires a Pro plan.
                             </p>
                         </div>
                         <Button
                             size="sm"
                             onClick={handleRequestAccess}
                             disabled={requestAccessMutation.isPending || hasRequested || isLoadingStatus || isApprovedInDb}
-                            className={`w-full max-w-[200px] shadow-sm text-xs h-8 ${hasRequested ? "bg-slate-100 text-slate-500 hover:bg-slate-200" :
-                                "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                }`}
+                            className={cn(
+                                "w-full max-w-[200px] shadow-sm text-xs font-bold h-9 rounded-xl transition-all",
+                                hasRequested
+                                    ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 active:scale-95"
+                            )}
                         >
                             {requestAccessMutation.isPending || isLoadingStatus ? (
-                                <Loader2 className="animate-spin h-3 w-3 mr-2" />
+                                <Loader2 className="animate-spin h-3.5 w-3.5 mr-2" />
                             ) : isApprovedInDb ? (
-                                <CheckCircle2 className="h-3 w-3 mr-2" />
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
                             ) : hasRequested ? (
-                                <Clock className="h-3 w-3 mr-2" />
+                                <Clock className="h-3.5 w-3.5 mr-2" />
                             ) : (
-                                <Sparkles className="h-3 w-3 mr-2" />
+                                <Sparkles className="h-3.5 w-3.5 mr-2" />
                             )}
                             {isLoadingStatus ? "Checking..." : isApprovedInDb ? "Approved (Refresh)" : hasRequested ? "Access Requested" : "Unlock with Pro"}
                         </Button>
@@ -154,18 +162,18 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
 
                 {isPending ? (
                     <div className="space-y-3">
-                        <div className="h-2 bg-indigo-50 rounded-full w-3/4 animate-pulse" />
-                        <div className="h-2 bg-indigo-50 rounded-full w-1/2 animate-pulse" />
+                        <div className="h-2 bg-primary/10 rounded-full w-3/4 animate-pulse" />
+                        <div className="h-2 bg-primary/10 rounded-full w-1/2 animate-pulse" />
                     </div>
                 ) : result?.status === "OK" ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
-                        <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-sm">
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/20">
                             <Truck className="h-6 w-6" />
                         </div>
                         <div>
-                            <p className="text-indigo-900 font-bold text-sm">Supply Chain Healthy</p>
-                            <p className="text-indigo-700/70 text-xs mt-1 px-4">
-                                No immediate stockout risks detected. All farmers have sufficient feed for at least 4 days.
+                            <p className="text-primary font-black text-[11px] uppercase tracking-[0.2em]">Logistics Healthy</p>
+                            <p className="text-muted-foreground text-[11px] mt-2 px-6 leading-relaxed font-medium">
+                                No immediate stockout risks detected. All monitored units have sufficient feed for current consumption.
                             </p>
                         </div>
                         <Button
@@ -173,7 +181,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                             size="sm"
                             onClick={() => predict({ orgId, officerId })}
                             disabled={isPending}
-                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 h-7 text-xs"
+                            className="text-primary hover:text-primary/90 hover:bg-primary/10 h-7 text-xs font-bold rounded-lg"
                         >
                             <Sparkles className="h-3 w-3 mr-1.5" />
                             Refresh Prediction
@@ -181,13 +189,13 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="flex items-start gap-2 bg-red-50 p-3 rounded-md border border-red-100">
-                            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2 bg-destructive/10 p-3 rounded-md border border-destructive/20">
+                            <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-xs font-bold text-red-900">
+                                <p className="text-xs font-bold text-destructive">
                                     {result?.predictions.length} Critical Stockouts Predicted
                                 </p>
-                                <p className="text-[10px] text-red-700 mt-1">
+                                <p className="text-[10px] text-destructive/80 mt-1">
                                     Action required immediately to prevent production gaps.
                                 </p>
                             </div>
@@ -196,23 +204,23 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                         <div className="space-y-3">
                             {result?.predictions.slice(0, 3).map((p, i) => (
                                 <div key={i} className="space-y-1">
-                                    <div className="flex justify-between text-xs font-medium text-slate-700">
+                                    <div className="flex justify-between text-xs font-medium">
                                         <span>{p.farmer}</span>
-                                        <span className={p.urgency === "CRITICAL" ? "text-red-600 font-bold" : "text-amber-600"}>
+                                        <span className={p.urgency === "CRITICAL" ? "text-destructive font-bold" : "text-amber-600"}>
                                             {p.daysRemaining} days left
                                         </span>
                                     </div>
-                                    <Progress value={Math.max(5, (parseFloat(p.daysRemaining) / 4) * 100)} className={`h-1.5 ${p.urgency === "CRITICAL" ? "bg-red-100" : "bg-amber-100"}`} />
+                                    <Progress value={Math.max(5, (parseFloat(p.daysRemaining) / 4) * 100)} className={`h-1.5 ${p.urgency === "CRITICAL" ? "bg-destructive/10" : "bg-amber-500/10"}`} />
                                 </div>
                             ))}
                         </div>
 
                         {result?.aiPlan && (
-                            <div className="bg-white/60 p-3 rounded border border-indigo-100 mt-2">
-                                <p className="text-[10px] uppercase font-bold text-indigo-400 mb-1 flex items-center gap-1">
-                                    <Truck className="h-3 w-3" /> AI Logistics Plan
+                            <div className="bg-muted/30 dark:bg-muted/20 p-3 rounded-xl border border-border/50 mt-2 backdrop-blur-sm">
+                                <p className="text-[10px] uppercase font-black text-primary/70 mb-1.5 flex items-center gap-1.5 tracking-wider">
+                                    <Sparkles className="h-3 w-3 text-primary" /> AI Logistics Insight
                                 </p>
-                                <p className="text-xs text-slate-600 italic leading-relaxed">
+                                <p className="text-[11px] text-muted-foreground italic leading-relaxed font-medium">
                                     "{result.aiPlan.instructions}"
                                 </p>
                             </div>
@@ -223,9 +231,9 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setShowDetails(true)}
-                                className="w-full text-indigo-600 text-xs h-7 hover:bg-indigo-50 hover:text-indigo-700"
+                                className="w-full text-primary text-[11px] font-black h-8 hover:bg-primary/10 hover:text-primary/90 uppercase tracking-wider rounded-xl transition-all"
                             >
-                                View Logistics Details <ArrowRight className="h-3 w-3 ml-1" />
+                                Logistics Intelligence <ArrowRight className="h-3 w-3 ml-2" />
                             </Button>
                         )}
                     </div>
@@ -234,21 +242,21 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
             </CardContent>
 
             <Dialog open={showDetails} onOpenChange={setShowDetails}>
-                <DialogContent className="w-[95vw] sm:max-w-[90vw] lg:max-w-4xl p-0 overflow-hidden border-none shadow-2xl bg-slate-50/80 backdrop-blur-xl premium-scrollbar">
+                <DialogContent className="w-[95vw] sm:max-w-[90vw] lg:max-w-4xl p-0 overflow-hidden border-border/50 shadow-2xl bg-card/95 backdrop-blur-2xl premium-scrollbar rounded-3xl">
                     {/* Premium Header */}
-                    <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-6 md:p-8 text-white relative">
+                    <div className="bg-gradient-to-br from-primary via-primary/95 to-primary/80 dark:from-sidebar-management-from dark:to-sidebar-management-to p-6 md:p-10 text-primary-foreground relative border-b border-border/10">
                         <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none hidden sm:block">
-                            <Truck className="h-40 w-40 rotate-12" />
+                            <Truck className="h-48 w-48 rotate-12" />
                         </div>
                         <DialogHeader>
-                            <DialogTitle className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3 text-white">
-                                <div className="h-10 w-10 md:h-12 md:w-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner">
-                                    <Truck className="h-6 w-6 md:h-7 md:w-7 text-white" />
+                            <DialogTitle className="text-2xl md:text-4xl font-black tracking-tighter flex items-center gap-4">
+                                <div className="h-12 w-12 md:h-14 md:w-14 bg-primary-foreground/20 backdrop-blur-xl rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-inner border border-primary-foreground/10">
+                                    <Truck className="h-7 w-7 md:h-8 md:w-8 text-primary-foreground" />
                                 </div>
-                                Supply Chain Analytics
+                                <span className="uppercase tracking-tighter">Supply Chain Intelligence</span>
                             </DialogTitle>
-                            <p className="text-indigo-100 text-xs md:text-sm mt-2 max-w-xl font-medium leading-relaxed">
-                                Real-time stockout risk assessment and logistics optimization based on current bird age, mortality rates, and recent feed consumption trends.
+                            <p className="text-primary-foreground/70 text-xs md:text-sm mt-4 max-w-2xl font-bold leading-relaxed uppercase tracking-wide">
+                                Real-time predictive analytics: Mapping stockout risks through feed burn rates and bird age metrics.
                             </p>
                         </DialogHeader>
                     </div>
@@ -257,117 +265,117 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                         <div className="p-4 md:p-8 space-y-6 md:space-y-8">
                             {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-red-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
-                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-red-50 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
-                                    <p className="text-[10px] md:text-[11px] font-black text-red-500 uppercase tracking-widest mb-2 md:mb-3">Critical Risks</p>
+                                <div className="bg-card p-5 md:p-6 rounded-2xl md:rounded-3xl border border-destructive/20 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-destructive/10 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
+                                    <p className="text-[10px] md:text-[11px] font-black text-destructive uppercase tracking-widest mb-2 md:mb-3">Critical Risks</p>
                                     <div className="flex items-baseline gap-2">
-                                        <p className="text-3xl md:text-4xl font-black text-slate-900 leading-none">
+                                        <p className="text-3xl md:text-4xl font-black leading-none">
                                             {result?.predictions.filter(p => p.urgency === "CRITICAL").length || 0}
                                         </p>
-                                        <span className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-tight">Immediate</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground font-bold uppercase tracking-tight">Immediate</span>
                                     </div>
-                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-red-700 font-bold bg-red-50/50 py-1.5 px-3 rounded-full w-fit">
+                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-destructive font-bold bg-destructive/10 py-1.5 px-3 rounded-full w-fit">
                                         <AlertCircle className="h-3.5 w-3.5" /> Data Refresh: Just now
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-amber-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
-                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-amber-50 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
+                                <div className="bg-card p-5 md:p-6 rounded-2xl md:rounded-3xl border border-amber-500/20 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-amber-500/10 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
                                     <p className="text-[10px] md:text-[11px] font-black text-amber-500 uppercase tracking-widest mb-2 md:mb-3">High Alert</p>
                                     <div className="flex items-baseline gap-2">
-                                        <p className="text-3xl md:text-4xl font-black text-slate-900 leading-none">
+                                        <p className="text-3xl md:text-4xl font-black leading-none">
                                             {result?.predictions.filter(p => p.urgency === "HIGH").length || 0}
                                         </p>
-                                        <span className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-tight">Warning</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground font-bold uppercase tracking-tight">Warning</span>
                                     </div>
-                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-amber-700 font-bold bg-amber-50/50 py-1.5 px-3 rounded-full w-fit">
+                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-amber-600 font-bold bg-amber-500/10 py-1.5 px-3 rounded-full w-fit">
                                         <Clock className="h-3.5 w-3.5" /> &lt; 4 Days Left
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-indigo-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
-                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
-                                    <p className="text-[10px] md:text-[11px] font-black text-indigo-500 uppercase tracking-widest mb-2 md:mb-3">Total Exposure</p>
+                                <div className="bg-card p-5 md:p-6 rounded-2xl md:rounded-3xl border border-primary/20 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                                    <div className="absolute top-0 right-0 w-20 md:w-24 h-20 md:h-24 bg-primary/10 rounded-bl-full -mr-8 -mt-8 opacity-40 transition-transform group-hover:scale-110" />
+                                    <p className="text-[10px] md:text-[11px] font-black text-primary uppercase tracking-widest mb-2 md:mb-3">Total Exposure</p>
                                     <div className="flex items-baseline gap-2">
-                                        <p className="text-3xl md:text-4xl font-black text-slate-900 leading-none">
+                                        <p className="text-3xl md:text-4xl font-black leading-none">
                                             {result?.predictions.length || 0}
                                         </p>
-                                        <span className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-tight">Active</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground font-bold uppercase tracking-tight">Active</span>
                                     </div>
-                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-indigo-700 font-bold bg-indigo-50/50 py-1.5 px-3 rounded-full w-fit">
+                                    <div className="mt-3 md:mt-4 flex items-center gap-2 text-[10px] md:text-[11px] text-primary font-bold bg-primary/10 py-1.5 px-3 rounded-full w-fit">
                                         <Package className="h-3.5 w-3.5" /> Unit Capacity: OK
                                     </div>
                                 </div>
                             </div>
 
                             {/* Detailed Stock Table */}
-                            <div className="bg-white rounded-2xl md:rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/20 overflow-hidden">
-                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                                    <h4 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                            <div className="bg-card rounded-2xl md:rounded-[2rem] border border-border/50 shadow-xl overflow-hidden">
+                                <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
+                                    <h4 className="font-black text-lg flex items-center gap-2">
                                         Vulnerable Farmers
-                                        <Badge className="bg-indigo-100 text-indigo-700 border-none font-black text-[10px] px-2 h-5">
+                                        <Badge className="bg-primary/20 text-primary border-none font-black text-[10px] px-2 h-5">
                                             {result?.predictions.length || 0}
                                         </Badge>
                                     </h4>
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold uppercase tracking-wider">
-                                        <Sparkles className="h-3.5 w-3.5 text-indigo-400" /> AI Insights Active
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                                        <Sparkles className="h-3.5 w-3.5 text-primary/70" /> AI Insights Active
                                     </div>
                                 </div>
                                 {/* Desktop Table View */}
                                 <div className="hidden md:block overflow-x-auto premium-scrollbar pb-2">
                                     <Table className="min-w-[700px] md:min-w-full">
-                                        <TableHeader className="bg-slate-50/50 border-b border-slate-100">
+                                        <TableHeader className="bg-muted/10 border-b border-border/50">
                                             <TableRow className="hover:bg-transparent border-none">
-                                                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-[0.1em] py-5 px-4 md:px-8">Farmer Entry</TableHead>
-                                                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-[0.1em] py-5">Current Stock</TableHead>
-                                                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-[0.1em] py-5 text-right">Daily Burn</TableHead>
-                                                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-[0.1em] py-5 text-right">Est. Survival</TableHead>
-                                                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-[0.1em] py-5 text-center px-4 md:px-8">Status</TableHead>
+                                                <TableHead className="font-black text-[10px] md:text-[11px] uppercase text-muted-foreground tracking-[0.2em] py-6 px-4 md:px-8">Farmer Entry</TableHead>
+                                                <TableHead className="font-black text-[10px] md:text-[11px] uppercase text-muted-foreground tracking-[0.2em] py-6">Current Stock</TableHead>
+                                                <TableHead className="font-black text-[10px] md:text-[11px] uppercase text-muted-foreground tracking-[0.2em] py-6 text-right">Daily Burn</TableHead>
+                                                <TableHead className="font-black text-[10px] md:text-[11px] uppercase text-muted-foreground tracking-[0.2em] py-6 text-right">Est. Survival</TableHead>
+                                                <TableHead className="font-black text-[10px] md:text-[11px] uppercase text-muted-foreground tracking-[0.2em] py-6 text-center px-4 md:px-8">Status</TableHead>
                                             </TableRow>
                                         </TableHeader>
-                                        <TableBody className="divide-y divide-slate-50">
+                                        <TableBody className="divide-y divide-border/30">
                                             {result?.predictions.map((p, i) => (
                                                 <TableRow
                                                     key={i}
-                                                    className="hover:bg-indigo-50/50 transition-all duration-300 group border-none cursor-pointer"
+                                                    className="hover:bg-primary/5 transition-all duration-300 group border-none cursor-pointer"
                                                     onClick={() => window.location.href = getFarmerLink(p.farmerId)}
                                                 >
                                                     <TableCell className="py-4 md:py-6 px-4 md:px-8">
                                                         <div className="flex flex-col">
-                                                            <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{p.farmer}</span>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
+                                                            <span className="font-black group-hover:text-primary transition-colors uppercase tracking-tight">{p.farmer}</span>
+                                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="py-6">
                                                         <div className="flex items-center gap-2">
-                                                            <div className={`p-2 rounded-xl ${p.stock <= 2 ? 'bg-red-50' : 'bg-slate-50'} group-hover:scale-105 transition-transform`}>
-                                                                <Package className={`h-4 w-4 ${p.stock <= 2 ? 'text-red-500' : 'text-slate-400'}`} />
+                                                            <div className={`p-2 rounded-xl ${p.stock <= 2 ? 'bg-destructive/10' : 'bg-muted'} group-hover:scale-105 transition-transform`}>
+                                                                <Package className={`h-4 w-4 ${p.stock <= 2 ? 'text-destructive' : 'text-muted-foreground'}`} />
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className={`text-lg font-black leading-none ${p.stock <= 2 ? 'text-red-600' : 'text-slate-900'}`}>
+                                                                <span className={`text-lg font-black leading-none ${p.stock <= 2 ? 'text-destructive' : ''}`}>
                                                                     {p.stock.toFixed(1)}
                                                                 </span>
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Bags Remaining</span>
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mt-1">Bags Remaining</span>
                                                             </div>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-6">
                                                         <div className="flex flex-col items-end">
-                                                            <span className="text-base font-black text-slate-800 leading-none">{p.burnRate}</span>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase mt-1">Units / Day</span>
+                                                            <span className="text-base font-black leading-none">{p.burnRate}</span>
+                                                            <span className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Units / Day</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-6">
                                                         <div className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl font-black text-sm shadow-sm border ${parseFloat(p.daysRemaining) < 1.5
-                                                            ? 'bg-red-50 text-red-600 border-red-100 shadow-red-100/50'
-                                                            : 'bg-amber-50 text-amber-600 border-amber-100 shadow-amber-100/50'
+                                                            ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20'
                                                             }`}>
                                                             {parseFloat(p.daysRemaining) === 0 ? "OUT" : `${p.daysRemaining}d`}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-center py-4 md:py-6 px-4 md:px-8">
                                                         <Badge className={`font-black text-[9px] uppercase tracking-[0.1em] px-3 py-1.5 rounded-full shadow-sm hover:scale-105 transition-transform border-none ${p.urgency === "CRITICAL"
-                                                            ? "bg-gradient-to-r from-red-500 to-rose-600 text-white"
+                                                            ? "bg-gradient-to-r from-destructive to-destructive/80 text-destructive-foreground"
                                                             : "bg-gradient-to-r from-amber-400 to-orange-500 text-white"
                                                             }`}>
                                                             {p.urgency}
@@ -381,20 +389,20 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                 </div>
 
                                 {/* Mobile Card View */}
-                                <div className="md:hidden divide-y divide-slate-100">
+                                <div className="md:hidden divide-y divide-border/30">
                                     {result?.predictions.map((p, i) => (
                                         <div
                                             key={i}
-                                            className="p-5 space-y-4 hover:bg-slate-50 transition-colors active:bg-slate-100 cursor-pointer"
+                                            className="p-5 space-y-4 hover:bg-muted/30 transition-colors active:bg-muted/50 cursor-pointer"
                                             onClick={() => window.location.href = getFarmerLink(p.farmerId)}
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex flex-col">
-                                                    <span className="font-black text-slate-900 text-base">{p.farmer}</span>
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
+                                                    <span className="font-black text-base">{p.farmer}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
                                                 </div>
                                                 <Badge className={`font-black text-[9px] uppercase tracking-[0.1em] px-2.5 py-1 rounded-full border-none ${p.urgency === "CRITICAL"
-                                                    ? "bg-gradient-to-r from-red-500 to-rose-600 text-white"
+                                                    ? "bg-gradient-to-r from-destructive to-destructive/80 text-destructive-foreground"
                                                     : "bg-gradient-to-r from-amber-400 to-orange-500 text-white"
                                                     }`}>
                                                     {p.urgency}
@@ -402,29 +410,29 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                                <div className="bg-muted/30 p-3 rounded-2xl border border-border">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <Package className={`h-3.5 w-3.5 ${p.stock <= 2 ? 'text-red-500' : 'text-slate-400'}`} />
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Stock</span>
+                                                        <Package className={`h-3.5 w-3.5 ${p.stock <= 2 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Stock</span>
                                                     </div>
-                                                    <p className={`text-lg font-black ${p.stock <= 2 ? 'text-red-600' : 'text-slate-900'}`}>
-                                                        {p.stock.toFixed(1)} <span className="text-[10px] font-bold text-slate-400">Bags</span>
+                                                    <p className={`text-lg font-black ${p.stock <= 2 ? 'text-destructive' : ''}`}>
+                                                        {p.stock.toFixed(1)} <span className="text-[10px] font-bold text-muted-foreground">Bags</span>
                                                     </p>
                                                 </div>
-                                                <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                                <div className="bg-muted/30 p-3 rounded-2xl border border-border">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Survival</span>
+                                                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Survival</span>
                                                     </div>
-                                                    <p className={`text-lg font-black ${parseFloat(p.daysRemaining) < 1.5 ? 'text-red-600' : 'text-amber-600'}`}>
+                                                    <p className={`text-lg font-black ${parseFloat(p.daysRemaining) < 1.5 ? 'text-destructive' : 'text-amber-600'}`}>
                                                         {parseFloat(p.daysRemaining) === 0 ? "OUT" : `${p.daysRemaining}d`}
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between text-[11px] bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                                                <span className="font-bold text-indigo-900/60 uppercase tracking-wider">Daily Burn Rate</span>
-                                                <span className="font-black text-indigo-900">{p.burnRate} Units / Day</span>
+                                            <div className="flex items-center justify-between text-[11px] bg-primary/5 p-3 rounded-xl border border-primary/10">
+                                                <span className="font-bold text-muted-foreground uppercase tracking-wider">Daily Burn Rate</span>
+                                                <span className="font-black text-primary">{p.burnRate} Units / Day</span>
                                             </div>
                                         </div>
                                     ))}

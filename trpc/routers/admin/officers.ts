@@ -57,6 +57,7 @@ export const adminOfficersRouter = createTRPCRouter({
             let stats = {
                 activeCycles: 0,
                 pastCycles: 0,
+                deletedCycles: 0,
                 activeDoc: 0,
                 activeIntake: 0,
                 activeMortality: 0,
@@ -100,9 +101,22 @@ export const adminOfficersRouter = createTRPCRouter({
                         )
                     );
 
+                const deletedBatch = await ctx.db.select({
+                    count: sql<number>`count(*)`
+                })
+                    .from(cycleHistory)
+                    .where(
+                        and(
+                            eq(cycleHistory.organizationId, input.orgId),
+                            inArray(cycleHistory.farmerId, allManagedIds),
+                            eq(cycleHistory.status, "deleted")
+                        )
+                    );
+
                 stats = {
                     activeCycles: Number(activeBatch[0]?.count || 0),
                     pastCycles: Number(pastBatch[0]?.count || 0),
+                    deletedCycles: Number(deletedBatch[0]?.count || 0),
                     activeDoc: Number(activeBatch[0]?.totalDoc || 0),
                     activeIntake: Number(activeBatch[0]?.totalIntake || 0),
                     activeMortality: Number(activeBatch[0]?.totalMortality || 0),
@@ -122,13 +136,11 @@ export const adminOfficersRouter = createTRPCRouter({
                 officer: membership.user,
                 role: membership.role,
                 stats,
-                farmers: managedFarmers
-                    .filter(f => f.status === "active")
-                    .map(f => ({
-                        ...f,
-                        activeCyclesCount: f.cycles.length,
-                        pastCyclesCount: f.history.length
-                    }))
+                farmers: managedFarmers.map(f => ({
+                    ...f,
+                    activeCyclesCount: f.cycles.length,
+                    pastCyclesCount: f.history.length
+                }))
             };
         }),
 

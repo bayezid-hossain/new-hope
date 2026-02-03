@@ -92,16 +92,16 @@ export const FarmersListView = () => {
                 </CardHeader>
                 <CardContent>
                     {/* Desktop View: Table */}
-                    <div className="hidden md:block rounded-md border text-slate-900 bg-white overflow-hidden shadow-sm">
+                    <div className="hidden md:block rounded-md border text-foreground bg-card overflow-hidden shadow-sm">
                         <div className="max-h-[600px] overflow-y-auto">
                             <Table>
-                                <TableHeader className="bg-slate-50/90 backdrop-blur sticky top-0 z-10 shadow-sm">
-                                    <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
-                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Farmer Name</TableHead>
-                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Status</TableHead>
-                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Cycles (Live/Total)</TableHead>
-                                        <TableHead className="h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Current Stock</TableHead>
-                                        <TableHead className="text-right h-9 sm:h-11 font-semibold text-slate-700 text-[10px] sm:text-[11px] px-4">Joined</TableHead>
+                                <TableHeader className="bg-muted/90 backdrop-blur sticky top-0 z-10 shadow-sm">
+                                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-foreground/80 text-[10px] sm:text-[11px] px-4">Farmer Name</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-foreground/80 text-[10px] sm:text-[11px] px-4">Status</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-foreground/80 text-[10px] sm:text-[11px] px-4">Cycles (Live/Total)</TableHead>
+                                        <TableHead className="h-9 sm:h-11 font-semibold text-foreground/80 text-[10px] sm:text-[11px] px-4">Current Stock</TableHead>
+                                        <TableHead className="text-right h-9 sm:h-11 font-semibold text-foreground/80 text-[10px] sm:text-[11px] px-4">Joined</TableHead>
                                         <TableHead className="w-[50px] h-9 sm:h-11 text-[10px] sm:text-[11px] px-4"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -115,15 +115,15 @@ export const FarmersListView = () => {
                                             </TableCell>
                                         </TableRow>
                                     ) : data?.items.map((farmer) => (
-                                        <TableRow key={farmer.id} className="group hover:bg-slate-50/50 transition-colors">
+                                        <TableRow key={farmer.id} className="group hover:bg-muted/30 transition-colors border-border/50">
                                             {/* Name & Phone */}
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="font-bold text-slate-900">{farmer.name}</div>
+                                                    <div className="font-bold text-foreground">{farmer.name}</div>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-6 w-6 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                        className="h-6 w-6 text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
                                                         onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
                                                     >
                                                         <Wrench className="h-3 w-3" />
@@ -134,18 +134,18 @@ export const FarmersListView = () => {
                                             {/* Status (derived logic) */}
                                             <TableCell className="px-4 py-3">
                                                 {farmer.activeCyclesCount > 0 ? (
-                                                    <Badge variant="default" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] bg-emerald-100 uppercase tracking-wider px-2 py-0.5">Active</Badge>
+                                                    <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Active</Badge>
                                                 ) : (
-                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-100 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Idle</Badge>
+                                                    <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted/80 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Idle</Badge>
                                                 )}
                                             </TableCell>
 
                                             {/* Active Cycles Count */}
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-1.5">
-                                                    <Bird className="h-4 w-4 text-emerald-500/70" />
-                                                    <span className="font-bold text-slate-900">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
-                                                    <span className="text-[10px] font-medium text-slate-400">Live / Total</span>
+                                                    <Bird className="h-4 w-4 text-primary/70" />
+                                                    <span className="font-bold text-foreground">{farmer.activeCyclesCount} / {farmer.activeCyclesCount + farmer.pastCyclesCount}</span>
+                                                    <span className="text-[10px] font-medium text-muted-foreground">Live / Total</span>
                                                 </div>
                                             </TableCell>
 
@@ -153,19 +153,19 @@ export const FarmersListView = () => {
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-1.5">
                                                     <Wheat className="h-4 w-4 text-amber-500/70" />
-                                                    <span className="font-bold text-slate-900 font-mono">{farmer.mainStock.toFixed(2)}</span>
-                                                    <span className="text-[10px] font-medium text-slate-400">bags</span>
+                                                    <span className="font-bold text-foreground font-mono">{farmer.mainStock.toFixed(2)}</span>
+                                                    <span className="text-[10px] font-medium text-muted-foreground">bags</span>
                                                 </div>
                                             </TableCell>
 
                                             {/* Joined Date */}
-                                            <TableCell className="text-right text-slate-500/80 font-medium text-[10px] sm:text-[11px] px-4 py-3">
+                                            <TableCell className="text-right text-muted-foreground font-medium text-[10px] sm:text-[11px] px-4 py-3">
                                                 {format(new Date(farmer.createdAt), "MMM d, yyyy")}
                                             </TableCell>
 
                                             {/* Action: Link to History View */}
                                             <TableCell>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-300 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors" asChild>
                                                     {/* Update this HREF to match your routing structure */}
                                                     <Link href={`/farmers/${farmer.id}`}>
                                                         <ArrowRight className="h-4 w-4" />
@@ -199,7 +199,7 @@ export const FarmersListView = () => {
                         ))}
 
                         {!isLoading && data?.items.length === 0 && (
-                            <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                            <div className="flex flex-col items-center justify-center p-12 bg-muted/30 rounded-3xl border-2 border-dashed border-border text-muted-foreground">
                                 <Search className="h-8 w-8 opacity-20 mb-2" />
                                 <p className="text-sm font-medium">No results for "{searchTerm}"</p>
                             </div>

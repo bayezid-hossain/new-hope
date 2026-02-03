@@ -37,8 +37,8 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             className={cn(
                 "transition-transform cursor-pointer active:scale-[0.98]",
                 variant === "elevated"
-                    ? "bg-white p-2 xs:p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-sm"
-                    : "p-2 xs:p-2.5 sm:p-3 space-y-1 sm:space-y-2 active:bg-slate-50 border-b border-slate-100 last:border-0",
+                    ? "bg-card p-2 xs:p-2.5 sm:p-3 rounded-xl border border-border shadow-sm"
+                    : "p-2 xs:p-2.5 sm:p-3 space-y-1 sm:space-y-2 active:bg-muted border-b border-border last:border-0",
                 className
             )}
         >
@@ -48,7 +48,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                     <div className="flex flex-wrap items-center gap-1.5 xs:gap-2">
                         <Link
                             href={detailLink}
-                            className="font-bold text-slate-900 hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base leading-none"
+                            className="font-bold text-foreground hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base leading-none"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {farmer.name}
@@ -60,7 +60,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                     e.stopPropagation();
                                     onEdit();
                                 }}
-                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-primary transition-colors inline-flex"
+                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors inline-flex"
                             >
                                 <Wrench className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
                             </button>
@@ -72,30 +72,30 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                     e.stopPropagation();
                                     onDelete();
                                 }}
-                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors inline-flex"
+                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors inline-flex"
                             >
                                 <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
                             </button>
                         )}
                         {farmer.status === "deleted" ? (
-                            <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">DELETED</Badge>
+                            <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">DELETED</Badge>
                         ) : farmer.activeCyclesCount > 0 ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">ACTIVE</Badge>
+                            <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">ACTIVE</Badge>
 
                         ) : (
-                            <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center">IDLE</Badge>
+                            <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">IDLE</Badge>
                         )}
                     </div>
 
                     {farmer.officerName && (
-                        <p className="text-[10px] text-slate-400 font-medium">
-                            Officer: <span className="text-slate-600">{farmer.officerName}</span>
+                        <p className="text-[10px] text-muted-foreground font-medium">
+                            Officer: <span className="text-foreground/80">{farmer.officerName}</span>
                         </p>
                     )}
                 </div>
 
 
-                <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-[10px] uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 font-bold text-primary text-[10px] uppercase tracking-wider">
                     <Bird className="h-3 w-3" /> {farmer.activeCyclesCount} / {farmer.pastCyclesCount}
 
                 </div>
@@ -103,30 +103,30 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             </div>
 
             {/* Metrics: Stock & Consumption (Emphasized) */}
-            <div className={cn("grid gap-1 xs:gap-2 sm:gap-3", farmer.status === "deleted" ? "grid-cols-1" : "grid-cols-3", variant === "elevated" ? "py-1 xs:py-1.5 sm:py-2 border-y border-slate-50" : "py-1")}>
+            <div className={cn("grid gap-1 xs:gap-2 sm:gap-3", farmer.status === "deleted" ? "grid-cols-1" : "grid-cols-3", variant === "elevated" ? "py-1 xs:py-1.5 sm:py-2 border-y border-border/50" : "py-1")}>
 
                 {/* Stock / Remaining */}
                 <div className={cn(
                     "flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg border",
-                    farmer.status === "deleted" ? "bg-slate-50 border-slate-200 items-center text-center" : "bg-emerald-50/50 border-emerald-100/50"
+                    farmer.status === "deleted" ? "bg-muted border-border items-center text-center" : "bg-primary/5 border-primary/20"
                 )}>
                     <span className={cn(
                         "text-[9px] xs:text-[10px] font-bold uppercase tracking-wider mb-0.5",
-                        farmer.status === "deleted" ? "text-slate-400" : "text-emerald-600/70"
+                        farmer.status === "deleted" ? "text-muted-foreground" : "text-primary/70"
                     )}>
                         {farmer.status === "deleted" ? "Remaining" : "Stock"}
                     </span>
                     <div className="flex items-baseline gap-1">
-                        <Wheat className={cn("h-4 w-4", farmer.status === "deleted" ? "text-slate-300" : (isLow ? "text-red-500" : "text-emerald-500"))} />
+                        <Wheat className={cn("h-4 w-4", farmer.status === "deleted" ? "text-muted-foreground/50" : (isLow ? "text-destructive" : "text-primary"))} />
                         <span className={cn(
                             "text-base xs:text-lg sm:text-xl font-black leading-none",
-                            farmer.status === "deleted" ? "text-slate-600" : (isLow ? "text-red-600" : "text-emerald-700")
+                            farmer.status === "deleted" ? "text-foreground/70" : (isLow ? "text-destructive" : "text-primary")
                         )}>
                             {remaining.toFixed(1)}
                         </span>
                         <span className={cn(
                             "text-[9px] xs:text-[10px] font-medium",
-                            farmer.status === "deleted" ? "text-slate-400" : "text-emerald-600/60"
+                            farmer.status === "deleted" ? "text-muted-foreground/60" : "text-primary/60"
                         )}>b</span>
                     </div>
                 </div>
@@ -134,23 +134,23 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                 {farmer.status !== "deleted" && (
                     <>
                         {/* Consumption / Used */}
-                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 text-center items-center">
-                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600/70 font-bold uppercase tracking-wider mb-0.5">Used</span>
+                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center items-center">
+                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600 font-bold uppercase tracking-wider mb-0.5">Used</span>
                             <div className="flex items-baseline gap-1 justify-end">
-                                <span className="text-base xs:text-lg sm:text-xl font-black text-amber-700 leading-none">
+                                <span className="text-base xs:text-lg sm:text-xl font-black text-amber-600 leading-none">
                                     {activeConsumption.toFixed(1)}
                                 </span>
                                 <span className="text-[9px] xs:text-[10px] font-medium text-amber-600/60">b</span>
                             </div>
                         </div>
                         {/* total stock */}
-                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-blue-500 border border-white text-right items-end shadow-sm">
-                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-white font-bold uppercase tracking-wider mb-0.5">Total</span>
+                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-primary border border-primary-foreground/10 text-right items-end shadow-sm">
+                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-primary-foreground font-bold uppercase tracking-wider mb-0.5">Total</span>
                             <div className="flex items-baseline gap-1 justify-end">
-                                <span className="text-base xs:text-lg sm:text-xl font-black text-white leading-none">
+                                <span className="text-base xs:text-lg sm:text-xl font-black text-primary-foreground leading-none">
                                     {mainStock.toFixed(1)}
                                 </span>
-                                <span className="text-[9px] xs:text-[10px] font-medium text-white">b</span>
+                                <span className="text-[9px] xs:text-[10px] font-medium text-primary-foreground">b</span>
                             </div>
                         </div>
                     </>
@@ -165,7 +165,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             )}
 
             {/* Footer: Date, Arrow */}
-            <div className={cn("flex justify-between items-center text-[10px] text-slate-400", actions ? "pt-2 border-t border-slate-50 mt-2" : "pt-2")}>
+            <div className={cn("flex justify-between items-center text-[10px] text-muted-foreground", actions ? "pt-2 border-t border-border mt-2" : "pt-2")}>
                 <span>
                     {farmer.status === "deleted"
                         ? `Archived ${farmer.deletedAt ? format(new Date(farmer.deletedAt), "MMM d, yyyy") : format(new Date(farmer.updatedAt), "MMM d, yyyy")}`

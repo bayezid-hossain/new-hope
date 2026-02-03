@@ -1,8 +1,8 @@
 "use client";
+import { cn } from "@/lib/utils";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTRPC } from "@/trpc/client";
@@ -55,62 +55,55 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
     return (
         <div className="space-y-8">
             {/* Header / Summary Section */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card className="col-span-1 shadow-sm border-slate-200">
-                    <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Officers</span>
-                        <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-violet-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalOfficers}</span>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-1 shadow-sm border-slate-200">
-                    <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Cycles</span>
-                        <div className="flex items-center gap-2">
-                            <Bird className="h-4 w-4 text-emerald-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalActiveCycles}</span>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-1 shadow-sm border-slate-200">
-                    <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Bird Capacity</span>
-                        <div className="flex items-center gap-2">
-                            <Bird className="h-4 w-4 text-blue-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalActiveBirds.toLocaleString()}</span>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-1 shadow-sm border-slate-200">
-                    <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Feed Usage</span>
-                        <div className="flex items-center gap-2">
-                            <Wheat className="h-4 w-4 text-amber-500" />
-                            <span className="text-2xl font-bold text-slate-900">{totalActiveFeed.toLocaleString()} <span className="text-xs font-normal text-slate-400">bags</span></span>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-2 lg:col-span-1 shadow-sm border-slate-200 bg-amber-50/50 border-amber-100">
-                    <CardContent className="p-4 flex flex-col gap-1">
-                        <span className="text-[10px] uppercase font-bold text-amber-600/70 tracking-wider">Total Main Stock</span>
-                        <div className="flex items-center gap-2">
-                            <Wheat className="h-4 w-4 text-amber-600" />
-                            <span className="text-2xl font-bold text-amber-800">{totalMainStock.toLocaleString()} <span className="text-xs font-normal text-amber-600/70">bags</span></span>
+            {/* Header / Summary Section */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
+                {[
+                    { label: "Total Officers", value: totalOfficers, icon: User, color: "text-primary", bg: "bg-card" },
+                    { label: "Active Cycles", value: totalActiveCycles, icon: Bird, color: "text-primary", bg: "bg-card" },
+                    { label: "Active Bird Capacity", value: totalActiveBirds.toLocaleString(), icon: Bird, color: "text-blue-500", bg: "bg-card" },
+                    { label: "Active Feed Usage", value: `${totalActiveFeed.toLocaleString()} bags`, icon: Wheat, color: "text-amber-500", bg: "bg-card" },
+                ].map((item, idx) => (
+                    <Card key={idx} className={cn("col-span-1 border-border/50 bg-card overflow-hidden relative group transition-all duration-300 hover:shadow-md")}>
+                        <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 group-hover:bg-primary transition-colors" />
+                        <CardContent className="p-5 flex flex-col gap-2">
+                            <span className="text-[10px] uppercase font-black text-muted-foreground/60 tracking-[0.15em]">{item.label}</span>
+                            <div className="flex items-center gap-3">
+                                <item.icon className={cn("h-4 w-4", item.color)} />
+                                <span className="text-2xl font-black text-foreground tracking-tighter">{item.value}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+
+                <Card className="col-span-2 lg:col-span-1 border-primary/20 bg-primary/5 dark:bg-primary/10 relative overflow-hidden group shadow-lg shadow-primary/5">
+                    <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none transition-transform group-hover:scale-110">
+                        <Wheat className="h-16 w-16 text-primary" />
+                    </div>
+                    <CardContent className="p-5 flex flex-col gap-2">
+                        <span className="text-[10px] uppercase font-black text-primary/70 tracking-[0.15em]">Main Feed Stock</span>
+                        <div className="flex items-center gap-3">
+                            <Wheat className="h-4 w-4 text-primary" />
+                            <span className="text-2xl font-black text-primary tracking-tighter">
+                                {totalMainStock.toLocaleString()} <span className="text-[10px] font-bold uppercase ml-1 opacity-70">bags</span>
+                            </span>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-900">Officer List</h2>
-                    <div className="relative w-full max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="space-y-6 pt-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div className="flex items-baseline gap-3">
+                        <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Personnel Directory</h2>
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[10px] h-5 px-2">
+                            {analytics?.length || 0} TOTAL
+                        </Badge>
+                    </div>
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/50" />
                         <Input
-                            placeholder="Search officers..."
-                            className="pl-9 h-9 text-sm"
+                            placeholder="Identify by name or email..."
+                            className="pl-11 h-12 bg-card border-border/50 shadow-sm focus-visible:ring-primary/20 transition-all rounded-2xl font-medium"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -118,80 +111,83 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                 </div>
 
                 {/* Desktop View */}
-                <div className="hidden md:block rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+                <div className="hidden md:block rounded-[2rem] border border-border/50 overflow-hidden bg-card shadow-xl shadow-foreground/5">
                     <Table>
-                        <TableHeader className="bg-slate-50/50">
-                            <TableRow>
-                                <TableHead className="font-semibold px-6 py-4 text-xs uppercase tracking-wider text-slate-500">Officer</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Farmers</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Cycles (Active/Past)</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Active DOC</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Main Stock</TableHead>
-                                <TableHead className="font-semibold text-xs uppercase tracking-wider text-slate-500">Active Feed</TableHead>
-                                <TableHead className="font-semibold px-6 text-xs uppercase tracking-wider text-slate-500">Active Mort.</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
+                        <TableHeader className="bg-muted/30 border-b border-border/50">
+                            <TableRow className="hover:bg-transparent border-none">
+                                <TableHead className="font-black px-8 py-6 text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Officer Personnel</TableHead>
+                                <TableHead className="font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Farmers</TableHead>
+                                <TableHead className="font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Cycles</TableHead>
+                                <TableHead className="font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Active Capacity</TableHead>
+                                <TableHead className="font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground text-right px-8">Operational Performance</TableHead>
+                                <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filtered?.map((officer) => (
                                 <TableRow
                                     key={officer.officerId}
-                                    className="hover:bg-slate-50/50 cursor-pointer transition-colors group"
+                                    className="hover:bg-muted/30 cursor-pointer transition-colors group border-border/10"
                                     onClick={() => window.location.href = isManagement ? `/management/officers/${officer.officerId}` : `/admin/organizations/${orgId}/officers/${officer.officerId}`}
                                 >
-                                    <TableCell className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                                    <TableCell className="px-8 py-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:rotate-6 transition-all duration-300 shadow-inner border border-border/50">
                                                 <User className="h-5 w-5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-slate-900 leading-tight">{officer.name}</span>
-                                                <Badge variant="secondary" className="w-fit mt-1 text-[9px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-none font-bold uppercase tracking-widest">{officer.role}</Badge>
+                                                <span className="font-black text-foreground tracking-tight text-base uppercase">{officer.name}</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest leading-none ring-1 ring-border/50 px-2 py-0.5 rounded-full">{officer.role}</span>
+                                                    <span className="text-[10px] font-bold text-primary uppercase bg-primary/5 px-2 py-0.5 rounded-full ring-1 ring-primary/10">Active System</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-bold text-slate-700">{officer.farmersCount}</TableCell>
-                                    <TableCell className="font-bold text-slate-700">
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-emerald-600">{officer.activeCycles}</span>
-                                            <span className="text-slate-300">/</span>
-                                            <span className="text-slate-500">{officer.pastCycles}</span>
+                                    <TableCell className="font-black text-foreground tracking-tighter text-lg">{officer.farmersCount}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1.5 font-black text-foreground text-base tracking-tighter">
+                                                {officer.activeCycles} <span className="text-[10px] text-primary uppercase font-black opacity-60">Live</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{officer.pastCycles} Past History</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                                            <Bird className="h-3.5 w-3.5 text-primary/40" />
-                                            {officer.activeDoc.toLocaleString()}
-                                            {officer.pastDoc > 0 && <span className="text-[9px] text-slate-400 font-normal ml-1">({officer.pastDoc.toLocaleString()} past)</span>}
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2 font-black text-foreground text-base tracking-tighter">
+                                                <Bird className="h-4 w-4 text-primary/40" />
+                                                {officer.activeDoc.toLocaleString()}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <Wheat className="h-3 w-3 text-amber-500/50" />
+                                                <span className="text-[10px] text-muted-foreground font-bold uppercase">{(officer.totalMainStock || 0).toLocaleString()} Bags</span>
+                                            </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                                            <Wheat className="h-3.5 w-3.5 text-amber-500/60" />
-                                            {(officer.totalMainStock || 0).toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                    <TableCell className="px-8 text-right">
+                                        <div className="flex flex-col items-end gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-black text-destructive font-mono uppercase">{officer.activeMortality} Loss</span>
+                                                <Badge variant="outline" className={cn(
+                                                    "text-[10px] border-none font-black px-3 py-1 rounded-full",
+                                                    (officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
+                                                        ? "bg-destructive/10 text-destructive"
+                                                        : "bg-primary/10 text-primary"
+                                                )}>
+                                                    {officer.activeDoc > 0 ? ((officer.activeMortality / officer.activeDoc) * 100).toFixed(2) : 0}%
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Wheat className="h-3 w-3 text-muted-foreground/30" />
+                                                <span className="text-[10px] text-muted-foreground/60 font-black uppercase tracking-widest">{officer.activeIntake.toFixed(2)} Bags consumption</span>
+                                            </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                                            <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                            {officer.activeIntake.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                    <TableCell className="px-8">
+                                        <div className="h-10 w-10 rounded-full border border-border/50 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-all">
+                                            <ArrowRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-red-600 font-mono">{officer.activeMortality}</span>
-                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
-                                                ? "bg-red-100 text-red-700"
-                                                : "bg-emerald-50 text-emerald-600"
-                                                }`}>
-                                                {officer.activeDoc > 0 ? ((officer.activeMortality / officer.activeDoc) * 100).toFixed(2) : 0}%
-                                            </Badge>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="px-6">
-                                        <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <ArrowRight className="h-4 w-4 text-slate-400" />
-                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -200,84 +196,91 @@ export function OfficerAnalytics({ orgId, isManagement }: OfficerAnalyticsProps)
                 </div>
 
                 {/* Mobile View: Cards */}
-                <div className="md:hidden space-y-4">
+                <div className="md:hidden space-y-5">
                     {filtered?.map((officer) => (
                         <Link
                             key={officer.officerId}
                             href={isManagement ? `/management/officers/${officer.officerId}` : `/admin/organizations/${orgId}/officers/${officer.officerId}`}
                             className="block group"
                         >
-                            <Card className="border-slate-200 shadow-sm overflow-hidden bg-white active:scale-[0.98] transition-all group-hover:border-primary/30 group-hover:shadow-md">
-                                <CardHeader className="bg-slate-50/50 py-3 flex flex-row items-center justify-between border-b px-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm">
-                                            <User className="h-5 w-5 text-slate-400" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-900 text-sm group-hover:text-primary transition-colors">{officer.name}</span>
-                                            <div className="flex gap-2 items-center">
-                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{officer.role}</span>
-                                                <span className="text-[10px] text-slate-300">•</span>
-                                                <span className="text-[10px] text-slate-500 font-medium">{officer.farmersCount} Farmers</span>
+                            <Card className="border-border/50 shadow-sm overflow-hidden bg-card active:scale-[0.98] transition-all rounded-[2rem] group-hover:border-primary/30 group-hover:shadow-lg">
+                                <div className="p-5 space-y-5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center text-muted-foreground shadow-inner border border-border/50">
+                                                <User className="h-6 w-6 text-muted-foreground/50" />
                                             </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-foreground text-base uppercase tracking-tight group-hover:text-primary transition-colors">{officer.name}</span>
+                                                <div className="flex gap-2 items-center mt-0.5">
+                                                    <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">{officer.role}</span>
+                                                    <span className="text-muted-foreground/30 text-[10px]">•</span>
+                                                    <span className="text-[10px] text-primary font-black uppercase tracking-tight">{officer.farmersCount} Farmers</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="h-8 w-8 rounded-full border border-border/50 flex items-center justify-center group-hover:bg-primary/5 transition-all">
+                                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                                         </div>
                                     </div>
-                                    <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                                </CardHeader>
-                                <CardContent className="p-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Main Stock</p>
-                                            <div className="flex items-center gap-1.5">
-                                                <Wheat className="h-3.5 w-3.5 text-amber-500" />
-                                                <p className="text-sm font-bold text-slate-900">{(officer.totalMainStock || 0).toLocaleString()}</p>
+
+                                    <div className="grid grid-cols-2 gap-6 bg-muted/20 p-4 rounded-2xl border border-border/30">
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest leading-none">Main Stock</p>
+                                            <div className="flex items-center gap-2">
+                                                <Wheat className="h-3.5 w-3.5 text-amber-500/60" />
+                                                <p className="text-sm font-black text-foreground tracking-tighter">{(officer.totalMainStock || 0).toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">Bags</span></p>
                                             </div>
                                         </div>
-                                        <div className="space-y-1 text-right">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cycles (A/P)</p>
-                                            <p className="text-sm font-bold text-slate-900"><span className="text-emerald-600">{officer.activeCycles}</span> / {officer.pastCycles}</p>
+                                        <div className="space-y-1.5 text-right">
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest leading-none">Cycles (A/P)</p>
+                                            <p className="text-sm font-black text-foreground tracking-tighter"><span className="text-primary">{officer.activeCycles}</span> <span className="mx-0.5 opacity-20">/</span> {officer.pastCycles}</p>
                                         </div>
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Birds</p>
-                                            <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-                                                <Bird className="h-3.5 w-3.5 text-slate-400" />
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest leading-none">Active Birds</p>
+                                            <div className="flex items-center gap-2 text-sm font-black text-foreground tracking-tighter">
+                                                <Bird className="h-3.5 w-3.5 text-primary/40" />
                                                 {officer.activeDoc.toLocaleString()}
                                             </div>
                                         </div>
-                                        <div className="space-y-1 text-right">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Feed</p>
-                                            <div className="flex items-center gap-1 justify-end text-sm font-bold text-slate-900">
-                                                <Wheat className="h-3.5 w-3.5 text-slate-400" />
-                                                {officer.activeIntake.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">bags</span>
+                                        <div className="space-y-1.5 text-right">
+                                            <p className="text-[10px] text-muted-foreground/60 uppercase font-black tracking-widest leading-none">Active Feed</p>
+                                            <div className="flex items-center gap-2 justify-end text-sm font-black text-foreground tracking-tighter">
+                                                <Wheat className="h-3.5 w-3.5 text-muted-foreground/30" />
+                                                {officer.activeIntake.toFixed(1)} <span className="text-[10px] font-normal text-muted-foreground">Bags</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="pt-3 border-t flex justify-between items-center bg-slate-50/30 -mx-4 -mb-4 px-4 py-3 mt-2">
-                                        <div className="flex items-center gap-2">
-                                            <TrendingDown className="h-4 w-4 text-red-500" />
-                                            <span className="text-xs text-slate-500 font-medium">Mortality Records</span>
+                                    <div className="flex justify-between items-center py-1">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="h-8 w-8 rounded-xl bg-destructive/5 flex items-center justify-center">
+                                                <TrendingDown className="h-4 w-4 text-destructive/70" />
+                                            </div>
+                                            <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wide">Operational Loss</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-red-600">{officer.activeMortality}</span>
-                                            <Badge variant="secondary" className={`text-[10px] border-none font-bold ${(officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
-                                                ? "bg-red-100 text-red-700"
-                                                : "bg-emerald-50 text-emerald-600"
-                                                }`}>
+                                            <span className="text-base font-black text-destructive tracking-tighter">{officer.activeMortality}</span>
+                                            <Badge variant="outline" className={cn(
+                                                "text-[10px] border-none font-black px-2.5 py-1 rounded-full",
+                                                (officer.activeDoc > 0 ? (officer.activeMortality / officer.activeDoc) : 0) > 0.05
+                                                    ? "bg-destructive/10 text-destructive"
+                                                    : "bg-primary/10 text-primary"
+                                            )}>
                                                 {officer.activeDoc > 0 ? ((officer.activeMortality / officer.activeDoc) * 100).toFixed(2) : 0}%
                                             </Badge>
                                         </div>
                                     </div>
-                                </CardContent>
+                                </div>
                             </Card>
                         </Link>
                     ))}
                 </div>
 
                 {filtered?.length === 0 && (
-                    <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
-                        <User className="h-10 w-10 mx-auto text-slate-200 mb-3" />
-                        <p className="text-slate-400 text-sm italic">No officers found matching the search.</p>
+                    <div className="text-center py-12 bg-card rounded-xl border-2 border-dashed border-border">
+                        <User className="h-10 w-10 mx-auto text-muted-foreground/20 mb-3" />
+                        <p className="text-muted-foreground text-sm italic">No officers found matching the search.</p>
                     </div>
                 )}
             </div>

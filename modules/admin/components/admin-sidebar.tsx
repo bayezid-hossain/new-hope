@@ -12,10 +12,11 @@ import {
     SidebarMenuItem,
     useSidebar
 } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import DashboardUserButton from "@/modules/dashboard/ui/components/dashboard-user-button";
 import { ModeToggle } from "@/modules/dashboard/ui/components/mode-toggle";
-import { Bird, Building, HomeIcon, LogOut, Sparkles, User, Users } from "lucide-react";
+import { ThemeToggle } from "@/modules/dashboard/ui/components/theme-toggle";
+import { Bird, Building, HomeIcon, Sparkles, User, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,37 +43,31 @@ const AdminSidebar = () => {
     const pathname = usePathname();
     const router = useRouter();
     const { setOpenMobile, isMobile } = useSidebar();
-
-    const onLogout = () => {
-        authClient.signOut({
-            fetchOptions: {
-                onSuccess: () => {
-                    router.push("/sign-in");
-                },
-            },
-        });
-    };
-
     return (
         <Sidebar>
             <SidebarHeader className="text-sidebar-accent-foreground">
-                <Link
-                    href="/"
-                    className="flex items-center gap-2 px-2 pt-2"
-                >
-                    <Image
-                        src="/logo.png"
-                        height={36}
-                        width={36}
-                        alt="Feed Reminder Logo"
-                        unoptimized
-                    />
-                    <p className="text-2xl font-semibold">Feed Reminder</p>
-                </Link>
+                <div className="flex items-center justify-between">
+                    <Link
+                        href="/"
+                        className="flex items-center gap-2 px-2 pt-2"
+                    >
+                        <Image
+                            src="/logo.png"
+                            height={36}
+                            width={36}
+                            alt="Feed Reminder Logo"
+                            unoptimized
+                        />
+                        <p className="text-2xl font-semibold">Feed Reminder</p>
+                    </Link>
+                    <div className="pt-2 pr-2">
+                        <ThemeToggle />
+                    </div>
+                </div>
             </SidebarHeader>
 
             <div className="px-4 py-2">
-                <Separator className="opacity-10 text-[#5D6B68]" />
+                <Separator className="opacity-10" />
             </div>
 
             <SidebarContent>
@@ -87,9 +82,9 @@ const AdminSidebar = () => {
                                     <SidebarMenuButton
                                         asChild
                                         className={cn(
-                                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                            "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                                             pathname === item.href &&
-                                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                            "bg-sidebar-accent border-border/10"
                                         )}
                                         isActive={pathname === item.href}
                                     >
@@ -141,8 +136,8 @@ const AdminSidebar = () => {
                         return (
                             <>
                                 <div className="px-4 py-2">
-                                    <Separator className="opacity-10 text-[#5D6B68]" />
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-4 mb-2">
+                                    <Separator className="opacity-10" />
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-4 mb-2">
                                         Organization Management
                                     </p>
                                 </div>
@@ -154,9 +149,9 @@ const AdminSidebar = () => {
                                                     <SidebarMenuButton
                                                         asChild
                                                         className={cn(
-                                                            "h-10 hover:bg-linear-to-r/oklch border border-transparent hover:border[#5D6B68]/10 from-sidebar-accent from-5% via-30% via-sidebar/50 to-sidebar/50",
+                                                            "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
                                                             pathname === item.href &&
-                                                            "bg-linear-to-r/oklch border-[#5D6B68]/10"
+                                                            "bg-sidebar-accent border-border/10"
                                                         )}
                                                         isActive={pathname === item.href}
                                                     >
@@ -182,16 +177,11 @@ const AdminSidebar = () => {
                 })()}
 
             </SidebarContent>
-            <SidebarFooter className="p-4 border-t">
+            <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton
-                            onClick={onLogout}
 
-                        >
-                            <LogOut className="text-white" />
-                            <span className="text-sm  tracking-wider">Logout</span>
-                        </SidebarMenuButton>
+                        <DashboardUserButton />
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>

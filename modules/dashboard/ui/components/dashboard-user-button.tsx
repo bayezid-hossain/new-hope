@@ -48,7 +48,7 @@ const DashboardUserButton = () => {
   if (isMobile) {
     return (
       <Drawer>
-        <DrawerTrigger className="rounded-lg gap-x-2 border border-border/10 p-3 w-full flex items-center justify-between bg-white/5 hover:bg-white/10 overflow-hidden">
+        <DrawerTrigger className="rounded-lg gap-x-2 border border-border/10 p-3 w-full flex items-center justify-between bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors overflow-hidden">
           {data.user.image ? (
             <Avatar>
               <AvatarImage src={data.user.image} />
@@ -81,9 +81,9 @@ const DashboardUserButton = () => {
             <Button
               onClick={onLogout}
               variant={"destructive"}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider h-11 shadow-sm"
+              className="font-bold uppercase tracking-wider h-11 shadow-sm"
             >
-              <LogOutIcon className="size-4 text-white" />
+              <LogOutIcon className="size-4" />
               Logout
             </Button>
           </DrawerFooter>
@@ -94,7 +94,7 @@ const DashboardUserButton = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-lg gap-x-2 border border-border/10 p-3 w-full flex items-center justify-between bg-white/5 hover:bg-white/10 overflow-hidden">
+      <DropdownMenuTrigger className="rounded-lg gap-x-2 border border-border/10 p-3 w-full flex items-center justify-between bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors overflow-hidden">
         {data.user.image ? (
           <Avatar>
             <AvatarImage src={data.user.image} />
@@ -134,9 +134,9 @@ const DashboardUserButton = () => {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={onLogout}
-          className="cursor-pointer flex items-center justify-between text-white bg-red-600 hover:bg-red-700 focus:bg-red-700 focus:text-white mt-1 font-bold rounded-lg transition-colors px-3 py-2"
+          className="cursor-pointer flex items-center justify-between text-destructive-foreground bg-destructive hover:bg-destructive/90 focus:bg-destructive/90 focus:text-destructive-foreground mt-1 font-bold rounded-lg transition-colors px-3 py-2"
         >
-          Logout <LogOutIcon className="size-4 text-white" />
+          Logout <LogOutIcon className="size-4" />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

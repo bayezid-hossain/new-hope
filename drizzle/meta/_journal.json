@@ -8,6 +8,13 @@
       "when": 1769869211721,
       "tag": "0000_add_farmer_status",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770095729082,
+      "tag": "0001_sparkling_jocasta",
+      "breakpoints": true
     }
   ]
 }

@@ -339,7 +339,7 @@ export const aiRouter = createTRPCRouter({
             officerId: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            console.log("OFFICER:" + input.officerId)
+            // console.log("OFFICER:" + input.officerId)
             // Security Check
             if (!input.officerId) {
                 // ORG-WIDE SCAN: Requires Global Admin or Org Admin/Owner

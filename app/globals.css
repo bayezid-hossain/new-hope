@@ -42,6 +42,11 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --breakpoint-xs: 355px;
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
+  --color-scrollbar-thumb-hover: var(--scrollbar-thumb-hover);
+  --color-sidebar-management-from: var(--sidebar-management-from);
+  --color-sidebar-management-to: var(--sidebar-management-to);
+  --color-card-hover: var(--card-hover);
 }
 
 :root {
@@ -82,6 +87,11 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-thumb: oklch(0.85 0.04 150);
+  --scrollbar-thumb-hover: oklch(0.75 0.08 150);
+  --sidebar-management-from: oklch(0.25 0.05 240);
+  --sidebar-management-to: oklch(0.15 0.05 240);
+  --card-hover: oklch(0.97 0 0);
 }
 
 .dark {
@@ -108,29 +118,43 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --scrollbar-thumb: oklch(0.3 0.04 150);
+  --scrollbar-thumb-hover: oklch(0.4 0.08 150);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-management-from: oklch(0.18 0.04 240);
+  --sidebar-management-to: oklch(0.12 0.04 240);
+  --card-hover: oklch(0.18 0 0);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
   }
 
   body {
     @apply bg-background text-foreground;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  body::-webkit-scrollbar {
-    display: none;
   }
 }
 
@@ -163,7 +187,7 @@
 
 @layer utilities {
   .premium-scrollbar [data-slot="scroll-area-thumb"] {
-    @apply bg-indigo-500/30 transition-colors hover:bg-indigo-500/50;
+    @apply bg-scrollbar-thumb transition-colors hover:bg-scrollbar-thumb-hover;
   }
 
   .premium-scrollbar ::-webkit-scrollbar {
@@ -175,13 +199,13 @@
   }
 
   .premium-scrollbar ::-webkit-scrollbar-thumb {
-    @apply bg-indigo-500/20 rounded-full border-4 border-transparent bg-clip-content hover:bg-indigo-500/40 transition-colors;
+    @apply bg-scrollbar-thumb rounded-full border-4 border-transparent bg-clip-content hover:bg-scrollbar-thumb-hover transition-colors;
   }
 
   /* Custom Thin Scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -195,13 +219,13 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: oklch(0.922 0 0);
-    /* using --border/--input color for subtlety */
+    background-color: var(--scrollbar-thumb);
+    /* using themed scrollbar color */
     border-radius: 9999px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: oklch(0.708 0 0);
-    /* using --ring color for hover state */
+    background-color: var(--scrollbar-thumb-hover);
+    /* using themed scrollbar hover color */
   }
 }

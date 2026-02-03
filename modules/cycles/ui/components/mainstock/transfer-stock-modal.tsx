@@ -158,7 +158,7 @@ export function TransferStockModal({
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 ">
                                         <Command>
                                             <CommandInput placeholder="Search farmer..." />
                                             <CommandList>

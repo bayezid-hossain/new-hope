@@ -78,7 +78,7 @@ const ActiveCyclesSection = ({ isLoading, data, prefix }: { isLoading: boolean, 
                 </div>
             </>
         ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+            <div className="flex flex-col items-center justify-center p-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground font-medium italic">
                 No active cycles found
             </div>
         )}
@@ -106,7 +106,7 @@ const ArchivedCyclesSection = ({ isLoading, isError, data, prefix }: { isLoading
                 </div>
             </>
         ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+            <div className="flex flex-col items-center justify-center p-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground font-medium italic">
                 No archived history found
             </div>
         )}
@@ -145,25 +145,25 @@ export default function AdminFarmerDetailsPage() {
     }));
 
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!hubData) return <div className="p-8 text-center text-slate-500">Farmer not found or access denied.</div>;
+    if (!hubData) return <div className="p-8 text-center text-muted-foreground">Farmer not found or access denied.</div>;
 
     const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
 
     return (
         <AdminGuard>
-            <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-slate-50/50 min-h-screen">
+            <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-white">
+                        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-card border border-border/50">
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
                         <div className="flex flex-col gap-1">
-                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{farmerData.name}</h1>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{farmerData.name}</h1>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
                                 <span>Officer:</span>
                                 <Link
                                     href={`/admin/organizations/${orgId}/officers/${farmerData.officerId}`}
-                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 hover:underline underline-offset-4 transition-all"
+                                    className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline underline-offset-4 transition-all"
                                 >
                                     <User className="h-3.5 w-3.5" />
                                     {farmerData.officerName}
@@ -174,11 +174,11 @@ export default function AdminFarmerDetailsPage() {
                                 {farmerData.status === "deleted" ? (
                                     <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
                                 ) : activeCycles.items && activeCycles.items.length > 0 ? (
-                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                    <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                 ) : (
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+                                    <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
                                 )}
-                                <span className="text-xs text-slate-500">ID: {farmerData.id}</span>
+                                <span className="text-xs text-muted-foreground">ID: {farmerData.id}</span>
                             </div>
 
                         </div>
@@ -197,7 +197,7 @@ export default function AdminFarmerDetailsPage() {
                                 {farmerData.status === "deleted" ? (
                                     <DropdownMenuItem
                                         onClick={() => setShowRestoreModal(true)}
-                                        className="gap-2 cursor-pointer font-medium text-emerald-600 focus:text-emerald-600"
+                                        className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
                                     >
                                         <RotateCcw className="h-4 w-4" />
                                         Restore Profile
@@ -215,7 +215,7 @@ export default function AdminFarmerDetailsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
                                             onClick={() => setShowArchiveDialog(true)}
-                                            className="gap-2 cursor-pointer text-red-600 focus:text-red-600 font-medium"
+                                            className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             Delete Profile
@@ -229,9 +229,9 @@ export default function AdminFarmerDetailsPage() {
 
                 <div className="grid gap-6 md:grid-cols-3">
                     <div className="md:col-span-1 space-y-6">
-                        <Card className="border-none shadow-sm h-fit">
+                        <Card className="border border-border/50 shadow-sm bg-card h-fit">
                             <CardHeader className="pb-2">
-                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-500 uppercase tracking-wider">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                                     <Coins className="h-4 w-4" />
                                     Security Deposit
                                 </CardTitle>
@@ -240,14 +240,14 @@ export default function AdminFarmerDetailsPage() {
                                 <div className="flex flex-col gap-4">
                                     <div>
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-3xl font-bold text-slate-900">
-                                                <span className="text-lg text-slate-400 font-normal mr-1">TK.</span>
+                                            <span className="text-3xl font-bold text-foreground">
+                                                <span className="text-lg text-muted-foreground font-normal mr-1">TK.</span>
                                                 {parseFloat(farmerData.securityMoney || "0").toLocaleString()}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-slate-400 mt-1">Refundable upon account closure</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Refundable upon account closure</p>
                                     </div>
-                                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                    <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -271,9 +271,9 @@ export default function AdminFarmerDetailsPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-none shadow-sm h-fit">
+                        <Card className="border border-border/50 shadow-sm bg-card h-fit">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Stock Status</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock Status</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 {(() => {
@@ -285,10 +285,10 @@ export default function AdminFarmerDetailsPage() {
                                         return (
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-bold text-slate-400">{farmerData.mainStock.toFixed(2)}</span>
-                                                    <span className="text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                                                    <span className="text-4xl font-bold text-muted-foreground/60">{farmerData.mainStock.toFixed(2)}</span>
+                                                    <span className="text-muted-foreground/60 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
                                                 </div>
-                                                <p className="text-[10px] text-slate-400 font-medium italic mt-1">Archived - No active consumption</p>
+                                                <p className="text-[10px] text-muted-foreground/50 font-medium italic mt-1">Archived - No active consumption</p>
                                             </div>
                                         );
                                     }
@@ -296,8 +296,8 @@ export default function AdminFarmerDetailsPage() {
                                     return (
                                         <div className="space-y-2">
                                             <div className="flex items-baseline gap-2">
-                                                <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-slate-900'}`}>{remaining.toFixed(2)}</span>
-                                                <span className="text-slate-500 font-medium lowercase">bags available</span>
+                                                <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-foreground'}`}>{remaining.toFixed(2)}</span>
+                                                <span className="text-muted-foreground font-medium lowercase">bags available</span>
                                             </div>
                                             {activeConsumption > 0 && (
                                                 <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
@@ -313,16 +313,16 @@ export default function AdminFarmerDetailsPage() {
 
                     <div className="md:col-span-2">
                         <Tabs defaultValue="active" className="w-full space-y-6">
-                            <TabsList className="inline-flex w-auto bg-white border shadow-sm p-1 rounded-xl h-auto">
-                                <TabsTrigger value="active" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                            <TabsList className="inline-flex w-auto bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto">
+                                <TabsTrigger value="active" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                                     <Activity className="h-4 w-4" />
                                     Active Cycles
                                 </TabsTrigger>
-                                <TabsTrigger value="history" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                                <TabsTrigger value="history" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                                     <Archive className="h-4 w-4" />
                                     History
                                 </TabsTrigger>
-                                <TabsTrigger value="ledger" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-primary/5 data-[state=active]:text-primary font-bold">
+                                <TabsTrigger value="ledger" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                                     <Scale className="h-4 w-4" />
                                     Stock Ledger
                                 </TabsTrigger>
@@ -410,48 +410,89 @@ export default function AdminFarmerDetailsPage() {
 // Reuse StockLedgerTable from the original page (simplified style)
 const StockLedgerTable = ({ logs, mainStock }: { logs: any[]; mainStock: number }) => {
     return (
-        <Card className="border-none shadow-sm overflow-hidden bg-white">
+        <Card className="border border-border/50 shadow-sm overflow-hidden bg-card">
             <CardContent className="p-0">
                 {logs.length > 0 ? (
-                    <div className="overflow-auto max-h-[500px]">
-                        <table className="w-full text-sm">
-                            <TableHeader className="sticky top-0 bg-slate-50/90 backdrop-blur-sm border-b z-10">
-                                <TableRow>
-                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Date</TableHead>
-                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Type</TableHead>
-                                    <TableHead className="px-6 py-3 font-bold text-slate-900">Note</TableHead>
-                                    <TableHead className="px-6 py-3 font-bold text-slate-900 text-right">Change</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {logs.map((log) => {
-                                    const amount = Number(log.amount);
-                                    const isPositive = amount > 0;
-                                    return (
-                                        <TableRow key={log.id} className="hover:bg-slate-50 transition-colors">
-                                            <TableCell className="px-6 py-4 text-slate-500">
-                                                {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
-                                            </TableCell>
-                                            <TableCell className="px-6 py-4">
-                                                <Badge variant="outline" className={`font-medium ${isPositive ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"}`}>
+                    <>
+                        {/* Desktop View: Table */}
+                        <div className="hidden md:block overflow-auto max-h-[500px] scrollbar-thin">
+                            <table className="w-full text-sm">
+                                <TableHeader className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/50 z-10">
+                                    <TableRow>
+                                        <TableHead className="px-6 py-3 font-bold text-foreground">Date</TableHead>
+                                        <TableHead className="px-6 py-3 font-bold text-foreground">Type</TableHead>
+                                        <TableHead className="px-6 py-3 font-bold text-foreground">Note</TableHead>
+                                        <TableHead className="px-6 py-3 font-bold text-foreground text-right">Change</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {logs.map((log) => {
+                                        const amount = Number(log.amount);
+                                        const isPositive = amount > 0;
+                                        return (
+                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0">
+                                                <TableCell className="px-6 py-4 text-muted-foreground">
+                                                    {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yy") : "-"}
+                                                </TableCell>
+                                                <TableCell className="px-6 py-4">
+                                                    <Badge variant="outline" className={`font-medium ${isPositive ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800"}`}>
+                                                        {log.type.replace(/_/g, " ")}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="px-6 py-4 text-foreground/80">{log.note || "-"}</TableCell>
+                                                <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                                    {isPositive ? "+" : ""}{amount.toFixed(2)}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </table>
+                        </div>
+
+                        {/* Mobile View: Cards */}
+                        <div className="block md:hidden divide-y divide-border/50 max-h-[600px] overflow-auto">
+                            {logs.map((log) => {
+                                const amount = Number(log.amount);
+                                const isPositive = amount > 0;
+                                return (
+                                    <div key={log.id} className="p-3 xs:p-4 space-y-2 xs:space-y-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-1.5 xs:gap-2 min-w-0">
+                                                <Badge variant="outline" className={`font-bold text-[8px] xs:text-[9px] uppercase tracking-wider truncate ${isPositive ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800"}`}>
                                                     {log.type.replace(/_/g, " ")}
                                                 </Badge>
-                                            </TableCell>
-                                            <TableCell className="px-6 py-4 text-slate-600">{log.note || "-"}</TableCell>
-                                            <TableCell className={`px-6 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                                                {isPositive ? "+" : ""}{amount.toFixed(2)}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </table>
-                    </div>
+                                            </div>
+                                            <span className={`font-mono font-bold text-xs xs:text-sm shrink-0 ${isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                                {isPositive ? "+" : ""}{amount.toFixed(1)} <small className="font-normal text-[8px] xs:text-[10px] opacity-70">b</small>
+                                            </span>
+                                        </div>
+                                        {log.note && (
+                                            <p className="text-[10px] xs:text-xs text-muted-foreground leading-relaxed bg-muted/30 p-1.5 xs:p-2 rounded-lg border border-border/50 line-clamp-2">
+                                                {log.note}
+                                            </p>
+                                        )}
+                                        <div className="text-[8px] xs:text-[10px] text-muted-foreground font-bold uppercase tracking-widest pt-0.5 xs:pt-1">
+                                            {log.createdAt ? format(new Date(log.createdAt), "dd MMM, yyyy") : "-"}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                    <div className="flex flex-col items-center justify-center p-6 xs:p-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground font-medium italic text-xs xs:text-sm">
                         No transaction history found
                     </div>
                 )}
+
+                <div className="flex items-center justify-between gap-2 xs:gap-3 p-3 xs:p-4 md:p-6 border-t border-border/50 bg-muted/20">
+                    <span className="text-muted-foreground text-[8px] xs:text-[10px] md:text-sm font-bold uppercase tracking-widest">Main Stock</span>
+                    <div className="bg-primary/10 text-primary flex items-baseline gap-0.5 xs:gap-1 rounded-lg xs:rounded-xl px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 font-mono text-base xs:text-lg md:text-2xl font-bold border border-primary/20">
+                        {mainStock.toLocaleString()}
+                        <span className="text-[8px] xs:text-[10px] md:text-sm font-normal text-muted-foreground/80">b</span>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
