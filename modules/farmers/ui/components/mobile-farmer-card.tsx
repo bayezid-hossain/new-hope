@@ -134,13 +134,13 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                 {farmer.status !== "deleted" && (
                     <>
                         {/* Consumption / Used */}
-                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center items-center">
-                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600 font-bold uppercase tracking-wider mb-0.5">Used</span>
+                        <div className="flex flex-col justify-center p-1 xs:p-1.5 sm:p-2 rounded-lg bg-amber-500/10 dark:bg-amber-900/30 border border-amber-500/20 dark:border-amber-800/30 text-center items-center">
+                            <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-500 font-bold uppercase tracking-wider mb-0.5">Used</span>
                             <div className="flex items-baseline gap-1 justify-end">
-                                <span className="text-base xs:text-lg sm:text-xl font-black text-amber-600 leading-none">
+                                <span className="text-base xs:text-lg sm:text-xl font-black text-amber-600 dark:text-amber-500 leading-none">
                                     {activeConsumption.toFixed(1)}
                                 </span>
-                                <span className="text-[9px] xs:text-[10px] font-medium text-amber-600/60">b</span>
+                                <span className="text-[9px] xs:text-[10px] font-medium text-amber-600/60 dark:text-amber-500/60">b</span>
                             </div>
                         </div>
                         {/* total stock */}
@@ -172,7 +172,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                         : `Joined ${farmer.createdAt ? format(new Date(farmer.createdAt), "MMM d, yyyy") : "-"}`
                     }
                 </span>
-                <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold transition-opacity">
                     View <ArrowRight className="h-2.5 w-2.5" />
                 </span>
             </div>

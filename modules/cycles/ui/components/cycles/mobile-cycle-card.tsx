@@ -146,20 +146,20 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-500/5 border border-amber-500/10">
-                        <span className="text-[10px] xs:text-[12px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-500/5 dark:bg-amber-900/10 border border-amber-500/10 dark:border-amber-800/20">
+                        <span className="text-[10px] xs:text-[12px] text-amber-600/70 dark:text-amber-500/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
                         <div className="flex items-center gap-0.5 xs:gap-1 justify-center">
-                            <Wheat className="h-4 w-4 xs:h-5 xs:w-5 text-amber-500" />
+                            <Wheat className="h-4 w-4 xs:h-5 xs:w-5 text-amber-500 dark:text-amber-400" />
                             <p className="text-[12px] xs:text-sm font-bold text-amber-600 dark:text-amber-500 leading-none">{intakeValue.toFixed(1)}</p>
                         </div>
                     </div>
                 )}
 
                 {variant === "elevated" ? (
-                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-500/5 border border-amber-500/10">
-                        <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-500/5 dark:bg-amber-900/10 border border-amber-500/10 dark:border-amber-800/20">
+                        <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-amber-600/70 dark:text-amber-500/70 font-bold uppercase tracking-tight leading-tight">Feed</span>
                         <div className="flex items-center gap-0.5 justify-center">
-                            <Wheat className="h-3 w-3 xs:h-4 xs:w-4 text-amber-500" />
+                            <Wheat className="h-3 w-3 xs:h-4 xs:w-4 text-amber-500 dark:text-amber-400" />
                             <p className="text-[12px] xs:text-sm font-bold text-amber-600 dark:text-amber-500 leading-none">{intakeValue.toFixed(1)}</p>
                         </div>
                     </div>

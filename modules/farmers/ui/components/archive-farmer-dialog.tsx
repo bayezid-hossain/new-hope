@@ -31,16 +31,16 @@ export function ArchiveFarmerDialog({
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                    <AlertDialogTitle className="flex items-center gap-2 text-destructive">
                         <Trash2 className="h-5 w-5" />
                         Delete Farmer Profile
                     </AlertDialogTitle>
                     <AlertDialogDescription asChild className="space-y-3 pt-2">
                         <div>
                             <p>
-                                Are you sure you want to delete <span className="font-bold text-slate-900">"{farmerName}"</span>?
+                                Are you sure you want to delete <span className="font-bold text-foreground">"{farmerName}"</span>?
                             </p>
-                            <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg text-amber-800 text-xs leading-relaxed mt-3">
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 p-3 rounded-lg text-amber-800 dark:text-amber-400 text-xs leading-relaxed mt-3">
                                 <strong>Note:</strong> This will hide the farmer from active lists and stop stock tracking, but their historical data will be preserved for managers and admins. You can restore them later if needed.
                             </div>
                         </div>
@@ -54,7 +54,7 @@ export function ArchiveFarmerDialog({
                             onConfirm();
                         }}
                         disabled={isPending}
-                        className="bg-red-600 hover:bg-red-700 text-white border-none"
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none transition-colors"
                     >
                         {isPending ? "Deleting..." : "Delete Profile"}
                     </AlertDialogAction>

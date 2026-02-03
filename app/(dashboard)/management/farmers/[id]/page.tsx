@@ -336,17 +336,17 @@ export default function ManagementFarmerDetailsPage() {
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-slate-400">
-                                                        {farmerData.mainStock.toFixed(2)}
+                                                    <span className="text-4xl font-black text-muted-foreground">
+                                                        --
                                                     </span>
-                                                    <span className="text-slate-400 font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                                    <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
                                                 </div>
-                                                <p className="text-[10px] text-slate-400 font-medium">Profile archived - no active cycles permitted.</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium">Profile archived - no active cycles permitted.</p>
                                             </div>
-                                            <div className="pt-4 border-t border-slate-100">
+                                            <div className="pt-4 border-t border-border">
                                                 <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-slate-400 font-medium uppercase tracking-tighter">Archived Balance</span>
-                                                    <span className="font-bold text-slate-500">{farmerData.mainStock.toFixed(2)} b</span>
+                                                    <span className="text-muted-foreground font-medium uppercase tracking-tighter">Archived Balance</span>
+                                                    <span className="font-bold text-muted-foreground">{farmerData.mainStock.toFixed(2)} b</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -357,29 +357,29 @@ export default function ManagementFarmerDetailsPage() {
                                     <>
                                         <div className="space-y-1">
                                             <div className="flex items-baseline gap-2">
-                                                <span className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>
+                                                <span className={`text-4xl font-bold ${isLow ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>
                                                     {remaining.toFixed(2)}
                                                 </span>
-                                                <span className="text-slate-500 font-medium text-sm">bags left</span>
+                                                <span className="text-muted-foreground font-medium text-sm">bags left</span>
                                             </div>
                                             {isLow && (
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wide">
+                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold uppercase tracking-wide">
                                                     Urgent Restock Needed
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                                        <div className="space-y-3 pt-2 border-t border-border">
                                             <div className="flex justify-between items-center text-sm">
-                                                <span className="text-slate-500">Total Active Birds</span>
-                                                <span className="font-semibold text-slate-900">{activeBirds.toLocaleString()}</span>
+                                                <span className="text-muted-foreground">Total Active Birds</span>
+                                                <span className="font-semibold text-foreground">{activeBirds.toLocaleString()}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-sm">
-                                                <span className="text-slate-500">Active Consumption</span>
+                                                <span className="text-muted-foreground">Active Consumption</span>
                                                 <span className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-sm">
-                                                <span className="text-slate-500">Total Provisioned (Ledger)</span>
+                                                <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
                                                 <span className="font-semibold text-foreground">{farmerData.mainStock.toFixed(2)}</span>
                                             </div>
                                             <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">

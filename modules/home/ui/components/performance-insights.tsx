@@ -51,9 +51,9 @@ export const PerformanceInsights = ({
                                     <div className="flex items-center gap-3 md:gap-4">
                                         <div className={cn(
                                             "flex items-center justify-center h-8 w-8 md:h-10 md:w-10 rounded-xl font-black text-xs transition-all duration-300",
-                                            i === 0 ? "bg-amber-500/20 text-amber-600 ring-2 ring-amber-500/30 scale-110 shadow-md" :
-                                                i === 1 ? "bg-slate-500/10 text-slate-500 ring-1 ring-slate-500/20" :
-                                                    "bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20"
+                                            i === 0 ? "bg-amber-500/20 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 ring-2 ring-amber-500/30 dark:ring-amber-800/40 scale-110 shadow-md" :
+                                                i === 1 ? "bg-muted text-muted-foreground ring-1 ring-border/50" :
+                                                    "bg-orange-500/10 dark:bg-orange-950/30 text-orange-600 dark:text-orange-500 ring-1 ring-orange-500/20 dark:ring-orange-800/40"
                                         )}>
                                             #{i + 1}
                                         </div>

@@ -63,7 +63,7 @@ export const EditStockLogModal = ({ log }: EditStockLogModalProps) => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-slate-400 hover:text-primary hover:bg-primary/10"
+                className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
                 onClick={() => setOpen(true)}
                 title="Edit Transaction"
             >
@@ -102,7 +102,7 @@ export const EditStockLogModal = ({ log }: EditStockLogModalProps) => {
                     <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                         <Button
-                            className="bg-primary text-white"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                             onClick={handleSave}
                             disabled={mutation.isPending}
                         >
@@ -145,7 +145,7 @@ export const RevertStockModal = ({ logId, amount, note }: RevertStockModalProps)
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                className="h-6 w-6 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                 onClick={() => setOpen(true)}
                 title="Revert Transaction"
             >
@@ -159,13 +159,13 @@ export const RevertStockModal = ({ logId, amount, note }: RevertStockModalProps)
                 description="This will create a correction entry to negate this transaction. Are you sure?"
             >
                 <div className="space-y-4 py-4 px-1">
-                    <div className="rounded-md bg-slate-50 p-3 text-sm border border-slate-100">
-                        <p className="font-medium text-slate-700">Entry to Revert:</p>
-                        <div className="flex justify-between mt-1 text-slate-600">
+                    <div className="rounded-md bg-muted/30 p-3 text-sm border border-border/50">
+                        <p className="font-medium text-foreground">Entry to Revert:</p>
+                        <div className="flex justify-between mt-1 text-muted-foreground">
                             <span>Amount</span>
                             <span className="font-mono font-bold">{amount} Bags</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 italic">{note || "No note"}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1 italic">{note || "No note"}</p>
                     </div>
 
                     <div className="flex justify-end gap-2 pt-2">
@@ -174,7 +174,7 @@ export const RevertStockModal = ({ logId, amount, note }: RevertStockModalProps)
                             variant="destructive"
                             onClick={() => mutation.mutate({ logId })}
                             disabled={mutation.isPending}
-                            className=" text-white"
+                            className="text-destructive-foreground hover:bg-destructive/90 transition-colors"
                         >
                             {mutation.isPending ? "Reverting..." : "Confirm Revert"}
                         </Button>

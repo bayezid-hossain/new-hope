@@ -46,10 +46,10 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
                     </p>
                 </div>
                 <div className="relative w-full sm:w-72">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search farmer name..."
-                        className="pl-9 bg-white"
+                        className="pl-9 bg-muted/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -71,7 +71,7 @@ export const CycleHistoryView = ({ activeCycleId }: { activeCycleId?: string }) 
                         <MobileCycleCard key={cycle.id} cycle={cycle} />
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
+                    <div className="flex flex-col items-center justify-center p-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground font-medium italic">
                         No history found
                     </div>
                 )}

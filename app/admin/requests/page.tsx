@@ -135,9 +135,9 @@ export default function AdminRequestsPage() {
     const StatusBadge = ({ status }: { status: string }) => (
         <Badge variant="outline" className={`
             font-bold text-[10px] uppercase tracking-wider border w-fit
-            ${status === "APPROVED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                status === "REJECTED" ? "bg-red-50 text-red-700 border-red-200" :
-                    "bg-amber-50 text-amber-700 border-amber-200"}
+            ${status === "APPROVED" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                status === "REJECTED" ? "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800" :
+                    "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"}
         `}>
             {status === "APPROVED" ? <Check className="w-3 h-3 mr-1" /> :
                 status === "REJECTED" ? <ShieldX className="w-3 h-3 mr-1" /> :
@@ -149,7 +149,7 @@ export default function AdminRequestsPage() {
     if (isLoading) {
         return (
             <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -157,12 +157,12 @@ export default function AdminRequestsPage() {
     return (
         <div className="flex flex-1 flex-col gap-3 p-2 xs:p-3 sm:p-4 md:gap-8 md:p-8 h-screen overflow-hidden">
             <div className="flex items-center gap-2 xs:gap-3 sm:gap-4">
-                <div className="p-1.5 xs:p-2 bg-indigo-100 rounded-lg">
-                    <Sparkles className="h-5 w-5 xs:h-6 xs:w-6 text-indigo-600" />
+                <div className="p-1.5 xs:p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                    <Sparkles className="h-5 w-5 xs:h-6 xs:w-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
                     <h1 className="font-semibold text-base xs:text-lg md:text-2xl">Pro Feature Requests</h1>
-                    <p className="text-xs xs:text-sm text-slate-500">Manage subscriptions.</p>
+                    <p className="text-xs xs:text-sm text-muted-foreground">Manage subscriptions.</p>
                 </div>
             </div>
 
@@ -204,16 +204,16 @@ export default function AdminRequestsPage() {
                         const expStatus = req.user?.proExpiresAt ? getExpirationStatus(req.user.proExpiresAt) : null;
 
                         return (
-                            <Card key={req.id} className="border-slate-200">
+                            <Card key={req.id} className="border-border">
                                 <CardContent className="p-2.5 xs:p-3 sm:p-4 space-y-2 xs:space-y-3">
                                     {/* Header: Name + Status */}
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="space-y-0.5 xs:space-y-1 min-w-0 flex-1">
                                             <div className="flex items-center gap-1.5 xs:gap-2">
-                                                <User className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-slate-400 shrink-0" />
-                                                <span className="font-semibold text-slate-900 text-sm xs:text-base truncate">{req.user?.name || "Unknown"}</span>
+                                                <User className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-muted-foreground shrink-0" />
+                                                <span className="font-semibold text-foreground text-sm xs:text-base truncate">{req.user?.name || "Unknown"}</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 xs:gap-2 text-[10px] xs:text-xs text-slate-500">
+                                            <div className="flex items-center gap-1.5 xs:gap-2 text-[10px] xs:text-xs text-muted-foreground">
                                                 <Mail className="w-2.5 h-2.5 xs:w-3 xs:h-3 shrink-0" />
                                                 <span className="font-mono truncate">{req.user?.email}</span>
                                             </div>
@@ -223,30 +223,30 @@ export default function AdminRequestsPage() {
 
                                     {/* Organization */}
                                     <div className="flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm">
-                                        <Building2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-slate-400 shrink-0" />
+                                        <Building2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-muted-foreground shrink-0" />
                                         {req.organizationName ? (
-                                            <Badge variant="secondary" className="font-medium text-slate-700 bg-slate-100 text-[10px] xs:text-xs">
+                                            <Badge variant="secondary" className="font-medium text-[10px] xs:text-xs">
                                                 {req.organizationName}
                                             </Badge>
                                         ) : (
-                                            <span className="text-slate-400 italic text-[10px] xs:text-xs">No Org</span>
+                                            <span className="text-muted-foreground italic text-[10px] xs:text-xs">No Org</span>
                                         )}
                                     </div>
 
                                     {/* Timing */}
-                                    <div className="flex flex-col gap-0.5 xs:gap-1 text-[10px] xs:text-xs text-slate-500 border-t pt-1.5 xs:pt-2">
+                                    <div className="flex flex-col gap-0.5 xs:gap-1 text-[10px] xs:text-xs text-muted-foreground border-t pt-1.5 xs:pt-2">
                                         <div className="flex items-center gap-1.5">
                                             <Clock className="w-2.5 h-2.5 xs:w-3 xs:h-3 shrink-0" />
                                             <span>{format(new Date(req.createdAt), "MMM d, yyyy")}</span>
                                         </div>
                                         {req.status !== "PENDING" && req.updatedAt && (
-                                            <div className="flex items-center gap-1.5 text-slate-400">
+                                            <div className="flex items-center gap-1.5 text-muted-foreground/70">
                                                 <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 shrink-0" />
                                                 <span>Upd: {format(new Date(req.updatedAt), "MMM d")}</span>
                                             </div>
                                         )}
                                         {req.status === "APPROVED" && expStatus && (
-                                            <div className={`flex items-center gap-1.5 font-medium ${expStatus.isExpired ? "text-red-600" : expStatus.daysLeft <= 7 ? "text-amber-600" : "text-emerald-600"}`}>
+                                            <div className={`flex items-center gap-1.5 font-medium ${expStatus.isExpired ? "text-red-600 dark:text-red-400" : expStatus.daysLeft <= 7 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                                                 <Sparkles className="w-2.5 h-2.5 xs:w-3 xs:h-3 shrink-0" />
                                                 {expStatus.isExpired ? (
                                                     <span>Expired</span>
@@ -276,7 +276,7 @@ export default function AdminRequestsPage() {
                                                 </Select>
                                                 <Button
                                                     size="sm"
-                                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 h-7 xs:h-8 text-[10px] xs:text-xs"
+                                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 h-7 xs:h-8 text-[10px] xs:text-xs"
                                                     onClick={() => handleApprove(req.id)}
                                                     disabled={actionId === req.id}
                                                 >
@@ -286,7 +286,7 @@ export default function AdminRequestsPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-7 xs:h-8 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                                    className="h-7 xs:h-8 px-2 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                     onClick={() => confirmAction(req, "REJECT")}
                                                     disabled={actionId === req.id}
                                                 >
@@ -299,7 +299,7 @@ export default function AdminRequestsPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="flex-1 h-7 xs:h-8 text-[10px] xs:text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                                    className="flex-1 h-7 xs:h-8 text-[10px] xs:text-xs text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                                                     onClick={() => confirmAction(req, "EXTEND")}
                                                     disabled={actionId === req.id}
                                                 >
@@ -309,7 +309,7 @@ export default function AdminRequestsPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="flex-1 h-7 xs:h-8 text-[10px] xs:text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                                    className="flex-1 h-7 xs:h-8 text-[10px] xs:text-xs text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                     onClick={() => confirmAction(req, "REVOKE")}
                                                     disabled={actionId === req.id}
                                                 >
@@ -326,8 +326,8 @@ export default function AdminRequestsPage() {
             </div>
 
             {/* Desktop Table View */}
-            <Card className="border-slate-200 shadow-sm hidden md:block">
-                <CardHeader className="px-7 bg-slate-50/50 border-b">
+            <Card className="border-border shadow-sm hidden md:block">
+                <CardHeader className="px-7 bg-muted/50 border-b">
                     <CardTitle>Request Log</CardTitle>
                     <CardDescription>
                         History of all Pro Pack requests. Select duration when approving.
@@ -336,7 +336,7 @@ export default function AdminRequestsPage() {
                 <CardContent className="p-0 flex-1 overflow-hidden">
                     <div className="h-full max-h-[calc(100vh-280px)] overflow-y-auto">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                            <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="pl-6 w-[220px]">User Details</TableHead>
                                     <TableHead>Organization</TableHead>
@@ -360,25 +360,25 @@ export default function AdminRequestsPage() {
                                             <TableRow key={req.id} className="group">
                                                 <TableCell className="pl-6 py-4">
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span className="font-semibold text-slate-900">{req.user?.name || "Unknown"}</span>
-                                                        <span className="text-xs text-slate-500 font-mono">{req.user?.email}</span>
-                                                        <span className="text-[10px] text-slate-400 font-mono">ID: {req.user?.id.slice(0, 8)}</span>
+                                                        <span className="font-semibold text-foreground">{req.user?.name || "Unknown"}</span>
+                                                        <span className="text-xs text-muted-foreground font-mono">{req.user?.email}</span>
+                                                        <span className="text-[10px] text-muted-foreground/70 font-mono">ID: {req.user?.id.slice(0, 8)}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {req.organizationName ? (
-                                                        <Badge variant="secondary" className="font-medium text-slate-700 bg-slate-100">
+                                                        <Badge variant="secondary" className="font-medium">
                                                             {req.organizationName}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-slate-400 text-sm italic">No Org</span>
+                                                        <span className="text-muted-foreground text-sm italic">No Org</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         <StatusBadge status={req.status} />
                                                         {req.status === "APPROVED" && expStatus && (
-                                                            <div className={`flex items-center gap-1 text-[10px] ${expStatus.isExpired ? "text-red-600" : expStatus.daysLeft <= 7 ? "text-amber-600" : "text-slate-500"}`}>
+                                                            <div className={`flex items-center gap-1 text-[10px] ${expStatus.isExpired ? "text-red-600 dark:text-red-400" : expStatus.daysLeft <= 7 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
                                                                 <Calendar className="w-3 h-3" />
                                                                 {expStatus.isExpired ? (
                                                                     <span className="font-semibold">Expired {expStatus.relative}</span>
@@ -389,11 +389,11 @@ export default function AdminRequestsPage() {
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-xs text-slate-500">
+                                                <TableCell className="text-xs text-muted-foreground">
                                                     <div className="flex flex-col gap-1">
                                                         <span>Req: {format(new Date(req.createdAt), "MMM d, h:mm a")}</span>
                                                         {req.status !== "PENDING" && req.updatedAt && (
-                                                            <span className="text-slate-400">Upd: {format(new Date(req.updatedAt), "MMM d, h:mm a")}</span>
+                                                            <span className="text-muted-foreground/70">Upd: {format(new Date(req.updatedAt), "MMM d, h:mm a")}</span>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -416,7 +416,7 @@ export default function AdminRequestsPage() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
-                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                 onClick={() => confirmAction(req, "REJECT")}
                                                                 disabled={actionId === req.id}
                                                                 title="Reject Request"
@@ -425,7 +425,7 @@ export default function AdminRequestsPage() {
                                                             </Button>
                                                             <Button
                                                                 size="sm"
-                                                                className="bg-emerald-600 hover:bg-emerald-700 h-8 shadow-sm text-xs font-semibold"
+                                                                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 h-8 shadow-sm text-xs font-semibold"
                                                                 onClick={() => handleApprove(req.id)}
                                                                 disabled={actionId === req.id}
                                                             >
@@ -439,7 +439,7 @@ export default function AdminRequestsPage() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                className="h-7 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                                                                className="h-7 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800"
                                                                 onClick={() => confirmAction(req, "EXTEND")}
                                                                 disabled={actionId === req.id}
                                                             >
@@ -449,7 +449,7 @@ export default function AdminRequestsPage() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
-                                                                className="h-7 text-slate-400 hover:text-red-700 hover:bg-red-50 text-xs"
+                                                                className="h-7 text-muted-foreground hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs"
                                                                 onClick={() => confirmAction(req, "REVOKE")}
                                                                 disabled={actionId === req.id}
                                                             >
@@ -471,7 +471,7 @@ export default function AdminRequestsPage() {
             <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle className={actionType === "EXTEND" ? "text-indigo-600" : "text-red-600"}>
+                        <AlertDialogTitle className={actionType === "EXTEND" ? "text-indigo-600 dark:text-indigo-400" : "text-red-600 dark:text-red-400"}>
                             {actionType === "REVOKE" ? "Revoke Pro Access" :
                                 actionType === "REJECT" ? "Reject Request" :
                                     "Extend Pro Subscription"}
@@ -513,7 +513,7 @@ export default function AdminRequestsPage() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleConfirmAction}
-                            className={actionType === "EXTEND" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"}
+                            className={actionType === "EXTEND" ? "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600" : "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"}
                         >
                             {(revokeMutation.isPending || extendMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                             {actionType === "REVOKE" ? "Confirm Revoke" :

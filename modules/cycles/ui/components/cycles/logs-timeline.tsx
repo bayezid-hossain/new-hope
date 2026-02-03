@@ -25,7 +25,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
     const isConsumption = (log.note?.includes("Consumption") || log.type === "CONSUMPTION") && !log.note?.includes("Ended");
 
     let icon = <FileText className="h-4 w-4" />;
-    let colorClass = "bg-slate-500";
+    let colorClass = "bg-muted-foreground";
     let title = "System Log";
 
     const normalizedType = log.type.toUpperCase();
@@ -78,7 +78,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-[10px] text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={() => setShowEditModal(true)}
                             >
                                 <Wrench className="h-3 w-3 mr-1" /> Edit
@@ -226,7 +226,7 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
                     <Button
                         variant={filter === "MORTALITY" ? "default" : "outline"}
                         size="sm"
-                        className={`h-7 text-xs rounded-full px-3 ${filter === "MORTALITY" ? "bg-red-600 hover:bg-red-700" : "text-red-700 border-red-200 hover:bg-red-50"}`}
+                        className={`h-7 text-xs rounded-full px-3 ${filter === "MORTALITY" ? "bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800" : "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"}`}
                         onClick={() => setFilter("MORTALITY")}
                     >
                         Mortality
@@ -234,7 +234,7 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
                     <Button
                         variant={filter === "SYSTEM" ? "default" : "outline"}
                         size="sm"
-                        className={`h-7 text-xs rounded-full px-3 ${filter === "SYSTEM" ? "bg-slate-600 hover:bg-slate-700" : "text-slate-700 border-slate-200 hover:bg-slate-50"}`}
+                        className={`h-7 text-xs rounded-full px-3 ${filter === "SYSTEM" ? "bg-muted-foreground dark:bg-muted hover:bg-muted-foreground/90 dark:hover:bg-muted/80" : "text-muted-foreground border-border hover:bg-muted/50"}`}
                         onClick={() => setFilter("SYSTEM")}
                     >
                         System
@@ -243,7 +243,7 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
             </div>
 
             {/* SCROLLABLE LIST */}
-            <div className={cn("overflow-y-auto pr-3 pl-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent h-auto", height)}>
+            <div className={cn("overflow-y-auto pr-3 pl-1 scrollbar-thin h-auto", height)}>
                 {filteredLogs.length > 0 ? (
                     <div className="pt-2">
                         {filteredLogs.map((log, index) => (
@@ -256,7 +256,7 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
                         ))}
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg bg-slate-50">
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg bg-muted/20">
                         <Search className="h-8 w-8 mx-auto mb-2 opacity-20" />
                         <p className="text-sm font-medium">No results found.</p>
                         <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters</p>

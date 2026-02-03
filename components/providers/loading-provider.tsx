@@ -36,20 +36,20 @@ export const LoadingProvider = ({ children }: { children: React.ReactNode }) => 
         <LoadingContext.Provider value={{ showLoading, hideLoading, isLoading }}>
             {children}
             {isLoading && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-xl animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-xl animate-in fade-in duration-300">
                     <div className="flex flex-col items-center gap-6">
                         <div className="relative flex items-center justify-center">
                             <div className="absolute size-20 bg-primary/20 rounded-full animate-ping opacity-75" />
-                            <div className="relative bg-white p-5 rounded-full shadow-2xl border border-slate-100 ring-4 ring-slate-50">
+                            <div className="relative bg-background p-5 rounded-full shadow-2xl border border-border/50 ring-4 ring-muted/50">
                                 <Bird className="size-10 text-primary animate-pulse" />
                             </div>
                         </div>
                         {message && (
                             <div className="flex flex-col items-center gap-1 animate-in slide-in-from-bottom-2 duration-500 delay-100">
-                                <p className="text-sm font-bold text-slate-800 tracking-widest uppercase">
+                                <p className="text-sm font-bold text-foreground tracking-widest uppercase">
                                     {message}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-medium">Please wait a moment...</p>
+                                <p className="text-[10px] text-muted-foreground font-medium">Please wait a moment...</p>
                             </div>
                         )}
                     </div>

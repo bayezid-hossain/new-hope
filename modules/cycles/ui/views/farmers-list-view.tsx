@@ -123,7 +123,7 @@ export const FarmersListView = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-6 w-6 text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                                                        className="h-6 w-6 text-muted-foreground/40 hover:text-muted-foreground transition-all"
                                                         onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
                                                     >
                                                         <Wrench className="h-3 w-3" />

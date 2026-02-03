@@ -25,8 +25,8 @@ export const InactiveState = ({ orgName }: InactiveStateProps) => {
     return (
         <div className="h-screen w-full flex items-center justify-center bg-muted/10 p-4">
             <div className="bg-card p-8 rounded-xl border shadow-sm max-w-md text-center space-y-6">
-                <div className="bg-slate-100 p-4 rounded-full w-fit mx-auto ring-8 ring-slate-50">
-                    <UserMinus className="h-8 w-8 text-slate-600" />
+                <div className="bg-muted p-4 rounded-full w-fit mx-auto ring-8 ring-muted/50">
+                    <UserMinus className="h-8 w-8 text-muted-foreground" />
                 </div>
 
                 <div className="space-y-2">
