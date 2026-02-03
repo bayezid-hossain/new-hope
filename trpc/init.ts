@@ -65,12 +65,27 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 });
 
 export const proProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  if (!ctx.user.isPro && ctx.user.globalRole !== "ADMIN") {
+  // Admins always have access
+  if (ctx.user.globalRole === "ADMIN") {
+    return next({ ctx });
+  }
+
+  // Check if Pro is enabled
+  if (!ctx.user.isPro) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "This is a Pro feature. Please request access."
     });
   }
+
+  // Check if subscription has expired
+  if (ctx.user.proExpiresAt && ctx.user.proExpiresAt < new Date()) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Your Pro subscription has expired. Please renew to continue using Pro features."
+    });
+  }
+
   return next({ ctx });
 });
 

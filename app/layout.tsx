@@ -1,4 +1,5 @@
 import { LoadingProvider } from "@/components/providers/loading-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TRPCReactProvider } from "@/trpc/client";
 import type { Metadata } from "next";
@@ -24,15 +25,22 @@ export default function RootLayout({
     <NuqsAdapter>
       {" "}
       <TRPCReactProvider>
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
           <body
             className={`${inter.className} antialiased`}
           >
             <NextTopLoader showSpinner={false} color="#1c1917" />
-            <LoadingProvider>
-              <Toaster />
-              {children}
-            </LoadingProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <LoadingProvider>
+                <Toaster />
+                {children}
+              </LoadingProvider>
+            </ThemeProvider>
           </body>
         </html>
       </TRPCReactProvider>

@@ -27,6 +27,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import DashboardUserButton from "./dashboard-user-button";
 import { ModeToggle } from "./mode-toggle";
+import { ThemeToggle } from "./theme-toggle";
 
 const firstSection = [
   {
@@ -136,19 +137,24 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
   return (
     <Sidebar className={cn(sidebarModeStyles[currentMode], "transition-colors duration-300")}>
       <SidebarHeader className="text-sidebar-accent-foreground">
-        <Link
-          href="/"
-          className="flex items-center gap-2 px-2 pt-2"
-        >
-          <Image
-            src="/logo.png"
-            height={36}
-            width={36}
-            alt="Feed Reminder Logo"
-            unoptimized
-          />
-          <p className="text-2xl font-semibold">Feed Reminder</p>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-2 pt-2"
+          >
+            <Image
+              src="/logo.png"
+              height={36}
+              width={36}
+              alt="Feed Reminder Logo"
+              unoptimized
+            />
+            <p className="text-2xl font-semibold">Feed Reminder</p>
+          </Link>
+          <div className="pt-2 pr-2">
+            <ThemeToggle />
+          </div>
+        </div>
       </SidebarHeader>
 
       <div className="px-4 py-2">

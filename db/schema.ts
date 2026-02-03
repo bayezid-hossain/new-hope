@@ -45,6 +45,7 @@ export const user = pgTable("user", {
   // Custom Field for Global Admin logic
   globalRole: globalRoleEnum("global_role").default("USER").notNull(),
   isPro: boolean("is_pro").default(false).notNull(),
+  proExpiresAt: timestamp("pro_expires_at"), // null = never had Pro or no expiration set
 
   twoFactorEnabled: boolean("two_factor_enabled"),
 });

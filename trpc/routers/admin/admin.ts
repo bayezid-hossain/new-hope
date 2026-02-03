@@ -33,19 +33,23 @@ export const adminRouter = createTRPCRouter({
             id: user.id,
             name: user.name,
             email: user.email,
+            isPro: user.isPro,
+            proExpiresAt: user.proExpiresAt,
           },
         })
         .from(featureRequest)
         .leftJoin(user, eq(featureRequest.userId, user.id))
-        .orderBy(desc(featureRequest.createdAt));
+        .orderBy(desc(featureRequest.status));
 
       return requests;
     }),
 
   approveFeatureRequest: adminProcedure
-    .input(z.object({ requestId: z.string() }))
+    .input(z.object({
+      requestId: z.string(),
+      months: z.number().min(1).max(12).default(1)
+    }))
     .mutation(async ({ input }) => {
-      // 1. Get the request
       const [req] = await db
         .select()
         .from(featureRequest)
@@ -54,20 +58,23 @@ export const adminRouter = createTRPCRouter({
 
       if (!req) throw new Error("Request not found");
 
-      // 2. Update User and Request
+      // Calculate expiration date
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + input.months);
+
       await db.transaction(async (tx) => {
         await tx
           .update(user)
-          .set({ isPro: true })
+          .set({ isPro: true, proExpiresAt: expiresAt })
           .where(eq(user.id, req.userId));
 
         await tx
           .update(featureRequest)
-          .set({ status: "APPROVED" })
+          .set({ status: "APPROVED", updatedAt: new Date() })
           .where(eq(featureRequest.id, input.requestId));
       });
 
-      return { success: true };
+      return { success: true, expiresAt };
     }),
 
   revokeFeatureRequest: adminProcedure
@@ -81,18 +88,75 @@ export const adminRouter = createTRPCRouter({
       if (!req) throw new Error("Request not found");
 
       await db.transaction(async (tx) => {
-        // Revoke pro access
         await tx
           .update(user)
-          .set({ isPro: false })
+          .set({ isPro: false, proExpiresAt: null })
           .where(eq(user.id, req.userId));
 
-        // Mark request as rejected
         await tx
           .update(featureRequest)
-          .set({ status: "REJECTED" })
+          .set({ status: "REJECTED", updatedAt: new Date() })
           .where(eq(featureRequest.id, input.requestId));
       });
+
+      return { success: true };
+    }),
+
+  // Direct subscription management (without feature request)
+  grantPro: adminProcedure
+    .input(z.object({
+      userId: z.string(),
+      months: z.number().min(1).max(12)
+    }))
+    .mutation(async ({ input }) => {
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + input.months);
+
+      await db
+        .update(user)
+        .set({ isPro: true, proExpiresAt: expiresAt })
+        .where(eq(user.id, input.userId));
+
+      return { success: true, expiresAt };
+    }),
+
+  extendPro: adminProcedure
+    .input(z.object({
+      userId: z.string(),
+      additionalMonths: z.number().min(1).max(12)
+    }))
+    .mutation(async ({ input }) => {
+      // Get current user
+      const [targetUser] = await db
+        .select()
+        .from(user)
+        .where(eq(user.id, input.userId));
+
+      if (!targetUser) throw new Error("User not found");
+
+      // Calculate new expiration: extend from current expiry or from now
+      const baseDate = targetUser.proExpiresAt && targetUser.proExpiresAt > new Date()
+        ? targetUser.proExpiresAt
+        : new Date();
+
+      const newExpiresAt = new Date(baseDate);
+      newExpiresAt.setMonth(newExpiresAt.getMonth() + input.additionalMonths);
+
+      await db
+        .update(user)
+        .set({ isPro: true, proExpiresAt: newExpiresAt })
+        .where(eq(user.id, input.userId));
+
+      return { success: true, expiresAt: newExpiresAt };
+    }),
+
+  revokePro: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ input }) => {
+      await db
+        .update(user)
+        .set({ isPro: false, proExpiresAt: null })
+        .where(eq(user.id, input.userId));
 
       return { success: true };
     }),
