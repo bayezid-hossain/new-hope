@@ -39,6 +39,7 @@ import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/componen
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
+import { PerformanceBenchmarkCard } from "@/modules/farmers/ui/components/performance-benchmark-card";
 import { SecurityMoneyHistoryModal } from "@/modules/farmers/ui/components/security-money-history-modal";
 
 import { useTRPC } from "@/trpc/client";
@@ -327,6 +328,9 @@ export default function FarmerDetails() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Performance Benchmark Card (Pro Feature) */}
+      <PerformanceBenchmarkCard farmerId={farmerId} />
 
       <div className="w-full min-w-0">
         {/* Desktop View: Tabs */}
