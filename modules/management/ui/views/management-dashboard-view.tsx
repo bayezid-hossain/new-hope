@@ -44,7 +44,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const cycles = data.items;
 
     // --- Derived Metrics ---
-    const totalBirds = cycles.reduce((acc, f) => acc + ((f.doc) - f.mortality), 0);
+    const totalBirds = cycles.reduce((acc, f) => acc + (f.doc - f.mortality - (f.birdsSold || 0)), 0);
 
     // Calculate Total Feed Stock (Sum of UNIQUE Farmers' mainStock)
     const uniqueFarmers = new Map();
@@ -62,7 +62,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const totalAvailableStock = totalMainStock - totalActiveConsumption;
 
     const avgMortality = cycles.length
-        ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + (f.doc), 0) * 100).toFixed(2)
+        ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + f.doc, 0) * 100).toFixed(2)
         : "0";
 
     // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
@@ -107,7 +107,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
         };
 
         existing.totalIntake += cycle.intake;
-        existing.totalDoc += cycle.doc;
+        existing.totalDoc += (cycle.doc - (cycle.birdsSold || 0)); // Effective birds for efficiency
         existing.totalMortality += cycle.mortality;
         existing.activeCyclesCount += 1;
 

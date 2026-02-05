@@ -8,25 +8,34 @@ import { Label } from "@/components/ui/label"; // Import Label
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SellModal } from "./sell-modal";
 
 interface EndCycleModalProps {
   cycleId: string;
+  cycleName: string;
   farmerName: string;
   open: boolean;
   intake: number;
+  doc: number;
+  mortality: number;
+  birdsSold: number;
   prefix?: string;
   onOpenChange: (open: boolean) => void;
 }
 
 export const EndCycleModal = ({
   cycleId,
+  cycleName,
   farmerName,
   open,
   intake,
+  doc,
+  mortality,
+  birdsSold,
   prefix,
   onOpenChange,
 }: EndCycleModalProps) => {
@@ -37,6 +46,7 @@ export const EndCycleModal = ({
   const { orgId } = useCurrentOrg()
   // State to track manual remaining stock
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
+  const [showSellModal, setShowSellModal] = useState(false);
 
   // Sync state when prop changes or modal opens
   useEffect(() => {
@@ -104,57 +114,84 @@ export const EndCycleModal = ({
   };
 
   return (
-    <ResponsiveDialog
-      title="Confirm End Cycle"
-      description="Are you sure you want to end this cycle?"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <div className="space-y-6 pt-2">
-        {/* Warning Box */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          <AlertTriangle className="h-5 w-5 shrink-0" />
-          <p>
-            This will archive <strong>{farmerName}</strong>. This action cannot be undone.
-          </p>
-        </div>
+    <>
+      <ResponsiveDialog
+        title="Confirm End Cycle"
+        description="Are you sure you want to end this cycle?"
+        open={open}
+        onOpenChange={onOpenChange}
+      >
+        <div className="space-y-6 pt-2">
+          {/* Warning Box */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <p>
+              This will archive <strong>{farmerName}</strong>. This action cannot be undone.
+            </p>
+          </div>
 
-        {/* Input Section */}
-        <div className="space-y-2">
-          <Label htmlFor="stock">Physical Stock Intake (Bags)</Label>
-          <Input
-            id="stock"
-            type="number"
-            step="1.00"
-            min="0"
-            placeholder={intakeStock.toString()}
-            value={intakeStock}
-            onChange={(e) => setIntake(e.target.value)}
-            className="font-mono"
-          />
-          <p className="text-xs text-muted-foreground">
-            Enter the actual number of bags physically eaten.
-          </p>
-        </div>
+          {/* Input Section */}
+          <div className="space-y-2">
+            <Label htmlFor="stock">Physical Stock Intake (Bags)</Label>
+            <Input
+              id="stock"
+              type="number"
+              step="1.00"
+              min="0"
+              placeholder={intakeStock.toString()}
+              value={intakeStock}
+              onChange={(e) => setIntake(e.target.value)}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the actual number of bags physically eaten.
+            </p>
+          </div>
 
-        {/* Buttons */}
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="destructive"
-            onClick={handleEndCycle}
-            disabled={endMutation.isPending} className=" text-white"
-          >
-            {endMutation.isPending ? "Archiving..." : "Confirm & End Cycle"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={endMutation.isPending}
-          >
-            Cancel
-          </Button>
+          {/* Buttons */}
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="default"
+              onClick={() => {
+                onOpenChange(false);
+                setShowSellModal(true);
+              }}
+              disabled={endMutation.isPending}
+              className="gap-2"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              Record Sale & End
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleEndCycle}
+              disabled={endMutation.isPending}
+              className="text-white"
+            >
+              {endMutation.isPending ? "Archiving..." : "End Without Sale"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={endMutation.isPending}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
-      </div>
-    </ResponsiveDialog>
+      </ResponsiveDialog>
+
+      <SellModal
+        cycleId={cycleId}
+        cycleName={cycleName}
+        farmerName={farmerName}
+        doc={doc}
+        mortality={mortality}
+        birdsSold={birdsSold}
+        intake={intake}
+        open={showSellModal}
+        onOpenChange={setShowSellModal}
+      />
+    </>
   );
 };

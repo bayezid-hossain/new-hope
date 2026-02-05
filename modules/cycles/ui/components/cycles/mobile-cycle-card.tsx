@@ -29,8 +29,11 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
     // Map properties safely
     const cycleName = cycle.name || cycle.cycleName || cycle.farmerName;
     const intakeValue = parseFloat(cycle.intake || cycle.finalIntake || "0");
-    const docValue = parseInt(cycle.doc || "0");
-    const mortalityValue = cycle.mortality || 0;
+    const docValue = Number(cycle.doc || 0);
+    const mortalityValue = Number(cycle.mortality || 0);
+    const soldValue = Number(cycle.birdsSold || 0);
+    const liveBirdsValue = Math.max(0, docValue - mortalityValue - soldValue);
+
     const createdAt = cycle.startDate || cycle.createdAt;
     const endDate = cycle.endDate;
     // Construct links
@@ -99,6 +102,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                                     <Badge variant="outline" className="text-[8px] h-3.5 bg-background border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
                                 )}
                                 {!isCurrent && cycle.status === 'active' && <Badge className="bg-primary/20 text-primary border-none font-bold text-[8px] h-3.5 px-1">ACTIVE</Badge>}
+                                {soldValue > 0 && <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter">{soldValue} SOLD</Badge>}
                                 {cycle.status === 'deleted' && <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 font-bold text-[8px] h-3.5 px-1 uppercase leading-none">DELETED BY OFFICER</Badge>}
                             </>
                         )}
@@ -139,11 +143,12 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
 
                 {variant === "elevated" ? (
                     <div className="flex flex-col justify-center text-center p-1 rounded bg-primary/5 border border-primary/10">
-                        <span className="text-[10px] xs:text-[12px] text-primary/70 font-bold uppercase tracking-tight leading-tight">DOC</span>
+                        <span className="text-[10px] xs:text-[12px] text-primary/70 font-bold uppercase tracking-tight leading-tight">Live Birds</span>
                         <div className="flex items-center gap-1 justify-center">
                             <Bird className="h-4 w-4 xs:h-5 xs:w-5 text-primary/80" />
-                            <p className="text-[12px] xs:text-sm font-bold text-primary leading-none">{docValue.toLocaleString()}</p>
+                            <p className="text-[12px] xs:text-sm font-bold text-primary leading-none">{liveBirdsValue.toLocaleString()}</p>
                         </div>
+                        <span className="text-[8px] text-muted-foreground mt-0.5 font-medium tracking-tighter">Initial: {docValue.toLocaleString()}</span>
                     </div>
                 ) : (
                     <div className="flex flex-col justify-center text-center p-1 rounded bg-amber-500/5 dark:bg-amber-900/10 border border-amber-500/10 dark:border-amber-800/20">

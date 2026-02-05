@@ -53,14 +53,14 @@ export const AddMortalityModal = ({
 
         // Invalidate Active listings across all potential routers
         const baseOptions = { orgId: orgId! };
-        queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions));
-        queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions));
-        queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions));
+        queryClient.invalidateQueries(trpc.officer.cycles.listActive.pathFilter());
+        queryClient.invalidateQueries(trpc.management.cycles.listActive.pathFilter());
+        queryClient.invalidateQueries(trpc.admin.cycles.listActive.pathFilter());
 
         // Invalidate detailed farmer views
         queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.pathFilter());
         queryClient.invalidateQueries(trpc.officer.cycles.getDetails.pathFilter());
-        queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.queryOptions({ orgId: orgId! }));
+        queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.pathFilter());
         queryClient.invalidateQueries(trpc.officer.stock.getHistory.pathFilter());
         queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter());
 

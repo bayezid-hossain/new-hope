@@ -23,6 +23,7 @@ type CycleItem = {
     farmerId: string;
     organizationId: string | null;
     doc: number;
+    birdsSold: number;
     age: number;
     intake: string | number | null;
     mortality: number;
@@ -260,8 +261,32 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <div className="col-span-3">
                                                     <div className="flex flex-col gap-1.5">
                                                         <div className="flex items-center gap-4">
-                                                            <MetricRow icon={Bird} value={cycle.doc.toLocaleString()} label="birds" />
-                                                            <StatusBadge status={cycle.status} />
+                                                            <div className="flex flex-col">
+                                                                {cycle.status === "active" ? (
+                                                                    <>
+                                                                        <MetricRow
+                                                                            icon={Bird}
+                                                                            value={(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}
+                                                                            label="live"
+                                                                            valueColor="text-primary"
+                                                                        />
+                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">initiald: {Number(cycle.doc || 0).toLocaleString()}</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <MetricRow
+                                                                        icon={Bird}
+                                                                        value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                        label="initial"
+                                                                        valueColor="text-muted-foreground"
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <StatusBadge status={cycle.status} />
+                                                                {cycle.birdsSold > 0 && (
+                                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         {cycle.mortality > 0 && (
                                                             <div className="flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/10 w-fit px-2 py-0.5 rounded-full border border-destructive/20">
@@ -343,8 +368,21 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-4">
-                                                        <MetricRow icon={Bird} value={cycle.doc.toLocaleString()} label="birds" />
-                                                        <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
+                                                        <div className="flex flex-col">
+                                                            <MetricRow
+                                                                icon={Bird}
+                                                                value={(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}
+                                                                label="live"
+                                                                valueColor="text-primary"
+                                                            />
+                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">initial {Number(cycle.doc || 0).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
+                                                            {cycle.birdsSold > 0 && (
+                                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     {cycle.mortality > 0 && (
                                                         <div className="flex items-center gap-1.5 text-[9px] text-destructive font-bold bg-destructive/10 w-fit px-1.5 py-0.5 rounded-full border border-destructive/20">

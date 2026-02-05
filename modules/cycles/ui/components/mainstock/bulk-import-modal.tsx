@@ -418,7 +418,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl">
                 {showProGate ? (
                     <div className="h-full w-full flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                        <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="relative h-48 bg-slate-900 dark:bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
                             {/* Close Button for Pro Modal - Just goes back to input */}
                             <Button
                                 variant="ghost"
@@ -571,8 +571,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                     key={row.id}
                                                     className={`
                                                 group relative p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md
-                                                ${row.isDuplicate ? "bg-destructive/5 border-destructive/20" :
-                                                            !row.matchedFarmerId ? "bg-amber-500/5 border-amber-500/10" : "bg-card border-border/50 hover:border-primary/50"}
+                                                ${row.isDuplicate ? "bg-destructive/5 dark:bg-destructive/10 border-destructive/20" :
+                                                            !row.matchedFarmerId ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10" : "bg-card border-border/50 hover:border-primary/50"}
                                             `}
                                                 >
                                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -708,7 +708,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                                 <Button
                                                                                     size="sm"
                                                                                     variant="default"
-                                                                                    className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                                                                    className="h-8 bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 shadow-sm"
                                                                                     onClick={() => handleCreateClick(row)}
                                                                                     disabled={loadingRowIds.has(row.id) || isCreatingAll}
                                                                                 >
@@ -791,9 +791,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             parseText();
                                         }}
                                         disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
-                                        className={`text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto ${!isPro
-                                            ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
-                                            : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
+                                        className={`transition-all hover:shadow-lg w-full sm:w-auto font-bold border-0 ${!isPro
+                                            ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100"
+                                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
                                             }`}
                                         size="lg"
                                     >
@@ -804,7 +804,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             </>
                                         ) : !isPro ? (
                                             <>
-                                                <Sparkles className="mr-2 h-4 w-4 text-amber-300" />
+                                                <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
                                                 <span className="hidden sm:inline">Analyze with AI</span><span className="sm:hidden">Analyze</span> <Badge className="ml-2 bg-amber-400 text-amber-950 text-[10px] items-center px-1 h-4">PRO</Badge>
                                             </>
                                         ) : (

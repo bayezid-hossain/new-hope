@@ -83,6 +83,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerId: d.cycle.farmerId,
                     organizationId: d.cycle.organizationId || null,
                     doc: d.cycle.doc,
+                    birdsSold: d.cycle.birdsSold,
                     age: d.cycle.age,
                     intake: d.cycle.intake,
                     mortality: d.cycle.mortality,
@@ -207,6 +208,7 @@ export const managementCyclesRouter = createTRPCRouter({
                 type: 'history' as const,
                 data: {
                     ...historyRecord,
+                    birdsSold: historyRecord.birdsSold,
                     name: historyRecord.cycleName,
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
@@ -274,6 +276,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerId: d.history.farmerId,
                     organizationId: d.history.organizationId || null,
                     doc: d.history.doc,
+                    birdsSold: d.history.birdsSold,
                     age: d.history.age,
                     intake: d.history.finalIntake,
                     mortality: d.history.mortality,

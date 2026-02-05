@@ -39,7 +39,7 @@ const ResponsiveDialog = ({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange} >
-        <DrawerContent>
+        <DrawerContent className={className}>
           <DrawerHeader>
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription>

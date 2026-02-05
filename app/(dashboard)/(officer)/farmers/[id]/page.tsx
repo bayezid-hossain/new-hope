@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   TableBody,
   TableCell,
@@ -29,6 +30,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer } from "@/modules/cycles/types";
 import { CreateCycleModal } from "@/modules/cycles/ui/components/cycles/create-cycle-modal";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { EditStockLogModal } from "@/modules/cycles/ui/components/mainstock/revert-stock-modal";
@@ -51,10 +53,10 @@ import {
   ArrowUpRight,
   Coins,
   History,
-  Loader2,
   MoreVertical,
   Pencil,
   Scale,
+  ShoppingCart,
   Trash2,
   Wheat
 } from "lucide-react";
@@ -79,7 +81,10 @@ type StockLog = {
 const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => (
   <div className="space-y-4">
     {isLoading ? (
-      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
+      </div>
     ) : data?.items.length > 0 ? (
       <>
         <div className="hidden sm:block">
@@ -105,7 +110,10 @@ const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: an
 const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolean, isError: boolean, data: any }) => (
   <div className="space-y-4">
     {isLoading ? (
-      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
+      </div>
     ) : isError ? (
       <div className="text-destructive text-center p-8">Failed to load history</div>
     ) : data?.items.length > 0 ? (
@@ -130,10 +138,21 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
   </div>
 );
 
+const SalesHistorySection = ({ farmerId }: { farmerId: string }) => (
+  <div className="space-y-4">
+    <SalesHistoryCard farmerId={farmerId} />
+  </div>
+);
+
 const StockLedgerSection = ({ isLoading, data, mainStock }: { isLoading: boolean, data: any, mainStock: number }) => (
   <div className="space-y-4">
     {isLoading ? (
-      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+      <div className="space-y-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
     ) : (
       <StockLedgerTable logs={data as unknown as StockLog[] || []} mainStock={mainStock} />
     )}
@@ -199,9 +218,9 @@ export default function FarmerDetails() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Farmer History & Details</h1>
-          <p className="text-sm text-muted-foreground italic">
-            {farmerQuery.data?.name || "Loading..."} • Production & Stock Management
-          </p>
+          <div className="text-sm text-muted-foreground italic">
+            {farmerQuery.isLoading ? <Skeleton className="h-4 w-32 inline-block" /> : (farmerQuery.data?.name || "N/A")} • Production & Stock Management
+          </div>
         </div>
         <div className="flex items-center gap-2 order-first md:order-last">
           <DropdownMenu>
@@ -242,89 +261,125 @@ export default function FarmerDetails() {
       {/* Stock Overview Card */}
       <Card className="border border-border/50 shadow-sm bg-card overflow-hidden">
         <CardContent className="p-6">
-          <div className="grid gap-6 sm:grid-cols-3 items-center">
-            {(() => {
-              const mainStock = farmerQuery.data?.mainStock || 0;
-              const activeConsumption = activeQuery.data?.items.reduce((acc: number, c: any) => acc + (c.intake || 0), 0) || 0;
-              const remaining = mainStock - activeConsumption;
-              const isLow = remaining < 3;
-
-              return (
-                <>
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estimated Remaining</h3>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-4xl font-bold ${isLow ? "text-red-500" : "text-foreground"}`}>{remaining.toFixed(2)}</span>
-                      <span className="text-sm font-medium text-muted-foreground">bags</span>
-                    </div>
-                    {isLow && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
-                        Urgent Restock
-                      </span>
-                    )}
+          {farmerQuery.isLoading ? (
+            <div className="grid gap-6 sm:grid-cols-3 items-center">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="sm:col-span-2 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-5 w-24" />
                   </div>
-
-                  <div className="sm:col-span-2 space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-0.5">
-                        <span className="text-muted-foreground">Active Cycle Use</span>
-                        <div className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)} bags</div>
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
-                        <div className="font-semibold text-foreground">{mainStock.toFixed(2)} bags</div>
-                      </div>
-                    </div>
-                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full" style={{ width: `${Math.min((remaining / (mainStock || 1)) * 100, 100)}%` }} />
-                      <div className="bg-amber-400 h-full" style={{ width: `${Math.min((activeConsumption / (mainStock || 1)) * 100, 100)}%` }} />
-                    </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-5 w-24" />
                   </div>
-                </>
-              );
-            })()}
-          </div>
+                </div>
+                <Skeleton className="h-3 w-full rounded-full" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-3 items-center">
+              {(() => {
+                const mainStock = farmerQuery.data?.mainStock || 0;
+                const activeConsumption = activeQuery.data?.items.reduce((acc: number, c: any) => acc + (c.intake || 0), 0) || 0;
+                const remaining = mainStock - activeConsumption;
+                const isLow = remaining < 3;
+
+                return (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estimated Remaining</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className={`text-4xl font-bold ${isLow ? "text-red-500" : "text-foreground"}`}>{remaining.toFixed(2)}</span>
+                        <span className="text-sm font-medium text-muted-foreground">bags</span>
+                      </div>
+                      {isLow && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
+                          Urgent Restock
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground">Active Cycle Use</span>
+                          <div className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)} bags</div>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
+                          <div className="font-semibold text-foreground">{mainStock.toFixed(2)} bags</div>
+                        </div>
+                      </div>
+                      <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
+                        <div className="bg-emerald-500 h-full" style={{ width: `${Math.min((remaining / (mainStock || 1)) * 100, 100)}%` }} />
+                        <div className="bg-amber-400 h-full" style={{ width: `${Math.min((activeConsumption / (mainStock || 1)) * 100, 100)}%` }} />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Security Money Card */}
       <Card className="border border-border/50 shadow-sm bg-card overflow-hidden">
         <CardContent className="p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <Coins className="h-3 w-3" />
-                  Security Deposit
-                </h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-foreground">
-                    TK. {(farmerQuery.data?.securityMoney || 0).toLocaleString()}
-                  </span>
-                </div>
+          {farmerQuery.isLoading ? (
+            <div className="flex flex-col gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-8 w-40" />
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-border/50">
+                <Skeleton className="h-9 flex-1" />
+                <Skeleton className="h-9 flex-1" />
               </div>
             </div>
-            <div className="flex items-center gap-2 pt-3 border-t border-border/50">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
-                onClick={() => setShowEditSecurityMoneyModal(true)}
-              >
-                <Pencil className="h-3 w-3 text-primary" />
-                Edit Amount
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
-                onClick={() => setShowSecurityHistoryModal(true)}
-              >
-                <History className="h-3 w-3 text-muted-foreground" />
-                History
-              </Button>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <Coins className="h-3 w-3" />
+                    Security Deposit
+                  </h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-foreground">
+                      TK. {(farmerQuery.data?.securityMoney || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-3 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
+                  onClick={() => setShowEditSecurityMoneyModal(true)}
+                >
+                  <Pencil className="h-3 w-3 text-primary" />
+                  Edit Amount
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
+                  onClick={() => setShowSecurityHistoryModal(true)}
+                >
+                  <History className="h-3 w-3 text-muted-foreground" />
+                  History
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -340,6 +395,10 @@ export default function FarmerDetails() {
                 <Activity className="h-4 w-4" />
                 Active Cycles
               </TabsTrigger>
+              <TabsTrigger value="sales" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
+                <ShoppingCart className="h-4 w-4" />
+                Sales History
+              </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                 <Archive className="h-4 w-4" />
                 Archived Cycles
@@ -352,6 +411,10 @@ export default function FarmerDetails() {
 
             <TabsContent value="active" className="mt-8">
               <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} />
+            </TabsContent>
+
+            <TabsContent value="sales" className="mt-8">
+              <SalesHistorySection farmerId={farmerId} />
             </TabsContent>
 
             <TabsContent value="history" className="mt-8">
@@ -376,6 +439,18 @@ export default function FarmerDetails() {
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4">
                 <ActiveCyclesSection isLoading={activeQuery.isLoading} data={activeQuery.data} />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+              <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-blue-500" />
+                  <span className="font-semibold tracking-tight">Sales History</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4">
+                <SalesHistorySection farmerId={farmerId} />
               </AccordionContent>
             </AccordionItem>
 

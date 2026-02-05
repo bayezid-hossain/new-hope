@@ -190,6 +190,7 @@ export const cycles = pgTable("cycles", {
 
   // Data
   doc: integer("doc").notNull(), // Day Old Chicks count
+  birdsSold: integer("birds_sold").notNull().default(0),
   intake: real("intake").notNull().default(0),
   mortality: integer("mortality").notNull().default(0),
   age: integer("age").notNull().default(0),
@@ -212,6 +213,7 @@ export const cycleHistory = pgTable("cycle_history", {
 
   // Snapshot of final stats
   doc: integer("doc").notNull(),
+  birdsSold: integer("birds_sold").notNull().default(0),
   finalIntake: real("final_intake").notNull(),
   mortality: integer("mortality").notNull(),
   age: integer("age").notNull(),
@@ -261,6 +263,73 @@ export const stockLogs = pgTable("stock_logs", {
 }, (t) => [
   index("idx_stock_logs_farmer_id").on(t.farmerId),
 ]);
+
+// =========================================================
+// 4b. SALES TRACKING
+// =========================================================
+
+// Sale Events - Records actual sale transactions
+export const saleEvents = pgTable("sale_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }),
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+
+  // Location (farmer name from DB via cycle→farmer relation)
+  location: text("location").notNull(),
+
+  // Sale Data
+  saleDate: timestamp("sale_date").notNull().defaultNow(),
+  houseBirds: integer("house_birds").notNull(), // Birds at start of cycle
+  birdsSold: integer("birds_sold").notNull(),
+  totalMortality: integer("total_mortality").notNull(),
+
+  totalWeight: decimal("total_weight").notNull(), // kg
+  avgWeight: decimal("avg_weight").notNull(), // kg per bird
+  pricePerKg: decimal("price_per_kg").notNull(),
+  totalAmount: decimal("total_amount").notNull(),
+
+  // Payment
+  cashReceived: decimal("cash_received").default("0"),
+  depositReceived: decimal("deposit_received").default("0"),
+
+  // Dynamic feed arrays as JSON: [{type: "B1", bags: 15}, {type: "B2", bags: 38}]
+  feedConsumed: text("feed_consumed").notNull(),
+  feedStock: text("feed_stock").notNull(),
+
+  medicineCost: decimal("medicine_cost").default("0"),
+
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_events_cycle_id").on(t.cycleId),
+  index("idx_sale_events_history_id").on(t.historyId),
+]);
+
+// Sale Reports - Multiple reports per event for adjustments
+export const saleReports = pgTable("sale_reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  saleEventId: text("sale_event_id").notNull().references(() => saleEvents.id, { onDelete: "cascade" }),
+
+  birdsSold: integer("birds_sold").notNull(),
+  totalMortality: integer("total_mortality").default(0),
+  totalWeight: decimal("total_weight").notNull(),
+  pricePerKg: decimal("price_per_kg").notNull(),
+  totalAmount: decimal("total_amount").notNull(),
+  avgWeight: decimal("avg_weight").notNull(),
+
+  // Financial Adjustments
+  cashReceived: decimal("cash_received").default("0"),
+  depositReceived: decimal("deposit_received").default("0"),
+  medicineCost: decimal("medicine_cost").default("0"),
+
+  adjustmentNote: text("adjustment_note"),
+
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_reports_event_id").on(t.saleEventId),
+]);
+
 // =========================================================
 // 5. RELATIONS
 // =========================================================
@@ -289,11 +358,13 @@ export const farmerRelations = relations(farmer, ({ one, many }) => ({
 export const cycleRelations = relations(cycles, ({ one, many }) => ({
   farmer: one(farmer, { fields: [cycles.farmerId], references: [farmer.id] }),
   logs: many(cycleLogs),
+  saleEvents: many(saleEvents),
 }));
 
 export const historyRelations = relations(cycleHistory, ({ one, many }) => ({
   farmer: one(farmer, { fields: [cycleHistory.farmerId], references: [farmer.id] }),
   logs: many(cycleLogs),
+  saleEvents: many(saleEvents),
 }));
 
 export const logRelations = relations(cycleLogs, ({ one }) => ({
@@ -305,6 +376,18 @@ export const logRelations = relations(cycleLogs, ({ one }) => ({
 export const securityLogRelations = relations(farmerSecurityMoneyLogs, ({ one }) => ({
   farmer: one(farmer, { fields: [farmerSecurityMoneyLogs.farmerId], references: [farmer.id] }),
   editor: one(user, { fields: [farmerSecurityMoneyLogs.changedBy], references: [user.id] }),
+}));
+
+export const saleEventRelations = relations(saleEvents, ({ one, many }) => ({
+  cycle: one(cycles, { fields: [saleEvents.cycleId], references: [cycles.id] }),
+  history: one(cycleHistory, { fields: [saleEvents.historyId], references: [cycleHistory.id] }),
+  createdByUser: one(user, { fields: [saleEvents.createdBy], references: [user.id] }),
+  reports: many(saleReports),
+}));
+
+export const saleReportRelations = relations(saleReports, ({ one }) => ({
+  saleEvent: one(saleEvents, { fields: [saleReports.saleEventId], references: [saleEvents.id] }),
+  createdByUser: one(user, { fields: [saleReports.createdBy], references: [user.id] }),
 }));
 
 // =========================================================

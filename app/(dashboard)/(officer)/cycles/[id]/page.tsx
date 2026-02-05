@@ -29,6 +29,7 @@ import {
     History,
     Lightbulb,
     Scale,
+    ShoppingCart,
     TrendingUp,
     Wheat,
     Wrench
@@ -48,6 +49,7 @@ interface NormalizedCycle {
     id: string;
     name: string;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     intake: number;
@@ -62,6 +64,7 @@ interface ActiveCycle {
     farmerId: string;
     organizationId: string;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     intake: number;
@@ -77,6 +80,7 @@ interface HistoryRecord {
     farmerId: string;
     organizationId: string | null;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     finalIntake: number;
@@ -293,6 +297,7 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
     </div>
 );
 
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
 
 const CycleDetailsContent = ({ id }: { id: string }) => {
@@ -313,6 +318,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
             id: rawData.id,
             name: (rawData as any).farmer?.name || (isActive ? (rawData as ActiveCycle).name : (rawData as HistoryRecord).cycleName),
             doc: rawData.doc || 0,
+            birdsSold: rawData.birdsSold || 0,
             mortality: rawData.mortality || 0,
             age: rawData.age || 0,
             intake: isActive ? ((rawData as ActiveCycle).intake || 0) : ((rawData as HistoryRecord).finalIntake || 0),
@@ -334,7 +340,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
 
     const { cycle, logs, history, farmerContext } = normalized;
 
-    const liveBirds = Math.max(0, cycle.doc - cycle.mortality);
+    const liveBirds = Math.max(0, cycle.doc - cycle.mortality - cycle.birdsSold);
     const survivalRate = cycle.doc > 0
         ? ((liveBirds / cycle.doc) * 100).toFixed(2)
         : "0.00";
@@ -409,6 +415,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         // Ensure all required fields from Farmer type are present or mocked safely
                                         age: cycle.age,
                                         doc: cycle.doc,
+                                        birdsSold: cycle.birdsSold,
                                         mortality: cycle.mortality,
                                         intake: cycle.intake.toString()
                                     } as unknown as Farmer}
@@ -418,6 +425,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                     history={{
                                         ...cycle,
                                         cycleName: cycle.name,
+                                        birdsSold: cycle.birdsSold,
                                         finalIntake: cycle.intake,
                                         farmerId: farmerContext.id,
                                         organizationId: farmerContext.organizationId,
@@ -462,6 +470,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             </div>
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Birds Sold</span>
+                                <span className="font-medium text-sm sm:text-base text-foreground">{cycle.birdsSold} birds</span>
+                            </div>
+                            <Separator className="bg-border/50" />
+                            <div className="flex justify-between items-center">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Mortality</span>
                                 <span className="font-medium text-sm sm:text-base text-foreground">{cycle.mortality} birds</span>
                             </div>
@@ -495,8 +508,9 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                     {/* Desktop View: Tabs */}
                     <div className="hidden sm:block">
                         <Tabs defaultValue="logs" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/50 p-1 rounded-xl border border-border/50">
+                            <TabsList className="grid w-full grid-cols-4 h-11 bg-muted/50 p-1 rounded-xl border border-border/50">
                                 <TabsTrigger value="logs" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Logs</TabsTrigger>
+                                <TabsTrigger value="sales" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Sales</TabsTrigger>
                                 <TabsTrigger value="history" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Other Cycles</TabsTrigger>
                                 <TabsTrigger value="analysis" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Analysis</TabsTrigger>
                             </TabsList>
@@ -505,6 +519,14 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 <Card className="shadow-sm border-border/50 bg-card">
                                     <CardContent className="pt-6">
                                         <LogsTabContent isActive={isActive} logs={logs} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="sales" className="mt-6">
+                                <Card className="shadow-sm border-border/50 bg-card">
+                                    <CardContent className="pt-6">
+                                        <SalesHistoryCard cycleId={isActive ? cycle.id : undefined} historyId={!isActive ? cycle.id : undefined} />
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -535,6 +557,18 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
                                     <LogsTabContent isActive={isActive} logs={logs} isMobile />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                                <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                                        <span className="font-semibold tracking-tight">Sales History</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-4">
+                                    <SalesHistoryCard cycleId={isActive ? cycle.id : undefined} historyId={!isActive ? cycle.id : undefined} isMobile />
                                 </AccordionContent>
                             </AccordionItem>
 
