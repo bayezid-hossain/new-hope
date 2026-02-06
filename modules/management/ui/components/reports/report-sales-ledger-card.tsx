@@ -8,6 +8,7 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronDown, ChevronRight, DollarSign, ShoppingCart } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 interface FarmerSalesStats {
@@ -51,9 +52,15 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                             <DollarSign className="h-6 w-6" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg tracking-tight group-hover:text-emerald-700 transition-colors duration-300">
-                                {stats.name}
-                            </h3>
+                            <Link
+                                href={`/management/farmers/${stats.farmerId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="hover:underline"
+                            >
+                                <h3 className="font-bold text-lg tracking-tight group-hover:text-emerald-700 transition-colors duration-300">
+                                    {stats.name}
+                                </h3>
+                            </Link>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium mt-0.5">
                                 <span className="flex items-center gap-1">
                                     <ShoppingCart className="h-3 w-3" />
@@ -101,7 +108,11 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                                     <span>Amount</span>
                                 </div>
                                 {history.map((sale) => (
-                                    <div key={sale.id} className="p-4 hover:bg-muted/40 transition-colors flex items-center justify-between group/row">
+                                    <Link
+                                        key={sale.id}
+                                        href={`/management/cycles/${(sale as any).cycleId || (sale as any).historyId}`}
+                                        className="p-4 hover:bg-muted/40 transition-colors flex items-center justify-between group/row"
+                                    >
                                         <div className="flex items-start gap-3">
                                             <div className="mt-1 h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
                                                 <ShoppingCart className="h-4 w-4" />
@@ -128,7 +139,7 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                                                 ৳{parseFloat(sale.amount.toString()).toLocaleString()}
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         ) : (

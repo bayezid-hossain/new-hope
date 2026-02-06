@@ -97,4 +97,39 @@ export const adminOrganizationRouter = createTRPCRouter({
 
             return newOrg;
         }),
+
+    // Get Sales for an Organization
+    getSales: adminProcedure
+        .input(z.object({ orgId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const { cycleHistory, cycles, saleEvents } = await import("@/db/schema");
+            const { exists, or, and, eq, sql } = await import("drizzle-orm");
+
+            return await ctx.db.query.saleEvents.findMany({
+                where: or(
+                    exists(
+                        ctx.db.select()
+                            .from(cycles)
+                            .where(and(
+                                eq(cycles.id, saleEvents.cycleId),
+                                eq(cycles.organizationId, input.orgId)
+                            ))
+                    ),
+                    exists(
+                        ctx.db.select()
+                            .from(cycleHistory)
+                            .where(and(
+                                eq(cycleHistory.id, saleEvents.historyId),
+                                eq(cycleHistory.organizationId, input.orgId)
+                            ))
+                    )
+                ),
+                orderBy: [desc(saleEvents.saleDate)],
+                with: {
+                    cycle: { with: { farmer: { columns: { name: true } } } },
+                    history: { with: { farmer: { columns: { name: true } } } },
+                    createdByUser: { columns: { name: true } }
+                }
+            });
+        }),
 });

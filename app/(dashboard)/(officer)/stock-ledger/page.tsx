@@ -25,11 +25,13 @@ export default function StockLedgerPage() {
         hasNextPage,
         isFetchingNextPage,
         refetch
-    } = useInfiniteQuery(
-        trpc.officer.stock.getAllFarmersStock.infiniteQueryOptions(
+    } = useInfiniteQuery({
+        ...trpc.officer.stock.getAllFarmersStock.infiniteQueryOptions(
             { limit: 20 },
-        )
-    );
+        ),
+        getNextPageParam: (lastPage: any) => lastPage.nextCursor,
+        initialPageParam: 0,
+    });
 
     const farmers = useMemo(() => {
         return data?.pages.flatMap((page) => page.items) || [];

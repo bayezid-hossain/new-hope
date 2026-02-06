@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import DashboardUserButton from "@/modules/dashboard/ui/components/dashboard-user-button";
 import { ModeToggle } from "@/modules/dashboard/ui/components/mode-toggle";
 import { ThemeToggle } from "@/modules/dashboard/ui/components/theme-toggle";
-import { Bird, Building, HomeIcon, Sparkles, User, Users } from "lucide-react";
+import { Bird, Building, HomeIcon, ShoppingCart, Sparkles, User, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -130,6 +130,11 @@ const AdminSidebar = () => {
                                 label: "Cycles",
                                 href: `/admin/organizations/${orgId}/cycles`,
                                 icon: Bird
+                            },
+                            {
+                                label: "Sales",
+                                href: `/admin/organizations/${orgId}/sales`,
+                                icon: ShoppingCart
                             },
                         ];
 

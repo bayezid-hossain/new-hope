@@ -8,6 +8,7 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronDown, ChevronRight, ClipboardList, TrendingDown, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 interface FarmerStockSummary {
@@ -50,7 +51,13 @@ export function ReportStockLedgerCard({ farmer, orgId }: ReportStockLedgerCardPr
                             <ClipboardList className="h-6 w-6" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors duration-300">{farmer.name}</h3>
+                            <Link
+                                href={`/management/farmers/${farmer.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="hover:underline"
+                            >
+                                <h3 className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors duration-300">{farmer.name}</h3>
+                            </Link>
                             <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/80 animate-pulse"></span>
                                 Updated: {format(new Date(farmer.updatedAt), "MMM dd, yyyy")}

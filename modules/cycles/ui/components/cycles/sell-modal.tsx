@@ -139,6 +139,10 @@ export const SellModal = ({
                 queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter());
                 queryClient.invalidateQueries(trpc.officer.stock.getHistory.pathFilter());
                 queryClient.invalidateQueries(trpc.officer.sales.getSaleEvents.pathFilter());
+                queryClient.invalidateQueries(trpc.officer.sales.getRecentSales.pathFilter());
+                queryClient.invalidateQueries(trpc.management.reports.getSalesSummary.pathFilter());
+                queryClient.invalidateQueries(trpc.management.reports.getSalesLedger.pathFilter());
+                queryClient.invalidateQueries(trpc.admin.organizations.getSales.pathFilter());
 
                 onOpenChange(false);
                 form.reset();

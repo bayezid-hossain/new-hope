@@ -80,7 +80,7 @@ export const officerSalesRouter = createTRPCRouter({
             const avgWeight = input.totalWeight / input.birdsSold;
             const totalAmount = input.totalWeight * input.pricePerKg;
 
-            return await ctx.db.transaction(async (tx) => {
+            const result = await ctx.db.transaction(async (tx) => {
                 // Create sale event
                 const [saleEvent] = await tx.insert(saleEvents).values({
                     cycleId: input.cycleId,
@@ -140,18 +140,15 @@ export const officerSalesRouter = createTRPCRouter({
 
                 // Check if all birds are sold - if so, end the cycle
                 const totalBirdsAfterMortality = cycle.doc - newMortality;
+                let cycleEnded = false;
+                let historyId: string | undefined = undefined;
 
                 if (newBirdsSold >= totalBirdsAfterMortality) {
-                    // Fetch the updated cycle (mostly for debugging/logging context if needed)
-                    // const [updatedCycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
-
                     // MANUAL OVERRIDE: For the last sale, we use the input feed as the TOTAL cycle consumption
-                    // Logic: User inputs the "Final Total Consumption" in the UI.
                     const manualTotalBags = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
 
                     // Call shared end logic
                     const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                    // Pass manualTotalBags as the final intake to deduct from stock
                     const endResult = await endCycleLogic(tx, input.cycleId, manualTotalBags, ctx.user.id, ctx.user.name);
 
                     // Move sale events to history
@@ -159,11 +156,42 @@ export const officerSalesRouter = createTRPCRouter({
                         .set({ historyId: endResult.historyId, cycleId: null })
                         .where(eq(saleEvents.cycleId, input.cycleId));
 
-                    return { saleEvent, cycleEnded: true, historyId: endResult.historyId };
+                    cycleEnded = true;
+                    historyId = endResult.historyId;
                 }
 
-                return { saleEvent, cycleEnded: false };
+                // Add SALES log entry
+                await tx.insert(cycleLogs).values({
+                    cycleId: cycleEnded ? null : input.cycleId,
+                    historyId: cycleEnded ? historyId : null,
+                    userId: ctx.user.id,
+                    type: "SALES",
+                    valueChange: input.birdsSold,
+                    newValue: newBirdsSold,
+                    previousValue: cycle.birdsSold,
+                    note: `Sale recorded: ${input.birdsSold} birds at ৳${input.pricePerKg}/kg. Location: ${input.location}${cycleEnded ? " (Cycle Completed)" : ""}`,
+                });
+
+                return { saleEvent, cycleEnded, historyId };
             });
+
+            // Send Notification (Outside transaction for performance/reliability)
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                await NotificationService.sendToOrgManagers({
+                    organizationId: cycle.organizationId,
+                    type: "SALES",
+                    title: "New Sale Recorded",
+                    message: `${ctx.user.name} recorded a sale of ${input.birdsSold} birds for ${cycle.farmer.name}.`,
+                    details: `Total weight: ${input.totalWeight}kg, Amount: ৳${totalAmount.toFixed(2)}`,
+                    adminLink: `/admin/organizations/${cycle.organizationId}/sales`,
+                    managementLink: `/management/reports`
+                });
+            } catch (err) {
+                console.error("Failed to send sale notification:", err);
+            }
+
+            return result;
         }),
 
     // Generate additional report for a sale event
@@ -193,7 +221,7 @@ export const officerSalesRouter = createTRPCRouter({
             const avgWeight = input.totalWeight / input.birdsSold;
             const totalAmount = input.totalWeight * input.pricePerKg;
 
-            return await ctx.db.transaction(async (tx) => {
+            const result = await ctx.db.transaction(async (tx) => {
                 const [report] = await tx.insert(saleReports).values({
                     saleEventId: input.saleEventId,
                     birdsSold: input.birdsSold,
@@ -311,8 +339,36 @@ export const officerSalesRouter = createTRPCRouter({
                     }
                 }
 
-                return report;
+                // Add SALES log entry for adjustment
+                await tx.insert(cycleLogs).values({
+                    cycleId: event.cycleId,
+                    historyId: event.historyId,
+                    userId: ctx.user.id,
+                    type: "SALES",
+                    valueChange: birdsSoldDifference,
+                    note: `Sale Adjustment Recorded: birds sold adjusted by ${birdsSoldDifference}. ${input.adjustmentNote || ""}`,
+                });
+
+                return { report, birdsSoldDifference };
             });
+
+            // Send Notification (Outside transaction)
+            try {
+                const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                await NotificationService.sendToOrgManagers({
+                    organizationId: farmerData.organizationId,
+                    type: "SALES",
+                    title: "Sale Adjusted",
+                    message: `${ctx.user.name} adjusted a sale for ${farmerData.name}.`,
+                    details: input.adjustmentNote || `Birds adjusted by ${result.birdsSoldDifference}.`,
+                    adminLink: `/admin/organizations/${farmerData.organizationId}/sales`,
+                    managementLink: `/management/reports`
+                });
+            } catch (err) {
+                console.error("Failed to send adjustment notification:", err);
+            }
+
+            return result.report;
         }),
 
     // Get sale events for a cycle or farmer

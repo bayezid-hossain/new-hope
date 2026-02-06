@@ -25,7 +25,7 @@ export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 export const orgRoleEnum = pgEnum("org_role", ["OWNER", "MANAGER", "OFFICER"]);
 
 export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED", "INACTIVE"]);
-export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM"]);
+export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM", "SALES"]);
 
 
 // =========================================================
@@ -394,7 +394,7 @@ export const saleReportRelations = relations(saleReports, ({ one }) => ({
 // 6. NOTIFICATIONS
 // =========================================================
 
-export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE", "SALES"]);
 
 export const notification = pgTable("notification", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

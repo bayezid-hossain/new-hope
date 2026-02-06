@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Activity, FileText, Filter, Search, Settings, Skull, Wheat, Wrench, X } from "lucide-react";
+import { Activity, FileText, Filter, Search, Settings, ShoppingCart, Skull, Wheat, Wrench, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RevertMortalityModal } from "./revert-mortality-modal";
 
@@ -55,6 +55,10 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         icon = <Activity className="h-4 w-4" />;
         colorClass = "bg-blue-500";
         title = normalizedType === "TRANSFER_OUT" ? "Transferred Out" : (isConsumption ? "Daily Consumption" : "Stock Deduction");
+    } else if (normalizedType === "SALES") {
+        icon = <ShoppingCart className="h-4 w-4" />;
+        colorClass = "bg-emerald-500";
+        title = "Sale Recorded";
     }
 
     // State for Edit Modal
@@ -98,7 +102,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
                     ) : (
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-mono font-normal">
-                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(2)} {normalizedType === "MORTALITY" || log.note?.includes("DOC Correction") ? "Birds" : "Bags"}
+                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(normalizedType === "MORTALITY" || normalizedType === "SALES" ? 0 : 2)} {normalizedType === "MORTALITY" || log.note?.includes("DOC Correction") || normalizedType === "SALES" ? "Birds" : "Bags"}
                             </Badge>
                             {log.note && (
                                 <span className="text-muted-foreground text-xs">
@@ -140,7 +144,8 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
             const normalizedType = log.type.toUpperCase();
             // 1. Category Filter
             if (filter === "MORTALITY" && normalizedType !== "MORTALITY") return false;
-            if (filter === "SYSTEM" && !["NOTE", "STOCK_OUT", "TRANSFER_OUT", "CONSUMPTION", "CORRECTION", "SYSTEM"].includes(normalizedType)) return false;
+            if (filter === "FEED" && !["FEED", "STOCK_IN", "TRANSFER_IN", "CONSUMPTION", "STOCK_OUT", "TRANSFER_OUT"].includes(normalizedType)) return false;
+            if (filter === "SYSTEM" && !["NOTE", "CORRECTION", "SYSTEM", "SALES"].includes(normalizedType)) return false;
 
             // 2. Text Search (Case insensitive on Note or Type)
             if (searchQuery) {
@@ -230,6 +235,14 @@ export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], 
                         onClick={() => setFilter("MORTALITY")}
                     >
                         Mortality
+                    </Button>
+                    <Button
+                        variant={filter === "FEED" ? "default" : "outline"}
+                        size="sm"
+                        className={`h-7 text-xs rounded-full px-3 ${filter === "FEED" ? "bg-amber-600 dark:bg-amber-700 font-bold" : "text-amber-700 bg-amber-50/50 border-amber-100"}`}
+                        onClick={() => setFilter("FEED")}
+                    >
+                        Feed
                     </Button>
                     <Button
                         variant={filter === "SYSTEM" ? "default" : "outline"}

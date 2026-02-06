@@ -185,6 +185,8 @@ export const managementReportsRouter = createTRPCRouter({
                 totalAmount: saleEvents.totalAmount,
                 pricePerKg: saleEvents.pricePerKg,
                 location: saleEvents.location,
+                cycleId: saleEvents.cycleId,
+                historyId: saleEvents.historyId,
                 cycleFarmerId: sql<string>`cycles.farmer_id`,
                 historyFarmerId: sql<string>`cycle_history.farmer_id`
             })
@@ -207,7 +209,9 @@ export const managementReportsRouter = createTRPCRouter({
                 birds: s.birdsSold,
                 weight: s.totalWeight,
                 amount: s.totalAmount,
-                price: s.pricePerKg
+                price: s.pricePerKg,
+                cycleId: s.cycleId,
+                historyId: s.historyId
             }));
 
             return {

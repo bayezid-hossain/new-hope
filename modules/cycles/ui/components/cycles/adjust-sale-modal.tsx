@@ -147,6 +147,10 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             toast.success("Adjustment created successfully");
             Promise.all([
                 queryClient.invalidateQueries(trpc.officer.sales.getSaleEvents.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.sales.getRecentSales.pathFilter()),
+                queryClient.invalidateQueries(trpc.management.reports.getSalesSummary.pathFilter()),
+                queryClient.invalidateQueries(trpc.management.reports.getSalesLedger.pathFilter()),
+                queryClient.invalidateQueries(trpc.admin.organizations.getSales.pathFilter()),
                 queryClient.invalidateQueries(trpc.officer.cycles.listActive.pathFilter()),
                 queryClient.invalidateQueries(trpc.officer.cycles.listPast.pathFilter()),
                 queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
