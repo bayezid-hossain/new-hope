@@ -341,8 +341,9 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
     const { cycle, logs, history, farmerContext } = normalized;
 
     const liveBirds = Math.max(0, cycle.doc - cycle.mortality - cycle.birdsSold);
+    const totalSurvivors = Math.max(0, cycle.doc - cycle.mortality);
     const survivalRate = cycle.doc > 0
-        ? ((liveBirds / cycle.doc) * 100).toFixed(2)
+        ? ((totalSurvivors / cycle.doc) * 100).toFixed(2)
         : "0.00";
 
     const isActive = cycle.status === "active";

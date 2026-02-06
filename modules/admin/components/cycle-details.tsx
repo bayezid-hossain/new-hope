@@ -25,6 +25,7 @@ import {
     Lightbulb,
     Loader2,
     Scale,
+    ShoppingCart,
     Trash2,
     TrendingUp,
     UsersIcon
@@ -58,7 +59,7 @@ const AnalysisContent = ({
     const age = cycle.age || 0;
     const avgDailyIntake = age > 0 ? (intake / age) : 0;
 
-    const liveBirds = Math.max(0, doc - mortality);
+    const liveBirds = Math.max(0, doc - mortality - (cycle.birdsSold || 0));
     const currentFeedPerBird = liveBirds > 0 ? (intake / liveBirds) : 0;
 
     const historicalAvgFeedPerBird = history.length > 0
@@ -281,6 +282,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             intake: type === 'active' ? (cycle as any).intake : (cycle as any).finalIntake,
             createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
+            birdsSold: (cycle as any).birdsSold || 0,
             status: type === 'active' ? 'active' : (cycle as any).status
         };
     }, [response]);
@@ -373,7 +375,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
                 <Card className="border-border/10 shadow-sm bg-card">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Age</CardTitle>
@@ -387,12 +389,26 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                 </Card>
                 <Card className="border-border/10 shadow-sm bg-card">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Chicks (DOC)</CardTitle>
+                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Live Birds</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-3xl font-bold text-primary">{(normalizedCycle.doc - normalizedCycle.mortality - normalizedCycle.birdsSold).toLocaleString()}</span>
+                                <Bird className="h-4 w-4 text-muted-foreground/30" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">of {normalizedCycle.doc.toLocaleString()} DOC</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-border/10 shadow-sm bg-card">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sold</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.doc.toLocaleString()}</span>
-                            <Bird className="h-4 w-4 text-muted-foreground/30" />
+                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.birdsSold.toLocaleString()}</span>
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground/30" />
                         </div>
                     </CardContent>
                 </Card>
@@ -415,8 +431,8 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-primary">{normalizedCycle.intake.toFixed(2)}</span>
-                            <span className="text-muted-foreground text-xs font-medium">bags consumed</span>
+                            <span className="text-3xl font-bold text-amber-500">{normalizedCycle.intake.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-xs font-medium">bags</span>
                         </div>
                     </CardContent>
                 </Card>
