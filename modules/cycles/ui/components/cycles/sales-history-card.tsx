@@ -22,7 +22,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface SaleReport {
+export interface SaleReport {
     id: string;
     birdsSold: number;
     totalMortality?: number | null;
@@ -40,7 +40,7 @@ interface SaleReport {
     };
 }
 
-interface SaleEvent {
+export interface SaleEvent {
     id: string;
     location: string;
     saleDate: Date;
@@ -113,9 +113,11 @@ ${stockBreakdown}
 Medicine :${parseFloat(medicineCost || "0")}`;
 };
 
-const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
+export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
     const [copied, setCopied] = useState(false);
     const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const reports = sale.reports || [];
     const hasReports = reports.length > 0;
@@ -149,10 +151,11 @@ const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
     return (
         <>
             <Card className="border-border/50 shadow-sm overflow-hidden">
-                <CardHeader className="pb-3 px-3 sm:px-6 bg-muted/20">
+                <CardHeader className="pb-3 px-3 sm:px-6 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                             <CardTitle className="text-sm font-semibold flex flex-wrap items-center gap-2">
+                                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                                 <span className="truncate">{sale.location}</span>
                                 {sale.cycleName && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
@@ -165,11 +168,11 @@ const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                                     </Badge>
                                 )}
                             </CardTitle>
-                            <CardDescription className="text-xs mt-0.5">
+                            <CardDescription className="text-xs mt-0.5 ml-6">
                                 {format(new Date(sale.saleDate), "MMM d, yyyy HH:mm")}
                             </CardDescription>
                         </div>
-                        <div className="flex gap-2 shrink-0 w-full sm:w-auto">
+                        <div className="flex gap-2 shrink-0 w-full sm:w-auto ml-6 sm:ml-0" onClick={(e) => e.stopPropagation()}>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -191,8 +194,8 @@ const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                         </div>
                     </div>
 
-                    {hasReports && (
-                        <div className="flex items-center gap-2 mt-3">
+                    {isExpanded && hasReports && (
+                        <div className="flex items-center gap-2 mt-3 ml-6" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground">
@@ -231,57 +234,59 @@ const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                         </div>
                     )}
 
-                    {activeReport?.adjustmentNote && (
-                        <div className="mt-2 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded px-2 py-1.5 text-xs text-muted-foreground italic">
+                    {isExpanded && activeReport?.adjustmentNote && (
+                        <div className="mt-2 ml-6 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded px-2 py-1.5 text-xs text-muted-foreground italic">
                             Note: {activeReport.adjustmentNote}
                         </div>
                     )}
                 </CardHeader>
-                <CardContent className="pt-4 px-3 sm:px-6">
-                    <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
-                                <span className="font-semibold">{displayBirdsSold}</span>
+                {isExpanded && (
+                    <CardContent className="pt-4 px-3 sm:px-6">
+                        <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
+                                    <span className="font-semibold">{displayBirdsSold}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Total Weight</span>
+                                    <span className="font-semibold">{displayTotalWeight} <small className="text-muted-foreground font-medium">kg</small></span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Avg Weight</span>
+                                    <span className="font-semibold">{displayAvgWeight}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Total Weight</span>
-                                <span className="font-semibold">{displayTotalWeight} <small className="text-muted-foreground font-medium">kg</small></span>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Avg Weight</span>
-                                <span className="font-semibold">{displayAvgWeight}</span>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Price/kg</span>
+                                    <span className="font-semibold">৳{displayPricePerKg}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Total</span>
+                                    <span className="font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
+                                    <span className="font-medium text-red-500">{displayMortality}</span>
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Price/kg</span>
-                                <span className="font-semibold">৳{displayPricePerKg}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Total</span>
-                                <span className="font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
-                                <span className="font-medium text-red-500">{displayMortality}</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <Separator className="my-4" />
+                        <Separator className="my-4" />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                        <div>
-                            <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
-                            <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
+                                <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground block mb-0.5">Feed Stock:</span>
+                                <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
+                            </div>
                         </div>
-                        <div>
-                            <span className="text-muted-foreground block mb-0.5">Feed Stock:</span>
-                            <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
-                        </div>
-                    </div>
-                </CardContent>
+                    </CardContent>
+                )}
             </Card>
 
             <AdjustSaleModal

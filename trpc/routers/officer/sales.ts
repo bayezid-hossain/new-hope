@@ -436,4 +436,54 @@ export const officerSalesRouter = createTRPCRouter({
                 },
             });
         }),
+
+    // Get Recent Sales Feed (Aggregated)
+    getRecentSales: proProcedure
+        .input(z.object({
+            limit: z.number().min(1).max(100).default(20),
+            search: z.string().optional()
+        }))
+        .query(async ({ ctx, input }) => {
+            // Fetch sales created by the officer
+            // Note: If scale becomes an issue (thousands of sales), we need to add farmerId to saleEvents or use a more complex join.
+            // For now, fetching recent 100 or so and filtering is "okay" given standard officer limits,
+            // BUT for correct search we should probably select all matching the officer, then filter.
+            // Since Drizzle 'findMany' with 'where' on deep relations is tricky, we'll fetch a larger set if searching,
+            // or just rely on 'createdBy' index which should be fast.
+
+            const events = await ctx.db.query.saleEvents.findMany({
+                where: eq(saleEvents.createdBy, ctx.user.id),
+                orderBy: desc(saleEvents.saleDate),
+                // If searching, we might need to fetch more to find matches, but for safety let's cap at 200 then filter
+                limit: input.search ? 200 : input.limit,
+                with: {
+                    cycle: { with: { farmer: true } },
+                    history: { with: { farmer: true } },
+                    reports: {
+                        orderBy: desc(saleReports.createdAt),
+                        with: { createdByUser: { columns: { name: true } } }
+                    }
+                }
+            });
+
+            let formattedEvents = events.map(e => ({
+                ...e,
+                feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
+                feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
+                cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
+                farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer"
+            }));
+
+            // In-memory Filter for Search
+            if (input.search) {
+                const searchLower = input.search.toLowerCase();
+                formattedEvents = formattedEvents.filter(e =>
+                    e.farmerName.toLowerCase().includes(searchLower) ||
+                    e.location.toLowerCase().includes(searchLower)
+                );
+            }
+
+            // Apply limit after filtering
+            return formattedEvents.slice(0, input.limit);
+        }),
 });

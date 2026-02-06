@@ -617,4 +617,38 @@ export const officerStockRouter = createTRPCRouter({
                 return { success: true };
             });
         }),
+    // GET ALL FARMERS STOCK (Pro Ledger View - Paginated)
+    getAllFarmersStock: proProcedure
+        .input(z.object({
+            limit: z.number().min(1).max(100).default(20),
+            cursor: z.number().default(0), // Using offset as cursor for simplicity with Drizzle query API here
+        }))
+        .query(async ({ ctx, input }) => {
+            const items = await ctx.db.query.farmer.findMany({
+                where: and(
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                ),
+                columns: {
+                    id: true,
+                    name: true,
+                    mainStock: true,
+                    updatedAt: true,
+                },
+                orderBy: desc(farmer.updatedAt),
+                limit: input.limit + 1, // Fetch one extra to know if there's a next page
+                offset: input.cursor,
+            });
+
+            let nextCursor: typeof input.cursor | undefined = undefined;
+            if (items.length > input.limit) {
+                items.pop(); // Remove the extra item
+                nextCursor = input.cursor + input.limit;
+            }
+
+            return {
+                items,
+                nextCursor,
+            };
+        }),
 });

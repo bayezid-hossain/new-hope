@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronRight, HomeIcon, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { Building2, ChevronRight, ClipboardList, HomeIcon, ShoppingBag, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -44,6 +44,18 @@ const firstSection = [
     icon: WheatIcon,
     label: "Farmers",
     href: "/farmers",
+  },
+  {
+    icon: ShoppingBag,
+    label: "Sales",
+    href: "/sales",
+    isPro: true,
+  },
+  {
+    icon: ClipboardList,
+    label: "Stock Ledger",
+    href: "/stock-ledger",
+    isPro: true,
   },
 ];
 
@@ -187,11 +199,18 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                       <Link
                         href={item.href}
                         onClick={() => isMobile && setOpenMobile(false)}
+                        className="flex items-center gap-2"
                       >
                         <item.icon className="size-5 " />
-                        <span className="text-sm font-medium tracking-tight">
+                        <span className="text-sm font-medium tracking-tight flex-1">
                           {item.label}
                         </span>
+                        {/* @ts-ignore - isPro is optional */}
+                        {item.isPro && (
+                          <div className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                            PRO
+                          </div>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
