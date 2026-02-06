@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 const officerProcedure = protectedProcedure;
 
@@ -46,7 +46,7 @@ const generateReportSchema = z.object({
 
 export const officerSalesRouter = createTRPCRouter({
     // Create a new sale event
-    createSaleEvent: officerProcedure
+    createSaleEvent: proProcedure
         .input(createSaleEventSchema)
         .mutation(async ({ ctx, input }) => {
             // Get cycle and verify ownership
@@ -167,7 +167,7 @@ export const officerSalesRouter = createTRPCRouter({
         }),
 
     // Generate additional report for a sale event
-    generateReport: officerProcedure
+    generateReport: proProcedure
         .input(generateReportSchema)
         .mutation(async ({ ctx, input }) => {
             // Verify sale event exists and user has access
@@ -316,7 +316,7 @@ export const officerSalesRouter = createTRPCRouter({
         }),
 
     // Get sale events for a cycle or farmer
-    getSaleEvents: officerProcedure
+    getSaleEvents: proProcedure
         .input(z.object({
             cycleId: z.string().optional(),
             historyId: z.string().optional(),
@@ -423,7 +423,7 @@ export const officerSalesRouter = createTRPCRouter({
         }),
 
     // Get reports for a sale event
-    getReports: officerProcedure
+    getReports: proProcedure
         .input(z.object({ saleEventId: z.string() }))
         .query(async ({ ctx, input }) => {
             return await ctx.db.query.saleReports.findMany({

@@ -17,6 +17,7 @@ import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Banknote, Bird, Box, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -66,6 +67,7 @@ export const SellModal = ({
     onOpenChange,
 }: SellModalProps) => {
     const trpc = useTRPC();
+    const router = useRouter();
     const queryClient = useQueryClient();
     const { orgId } = useCurrentOrg();
     // Initial remaining birds for default value calculation
@@ -87,6 +89,25 @@ export const SellModal = ({
         },
     });
 
+    // Reset form with new defaults when modal opens or key props change
+    useEffect(() => {
+        if (open) {
+            const currentRemainingBirds = doc - mortality - birdsSold;
+            form.reset({
+                location: "",
+                birdsSold: currentRemainingBirds,
+                mortalityChange: 0,
+                totalWeight: 0,
+                pricePerKg: 0,
+                cashReceived: 0,
+                depositReceived: 0,
+                feedConsumed: [{ type: "B1", bags: intake || 0 }],
+                feedStock: [{ type: "B1", bags: 0 }],
+                medicineCost: 0,
+            });
+        }
+    }, [open, doc, mortality, birdsSold, intake, form]);
+
     const feedConsumedArray = useFieldArray({
         control: form.control,
         name: "feedConsumed",
@@ -102,6 +123,7 @@ export const SellModal = ({
             onSuccess: (data) => {
                 if (data.cycleEnded) {
                     toast.success("Sale recorded & cycle ended!", { description: "All birds sold. Cycle has been archived." });
+                    router.push("/cycles");
                 } else {
                     toast.success("Sale recorded successfully");
                 }
@@ -236,26 +258,38 @@ export const SellModal = ({
                             <FormField
                                 control={form.control}
                                 name="mortalityChange"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Mortality</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                max={birdsInHouse}
-                                                placeholder={`Current: ${mortality}`}
-                                                value={field.value}
-                                                onChange={(e) => {
-                                                    const val = e.target.valueAsNumber || 0;
-                                                    field.onChange(val > birdsInHouse ? birdsInHouse : val);
-                                                }}
-                                                onBlur={field.onBlur}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                                render={({ field }) => {
+                                    const currentTotal = mortality + (field.value || 0);
+                                    return (
+                                        <FormItem>
+                                            <FormLabel>Total Mortality To Date</FormLabel>
+                                            <FormControl>
+                                                <div className="space-y-1">
+                                                    <Input
+                                                        type="number"
+                                                        min={mortality}
+                                                        max={birdsInHouse + mortality} // Can't define more active birds as dead than exist
+                                                        placeholder={`Current: ${mortality}`}
+                                                        value={currentTotal}
+                                                        onChange={(e) => {
+                                                            const newTotal = e.target.valueAsNumber;
+                                                            if (isNaN(newTotal)) return;
+                                                            const delta = Math.max(0, newTotal - mortality);
+                                                            field.onChange(delta);
+                                                        }}
+                                                        onBlur={field.onBlur}
+                                                    />
+                                                    {field.value > 0 && (
+                                                        <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                                                            <span className="text-red-500 font-bold">+{field.value}</span> new deaths added
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    );
+                                }}
                             />
                         </div>
 

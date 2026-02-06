@@ -301,8 +301,21 @@ interface SalesHistoryCardProps {
     isMobile?: boolean;
 }
 
+import { useCurrentOrg } from "@/hooks/use-current-org";
+import { Lock, Sparkles } from "lucide-react";
+
+// ... existing imports
+
+interface SalesHistoryCardProps {
+    cycleId?: string | null;
+    historyId?: string | null;
+    farmerId?: string | null;
+    isMobile?: boolean;
+}
+
 export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: SalesHistoryCardProps) => {
     const trpc = useTRPC();
+    const { isPro } = useCurrentOrg();
 
     const { data: salesEvents, isLoading } = useQuery(
         trpc.officer.sales.getSaleEvents.queryOptions({
@@ -311,6 +324,34 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
             farmerId: farmerId || undefined
         })
     );
+
+    // PRO GATE
+    if (!isPro) {
+        return (
+            <div className={isMobile ? "space-y-3" : "space-y-4"}>
+                {!isMobile && (
+                    <CardHeader className="px-0 pt-0 pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                            <ShoppingCart className="h-5 w-5 text-muted-foreground" /> Sales History
+                        </CardTitle>
+                    </CardHeader>
+                )}
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                    <div className="p-3 bg-white dark:bg-indigo-950 rounded-full shadow-sm mb-4">
+                        <Lock className="h-6 w-6 text-indigo-500" />
+                    </div>
+                    <h3 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-2">Sales Tracking is a Pro Feature</h3>
+                    <p className="text-sm text-indigo-700 dark:text-indigo-300 max-w-xs mb-6">
+                        Upgrade to Pro to record sales, track revenue, and generate detailed financial reports.
+                    </p>
+                    <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md">
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Upgrade to Pro
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -345,7 +386,7 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                     </CardDescription>
                 </CardHeader>
             )}
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                 {salesEvents.map((sale) => (
                     // @ts-ignore
                     <SaleEventCard key={sale.id} sale={sale} />

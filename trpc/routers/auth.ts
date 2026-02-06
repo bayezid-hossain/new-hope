@@ -61,14 +61,22 @@ export const authRouter = createTRPCRouter({
       }
     });
 
-    if (!membership) return { status: "NO_ORG" as const, orgId: null, role: null };
+    if (!membership) return {
+      status: "NO_ORG" as const,
+      orgId: null,
+      role: null,
+      isPro: ctx.user.isPro,
+      proExpiresAt: ctx.user.proExpiresAt
+    };
 
     return {
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
       orgName: membership.organization.name,
       orgId: membership.organizationId,
       role: membership.role,
-      activeMode: membership.activeMode
+      activeMode: membership.activeMode,
+      isPro: ctx.user.isPro,
+      proExpiresAt: ctx.user.proExpiresAt
     };
   }),
 

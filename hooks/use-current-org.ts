@@ -17,6 +17,7 @@ export function useCurrentOrg() {
     ...query.data,
     orgId: query.data?.orgId,
     role: query.data?.role,
+    isPro: query.data?.isPro ?? false,
     isLoading: query.isPending,
     isAuthenticated: query.data?.status === "ACTIVE",
   };

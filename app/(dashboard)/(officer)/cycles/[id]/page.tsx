@@ -417,7 +417,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         doc: cycle.doc,
                                         birdsSold: cycle.birdsSold,
                                         mortality: cycle.mortality,
-                                        intake: cycle.intake.toString()
+                                        intake: cycle.intake
                                     } as unknown as Farmer}
                                 />
                             ) : (

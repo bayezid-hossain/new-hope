@@ -458,7 +458,7 @@ export default function FarmerDetails() {
               <AccordionTrigger className="hover:no-underline py-4 text-foreground">
                 <div className="flex items-center gap-2">
                   <Archive className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-semibold tracking-tight">Archived History</span>
+                  <span className="font-semibold tracking-tight">Cycles History</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4">

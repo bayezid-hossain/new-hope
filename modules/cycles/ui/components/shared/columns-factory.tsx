@@ -37,6 +37,7 @@ interface ColumnsFactoryOptions {
 
 // --- Actions Component ---
 export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
+    const { isPro } = useCurrentOrg();
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
     const [showEditAge, setShowEditAge] = useState(false);
@@ -60,11 +61,16 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     <DropdownMenuSeparator />
 
                     <DropdownMenuItem
-                        onClick={() => setShowSellModal(true)}
-                        className="text-primary focus:text-primary"
+                        onClick={() => {
+                            if (isPro) setShowSellModal(true);
+                            else toast.error("Sales tracking is a Pro feature");
+                        }}
+                        disabled={!isPro}
+                        title={!isPro ? "Upgrade to Pro to track sales" : ""}
+                        className={!isPro ? "opacity-50 cursor-not-allowed" : "text-primary focus:text-primary"}
                     >
                         <ShoppingCart className="mr-2 h-4 w-4" />
-                        Sell
+                        {isPro ? "Sell" : "Sell (Pro)"}
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
