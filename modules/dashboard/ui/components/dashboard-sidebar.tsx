@@ -87,7 +87,12 @@ const managerSection = {
       label: "Cycles",
       href: "/management/cycles",
     },
+    {
+      label: "Reports",
+      href: "/management/reports",
+    },
   ]
+
 };
 
 

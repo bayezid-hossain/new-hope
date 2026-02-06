@@ -66,7 +66,8 @@ export const authRouter = createTRPCRouter({
       orgId: null,
       role: null,
       isPro: ctx.user.isPro,
-      proExpiresAt: ctx.user.proExpiresAt
+      proExpiresAt: ctx.user.proExpiresAt,
+      activeMode: undefined
     };
 
     return {

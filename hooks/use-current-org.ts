@@ -20,5 +20,6 @@ export function useCurrentOrg() {
     isPro: query.data?.isPro ?? false,
     isLoading: query.isPending,
     isAuthenticated: query.data?.status === "ACTIVE",
+    activeMode: query.data?.activeMode,
   };
 }

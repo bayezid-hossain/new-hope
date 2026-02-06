@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -116,6 +117,7 @@ Medicine :${parseFloat(medicineCost || "0")}`;
 export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
     const [copied, setCopied] = useState(false);
     const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+    const { role, activeMode } = useCurrentOrg();
 
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -173,15 +175,17 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                             </CardDescription>
                         </div>
                         <div className="flex gap-2 shrink-0 w-full sm:w-auto ml-6 sm:ml-0" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsAdjustOpen(true)}
-                                className="h-8 px-2.5 text-xs flex-1 sm:flex-none"
-                            >
-                                <Pencil className="h-3.5 w-3.5 mr-1" />
-                                Adjust
-                            </Button>
+                            {(activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsAdjustOpen(true)}
+                                    className="h-8 px-2.5 text-xs flex-1 sm:flex-none"
+                                >
+                                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                                    Adjust
+                                </Button>
+                            )}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -306,7 +310,6 @@ interface SalesHistoryCardProps {
     isMobile?: boolean;
 }
 
-import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Lock, Sparkles } from "lucide-react";
 
 // ... existing imports
