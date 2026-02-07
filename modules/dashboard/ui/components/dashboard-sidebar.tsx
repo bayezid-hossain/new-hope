@@ -64,7 +64,7 @@ const firstSection = [
   },
   {
     icon: FileSpreadsheet,
-    label: "DOC Report",
+    label: "Monthly DOC Placements",
     href: "/reports/doc-placements",
   },
 ];
