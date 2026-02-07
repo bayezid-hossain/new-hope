@@ -145,6 +145,8 @@ export const member = pgTable("member", {
 export const farmer = pgTable("farmer", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
+  location: text("location"), // Optional - farm location/address
+  mobile: text("mobile"),     // Optional - farmer's mobile number
 
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   mainStock: real("main_stock").notNull(),

@@ -1,0 +1,33 @@
+{
+  "steps": [
+    "Attempting update..."
+  ],
+  "farmerId": "980f83fa-a207-4191-a5d8-1fd1e78fa397",
+  "initialState": {
+    "location": null,
+    "mobile": null
+  },
+  "updateResult": {
+    "id": "980f83fa-a207-4191-a5d8-1fd1e78fa397",
+    "name": "JAMAL AGRO",
+    "location": "Test Location 1770448692386",
+    "mobile": "01790504275",
+    "organizationId": "c8022439-b616-468d-b310-8a6ffaeca26e",
+    "mainStock": 2,
+    "totalConsumed": 0,
+    "officerId": "D4PAUsMKyBBVV31sppn24w0zo0eCtJyb",
+    "securityMoney": "0",
+    "status": "active",
+    "deletedAt": null,
+    "createdAt": "2026-02-03T02:57:21.659Z",
+    "updatedAt": "2026-02-07T07:18:12.386Z"
+  },
+  "updateHasLocation": true,
+  "updateHasMobile": true,
+  "locationMatch": true,
+  "mobileMatch": true,
+  "refetched": {
+    "location": "Test Location 1770448692386",
+    "mobile": "01790504275"
+  }
+}

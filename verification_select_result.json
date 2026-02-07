@@ -1,0 +1,19 @@
+{
+  "farmerRecord": {
+    "id": "5836e3ea-61a4-4e37-b2ca-1674b64f030d",
+    "name": "3014 ABDULLAH POULTRY FARM (Archived #20260131)",
+    "location": null,
+    "mobile": null,
+    "organizationId": "c8022439-b616-468d-b310-8a6ffaeca26e",
+    "mainStock": 0,
+    "totalConsumed": 0,
+    "officerId": "D4PAUsMKyBBVV31sppn24w0zo0eCtJyb",
+    "securityMoney": "0",
+    "status": "deleted",
+    "deletedAt": "2026-01-31T16:13:52.040Z",
+    "createdAt": "2026-01-29T03:54:18.902Z",
+    "updatedAt": "2026-01-31T16:13:52.040Z"
+  },
+  "hasLocation": true,
+  "hasMobile": true
+}

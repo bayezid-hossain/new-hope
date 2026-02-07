@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowRight, Bird, Trash2, Wheat, Wrench } from "lucide-react";
+import { AlertCircle, ArrowRight, Bird, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { memo, useRef } from "react";
 
@@ -53,6 +53,11 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                         >
                             {farmer.name}
                         </Link>
+                        {(!farmer.location || !farmer.mobile) && (
+                            <span title="Missing location or mobile" className="text-destructive">
+                                <AlertCircle className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            </span>
+                        )}
                         {onEdit && (
                             <button
                                 onClick={(e) => {

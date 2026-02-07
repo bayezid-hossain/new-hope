@@ -111,21 +111,23 @@ export const aiRouter = createTRPCRouter({
         .mutation(async ({ input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-            // Sanitize Input Text
-            const cleanText = sanitizeInput(input.text);
+            // Sanitize Input Text when needed
+            // const cleanText = sanitizeInput(input.text);
+            const cleanText = input.text
             const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
             // console.log(cleanText)
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
-            Goal: Extract farmer names and their TOTAL feed bag count.
+            Goal: Extract farmer names, their TOTAL feed bag count, and optionally their LOCATION and MOBILE NUMBER.
             Match against CANDIDATE LIST:
             ${candidatesList}
             
             IMPORTANT: If a farmer appears multiple times in the text, SUM their amounts into a single entry with the TOTAL.
             CRITICAL: You must extract EVERY SINGLE farmer mentioned in the text. DO NOT stop after a few. DO NOT summarize. Process the entire text.
+            For MOBILE NUMBER: Preserve the country code (e.g., +880...) if present.
             If there are 50 farmers, return 50 entries.
             Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
-            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [] }] }
+            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [], "location": "string|null", "mobile": "string|null" }] }
             `;
 
             try {
@@ -166,7 +168,9 @@ export const aiRouter = createTRPCRouter({
                     amount: Number(item.amount) || 0,
                     matchedId: item.matched_id || null,
                     confidence: item.confidence || "LOW",
-                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : []
+                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : [],
+                    location: item.location || null,
+                    mobile: item.mobile || null
                 }));
 
                 // Aggregation Logic: Merge duplicates based on matchedId or name

@@ -13,12 +13,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
+    AlertCircle,
     ArrowRight,
     Bird,
     Loader2,
@@ -44,7 +45,7 @@ export const FarmersListView = () => {
     // If you don't have a debounce hook, just pass searchTerm directly for now.
     const debouncedSearch = searchTerm;
 
-    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
+    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string; location?: string | null; mobile?: string | null } | null>(null);
 
     const { data, isLoading } = useQuery(
         trpc.management.farmers.getMany.queryOptions({
@@ -120,11 +121,16 @@ export const FarmersListView = () => {
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <div className="font-bold text-foreground">{farmer.name}</div>
+                                                    {(!farmer.location || !farmer.mobile) && (
+                                                        <span title="Missing location or mobile" className="text-destructive">
+                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                        </span>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-6 w-6 text-muted-foreground/40 hover:text-muted-foreground transition-all"
-                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
+                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name, location: farmer.location, mobile: farmer.mobile })}
                                                     >
                                                         <Wrench className="h-3 w-3" />
                                                     </Button>
@@ -209,9 +215,11 @@ export const FarmersListView = () => {
             </Card>
 
             {editingFarmer && (
-                <EditFarmerNameModal
+                <EditFarmerProfileModal
                     farmerId={editingFarmer.id}
                     currentName={editingFarmer.name}
+                    currentLocation={editingFarmer.location}
+                    currentMobile={editingFarmer.mobile}
                     open={!!editingFarmer}
                     onOpenChange={(open) => !open && setEditingFarmer(null)}
                 />

@@ -298,7 +298,7 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
 );
 
 import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
@@ -440,9 +440,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 </div>
             </div>
 
-            <EditFarmerNameModal
+            <EditFarmerProfileModal
                 farmerId={farmerContext.id}
                 currentName={farmerContext.name}
+                currentLocation={farmerContext.location}
+                currentMobile={farmerContext.mobile}
                 open={showEditFarmerModal}
                 onOpenChange={setShowEditFarmerModal}
             />

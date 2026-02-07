@@ -19,11 +19,11 @@ import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-i
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -63,11 +63,11 @@ export default function MainStockPage() {
     data: null
   });
 
-  const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string } | null>(null);
+  const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string, location?: string | null, mobile?: string | null } | null>(null);
   const [archivingFarmer, setArchivingFarmer] = useState<{ id: string, name: string } | null>(null);
 
-  const handleEdit = useCallback((id: string, name: string) => {
-    setEditingFarmer({ id, name });
+  const handleEdit = useCallback((id: string, name: string, location?: string | null, mobile?: string | null) => {
+    setEditingFarmer({ id, name, location, mobile });
   }, []);
 
   const handleDelete = useCallback((id: string, name: string) => {
@@ -163,6 +163,11 @@ export default function MainStockPage() {
                           <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
                             {row.name}
                           </Link>
+                          {(!row.location || !row.mobile) && (
+                            <span title="Missing location or mobile" className="text-destructive">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                            </span>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -170,7 +175,7 @@ export default function MainStockPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleEdit(row.id, row.name);
+                              handleEdit(row.id, row.name, row.location, row.mobile);
                             }}
                           >
                             <Wrench className="h-3 w-3" />
@@ -255,7 +260,7 @@ export default function MainStockPage() {
               <MobileFarmerCard
                 key={row.id}
                 farmer={row}
-                onEdit={() => handleEdit(row.id, row.name)}
+                onEdit={() => handleEdit(row.id, row.name, row.location, row.mobile)}
                 onDelete={() => handleDelete(row.id, row.name)}
                 actions={
                   <div className="grid grid-cols-2 gap-2">
@@ -330,9 +335,11 @@ export default function MainStockPage() {
         />
       )}
 
-      <EditFarmerNameModal
+      <EditFarmerProfileModal
         farmerId={editingFarmer?.id || ""}
         currentName={editingFarmer?.name || ""}
+        currentLocation={editingFarmer?.location}
+        currentMobile={editingFarmer?.mobile}
         open={!!editingFarmer}
         onOpenChange={(open) => !open && setEditingFarmer(null)}
       />
