@@ -418,3 +418,47 @@ export const notification = pgTable("notification", {
   index("idx_notification_org").on(t.organizationId),
   index("idx_notification_created").on(t.createdAt),
 ]);
+
+// =========================================================
+// 7. FEED ORDERS
+// =========================================================
+
+export const feedOrders = pgTable("feed_orders", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").notNull().references(() => user.id),
+
+  orderDate: timestamp("order_date").notNull(),
+  deliveryDate: timestamp("delivery_date").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_feed_order_org").on(t.orgId),
+  index("idx_feed_order_officer").on(t.officerId),
+]);
+
+export const feedOrderItems = pgTable("feed_order_items", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  feedOrderId: text("feed_order_id").notNull().references(() => feedOrders.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  // e.g. "B1", "B2"
+  feedType: text("feed_type").notNull(),
+  // e.g. 10, 20
+  quantity: integer("quantity").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_feed_order_item_order").on(t.feedOrderId),
+]);
+
+export const feedOrderRelations = relations(feedOrders, ({ many, one }) => ({
+  items: many(feedOrderItems),
+  organization: one(organization, { fields: [feedOrders.orgId], references: [organization.id] }),
+  officer: one(user, { fields: [feedOrders.officerId], references: [user.id] }),
+}));
+
+export const feedOrderItemRelations = relations(feedOrderItems, ({ one }) => ({
+  order: one(feedOrders, { fields: [feedOrderItems.feedOrderId], references: [feedOrders.id] }),
+  farmer: one(farmer, { fields: [feedOrderItems.farmerId], references: [farmer.id] }),
+}));

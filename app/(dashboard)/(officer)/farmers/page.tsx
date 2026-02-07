@@ -21,9 +21,10 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
+import { CreateFeedOrderModal } from "@/modules/feed-orders/ui/components/create-feed-order-modal";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Bird, Plus, RefreshCcw, Search, ShoppingCart, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ export default function MainStockPage() {
 
   const [createModal, setCreateModal] = useState(false);
   const [bulkImportModal, setBulkImportModal] = useState(false);
+  const [createFeedOrderModal, setCreateFeedOrderModal] = useState(false);
 
   const [transferModal, setTransferModal] = useState<{
     open: boolean;
@@ -117,6 +119,9 @@ export default function MainStockPage() {
           </Button>
           <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
+          </Button>
+          <Button variant="outline" className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateFeedOrderModal(true)}>
+            <ShoppingCart className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Feed Order</span><span className="sm:hidden">Order</span>
           </Button>
           <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
             <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
@@ -321,6 +326,12 @@ export default function MainStockPage() {
       <BulkImportModal
         open={bulkImportModal}
         onOpenChange={setBulkImportModal}
+        orgId={orgId}
+      />
+
+      <CreateFeedOrderModal
+        open={createFeedOrderModal}
+        onOpenChange={setCreateFeedOrderModal}
         orgId={orgId}
       />
 

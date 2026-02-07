@@ -5,12 +5,14 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
 import { officerFarmersRouter } from "./farmers";
+import { feedOrdersRouter } from "./feed-orders";
 import { officerSalesRouter } from "./sales";
 import { officerStockRouter } from "./stock";
 
 export const officerRouter = createTRPCRouter({
     cycles: officerCyclesRouter,
     farmers: officerFarmersRouter,
+    feedOrders: feedOrdersRouter,
     stock: officerStockRouter,
     sales: officerSalesRouter,
 
