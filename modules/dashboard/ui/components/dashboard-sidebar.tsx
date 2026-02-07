@@ -102,7 +102,7 @@ const managerSection = {
       href: "/management/reports",
     },
     {
-      label: "DOC Report",
+      label: "Monthly DOC Placements",
       href: "/management/reports/doc-placements",
     },
     {
