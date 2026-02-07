@@ -6,6 +6,7 @@ import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
 import { officerFarmersRouter } from "./farmers";
 import { feedOrdersRouter } from "./feed-orders";
+import { officerReportsRouter } from "./reports";
 import { officerSalesRouter } from "./sales";
 import { officerStockRouter } from "./stock";
 
@@ -15,6 +16,7 @@ export const officerRouter = createTRPCRouter({
     feedOrders: feedOrdersRouter,
     stock: officerStockRouter,
     sales: officerSalesRouter,
+    reports: officerReportsRouter,
 
     getDashboardStats: protectedProcedure
         .input(z.object({ orgId: z.string() }))

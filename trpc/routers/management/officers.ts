@@ -5,6 +5,26 @@ import { z } from "zod";
 import { createTRPCRouter, orgProcedure } from "../../init";
 
 export const managementOfficersRouter = createTRPCRouter({
+    getAll: orgProcedure
+        .query(async ({ ctx, input }) => {
+            const officers = await ctx.db.query.member.findMany({
+                where: and(
+                    eq(member.organizationId, input.orgId),
+                    inArray(member.role, ["OFFICER", "MANAGER", "OWNER"]), // Owners/Managers can also be officers
+                    eq(member.status, "ACTIVE")
+                ),
+                with: {
+                    user: true
+                }
+            });
+
+            return officers.map(o => ({
+                id: o.userId, // Use userId as the identifier for filtering
+                name: o.user.name,
+                role: o.role
+            }));
+        }),
+
     getDetails: orgProcedure
         .input(z.object({ userId: z.string() })) // orgId inherited from orgProcedure input
         .query(async ({ ctx, input }) => {

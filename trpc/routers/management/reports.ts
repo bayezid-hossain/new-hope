@@ -1,5 +1,5 @@
 
-import { farmer, member, saleEvents, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, member, saleEvents, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -310,6 +310,116 @@ export const managementReportsRouter = createTRPCRouter({
                 items: logs,
                 total: Number(total.count),
                 totalPages: Math.ceil(Number(total.count) / pageSize)
+            };
+        }),
+    getMonthlyDocPlacements: protectedProcedure
+        .input(z.object({
+            orgId: z.string(),
+            officerId: z.string(),
+            month: z.number().min(1).max(12),
+            year: z.number().int().min(2000).max(2100)
+        }))
+        .query(async ({ ctx, input }) => {
+            const { orgId, officerId, month, year } = input;
+
+            // Access Check
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
+                });
+                if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+                    throw new TRPCError({ code: "FORBIDDEN" });
+                }
+            }
+
+            // Verify the officer belongs to this org (optional but good practice)
+            // We can just rely on the join with farmer->orgId, but if an officer has no farmers, we might show empty.
+            // That's fine.
+
+            const startDate = new Date(year, month - 1, 1);
+            const nextMonth = month === 12 ? 1 : month + 1;
+            const nextYear = month === 12 ? year + 1 : year;
+            const endDate = new Date(nextYear, nextMonth - 1, 1);
+
+            // Fetch Active Cycles
+            const activeCycles = await ctx.db.select({
+                farmerId: farmer.id,
+                farmerName: farmer.name,
+                doc: cycles.doc,
+                created: cycles.createdAt,
+                status: cycles.status,
+                cycleName: cycles.name
+            })
+                .from(cycles)
+                .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+                .where(and(
+                    eq(farmer.organizationId, orgId),
+                    eq(farmer.officerId, officerId),
+                    gte(cycles.createdAt, startDate),
+                    lte(cycles.createdAt, endDate)
+                ));
+
+            // Fetch History Cycles
+            const historicalCycles = await ctx.db.select({
+                farmerId: farmer.id,
+                farmerName: farmer.name,
+                doc: cycleHistory.doc,
+                created: cycleHistory.startDate,
+                status: cycleHistory.status,
+                cycleName: cycleHistory.cycleName
+            })
+                .from(cycleHistory)
+                .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+                .where(and(
+                    eq(farmer.organizationId, orgId),
+                    eq(farmer.officerId, officerId),
+                    gte(cycleHistory.startDate, startDate),
+                    lte(cycleHistory.startDate, endDate)
+                ));
+
+            // Combine and Group
+            const allCycles = [...activeCycles, ...historicalCycles];
+
+            const groupedByFarmer: Record<string, {
+                farmerName: string;
+                totalDoc: number;
+                cycles: { name: string; doc: number; date: Date; status: string }[]
+            }> = {};
+
+            let totalDocForMonth = 0;
+
+            for (const c of allCycles) {
+                if (!groupedByFarmer[c.farmerId]) {
+                    groupedByFarmer[c.farmerId] = {
+                        farmerName: c.farmerName,
+                        totalDoc: 0,
+                        cycles: []
+                    };
+                }
+
+                groupedByFarmer[c.farmerId].totalDoc += c.doc;
+                groupedByFarmer[c.farmerId].cycles.push({
+                    name: c.cycleName,
+                    doc: c.doc,
+                    date: c.created,
+                    status: c.status
+                });
+
+                totalDocForMonth += c.doc;
+            }
+
+            // Convert to array
+            const farmerStats = Object.values(groupedByFarmer).sort((a, b) => b.totalDoc - a.totalDoc);
+
+            return {
+                summary: {
+                    totalDoc: totalDocForMonth,
+                    farmerCount: farmerStats.length,
+                    cycleCount: allCycles.length,
+                    month: new Date(year, month - 1).toLocaleString('default', { month: 'long' }),
+                    year
+                },
+                farmers: farmerStats
             };
         }),
 });

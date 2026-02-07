@@ -42,6 +42,8 @@ interface FeedItem {
     id: string; // temp id
     farmerId: string;
     farmerName: string;
+    location?: string | null; // Added
+    mobile?: string | null; // Added
     feeds: { type: string; quantity: number }[];
 }
 
@@ -68,10 +70,59 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
         enabled: isSearchOpen
     });
 
+    const generateCopyText = (items: FeedItem[], oDate: Date, dDate: Date) => {
+        const orderDateStr = format(oDate, "d MMM yy");
+        const deliveryDateStr = format(dDate, "d MMM yy");
+
+        let text = `Dear sir,\nFeed order date: ${orderDateStr}\nFeed delivery  date: ${deliveryDateStr}\n\n`;
+
+        let farmCounter = 1;
+        const totalByType: Record<string, number> = {};
+        let grandTotal = 0;
+
+        items.forEach(item => {
+            // Filter empty feeds for copy text too, though handleSubmit filters them for submission
+            const activeFeeds = item.feeds.filter(f => f.type.trim() !== "");
+            if (activeFeeds.length === 0) return;
+
+            text += `Farm No ${farmCounter.toString().padStart(2, '0')}\n`;
+            text += `${item.farmerName}\n`;
+            if (item.location) text += `Location: ${item.location}\n`;
+            if (item.mobile) text += `Phone: ${item.mobile}\n`;
+
+            activeFeeds.forEach(feed => {
+                const qty = feed.quantity || 0;
+                text += `${feed.type}: ${qty} Bags\n`;
+
+                // Totals
+                totalByType[feed.type] = (totalByType[feed.type] || 0) + qty;
+                grandTotal += qty;
+            });
+
+            text += `\n`;
+            farmCounter++;
+        });
+
+        text += `Total:\n`;
+        Object.entries(totalByType).forEach(([type, qty]) => {
+            text += `${type}: ${qty} Bags\n`;
+        });
+
+        text += `\nGrand Total: ${grandTotal} Bags`;
+
+        return text;
+    };
+
     const createMutation = useMutation(
         trpc.officer.feedOrders.create.mutationOptions({
-            onSuccess: () => {
-                toast.success("Feed order created successfully!");
+            onSuccess: (data, variables) => {
+                // Generate and copy text
+                // variables.items only has farmerId and feeds. We need the full details from selectedItems state.
+                // We presume selectedItems state is still intact here.
+                const text = generateCopyText(selectedItems, variables.orderDate, variables.deliveryDate);
+                navigator.clipboard.writeText(text);
+
+                toast.success("Order created and copied to clipboard!");
                 queryClient.invalidateQueries(trpc.officer.feedOrders.list.pathFilter());
                 onOpenChange(false);
                 // Reset
@@ -84,23 +135,25 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
         })
     );
 
-    const handleAddFarmer = (farmer: { id: string; name: string }) => {
+    const handleToggleFarmer = (farmer: { id: string; name: string; location?: string | null; mobile?: string | null }) => {
+        // If farmer already selected, remove them
         if (selectedItems.some(i => i.farmerId === farmer.id)) {
-            toast.warning("Farmer already added");
+            setSelectedItems(prev => prev.filter(i => i.farmerId !== farmer.id));
             return;
         }
 
+        // Add farmer to selected items
         setSelectedItems(prev => [
+            ...prev,
             {
                 id: crypto.randomUUID(),
                 farmerId: farmer.id,
                 farmerName: farmer.name,
-                feeds: [{ type: "B1", quantity: 0 }, { type: "B2", quantity: 0 }] // Default as per user request
-            },
-            ...prev
+                location: farmer.location,
+                mobile: farmer.mobile,
+                feeds: [{ type: "B1", quantity: 0 }, { type: "B2", quantity: 0 }]
+            }
         ]);
-        setIsSearchOpen(false);
-        setSearchQuery("");
     };
 
     const handleUpdateFeed = (itemId: string, index: number, field: 'type' | 'quantity', value: string | number) => {
@@ -135,14 +188,14 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
     };
 
     const handleSubmit = () => {
-        // Filter out empty feeds
+        // Include all feeds with a type (even if quantity is 0)
         const cleanItems = selectedItems.map(item => ({
             farmerId: item.farmerId,
-            feeds: item.feeds.filter(f => f.type && f.quantity > 0)
+            feeds: item.feeds.filter(f => f.type.trim() !== "")
         })).filter(item => item.feeds.length > 0);
 
         if (cleanItems.length === 0) {
-            toast.error("Please add at least one farmer with feed quantities.");
+            toast.error("Please add at least one farmer with feed types.");
             return;
         }
 
@@ -195,9 +248,9 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                         </div>
                     </div>
 
-                    {/* Farmer Search */}
+                    {/* Farmer Selection Dropdown */}
                     <div className="flex flex-col gap-2 relative">
-                        <span className="text-sm font-medium">Add Farmer</span>
+                        <span className="text-sm font-medium">Select Farmers</span>
                         <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
                             <PopoverTrigger asChild>
                                 <Button
@@ -206,9 +259,11 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                                     aria-expanded={isSearchOpen}
                                     className="justify-between"
                                 >
-                                    <span className="flex items-center gap-2 text-muted-foreground">
-                                        <Search className="h-4 w-4" />
-                                        Search farmers...
+                                    <span className="flex items-center gap-2">
+                                        <Search className="h-4 w-4 text-muted-foreground" />
+                                        {selectedItems.length > 0
+                                            ? `${selectedItems.length} farmer${selectedItems.length > 1 ? 's' : ''} selected`
+                                            : "Search and select farmers..."}
                                     </span>
                                 </Button>
                             </PopoverTrigger>
@@ -218,16 +273,25 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                                     <CommandList>
                                         <CommandEmpty>No farmers found.</CommandEmpty>
                                         <CommandGroup>
-                                            {farmers?.items.map((farmer) => (
-                                                <CommandItem
-                                                    key={farmer.id}
-                                                    value={farmer.name}
-                                                    onSelect={() => handleAddFarmer(farmer)}
-                                                >
-                                                    <Check className={cn("mr-2 h-4 w-4", selectedItems.some(i => i.farmerId === farmer.id) ? "opacity-100" : "opacity-0")} />
-                                                    {farmer.name}
-                                                </CommandItem>
-                                            ))}
+                                            {farmers?.items.map((farmer) => {
+                                                const isSelected = selectedItems.some(i => i.farmerId === farmer.id);
+                                                return (
+                                                    <CommandItem
+                                                        key={farmer.id}
+                                                        value={farmer.name}
+                                                        onSelect={() => handleToggleFarmer(farmer)}
+                                                        className="cursor-pointer"
+                                                    >
+                                                        <div className={cn(
+                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                            isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                        )}>
+                                                            {isSelected && <Check className="h-3 w-3" />}
+                                                        </div>
+                                                        {farmer.name}
+                                                    </CommandItem>
+                                                );
+                                            })}
                                         </CommandGroup>
                                     </CommandList>
                                 </Command>

@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronRight, ClipboardList, HomeIcon, ShoppingBag, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { Building2, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, Package, ShoppingBag, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -57,6 +57,16 @@ const firstSection = [
     href: "/stock-ledger",
     isPro: true,
   },
+  {
+    icon: Package,
+    label: "Feed Orders",
+    href: "/feed-orders",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "DOC Report",
+    href: "/reports/doc-placements",
+  },
 ];
 
 const secondSection = [
@@ -90,6 +100,14 @@ const managerSection = {
     {
       label: "Reports",
       href: "/management/reports",
+    },
+    {
+      label: "DOC Report",
+      href: "/management/reports/doc-placements",
+    },
+    {
+      label: "Feed Orders",
+      href: "/management/feed-orders",
     },
   ]
 

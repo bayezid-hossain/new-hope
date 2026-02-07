@@ -13,7 +13,7 @@ export const feedOrdersRouter = createTRPCRouter({
                 farmerId: z.string(),
                 feeds: z.array(z.object({
                     type: z.string(),
-                    quantity: z.number().min(1)
+                    quantity: z.number().min(0)
                 }))
             })).min(1)
         }))
@@ -85,5 +85,28 @@ export const feedOrdersRouter = createTRPCRouter({
                 }
             });
             return order;
+        }),
+
+    delete: protectedProcedure
+        .input(z.object({
+            id: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // Verify ownership before deleting
+            const order = await ctx.db.query.feedOrders.findFirst({
+                where: and(
+                    eq(feedOrders.id, input.id),
+                    eq(feedOrders.officerId, ctx.user.id)
+                )
+            });
+
+            if (!order) {
+                throw new Error("Order not found or you don't have permission to delete it");
+            }
+
+            // Delete the order (items will be cascade deleted due to schema)
+            await ctx.db.delete(feedOrders).where(eq(feedOrders.id, input.id));
+
+            return { success: true };
         })
 });

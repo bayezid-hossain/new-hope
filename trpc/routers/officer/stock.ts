@@ -157,10 +157,12 @@ export const officerStockRouter = createTRPCRouter({
                 if (validInputs.length === 0) return { success: true, count: 0, orgId };
 
                 // 3. Prepare Bulk Stock Logs
+                const batchId = crypto.randomUUID();
                 const logsToInsert = validInputs.map(item => ({
                     farmerId: item.farmerId,
                     amount: item.amount.toString(),
                     type: "RESTOCK",
+                    referenceId: batchId,
                     note: item.note || "Bulk Import Restock",
                 }));
 
@@ -650,5 +652,81 @@ export const officerStockRouter = createTRPCRouter({
                 items,
                 nextCursor,
             };
+        }),
+
+    // GET IMPORT HISTORY (Grouped by Batch)
+    getImportHistory: proProcedure
+        .input(z.object({
+            limit: z.number().min(1).max(50).default(20),
+            cursor: z.number().default(0),
+        }))
+        .query(async ({ ctx, input }) => {
+            // We want to group by referenceId where type is RESTOCK
+            // Drizzle doesn't support easy "GROUP BY" with relations in query builder yet,
+            // so we might need raw SQL or thoughtful query construction.
+            // Let's use a raw SQL query for the aggregation to get distinct batches.
+
+            const result: any = await ctx.db.execute(sql`
+                SELECT 
+                    reference_id as "batchId",
+                    MIN(created_at) as "createdAt",
+                    COUNT(*) as "count",
+                    SUM(CAST(amount AS NUMERIC)) as "totalAmount"
+                FROM ${stockLogs}
+                WHERE type = 'RESTOCK' 
+                AND reference_id IS NOT NULL
+                AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${ctx.user.id})
+                GROUP BY reference_id
+                ORDER BY MIN(created_at) DESC
+                LIMIT ${input.limit + 1} OFFSET ${input.cursor}
+            `);
+
+            const rows = Array.isArray(result) ? result : result.rows;
+
+            const formattedBatches = rows.map((b: any) => ({
+                batchId: String(b.batchId),
+                createdAt: new Date(b.createdAt),
+                count: Number(b.count),
+                totalAmount: Number(b.totalAmount)
+            }));
+
+            let nextCursor: typeof input.cursor | undefined = undefined;
+            if (formattedBatches.length > input.limit) {
+                formattedBatches.pop();
+                nextCursor = input.cursor + input.limit;
+            }
+
+            return {
+                items: formattedBatches,
+                nextCursor,
+            };
+        }),
+
+    // GET BATCH DETAILS
+    getBatchDetails: proProcedure
+        .input(z.object({
+            batchId: z.string()
+        }))
+        .query(async ({ ctx, input }) => {
+            // Validate ownership by checking if at least one log in the batch belongs to a farmer owned by this officer
+            // (Review: Is this check implicitly handled by the join? Yes, effectively.)
+
+            const ms = await ctx.db.select({
+                logId: stockLogs.id,
+                amount: stockLogs.amount,
+                note: stockLogs.note,
+                createdAt: stockLogs.createdAt,
+                farmerName: farmer.name,
+                farmerId: farmer.id
+            })
+                .from(stockLogs)
+                .innerJoin(farmer, eq(stockLogs.farmerId, farmer.id))
+                .where(and(
+                    eq(stockLogs.referenceId, input.batchId),
+                    eq(farmer.officerId, ctx.user.id)
+                ))
+                .orderBy(desc(stockLogs.createdAt));
+
+            return ms;
         }),
 });

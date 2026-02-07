@@ -1,10 +1,23 @@
 "use client";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useTRPC } from "@/trpc/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Copy, Truck } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Trash2, Truck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +41,20 @@ interface FeedOrderCardProps {
 
 export function FeedOrderCard({ order }: FeedOrderCardProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const deleteMutation = useMutation(
+        trpc.officer.feedOrders.delete.mutationOptions({
+            onSuccess: () => {
+                toast.success("Feed order deleted");
+                queryClient.invalidateQueries(trpc.officer.feedOrders.list.pathFilter());
+            },
+            onError: (err) => {
+                toast.error(`Failed to delete: ${err.message}`);
+            }
+        })
+    );
 
     const generateCopyText = () => {
         const orderDateStr = format(new Date(order.orderDate), "d MMM yy");
@@ -55,7 +82,7 @@ export function FeedOrderCard({ order }: FeedOrderCardProps) {
             text += `Farm No ${farmCounter.toString().padStart(2, '0')}\n`;
             text += `${farmer.name}\n`; // User example shows name directly, sometimes "Farmer: Name"
             if (farmer.location) text += `Location: ${farmer.location}\n`;
-            if (farmer.mobile) text += `Phn: ${farmer.mobile}\n`;
+            if (farmer.mobile) text += `Phone: ${farmer.mobile}\n`;
 
             items.forEach(item => {
                 text += `${item.feedType}: ${item.quantity} Bags\n`;
@@ -74,7 +101,7 @@ export function FeedOrderCard({ order }: FeedOrderCardProps) {
             text += `${type}: ${qty} Bags\n`;
         });
 
-        text += `\nGrand Tota: ${grandTotal} Bags`; // Keeping user's typo "Tota" or maybe valid? formatting matching request exactly just in case, but let's fix to Total if logic suggests, but user request had "Grand Tota:". I will use "Grand Total" to be safe, or stick to request? Request: "Grand Tota: 160 Bags". I'll use "Grand Total".
+        text += `\nGrand Total: ${grandTotal} Bags`; // Keeping user's typo "Tota" or maybe valid? formatting matching request exactly just in case, but let's fix to Total if logic suggests, but user request had "Grand Tota:". I will use "Grand Total" to be safe, or stick to request? Request: "Grand Tota: 160 Bags". I'll use "Grand Total".
 
         return text;
     };
@@ -106,6 +133,30 @@ export function FeedOrderCard({ order }: FeedOrderCardProps) {
                                 <Copy className="h-3 w-3 mr-2" />
                                 Copy
                             </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Feed Order?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete this feed order. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => deleteMutation.mutate({ id: order.id })}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                            {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                             <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm">
                                     {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
