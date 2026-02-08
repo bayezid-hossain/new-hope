@@ -47,6 +47,8 @@ const adjustSaleSchema = z.object({
     feedConsumed: z.array(feedItemSchema).min(1, "At least one feed entry required"),
     feedStock: z.array(feedItemSchema),
 
+    location: z.string().min(1, "Location is required"),
+    party: z.string().optional(),
     adjustmentNote: z.string().optional(),
 });
 
@@ -58,6 +60,8 @@ interface AdjustSaleModalProps {
         birdsSold: number;
         totalMortality: number;
         houseBirds: number;
+        location: string;
+        party?: string | null;
         totalWeight: string;
         pricePerKg: string;
         cashReceived?: string | null;
@@ -118,6 +122,8 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         feedConsumed: ensureB1B2(saleEvent.feedConsumed),
         feedStock: ensureB1B2(saleEvent.feedStock),
 
+        location: saleEvent.location,
+        party: saleEvent.party || "",
         adjustmentNote: "",
     };
 
@@ -183,6 +189,8 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 feedConsumed: ensureB1B2(saleEvent.feedConsumed),
                 feedStock: ensureB1B2(saleEvent.feedStock),
 
+                location: saleEvent.location,
+                party: saleEvent.party || "",
                 adjustmentNote: "",
             });
         }
@@ -224,6 +232,8 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             feedConsumed: values.feedConsumed,
             feedStock: values.feedStock,
 
+            location: values.location,
+            party: values.party,
             adjustmentNote: values.adjustmentNote,
         });
     };
@@ -240,6 +250,38 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
 
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        {/* Section 0: Location & Party */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="location"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Location</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="party"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Party Name</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        <Separator />
+
                         {/* Section 1: Bill Info */}
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
@@ -257,10 +299,10 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                                 <Input
                                                     type="number"
                                                     max={saleEvent.houseBirds}
-                                                    {...field}
+                                                    value={field.value || ""}
                                                     onChange={(e) => {
-                                                        const val = e.target.valueAsNumber || 0;
-                                                        field.onChange(val > saleEvent.houseBirds ? saleEvent.houseBirds : val);
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val > saleEvent.houseBirds ? saleEvent.houseBirds : (val || 0));
                                                     }}
                                                 />
                                             </FormControl>
@@ -278,10 +320,10 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                                 <Input
                                                     type="number"
                                                     max={saleEvent.houseBirds}
-                                                    {...field}
+                                                    value={field.value || ""}
                                                     onChange={(e) => {
-                                                        const val = e.target.valueAsNumber || 0;
-                                                        field.onChange(val > saleEvent.houseBirds ? saleEvent.houseBirds : val);
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val > saleEvent.houseBirds ? saleEvent.houseBirds : (val || 0));
                                                     }}
                                                 />
                                             </FormControl>
@@ -299,7 +341,15 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                         <FormItem>
                                             <FormLabel>Total Weight (kg)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" step="0.01" {...field} />
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={field.value || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val || 0);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -312,7 +362,15 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                         <FormItem>
                                             <FormLabel>Price / Kg</FormLabel>
                                             <FormControl>
-                                                <Input type="number" step="0.01" {...field} />
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={field.value || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val || 0);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -348,7 +406,14 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                         <FormItem>
                                             <FormLabel>Deposit (৳)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" {...field} />
+                                                <Input
+                                                    type="number"
+                                                    value={field.value || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val || 0);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -361,7 +426,14 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                         <FormItem>
                                             <FormLabel>Cash (৳)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" {...field} />
+                                                <Input
+                                                    type="number"
+                                                    value={field.value || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                        field.onChange(val || 0);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -404,8 +476,11 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                                         <Input
                                                             type="number"
                                                             placeholder="Bags"
-                                                            value={field.value}
-                                                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                            value={field.value || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                                field.onChange(val || 0);
+                                                            }}
                                                         />
                                                     </FormControl>
                                                 </FormItem>
@@ -460,8 +535,11 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                                         <Input
                                                             type="number"
                                                             placeholder="Bags"
-                                                            value={field.value}
-                                                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                            value={field.value || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                                field.onChange(val || 0);
+                                                            }}
                                                         />
                                                     </FormControl>
                                                 </FormItem>

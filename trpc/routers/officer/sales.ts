@@ -1,3 +1,4 @@
+import { BASE_SELLING_PRICE } from "@/constants";
 import { cycleLogs, cycles, farmer, saleEvents, saleReports } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
@@ -18,6 +19,7 @@ const feedItemSchema = z.object({
 const createSaleEventSchema = z.object({
     cycleId: z.string(),
     location: z.string().min(1, "Location is required"),
+    party: z.string().optional(), // Buyer/party name
     saleDate: z.date().optional(),
     houseBirds: z.number().int().positive(),
     birdsSold: z.number().int().positive(),
@@ -42,6 +44,8 @@ const generateReportSchema = z.object({
     totalWeight: z.number().positive(),
     pricePerKg: z.number().positive(),
     adjustmentNote: z.string().optional(),
+    location: z.string().optional(), // Allow adjusting location
+    party: z.string().optional(),    // Allow adjusting party
     cashReceived: z.number().min(0).default(0),
     depositReceived: z.number().min(0).default(0),
     medicineCost: z.number().min(0).default(0),
@@ -146,6 +150,7 @@ export const officerSalesRouter = createTRPCRouter({
                 const [saleEvent] = await tx.insert(saleEvents).values({
                     cycleId: input.cycleId,
                     location: input.location,
+                    party: input.party,
                     saleDate: input.saleDate || new Date(),
                     houseBirds: input.houseBirds,
                     birdsSold: input.birdsSold,
@@ -336,6 +341,8 @@ export const officerSalesRouter = createTRPCRouter({
                         cashReceived: input.cashReceived.toString(),
                         depositReceived: input.depositReceived.toString(),
                         medicineCost: input.medicineCost.toString(),
+                        ...(input.location && { location: input.location }),
+                        ...(input.party && { party: input.party }),
                         ...(input.feedConsumed && { feedConsumed: JSON.stringify(input.feedConsumed) }),
                         ...(input.feedStock && { feedStock: JSON.stringify(input.feedStock) }),
                     })
@@ -531,10 +538,13 @@ export const officerSalesRouter = createTRPCRouter({
                     ...(farmerData.history?.flatMap(h => h.saleEvents) || [])
                 ];
 
-                // Sort by saleDate descending
-                events = allEvents.sort((a, b) =>
-                    new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()
-                );
+                // Sort by saleDate descending, then createdAt descending
+                events = allEvents.sort((a, b) => {
+                    const dateDiff = new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+                    if (dateDiff !== 0) return dateDiff;
+                    // Tie-breaker
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                });
             } else {
                 const whereClause = input.cycleId
                     ? eq(saleEvents.cycleId, input.cycleId)
@@ -542,7 +552,7 @@ export const officerSalesRouter = createTRPCRouter({
 
                 events = await ctx.db.query.saleEvents.findMany({
                     where: whereClause,
-                    orderBy: desc(saleEvents.saleDate),
+                    orderBy: [desc(saleEvents.saleDate), desc(saleEvents.createdAt)],
                     with: {
                         reports: {
                             orderBy: desc(saleReports.createdAt),
@@ -594,18 +604,30 @@ export const officerSalesRouter = createTRPCRouter({
                 };
             };
 
-            // Calculate cumulative revenue AND weight PER CYCLE/HISTORY
-            // We pre-calculate sums for all cycles in the result set
+            // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
             const revenueMap = new Map<string, number>();
             const weightMap = new Map<string, number>();
+            const adjustmentsMap = new Map<string, number>();
+            const processedPrices = new Map<string, Set<number>>();
 
             events.forEach(ev => {
                 const key = ev.cycleId || ev.historyId || "unknown";
                 const currentRevenue = revenueMap.get(key) || 0;
                 const currentWeight = weightMap.get(key) || 0;
+                let currentAdjustment = adjustmentsMap.get(key) || 0;
 
+                const price = parseFloat(ev.pricePerKg);
                 revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
                 weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
+
+                // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
+                const diff = price - BASE_SELLING_PRICE;
+                if (diff > 0) {
+                    currentAdjustment += diff / 2;
+                } else if (diff < 0) {
+                    currentAdjustment += diff;
+                }
+                adjustmentsMap.set(key, currentAdjustment);
             });
 
             return events.map((e) => {
@@ -621,15 +643,17 @@ export const officerSalesRouter = createTRPCRouter({
                     ? (e.history?.finalIntake || 0)
                     : (e.cycle?.intake || 0);
 
-                // Calculate cumulative weight from all sales in this cycle/history
-                // For simplicity, we use the current sale's total weight for the metrics
-                const totalWeight = parseFloat(e.totalWeight) || 0;
-
-                const { fcr, epi } = calculateMetrics(doc, mortality, totalWeight, feedConsumed, age, isEnded);
-
-                // Get cumulative totals for THIS cycle from our pre-calculated map
+                // Get cumulative totals
                 const cumulativeRevenue = revenueMap.get(groupKey) || 0;
                 const cumulativeWeight = weightMap.get(groupKey) || 0;
+                const netAdjustment = adjustmentsMap.get(groupKey) || 0;
+
+                // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
+                const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+                const formulaRevenue = effectiveRate * cumulativeWeight;
+
+                // Calculate FCR/EPI
+                const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
 
                 return {
                     ...e,
@@ -637,7 +661,6 @@ export const officerSalesRouter = createTRPCRouter({
                     feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
                     farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
-                    // Cycle context for display
                     cycleContext: {
                         doc,
                         mortality,
@@ -646,8 +669,11 @@ export const officerSalesRouter = createTRPCRouter({
                         isEnded,
                         fcr,
                         epi,
-                        revenue: cumulativeRevenue,
-                        totalWeight: cumulativeWeight // Added cumulative weight
+                        revenue: formulaRevenue, // Updated to use the formula revenue
+                        actualRevenue: cumulativeRevenue,
+                        totalWeight: cumulativeWeight,
+                        effectiveRate,
+                        netAdjustment
                     }
                 };
             });
@@ -745,7 +771,8 @@ export const officerSalesRouter = createTRPCRouter({
                 const searchLower = input.search.toLowerCase();
                 formattedEvents = formattedEvents.filter(e =>
                     e.farmerName.toLowerCase().includes(searchLower) ||
-                    e.location.toLowerCase().includes(searchLower)
+                    e.location.toLowerCase().includes(searchLower) ||
+                    (e.party && e.party.toLowerCase().includes(searchLower))
                 );
             }
 

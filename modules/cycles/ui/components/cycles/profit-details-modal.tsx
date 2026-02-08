@@ -9,9 +9,12 @@ interface ProfitDetailsModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     // Data props
-    revenue: number;
+    revenue: number; // This is the formula revenue (Weighted)
+    actualRevenue: number; // This is the sum of (price * weight)
     totalWeight: number;
     avgPrice: number;
+    effectiveRate: number;
+    netAdjustment: number;
     feedBags: number;
     docCount: number;
     feedCost: number;
@@ -23,28 +26,20 @@ export const ProfitDetailsModal = ({
     open,
     onOpenChange,
     revenue,
+    actualRevenue,
     totalWeight,
     avgPrice,
+    effectiveRate,
+    netAdjustment,
     feedBags,
     docCount,
     feedCost,
     docCost,
     profit,
 }: ProfitDetailsModalProps) => {
-    // 1. Calculate Effective Rate
-    // Formula: Base (141) + (AvgPrice - 141) / 2
-    const priceDiff = avgPrice - BASE_SELLING_PRICE;
-    const halfProfitShare = priceDiff / 2;
-    const effectiveRate = BASE_SELLING_PRICE + halfProfitShare;
-
-    // 2. Calculate Revenue based on Effective Rate check
-    // Note: The revenue passed in might be actual sales revenue.
-    // The user wants to see the calculation: (141 + (sell-141)/2) * meat
-    const calculatedRevenue = totalWeight * effectiveRate;
-
     // Check if there is a discrepancy between actual revenue and formula revenue
-    // (e.g. if individual sales had different prices vs average)
-    const isRevenueDifferent = Math.abs(revenue - calculatedRevenue) > 100; // tolerance
+    const adjustmentType = netAdjustment > 0 ? "surplus" : netAdjustment < 0 ? "deficit" : "neutral";
+    const baseRevenue = totalWeight * BASE_SELLING_PRICE;
 
     return (
         <ResponsiveDialog
@@ -58,6 +53,7 @@ export const ProfitDetailsModal = ({
                 <div className="bg-muted/30 p-3 rounded-lg text-xs font-mono text-muted-foreground border border-border/50">
                     <p className="font-semibold text-foreground mb-1">Profit Formula:</p>
                     <p>(Weight × Effective Rate) - (Feed Cost + DOC Cost)</p>
+                    <p className="mt-1 opacity-70">Effective Rate = max(141, 141 + Σ Independent Adjustments)</p>
                 </div>
 
                 {/* Step 0: Average Price */}
@@ -68,18 +64,18 @@ export const ProfitDetailsModal = ({
                     </div>
                     <div className="ml-8 text-sm space-y-2">
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
-                            <span className="text-muted-foreground text-xs">Total Revenue (Running)</span>
-                            <span className="font-mono">৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            <span className="text-muted-foreground text-xs">Total Sales Income</span>
+                            <span className="font-mono">৳{actualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
-                            <span className="text-muted-foreground text-xs">Total Weight (Running)</span>
+                            <span className="text-muted-foreground text-xs">Total Meat Sold</span>
                             <span className="font-mono">{totalWeight.toLocaleString()} kg</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-md">
                             <div className="flex flex-col">
-                                <span className="font-medium text-xs">Average Price / KG</span>
+                                <span className="font-medium text-xs">Weighted Average Rate</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    Total Revenue / Total Weight
+                                    Total Income / Total Weight
                                 </span>
                             </div>
                             <span className="font-bold text-blue-700 dark:text-blue-400 font-mono">
@@ -100,20 +96,25 @@ export const ProfitDetailsModal = ({
                     <div className="ml-8 text-sm space-y-2">
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
                             <span className="text-muted-foreground text-xs">Base Rate</span>
-                            <span className="font-mono">{BASE_SELLING_PRICE}</span>
+                            <span className="font-mono">৳{BASE_SELLING_PRICE}</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
-                            <span className="text-muted-foreground text-xs">Selling Price (Avg)</span>
-                            <span className="font-mono">{avgPrice.toFixed(2)}</span>
+                            <div className="flex flex-col">
+                                <span className="text-muted-foreground text-xs">Total Net Adjustment</span>
+                                <span className="text-[10px] opacity-70 text-muted-foreground">Σ Surplus(P-141)/2 + Σ Deficit(P-141)</span>
+                            </div>
+                            <span className={`font-mono ${netAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {netAdjustment >= 0 ? "+" : ""}{netAdjustment.toFixed(2)} tk
+                            </span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-primary/5 border border-primary/20 rounded-md">
                             <div className="flex flex-col">
-                                <span className="font-medium text-xs">Effective Rate</span>
+                                <span className="font-medium text-xs">Farmer's Effective Rate</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    {BASE_SELLING_PRICE} + ({avgPrice.toFixed(2)} - {BASE_SELLING_PRICE}) / 2
+                                    max({BASE_SELLING_PRICE}, {BASE_SELLING_PRICE} + {netAdjustment.toFixed(2)})
                                 </span>
                             </div>
-                            <span className="font-bold text-primary font-mono">{effectiveRate.toFixed(2)}</span>
+                            <span className="font-bold text-primary font-mono">৳{effectiveRate.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
@@ -124,24 +125,24 @@ export const ProfitDetailsModal = ({
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs">2</div>
-                        Revenue Generation
+                        Formula Revenue
                     </div>
                     <div className="ml-8 text-sm space-y-2">
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
                             <span className="text-muted-foreground text-xs flex items-center gap-2">
-                                <Scale className="h-3 w-3" /> Total Weight
+                                <Scale className="h-3 w-3" /> Total Meat Sold
                             </span>
                             <span className="font-mono">{totalWeight.toLocaleString()} kg</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-md">
                             <div className="flex flex-col">
-                                <span className="font-medium text-xs">Calculated Revenue</span>
+                                <span className="font-medium text-xs">Total Formula Revenue</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    {totalWeight.toLocaleString()} kg × {effectiveRate.toFixed(2)} tk
+                                    {totalWeight.toLocaleString()} kg × ৳{effectiveRate.toFixed(2)}
                                 </span>
                             </div>
                             <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                                ৳{calculatedRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                ৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                         </div>
                     </div>

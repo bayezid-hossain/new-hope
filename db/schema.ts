@@ -279,6 +279,7 @@ export const saleEvents = pgTable("sale_events", {
 
   // Location (farmer name from DB via cycle→farmer relation)
   location: text("location").notNull(),
+  party: text("party"), // Buyer/party name
 
   // Sale Data
   saleDate: timestamp("sale_date").notNull().defaultNow(),

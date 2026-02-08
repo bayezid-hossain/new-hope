@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,10 +23,10 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Banknote, Bird, Box, Calendar as CalendarIcon, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ const feedItemSchema = z.object({
 const formSchema = z.object({
     saleDate: z.string().min(1, "Sale date is required"),
     location: z.string().min(1, "Location is required"),
+    party: z.string().optional(),
     farmerMobile: z.string().optional(),
     birdsSold: z.number().int().positive("Must sell at least 1 bird"),
     mortalityChange: z.number().int(), // REMOVED min(0)
@@ -89,8 +91,10 @@ export const SellModal = ({
     onOpenChange,
     startDate
 }: SellModalProps) => {
+    const { showLoading } = useLoading();
     const trpc = useTRPC();
     const router = useRouter();
+    const pathname = usePathname();
     const queryClient = useQueryClient();
     const { orgId } = useCurrentOrg();
     // Initial remaining birds for default value calculation
@@ -120,13 +124,34 @@ export const SellModal = ({
         },
     });
 
+    const { data: previousSales } = useQuery({
+        ...trpc.officer.sales.getSaleEvents.queryOptions({ cycleId }),
+        enabled: open
+    });
+
+    const lastSale = previousSales?.[0];
+
     // Reset form with new defaults when modal opens or key props change
     useEffect(() => {
         if (open) {
             const currentRemainingBirds = doc - mortality - birdsSold;
+
+            // Auto-fill feed from previous sale if available, otherwise use default
+            const defaultFeedConsumed = lastSale?.feedConsumed || [
+                { type: "B1", bags: intake || 0 },
+                { type: "B2", bags: 0 }
+            ];
+
+            // Auto-fill feed from previous sale if available, otherwise use default
+            const defaultFeedStock = lastSale?.feedStock || [
+                { type: "B1", bags: 0 },
+                { type: "B2", bags: 0 }
+            ];
+
             form.reset({
                 saleDate: format(new Date(), "yyyy-MM-dd"),
                 location: farmerLocation || "",
+                party: "",
                 farmerMobile: farmerMobile || "",
                 birdsSold: currentRemainingBirds,
                 mortalityChange: 0,
@@ -134,18 +159,12 @@ export const SellModal = ({
                 pricePerKg: 0,
                 cashReceived: 0,
                 depositReceived: 0,
-                feedConsumed: [
-                    { type: "B1", bags: intake || 0 },
-                    { type: "B2", bags: 0 }
-                ],
-                feedStock: [
-                    { type: "B1", bags: 0 },
-                    { type: "B2", bags: 0 }
-                ],
+                feedConsumed: defaultFeedConsumed,
+                feedStock: defaultFeedStock,
                 medicineCost: 0,
             });
         }
-    }, [open, doc, mortality, birdsSold, intake, farmerLocation, farmerMobile, form]);
+    }, [open, doc, mortality, birdsSold, intake, farmerLocation, farmerMobile, form, lastSale]);
 
     const feedConsumedArray = useFieldArray({
         control: form.control,
@@ -162,7 +181,13 @@ export const SellModal = ({
             onSuccess: (data) => {
                 if (data.cycleEnded) {
                     toast.success("Sale recorded & cycle ended!", { description: "All birds sold. Cycle has been archived." });
-                    // router.push("/cycles");
+                    if (data.historyId) {
+                        // Only redirect if NOT on the farmer details page
+                        if (!pathname?.includes('/farmers/')) {
+                            showLoading("Loading cycle history...")
+                            router.push(`/cycles/${data.historyId}`);
+                        }
+                    }
                 } else {
                     toast.success("Sale recorded successfully");
                 }
@@ -191,10 +216,15 @@ export const SellModal = ({
     );
 
     const onSubmit = (values: FormValues) => {
+        const now = new Date();
+        const saleDateWithTime = new Date(values.saleDate);
+        saleDateWithTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
         mutation.mutate({
             cycleId,
-            saleDate: new Date(values.saleDate),
+            saleDate: saleDateWithTime,
             location: values.location,
+            party: values.party,
             houseBirds: doc,
             birdsSold: values.birdsSold,
             mortalityChange: values.mortalityChange,
@@ -246,7 +276,7 @@ export const SellModal = ({
             onOpenChange={onOpenChange}
         >
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[50vh] sm:max-h-[70vh] md:max-h-[80vh] overflow-y-auto pr-1">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[50vh] sm:max-h-[80vh] md:max-h-[80vh] overflow-y-auto pr-1">
                     {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
                     <div className="space-y-4">
                         {/* Farmer Header */}
@@ -341,20 +371,35 @@ export const SellModal = ({
                             />
                         </div>
 
-                        {/* Location Input */}
-                        <FormField
-                            control={form.control}
-                            name="location"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Sale Location</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g. Bhaluka" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        {/* Location and Party Input */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <FormField
+                                control={form.control}
+                                name="location"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Sale Location</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Bhaluka" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="party"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Party Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Habib Party" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                         {/* Sale Details */}
                         <div className="grid grid-cols-3 gap-3">
@@ -372,8 +417,11 @@ export const SellModal = ({
                                             <Input
                                                 type="number"
                                                 max={birdsInHouse - mortalityChange}
-                                                value={field.value}
-                                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                value={field.value || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                    field.onChange(val || 0);
+                                                }}
                                                 onBlur={field.onBlur}
                                             />
                                         </FormControl>
@@ -396,9 +444,9 @@ export const SellModal = ({
                                                         min={0} // Allow going down to 0
                                                         // max={birdsInHouse + mortality} // Technically, we can't exceed DOC. But let's leave it open or max={doc}
                                                         placeholder={`Current: ${mortality}`}
-                                                        value={currentTotal}
+                                                        value={currentTotal || ""}
                                                         onChange={(e) => {
-                                                            const newTotal = e.target.valueAsNumber;
+                                                            const newTotal = e.target.value === "" ? mortality : e.target.valueAsNumber;
                                                             if (isNaN(newTotal)) return;
                                                             // Allow negative delta
                                                             const delta = newTotal - mortality;
@@ -457,8 +505,11 @@ export const SellModal = ({
                                             <Input
                                                 type="number"
                                                 step="0.01"
-                                                value={field.value}
-                                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                value={field.value || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                    field.onChange(val || 0);
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -475,8 +526,11 @@ export const SellModal = ({
                                             <Input
                                                 type="number"
                                                 step="0.01"
-                                                value={field.value}
-                                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                value={field.value || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                    field.onChange(val || 0);
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -508,8 +562,11 @@ export const SellModal = ({
                                         <FormControl>
                                             <Input
                                                 type="number"
-                                                value={field.value}
-                                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                value={field.value || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                    field.onChange(val || 0);
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -525,8 +582,11 @@ export const SellModal = ({
                                         <FormControl>
                                             <Input
                                                 type="number"
-                                                value={field.value}
-                                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                value={field.value || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                    field.onChange(val || 0);
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -594,8 +654,11 @@ export const SellModal = ({
                                                     <Input
                                                         type="number"
                                                         placeholder="Bags"
-                                                        value={field.value}
-                                                        onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
                                                     />
                                                 </FormControl>
                                             </FormItem>
@@ -653,8 +716,11 @@ export const SellModal = ({
                                                     <Input
                                                         type="number"
                                                         placeholder="Bags"
-                                                        value={field.value}
-                                                        onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
                                                     />
                                                 </FormControl>
                                             </FormItem>

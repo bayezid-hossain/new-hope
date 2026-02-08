@@ -19,6 +19,7 @@ import { Calculator, Check, ChevronDown, ClipboardCopy, History, Info, Lock, Pen
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
+import { FcrEpiDetailsModal } from "./fcr-epi-details-modal";
 import { ProfitDetailsModal } from "./profit-details-modal";
 
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ export interface SaleReport {
 export interface SaleEvent {
     id: string;
     location: string;
+    party?: string | null;
     saleDate: Date;
     houseBirds: number;
     birdsSold: number;
@@ -78,7 +80,10 @@ export interface SaleEvent {
         fcr: number;
         epi: number;
         revenue?: number;
+        actualRevenue?: number;
         totalWeight?: number;
+        effectiveRate?: number;
+        netAdjustment?: number;
     };
 }
 
@@ -122,17 +127,17 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
     return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
-Location: ${sale.location}
+Location: ${sale.location}${sale.party ? ` (${sale.party})` : ""}
 House bird : ${sale.houseBirds}pcs
 Total Sold : ${birdsSold}pcs
 Total Mortality: ${totalMortality} pcs
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
-
-FCR: ${isEnded ? fcr : 0}
-EPI: ${isEnded ? epi : 0}
-
+${isEnded ? `
+FCR: ${fcr}
+EPI: ${epi}
+` : ""}
 Price : ${pricePerKg} tk
 Total taka : ${parseFloat(totalAmount).toLocaleString()} tk
 Deposit: ${depositReceived ? `${parseFloat(depositReceived).toLocaleString()} tk` : ""}
@@ -145,7 +150,7 @@ Stock:
 ${stockBreakdown}
 
 Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
-`;
+${!isEnded ? "\n--- Sale not complete ---" : ""}`;
 };
 
 export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: SaleEventCardProps) => {
@@ -185,6 +190,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
     const [copied, setCopied] = useState(false);
     const [isAdjustOpen, setIsAdjustOpen] = useState(false);
     const [showProfitModal, setShowProfitModal] = useState(false);
+    const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
 
     return (
         <>
@@ -201,7 +207,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                                 </span>
                                 {sale.location && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
-                                        {sale.location}
+                                        {sale.location}{sale.party ? ` • ${sale.party}` : ""}
                                     </Badge>
                                 )}
 
@@ -282,17 +288,47 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                 </CardHeader>
                 {isExpanded && (
                     <CardContent className="pt-4 px-3 sm:px-6 gap-2">
-                        {/* FCR/EPI Row - Prominent at top */}
-                        {sale.cycleContext && (
-                            <div className="flex gap-3 mb-4">
+                        {/* FCR/EPI Row - Prominent at top - ONLY ON LATEST SALE */}
+                        {isLatest && sale.cycleContext && (
+                            <div className="flex gap-2 sm:gap-4 mb-4">
                                 <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg p-3 border border-blue-100 dark:border-blue-900/50">
-                                    <div className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-medium">FCR</div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-medium">FCR</div>
+                                        {sale.cycleContext.isEnded && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-4 w-4 p-0 hover:bg-blue-200/50 rounded-full"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowFcrEpiModal(true);
+                                                }}
+                                            >
+                                                <Info className="h-3 w-3 text-blue-600" />
+                                            </Button>
+                                        )}
+                                    </div>
                                     <div className="text-xl font-bold text-blue-700 dark:text-blue-300">
                                         {sale.cycleContext.isEnded ? sale.cycleContext.fcr : <span className="text-muted-foreground text-sm">N/A</span>}
                                     </div>
                                 </div>
                                 <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-100 dark:border-emerald-900/50">
-                                    <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-medium">EPI</div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-medium">EPI</div>
+                                        {sale.cycleContext.isEnded && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-4 w-4 p-0 hover:bg-emerald-200/50 rounded-full"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowFcrEpiModal(true);
+                                                }}
+                                            >
+                                                <Info className="h-3 w-3 text-emerald-600" />
+                                            </Button>
+                                        )}
+                                    </div>
                                     <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
                                         {sale.cycleContext.isEnded ? sale.cycleContext.epi : <span className="text-muted-foreground text-sm">N/A</span>}
                                     </div>
@@ -374,18 +410,18 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                         {isLatest && sale.cycleContext && (() => {
                             // CUMULATIVE VALUES from Backend (Context)
                             const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
-                            const cycleTotalRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
+                            const formulaRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
+                            const actualRevenue = sale.cycleContext.actualRevenue || parseFloat(sale.totalAmount);
+                            const effectiveRate = sale.cycleContext.effectiveRate || BASE_SELLING_PRICE;
+                            const netAdjustment = sale.cycleContext.netAdjustment || 0;
+                            const fcr = sale.cycleContext.fcr || 0;
+                            const epi = sale.cycleContext.epi || 0;
+                            const mortality = sale.cycleContext.mortality || 0;
 
-                            // Calculate weighted average price for the whole cycle
+                            // Calculate weighted average price for ACTUAL sales
                             const avgPrice = cycleTotalWeight > 0
-                                ? cycleTotalRevenue / cycleTotalWeight
+                                ? actualRevenue / cycleTotalWeight
                                 : parseFloat(sale.pricePerKg);
-
-                            // Effective Rate Formula: 141 + (AvgPrice - 141) / 2
-                            const effectiveRate = BASE_SELLING_PRICE + (avgPrice - BASE_SELLING_PRICE) / 2;
-
-                            // Formula Revenue: Total Weight * Effective Rate
-                            const formulaRevenue = cycleTotalWeight * effectiveRate;
 
                             // Costs (Only calculated if cycle is ENDED)
                             const isEnded = sale.cycleContext.isEnded;
@@ -437,6 +473,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                                                         {formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                                     </span>
                                                 </div>
+
                                             </>
                                         ) : (
                                             <div className="mt-2 text-xs text-amber-600/80 italic">
@@ -449,13 +486,28 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                                         open={showProfitModal}
                                         onOpenChange={setShowProfitModal}
                                         revenue={formulaRevenue}
+                                        actualRevenue={actualRevenue}
                                         totalWeight={cycleTotalWeight}
                                         avgPrice={avgPrice}
-                                        feedBags={totalFeedBags} // Passed but handled in modal?
+                                        effectiveRate={effectiveRate}
+                                        netAdjustment={netAdjustment}
+                                        feedBags={totalFeedBags}
                                         docCount={doc}
                                         feedCost={feedCost}
                                         docCost={docCost}
                                         profit={formulaProfit}
+                                    />
+
+                                    <FcrEpiDetailsModal
+                                        open={showFcrEpiModal}
+                                        onOpenChange={setShowFcrEpiModal}
+                                        fcr={fcr}
+                                        epi={epi}
+                                        doc={doc}
+                                        mortality={mortality}
+                                        age={sale.cycleContext.age}
+                                        totalWeight={cycleTotalWeight}
+                                        feedBags={totalFeedBags}
                                     />
                                 </div>
                             );
@@ -591,7 +643,7 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                     </CardDescription>
                 </CardHeader>
             )}
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+            <div className="space-y-4 pr-1">
                 {farmerId && groupedSales ? (
                     <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className="space-y-4">
                         {groupedSales.map((group) => (

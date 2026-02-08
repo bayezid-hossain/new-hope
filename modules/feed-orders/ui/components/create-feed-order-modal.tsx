@@ -324,7 +324,10 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                                                 placeholder="Qty"
                                                 className="w-24 h-8"
                                                 value={feed.quantity || ""}
-                                                onChange={(e) => handleUpdateFeed(item.id, idx, 'quantity', parseInt(e.target.value) || 0)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === "" ? 0 : parseInt(e.target.value);
+                                                    handleUpdateFeed(item.id, idx, 'quantity', val || 0);
+                                                }}
                                             />
                                             <span className="text-sm text-muted-foreground mr-auto">Bags</span>
 

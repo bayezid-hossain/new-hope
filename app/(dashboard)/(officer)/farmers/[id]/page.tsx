@@ -395,7 +395,7 @@ export default function FarmerDetails() {
       <div className="w-full min-w-0">
         {/* Desktop View: Tabs */}
         <div className="hidden sm:block">
-          <Tabs defaultValue="active" className="w-full space-y-6">
+          <Tabs defaultValue="sales" className="w-full space-y-6">
             <TabsList className="inline-flex w-auto bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto">
               <TabsTrigger value="active" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                 <Activity className="h-4 w-4" />
@@ -435,7 +435,7 @@ export default function FarmerDetails() {
 
         {/* Mobile View: Accordion */}
         <div className="block sm:hidden">
-          <Accordion type="single" collapsible defaultValue="active" className="space-y-4">
+          <Accordion type="single" collapsible defaultValue="sales" className="space-y-4">
             <AccordionItem value="active" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
               <AccordionTrigger className="hover:no-underline py-4 text-foreground">
                 <div className="flex items-center gap-2">
