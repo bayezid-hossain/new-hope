@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG, GRAMS_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Banknote, Bird, Box, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { format } from "date-fns";
+import { Banknote, Bird, Box, Calculator, Calendar, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -29,7 +31,9 @@ const feedItemSchema = z.object({
 });
 
 const formSchema = z.object({
+    saleDate: z.string().min(1, "Sale date is required"),
     location: z.string().min(1, "Location is required"),
+    farmerMobile: z.string().optional(),
     birdsSold: z.number().int().positive("Must sell at least 1 bird"),
     mortalityChange: z.number().int().min(0),
     totalWeight: z.number().positive("Weight must be greater than 0"),
@@ -47,6 +51,9 @@ interface SellModalProps {
     cycleId: string;
     cycleName: string;
     farmerName: string;
+    farmerLocation?: string | null;
+    farmerMobile?: string | null;
+    cycleAge: number;
     doc: number;
     mortality: number;
     birdsSold: number;
@@ -59,6 +66,9 @@ export const SellModal = ({
     cycleId,
     cycleName,
     farmerName,
+    farmerLocation,
+    farmerMobile,
+    cycleAge,
     doc,
     mortality,
     birdsSold,
@@ -76,7 +86,9 @@ export const SellModal = ({
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            location: "",
+            saleDate: format(new Date(), "yyyy-MM-dd"),
+            location: farmerLocation || "",
+            farmerMobile: farmerMobile || "",
             birdsSold: initialRemainingBirds, // Use initial calculation for default
             mortalityChange: 0,
             totalWeight: 0,
@@ -94,7 +106,9 @@ export const SellModal = ({
         if (open) {
             const currentRemainingBirds = doc - mortality - birdsSold;
             form.reset({
-                location: "",
+                saleDate: format(new Date(), "yyyy-MM-dd"),
+                location: farmerLocation || "",
+                farmerMobile: farmerMobile || "",
                 birdsSold: currentRemainingBirds,
                 mortalityChange: 0,
                 totalWeight: 0,
@@ -106,7 +120,7 @@ export const SellModal = ({
                 medicineCost: 0,
             });
         }
-    }, [open, doc, mortality, birdsSold, intake, form]);
+    }, [open, doc, mortality, birdsSold, intake, farmerLocation, farmerMobile, form]);
 
     const feedConsumedArray = useFieldArray({
         control: form.control,
@@ -207,32 +221,81 @@ export const SellModal = ({
         >
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[50vh] sm:max-h-[70vh] md:max-h-[80vh] overflow-y-auto pr-1">
-                    {/* SECTION 1: BASIC INFO */}
+                    {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                            <Truck className="h-4 w-4" /> Basic Info
+                        {/* Farmer Header */}
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <div className="text-center space-y-1">
+                                <div className="text-lg font-bold text-blue-900 dark:text-blue-100">{farmerName}</div>
+                                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                                    {farmerLocation && (
+                                        <span className="flex items-center gap-1">
+                                            <MapPin className="h-3 w-3" /> {farmerLocation}
+                                        </span>
+                                    )}
+                                    {farmerMobile && (
+                                        <span className="flex items-center gap-1">
+                                            <Phone className="h-3 w-3" /> {farmerMobile}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="mt-3 flex items-center justify-center gap-4 text-sm">
+                                <div className="flex items-center gap-1 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full">
+                                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                                    <span className="font-medium">Age: {cycleAge} days</span>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Farmer Info */}
+                        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                            <Truck className="h-4 w-4" /> Sale Details
+                        </div>
+
+                        {/* Date and Mobile Row */}
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="text-sm">
-                                <span className="text-muted-foreground">Farmer:</span>
-                                <span className="ml-2 font-medium">{farmerName}</span>
-                            </div>
                             <FormField
                                 control={form.control}
-                                name="location"
+                                name="saleDate"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Location</FormLabel>
+                                        <FormLabel>Sale Date</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="e.g. Bhaluka" {...field} />
+                                            <Input type="date" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="farmerMobile"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Mobile (Optional)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. 01XXXXXXXXX" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
                         </div>
+
+                        {/* Location Input */}
+                        <FormField
+                            control={form.control}
+                            name="location"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Sale Location</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g. Bhaluka" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         {/* Sale Details */}
                         <div className="grid grid-cols-3 gap-3">
@@ -404,23 +467,38 @@ export const SellModal = ({
                             />
                         </div>
 
-                        <FormField
-                            control={form.control}
-                            name="medicineCost"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Medicine Cost (৳)</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            type="number"
-                                            value={field.value}
-                                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        {/* Farmer Profit Calculation */}
+                        {(() => {
+                            const feedConsumed = form.watch("feedConsumed") || [];
+                            const totalFeedBags = feedConsumed.reduce((sum: number, item: { bags: number }) => sum + (item.bags || 0), 0);
+                            const totalFeedKg = totalFeedBags * (GRAMS_PER_BAG / 1000);
+                            const meat = watchWeight; // Total weight in kg
+                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
+                            const docCost = doc * DOC_PRICE_PER_BIRD;
+
+                            // Profit formula
+                            const revenue = watchPrice > BASE_SELLING_PRICE
+                                ? (BASE_SELLING_PRICE + (watchPrice - BASE_SELLING_PRICE) / 2) * meat
+                                : BASE_SELLING_PRICE * meat;
+                            const profit = revenue - (feedCost + docCost);
+                            const profitFormatted = profit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                            return watchWeight > 0 && totalFeedBags > 0 ? (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">
+                                        <Calculator className="h-4 w-4" /> Farmer&apos;s Profit Estimate
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                        <div>Feed Cost: ৳{feedCost.toLocaleString()}</div>
+                                        <div>DOC Cost: ৳{docCost.toLocaleString()}</div>
+                                        <div>Revenue: ৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                                        <div className={`font-bold text-sm ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            Profit: ৳{profitFormatted}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : null;
+                        })()}
                     </div>
 
                     <Separator />

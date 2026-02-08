@@ -407,6 +407,8 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         ...cycle,
                                         farmerName: farmerContext.name,
                                         farmerId: farmerContext.id,
+                                        farmerLocation: farmerContext.location,
+                                        farmerMobile: farmerContext.mobile,
                                         organizationId: farmerContext.organizationId,
                                         status: "active",
                                         // Ensure mandatory fields for Farmer type

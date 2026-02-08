@@ -18,7 +18,10 @@ interface EndCycleModalProps {
   cycleId: string;
   cycleName: string;
   farmerName: string;
+  farmerLocation?: string | null;
+  farmerMobile?: string | null;
   open: boolean;
+  age: number;
   intake: number;
   doc: number;
   mortality: number;
@@ -31,7 +34,10 @@ export const EndCycleModal = ({
   cycleId,
   cycleName,
   farmerName,
+  farmerLocation,
+  farmerMobile,
   open,
+  age,
   intake,
   doc,
   mortality,
@@ -185,6 +191,9 @@ export const EndCycleModal = ({
         cycleId={cycleId}
         cycleName={cycleName}
         farmerName={farmerName}
+        cycleAge={age}
+        farmerLocation={farmerLocation}
+        farmerMobile={farmerMobile}
         doc={doc}
         mortality={mortality}
         birdsSold={birdsSold}

@@ -40,6 +40,8 @@ export const officerCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 cycle: cycles,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
             })
                 .from(cycles)
@@ -68,6 +70,8 @@ export const officerCyclesRouter = createTRPCRouter({
                     createdAt: d.cycle.createdAt,
                     updatedAt: d.cycle.updatedAt,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     birdsSold: d.cycle.birdsSold,
                     endDate: null as Date | null
@@ -95,6 +99,8 @@ export const officerCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 history: cycleHistory,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock
             })
                 .from(cycleHistory)
@@ -123,6 +129,8 @@ export const officerCyclesRouter = createTRPCRouter({
                     createdAt: d.history.startDate,
                     updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     birdsSold: d.history.birdsSold,
                     endDate: d.history.endDate

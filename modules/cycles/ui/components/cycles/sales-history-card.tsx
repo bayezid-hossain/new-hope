@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, ChevronDown, ClipboardCopy, History, Pencil, ShoppingCart } from "lucide-react";
+import { Calculator, Check, ChevronDown, ClipboardCopy, History, Pencil, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
@@ -61,6 +62,15 @@ export interface SaleEvent {
     reports?: SaleReport[];
     cycleName?: string;
     farmerName?: string;
+    cycleContext?: {
+        doc: number;
+        mortality: number;
+        age: number;
+        feedConsumed: number;
+        isEnded: boolean;
+        fcr: number;
+        epi: number;
+    };
 }
 
 const formatFeedBreakdown = (items: { type: string; bags: number }[]): string => {
@@ -89,6 +99,10 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
     const feedBreakdown = formatFeedBreakdown(sale.feedConsumed);
     const stockBreakdown = formatFeedBreakdown(sale.feedStock);
 
+    const fcr = sale.cycleContext?.fcr || 0;
+    const epi = sale.cycleContext?.epi || 0;
+    const isEnded = sale.cycleContext?.isEnded || false;
+
     return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
@@ -99,6 +113,9 @@ Total Mortality: ${totalMortality} pcs
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
+
+FCR: ${isEnded ? fcr : 0}
+EPI: ${isEnded ? epi : 0}
 
 Price : ${pricePerKg} tk
 Total taka : ${parseFloat(totalAmount).toLocaleString()} tk
@@ -111,7 +128,8 @@ ${feedBreakdown}
 Stock: 
 ${stockBreakdown}
 
-Medicine :${parseFloat(medicineCost || "0")}`;
+Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
+`;
 };
 
 export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
@@ -152,23 +170,19 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
 
     return (
         <>
-            <Card className="border-border/50 shadow-sm overflow-hidden">
+            <Card className="border-border/50 shadow-sm overflow-hidden gap-2">
                 <CardHeader className="pb-3 px-3 sm:px-6 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                             <CardTitle className="text-sm font-semibold flex flex-wrap items-center gap-2">
                                 <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-                                <span className="truncate">{sale.location}</span>
+                                <span className="truncate">{sale.cycleName}</span>
                                 {sale.cycleName && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
-                                        {sale.cycleName}
+                                        {sale.location}
                                     </Badge>
                                 )}
-                                {activeReport && (
-                                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 shrink-0">
-                                        v{reports.length - reports.findIndex(r => r.id === activeReport.id)}
-                                    </Badge>
-                                )}
+
                             </CardTitle>
                             <CardDescription className="text-xs mt-0.5 ml-6">
                                 {format(new Date(sale.saleDate), "MMM d, yyyy HH:mm")}
@@ -245,23 +259,54 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                     )}
                 </CardHeader>
                 {isExpanded && (
-                    <CardContent className="pt-4 px-3 sm:px-6">
+                    <CardContent className="pt-4 px-3 sm:px-6 gap-2">
+                        {/* FCR/EPI Row - Prominent at top */}
+                        {sale.cycleContext && (
+                            <div className="flex gap-3 mb-4">
+                                <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg p-3 border border-blue-100 dark:border-blue-900/50">
+                                    <div className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-medium">FCR</div>
+                                    <div className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                        {sale.cycleContext.isEnded ? sale.cycleContext.fcr : <span className="text-muted-foreground text-sm">N/A</span>}
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-100 dark:border-emerald-900/50">
+                                    <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-medium">EPI</div>
+                                    <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                                        {sale.cycleContext.isEnded ? sale.cycleContext.epi : <span className="text-muted-foreground text-sm">N/A</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Main Stats Grid */}
                         <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
                             <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Sale Age</span>
+                                    <span className="font-semibold">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium">days</small></span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Total DOC</span>
+                                    <span className="font-semibold">{sale.cycleContext?.doc || sale.houseBirds}</span>
+                                </div>
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
                                     <span className="font-semibold">{displayBirdsSold}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
+                                    <span className="font-medium text-red-500">{displayMortality}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
                                     <span className="text-muted-foreground text-xs uppercase tracking-tight">Total Weight</span>
-                                    <span className="font-semibold">{displayTotalWeight} <small className="text-muted-foreground font-medium">kg</small></span>
+                                    <span className="font-semibold text-end">{displayTotalWeight} <small className="text-muted-foreground font-medium">kg</small></span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-muted-foreground text-xs uppercase tracking-tight">Avg Weight</span>
                                     <span className="font-semibold">{displayAvgWeight}</span>
                                 </div>
-                            </div>
-                            <div className="space-y-3">
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-muted-foreground text-xs uppercase tracking-tight">Price/kg</span>
                                     <span className="font-semibold">৳{displayPricePerKg}</span>
@@ -270,16 +315,29 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                                     <span className="text-muted-foreground text-xs uppercase tracking-tight">Total</span>
                                     <span className="font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between items-baseline">
-                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
-                                    <span className="font-medium text-red-500">{displayMortality}</span>
-                                </div>
                             </div>
                         </div>
 
                         <Separator className="my-4" />
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        {/* Financial Breakdown */}
+                        <div className="grid grid-cols-3 gap-2 text-xs mb-4">
+                            <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                <div className="text-muted-foreground text-[10px] uppercase">Cash</div>
+                                <div className="font-semibold">৳{parseFloat(sale.cashReceived || "0").toLocaleString()}</div>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                <div className="text-muted-foreground text-[10px] uppercase">Deposit</div>
+                                <div className="font-semibold">৳{parseFloat(sale.depositReceived || "0").toLocaleString()}</div>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                <div className="text-muted-foreground text-[10px] uppercase">Medicine</div>
+                                <div className="font-semibold">৳{parseFloat(sale.medicineCost || "0").toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        {/* Feed Info */}
+                        <div className="grid grid-cols-2 gap-3 text-xs mb-4">
                             <div>
                                 <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
                                 <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
@@ -289,6 +347,53 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                                 <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
                             </div>
                         </div>
+
+                        {/* Farmer Profit Calculation */}
+                        {(() => {
+                            const totalFeedBags = calculateTotalBags(sale.feedConsumed);
+                            const totalWeight = parseFloat(displayTotalWeight) || 0;
+                            const pricePerKg = parseFloat(displayPricePerKg) || 0;
+                            const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
+
+                            if (totalFeedBags <= 0 || totalWeight <= 0) return null;
+
+                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
+                            const docCost = doc * DOC_PRICE_PER_BIRD;
+
+                            const revenue = pricePerKg > BASE_SELLING_PRICE
+                                ? (BASE_SELLING_PRICE + (pricePerKg - BASE_SELLING_PRICE) / 2) * totalWeight
+                                : BASE_SELLING_PRICE * totalWeight;
+                            const profit = revenue - (feedCost + docCost);
+
+                            return (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
+                                        <Calculator className="h-4 w-4" /> Farmer&apos;s Profit Estimate
+                                    </div>
+                                    <div className="space-y-1 text-sm font-mono">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Revenue</span>
+                                            <span className="font-medium">{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                                            <span>- DOC Cost</span>
+                                            <span>{docCost.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                                            <span>- Feed Cost</span>
+                                            <span>{feedCost.toLocaleString()}</span>
+                                        </div>
+                                        <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
+                                        <div className="flex justify-between font-bold text-base">
+                                            <span>Profit</span>
+                                            <span className={profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                                                {profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </CardContent>
                 )}
             </Card>

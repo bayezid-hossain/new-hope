@@ -31,6 +31,8 @@ type CycleItem = {
     createdAt: Date;
     updatedAt: Date;
     farmerName: string;
+    farmerLocation?: string | null;
+    farmerMobile?: string | null;
     farmerMainStock: string | null;
     officerName: string | null;
     endDate: Date | null;

@@ -23,11 +23,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Banknote, FileText, Loader2 } from "lucide-react";
+import { Banknote, Box, FileText, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+
+const feedItemSchema = z.object({
+    type: z.string().min(1, "Required"),
+    bags: z.number().min(0, "Must be 0 or greater"),
+});
 
 const adjustSaleSchema = z.object({
     birdsSold: z.coerce.number().int().positive("Must be at least 1 bird"),
@@ -38,6 +43,9 @@ const adjustSaleSchema = z.object({
     cashReceived: z.coerce.number().min(0, "Cannot be negative"),
     depositReceived: z.coerce.number().min(0, "Cannot be negative"),
     medicineCost: z.coerce.number().min(0, "Cannot be negative"),
+
+    feedConsumed: z.array(feedItemSchema).min(1, "At least one feed entry required"),
+    feedStock: z.array(feedItemSchema),
 
     adjustmentNote: z.string().optional(),
 });
@@ -50,11 +58,13 @@ interface AdjustSaleModalProps {
         birdsSold: number;
         totalMortality: number;
         houseBirds: number;
-        totalWeight: string; // Decimal string from DB
-        pricePerKg: string; // Decimal string from DB
+        totalWeight: string;
+        pricePerKg: string;
         cashReceived?: string | null;
         depositReceived?: string | null;
         medicineCost?: string | null;
+        feedConsumed: { type: string; bags: number }[];
+        feedStock: { type: string; bags: number }[];
     };
     latestReport?: {
         birdsSold: number;
@@ -84,12 +94,25 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
         medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
 
+        feedConsumed: saleEvent.feedConsumed?.length > 0 ? saleEvent.feedConsumed : [{ type: "B1", bags: 0 }],
+        feedStock: saleEvent.feedStock?.length > 0 ? saleEvent.feedStock : [{ type: "B1", bags: 0 }],
+
         adjustmentNote: "",
     };
 
     const form = useForm<z.infer<typeof adjustSaleSchema>>({
         resolver: zodResolver(adjustSaleSchema),
         defaultValues,
+    });
+
+    const feedConsumedArray = useFieldArray({
+        control: form.control,
+        name: "feedConsumed",
+    });
+
+    const feedStockArray = useFieldArray({
+        control: form.control,
+        name: "feedStock",
     });
 
     const { watch } = form;
@@ -104,7 +127,6 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         }
     }, [wWeight, wPrice]);
 
-    // Auto-correction logic: bird sold + mortality cannot exceed total birds
     const wBirdsSold = watch("birdsSold");
     const wMortality = watch("totalMortality");
 
@@ -136,6 +158,9 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 cashReceived: parseFloat(latestReport?.cashReceived ?? saleEvent.cashReceived ?? "0"),
                 depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
                 medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
+
+                feedConsumed: saleEvent.feedConsumed?.length > 0 ? saleEvent.feedConsumed : [{ type: "B1", bags: 0 }],
+                feedStock: saleEvent.feedStock?.length > 0 ? saleEvent.feedStock : [{ type: "B1", bags: 0 }],
 
                 adjustmentNote: "",
             });
@@ -175,13 +200,16 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             depositReceived: values.depositReceived,
             medicineCost: values.medicineCost,
 
+            feedConsumed: values.feedConsumed,
+            feedStock: values.feedStock,
+
             adjustmentNote: values.adjustmentNote,
         });
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Adjust Sales Report</DialogTitle>
                     <DialogDescription>
@@ -242,37 +270,44 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                 />
                             </div>
 
-                            <FormField
-                                control={form.control}
-                                name="totalWeight"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Total Weight (kg)</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" step="0.01" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="totalWeight"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Total Weight (kg)</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" step="0.01" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="pricePerKg"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Price / Kg</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" step="0.01" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
 
-                            <FormField
-                                control={form.control}
-                                name="pricePerKg"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Price / Kg</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" step="0.01" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div className="p-3 bg-muted/50 rounded-lg flex justify-between items-center border border-border/50">
-                                <span className="text-sm font-medium text-muted-foreground">Calculated Total:</span>
-                                <span className="text-lg font-bold text-primary">৳{calculatedTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                            <div className="grid grid-cols-2 gap-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                <div>
+                                    <div className="text-xs text-muted-foreground">Avg Weight</div>
+                                    <div className="font-mono font-bold text-lg">{wBirdsSold > 0 ? (wWeight / wBirdsSold).toFixed(2) : "0.00"} kg</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-muted-foreground">Total Amount</div>
+                                    <div className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400">৳{calculatedTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                                </div>
                             </div>
                         </div>
 
@@ -284,7 +319,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                 <Banknote className="h-4 w-4" /> Payments & Costs
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-3">
                                 <FormField
                                     control={form.control}
                                     name="depositReceived"
@@ -311,25 +346,132 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                         </FormItem>
                                     )}
                                 />
+
                             </div>
-                            <FormField
-                                control={form.control}
-                                name="medicineCost"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Medicine Cost (৳)</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
                         </div>
 
                         <Separator />
 
-                        {/* Section 3: Reason */}
+                        {/* Section 3: Inventory */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                <Box className="h-4 w-4" /> Inventory
+                            </div>
+
+                            {/* Feed Consumed */}
+                            <div className="space-y-2">
+                                <FormLabel>Feed Consumed</FormLabel>
+                                {feedConsumedArray.fields.map((field, index) => (
+                                    <div key={field.id} className="flex gap-2 items-end">
+                                        <FormField
+                                            control={form.control}
+                                            name={`feedConsumed.${index}.type` as const}
+                                            render={({ field }) => (
+                                                <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <Input placeholder="Type (B1, B2...)" {...field} />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`feedConsumed.${index}.bags` as const}
+                                            render={({ field }) => (
+                                                <FormItem className="w-20">
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Bags"
+                                                            value={field.value}
+                                                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        {feedConsumedArray.fields.length > 1 && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-10 w-10 text-destructive hover:text-destructive"
+                                                onClick={() => feedConsumedArray.remove(index)}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => feedConsumedArray.append({ type: "", bags: 0 })}
+                                    className="w-full"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" /> Add Feed Type
+                                </Button>
+                            </div>
+
+                            {/* Feed Stock */}
+                            <div className="space-y-2 pt-2 border-t">
+                                <FormLabel>Remaining Feed Stock</FormLabel>
+                                {feedStockArray.fields.map((field, index) => (
+                                    <div key={field.id} className="flex gap-2 items-end">
+                                        <FormField
+                                            control={form.control}
+                                            name={`feedStock.${index}.type` as const}
+                                            render={({ field }) => (
+                                                <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <Input placeholder="Type (B1, B2...)" {...field} />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`feedStock.${index}.bags` as const}
+                                            render={({ field }) => (
+                                                <FormItem className="w-20">
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Bags"
+                                                            value={field.value}
+                                                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10 text-destructive hover:text-destructive"
+                                            onClick={() => feedStockArray.remove(index)}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => feedStockArray.append({ type: "", bags: 0 })}
+                                    className="w-full"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" /> Add Stock Type
+                                </Button>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Section 4: Reason */}
                         <FormField
                             control={form.control}
                             name="adjustmentNote"

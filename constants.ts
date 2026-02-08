@@ -29,3 +29,8 @@ export const getCumulativeFeedForDay = (day: number): number => {
   if (day > 34) return CUMULATIVE_FEED_SCHEDULE[34]; // Cap at max or extrapolate logic here
   return CUMULATIVE_FEED_SCHEDULE[day] || 0;
 };
+
+// Profit Calculation Constants
+export const FEED_PRICE_PER_BAG = 3220;
+export const DOC_PRICE_PER_BIRD = 41.5;
+export const BASE_SELLING_PRICE = 141;

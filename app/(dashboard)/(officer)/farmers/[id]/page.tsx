@@ -39,6 +39,7 @@ import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/tra
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { SecurityMoneyHistoryModal } from "@/modules/farmers/ui/components/security-money-history-modal";
@@ -173,6 +174,7 @@ export default function FarmerDetails() {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showEditSecurityMoneyModal, setShowEditSecurityMoneyModal] = useState(false);
   const [showSecurityHistoryModal, setShowSecurityHistoryModal] = useState(false);
+  const [showEditFarmerModal, setShowEditFarmerModal] = useState(false);
 
   // 1. Fetch Active Cycles
   const activeQuery = useQuery(
@@ -246,6 +248,10 @@ export default function FarmerDetails() {
                 Transfer Stock
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowEditFarmerModal(true)} className="gap-2 cursor-pointer font-medium">
+                <Pencil className="h-4 w-4 text-primary" />
+                Edit Profile
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setShowArchiveDialog(true)}
                 className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
@@ -542,6 +548,15 @@ export default function FarmerDetails() {
         farmerName={farmerQuery.data?.name || "Farmer"}
         open={showSecurityHistoryModal}
         onOpenChange={setShowSecurityHistoryModal}
+      />
+
+      <EditFarmerProfileModal
+        farmerId={farmerId}
+        currentName={farmerQuery.data?.name || ""}
+        currentLocation={farmerQuery.data?.location || ""}
+        currentMobile={farmerQuery.data?.mobile || ""}
+        open={showEditFarmerModal}
+        onOpenChange={setShowEditFarmerModal}
       />
     </div>
   );

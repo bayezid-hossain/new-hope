@@ -42,6 +42,8 @@ const generateReportSchema = z.object({
     cashReceived: z.number().min(0).default(0),
     depositReceived: z.number().min(0).default(0),
     medicineCost: z.number().min(0).default(0),
+    feedConsumed: z.array(feedItemSchema).optional(),
+    feedStock: z.array(feedItemSchema).optional(),
 });
 
 export const officerSalesRouter = createTRPCRouter({
@@ -127,16 +129,6 @@ export const officerSalesRouter = createTRPCRouter({
                         updatedAt: new Date()
                     })
                     .where(eq(cycles.id, input.cycleId));
-
-                // REFRESH: Immediately recalculate feed requirement for the new population
-                const { updateCycleFeed } = await import("@/modules/cycles/server/services/feed-service");
-                await updateCycleFeed(
-                    { ...cycle, mortality: newMortality, birdsSold: newBirdsSold },
-                    ctx.user.id,
-                    true, // forceUpdate
-                    tx,   // pass transaction
-                    `Sale recorded: ${input.birdsSold} birds.`
-                );
 
                 // Check if all birds are sold - if so, end the cycle
                 const totalBirdsAfterMortality = cycle.doc - newMortality;
@@ -252,6 +244,8 @@ export const officerSalesRouter = createTRPCRouter({
                         cashReceived: input.cashReceived.toString(),
                         depositReceived: input.depositReceived.toString(),
                         medicineCost: input.medicineCost.toString(),
+                        ...(input.feedConsumed && { feedConsumed: JSON.stringify(input.feedConsumed) }),
+                        ...(input.feedStock && { feedStock: JSON.stringify(input.feedStock) }),
                     })
                     .where(eq(saleEvents.id, input.saleEventId));
 
@@ -297,16 +291,6 @@ export const officerSalesRouter = createTRPCRouter({
                                 updatedAt: new Date()
                             })
                             .where(eq(cycles.id, event.cycleId));
-
-                        // LOOPHOLE FIX: Force intake recalculation if population was adjusted
-                        const { updateCycleFeed } = await import("@/modules/cycles/server/services/feed-service");
-                        await updateCycleFeed(
-                            { ...activeCycle, mortality: newMortality, birdsSold: newBirdsSold },
-                            ctx.user.id,
-                            true, // forceUpdate
-                            tx,
-                            `Sale Adjustment: Corrected birds sold to ${newBirdsSold} and mortality to ${newMortality}.`
-                        );
 
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
                         const remaining = activeCycle.doc - newMortality - newBirdsSold;
@@ -469,13 +453,75 @@ export const officerSalesRouter = createTRPCRouter({
                 });
             }
 
-            return events.map((e) => ({
-                ...e,
-                feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
-                feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
-                cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
-                farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer"
-            }));
+            // Helper function to calculate FCR and EPI
+            const calculateMetrics = (
+                doc: number,
+                mortality: number,
+                totalWeight: number,
+                feedConsumed: number, // in bags
+                age: number,
+                isEnded: boolean
+            ) => {
+                if (!isEnded) {
+                    return { fcr: 0, epi: 0 };
+                }
+
+                const survivors = doc - mortality;
+                const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
+                const totalWeightKg = totalWeight;
+                const feedKg = feedConsumed * 50; // 50kg per bag
+
+                // FCR = Total Feed (kg) / Total Live Weight (kg)
+                const fcr = totalWeightKg > 0 ? feedKg / totalWeightKg : 0;
+
+                // EPI = (Survival % × Avg Weight kg) / (FCR × Age) × 100
+                const avgWeightKg = survivors > 0 ? totalWeightKg / survivors : 0;
+                const epi = (fcr > 0 && age > 0)
+                    ? (survivalRate * avgWeightKg) / (fcr * age) * 100
+                    : 0;
+
+                return {
+                    fcr: parseFloat(fcr.toFixed(2)),
+                    epi: parseFloat(epi.toFixed(0))
+                };
+            };
+
+            return events.map((e) => {
+                const cycleOrHistory = e.cycle || e.history;
+                const isEnded = !e.cycleId && !!e.historyId;
+
+                // Get cycle context
+                const doc = cycleOrHistory?.doc || 0;
+                const mortality = cycleOrHistory?.mortality || 0;
+                const age = cycleOrHistory?.age || 0;
+                const feedConsumed = isEnded
+                    ? (e.history?.finalIntake || 0)
+                    : (e.cycle?.intake || 0);
+
+                // Calculate cumulative weight from all sales in this cycle/history
+                // For simplicity, we use the current sale's total weight for the metrics
+                const totalWeight = parseFloat(e.totalWeight) || 0;
+
+                const { fcr, epi } = calculateMetrics(doc, mortality, totalWeight, feedConsumed, age, isEnded);
+
+                return {
+                    ...e,
+                    feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
+                    feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
+                    cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
+                    farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
+                    // Cycle context for display
+                    cycleContext: {
+                        doc,
+                        mortality,
+                        age,
+                        feedConsumed,
+                        isEnded,
+                        fcr,
+                        epi
+                    }
+                };
+            });
         }),
 
     // Get reports for a sale event
@@ -522,13 +568,48 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            let formattedEvents = events.map(e => ({
-                ...e,
-                feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
-                feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
-                cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
-                farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer"
-            }));
+            let formattedEvents = events.map(e => {
+                const cycleOrHistory = e.cycle || e.history;
+                const isEnded = !e.cycleId && !!e.historyId;
+
+                const doc = cycleOrHistory?.doc || 0;
+                const mortality = cycleOrHistory?.mortality || 0;
+                const age = cycleOrHistory?.age || 0;
+                const feedConsumedBags = isEnded
+                    ? (e.history?.finalIntake || 0)
+                    : (e.cycle?.intake || 0);
+                const totalWeight = parseFloat(e.totalWeight) || 0;
+
+                // Calculate FCR/EPI only for ended cycles
+                let fcr = 0, epi = 0;
+                if (isEnded) {
+                    const survivors = doc - mortality;
+                    const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
+                    const feedKg = feedConsumedBags * 50;
+                    fcr = totalWeight > 0 ? parseFloat((feedKg / totalWeight).toFixed(2)) : 0;
+                    const avgWeightKg = survivors > 0 ? totalWeight / survivors : 0;
+                    epi = (fcr > 0 && age > 0)
+                        ? parseFloat(((survivalRate * avgWeightKg) / (fcr * age) * 100).toFixed(0))
+                        : 0;
+                }
+
+                return {
+                    ...e,
+                    feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
+                    feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
+                    cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
+                    farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
+                    cycleContext: {
+                        doc,
+                        mortality,
+                        age,
+                        feedConsumed: feedConsumedBags,
+                        isEnded,
+                        fcr,
+                        epi
+                    }
+                };
+            });
 
             // In-memory Filter for Search
             if (input.search) {
