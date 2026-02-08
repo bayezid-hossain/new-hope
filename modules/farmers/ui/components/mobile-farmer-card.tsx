@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { AlertCircle, ArrowRight, Bird, Trash2, Wheat, Wrench } from "lucide-react";
@@ -54,9 +55,21 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                             {farmer.name}
                         </Link>
                         {(!farmer.location || !farmer.mobile) && (
-                            <span title="Missing location or mobile" className="text-destructive">
-                                <AlertCircle className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            </span>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button
+                                            title="Missing location or mobile"
+                                            className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors"
+                                        >
+                                            <AlertCircle className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent side="top" align="center" className="w-auto p-2 text-[10px] font-medium shadow-lg">
+                                        Missing location or mobile
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         )}
                         {onEdit && (
                             <button

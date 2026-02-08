@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
@@ -144,9 +145,21 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                             {farmer.name}
                                                         </Link>
                                                         {(!farmer.location || !farmer.mobile) && (
-                                                            <span title="Missing location or mobile" className="text-destructive">
-                                                                <AlertCircle className="h-3.5 w-3.5" />
-                                                            </span>
+                                                            <div onClick={(e) => e.stopPropagation()}>
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <button
+                                                                            title="Missing location or mobile"
+                                                                            className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
+                                                                        >
+                                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent side="top" align="center" className="w-auto p-2 text-xs font-medium shadow-lg z-50">
+                                                                        Missing location or mobile
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                            </div>
                                                         )}
                                                         <Button
                                                             variant="ghost"
