@@ -85,6 +85,8 @@ export interface SaleEvent {
 interface SaleEventCardProps {
     sale: SaleEvent;
     isLatest?: boolean;
+    indexInGroup?: number;
+    totalInGroup?: number;
 }
 
 const formatFeedBreakdown = (items: { type: string; bags: number }[]): string => {
@@ -146,7 +148,7 @@ Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
 `;
 };
 
-export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
+export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: SaleEventCardProps) => {
     const trpc = useTRPC();
     const { activeMode, role } = useCurrentOrg();
     const [isExpanded, setIsExpanded] = useState(false);
@@ -192,8 +194,12 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
                         <div className="min-w-0 flex-1">
                             <CardTitle className="text-sm font-semibold flex flex-wrap items-center gap-2">
                                 <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-                                <span className="truncate">{sale.cycleName}</span>
-                                {sale.cycleName && (
+                                <span className="truncate">
+                                    {(indexInGroup !== undefined && totalInGroup !== undefined)
+                                        ? `Sale ${totalInGroup - indexInGroup}`
+                                        : (sale.farmerName || sale.cycleName || "Sale Record")}
+                                </span>
+                                {sale.location && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
                                         {sale.location}
                                     </Badge>
@@ -604,7 +610,13 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                                 <AccordionContent className="pt-2 pb-4 space-y-4">
                                     {group.sales.map((sale, index) => (
                                         // @ts-ignore
-                                        <SaleEventCard key={sale.id} sale={sale} isLatest={index === 0} />
+                                        <SaleEventCard
+                                            key={sale.id}
+                                            sale={sale}
+                                            isLatest={index === 0}
+                                            indexInGroup={index}
+                                            totalInGroup={group.sales.length}
+                                        />
                                     ))}
                                 </AccordionContent>
                             </AccordionItem>

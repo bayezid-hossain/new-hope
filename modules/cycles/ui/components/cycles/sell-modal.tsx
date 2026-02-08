@@ -2,22 +2,29 @@
 
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
     Form,
     FormControl,
     FormField,
     FormItem,
     FormLabel,
-    FormMessage,
+    FormMessage
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Banknote, Bird, Box, Calendar, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { Banknote, Bird, Box, Calendar as CalendarIcon, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -260,7 +267,7 @@ export const SellModal = ({
                             </div>
                             <div className="mt-3 flex items-center justify-center gap-4 text-sm">
                                 <div className="flex items-center gap-1 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full">
-                                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                                     <span className="font-medium">Age: {cycleAge} days</span>
                                 </div>
                             </div>
@@ -276,15 +283,44 @@ export const SellModal = ({
                                 control={form.control}
                                 name="saleDate"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="flex flex-col">
                                         <FormLabel>Sale Date</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="date"
-                                                min={startDate ? format(startDate, "yyyy-MM-dd") : undefined}
-                                                {...field}
-                                            />
-                                        </FormControl>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full pl-3 text-left font-normal",
+                                                            !field.value && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {field.value ? (
+                                                            format(new Date(field.value), "dd/MM/yyyy")
+                                                        ) : (
+                                                            <span>Pick a date</span>
+                                                        )}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value ? new Date(field.value) : undefined}
+                                                    onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                                                    disabled={(date) => {
+                                                        const s = startDate ? new Date(startDate) : null;
+                                                        if (s) {
+                                                            s.setHours(0, 0, 0, 0);
+                                                            return date < s || date > new Date();
+                                                        }
+                                                        return date > new Date();
+                                                    }}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
                                         <FormMessage />
                                     </FormItem>
                                 )}

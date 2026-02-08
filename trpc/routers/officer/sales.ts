@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 const officerProcedure = protectedProcedure;
@@ -185,10 +186,22 @@ export const officerSalesRouter = createTRPCRouter({
                     .set({
                         mortality: newMortality,
                         birdsSold: newBirdsSold,
-                        intake: currentIntake,
+                        // intake: currentIntake, // We no longer hard-override here, let updateCycleFeed handle the truth
                         updatedAt: new Date()
                     })
                     .where(eq(cycles.id, input.cycleId));
+
+                // Recalculate Feed Intake based on new population status
+                const [freshCycle] = await tx.select().from(cycles).where(eq(cycles.id, input.cycleId)).limit(1);
+                if (freshCycle) {
+                    await updateCycleFeed(
+                        freshCycle,
+                        ctx.user.id,
+                        true, // Force update since population changed
+                        tx,
+                        `Sale Event Recorded. Recalculated total intake.`
+                    );
+                }
 
                 // Check if all birds are sold - if so, end the cycle
                 const totalBirdsAfterMortality = cycle.doc - newMortality;
@@ -366,6 +379,18 @@ export const officerSalesRouter = createTRPCRouter({
                                 updatedAt: new Date()
                             })
                             .where(eq(cycles.id, event.cycleId));
+
+                        // Recalculate Feed Intake based on adjusted population
+                        const [freshCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
+                        if (freshCycle) {
+                            await updateCycleFeed(
+                                freshCycle,
+                                ctx.user.id,
+                                true,
+                                tx,
+                                `Sale Report Adjusted. Recalculated total intake.`
+                            );
+                        }
 
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
                         const remaining = activeCycle.doc - newMortality - newBirdsSold;
