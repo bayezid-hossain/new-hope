@@ -167,9 +167,7 @@ function ManagementFeedOrderCard({ order }: {
         const deliveryDateStr = format(new Date(order.deliveryDate), "d MMM yy");
 
         let text = `Dear sir,\nFeed order date: ${orderDateStr}\nFeed delivery date: ${deliveryDateStr}\n`;
-        if (order.officer?.name) {
-            text += `Officer: ${order.officer.name}\n`;
-        }
+
         text += `\n`;
 
         const farmerMap = new Map<string, typeof order.items>();

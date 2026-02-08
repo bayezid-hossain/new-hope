@@ -1,5 +1,4 @@
 "use client";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -11,16 +10,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, Package, ShoppingBag, StarIcon, UsersIcon, WheatIcon } from "lucide-react";
+import { BarChart3, ClipboardList, FileSpreadsheet, HomeIcon, LayoutDashboard, Package, ShoppingBag, StarIcon, UserCog, UsersIcon, Wheat, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -77,41 +73,43 @@ const secondSection = [
   },
 ];
 
-const managerSection = {
-  icon: Building2,
-  label: "Management",
-  items: [
-    {
-      label: "Overview",
-      href: "/management",
-    },
-    {
-      label: "Officers",
-      href: "/management/officers",
-    },
-    {
-      label: "Farmers",
-      href: "/management/farmers",
-    },
-    {
-      label: "Cycles",
-      href: "/management/cycles",
-    },
-    {
-      label: "Reports",
-      href: "/management/reports",
-    },
-    {
-      label: "Monthly DOC Placements",
-      href: "/management/reports/doc-placements",
-    },
-    {
-      label: "Feed Orders",
-      href: "/management/feed-orders",
-    },
-  ]
-
-};
+const managementSection = [
+  {
+    icon: LayoutDashboard,
+    label: "Overview",
+    href: "/management",
+  },
+  {
+    icon: UserCog,
+    label: "Officers",
+    href: "/management/officers",
+  },
+  {
+    icon: Wheat,
+    label: "Farmers",
+    href: "/management/farmers",
+  },
+  {
+    icon: UsersIcon,
+    label: "Cycles",
+    href: "/management/cycles",
+  },
+  {
+    icon: BarChart3,
+    label: "Reports",
+    href: "/management/reports",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "Monthly DOC Placements",
+    href: "/management/reports/doc-placements",
+  },
+  {
+    icon: Package,
+    label: "Feed Orders",
+    href: "/management/feed-orders",
+  },
+];
 
 
 interface DashboardSidebarProps {
@@ -243,49 +241,37 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
           </SidebarGroup>
         )}
 
-        {(showManagementLinks || showAdminLinks) && (
-          <>
-            <div className="px-4 py-2">
-              <Separator className="opacity-10" />
-            </div>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {showManagementLinks && (
-                    <Collapsible defaultOpen className="group/collapsible">
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton tooltip="Management">
-                            <managerSection.icon className="size-5" />
-                            <span className="text-sm font-medium tracking-tight">{managerSection.label}</span>
-                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {managerSection.items.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.href}>
-                                <SidebarMenuSubButton asChild isActive={pathname === subItem.href}>
-                                  <Link
-                                    href={subItem.href}
-                                    onClick={() => isMobile && setOpenMobile(false)}
-                                  >
-                                    <span>{subItem.label}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </Collapsible>
-                  )}
-
-
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
+        {showManagementLinks && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {managementSection.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      className={cn(
+                        "h-10 hover:bg-sidebar-accent/50 border border-transparent hover:border-border/10",
+                        pathname === item.href &&
+                        "bg-sidebar-accent border-border/10"
+                      )}
+                      isActive={pathname === item.href}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={() => isMobile && setOpenMobile(false)}
+                        className="flex items-center gap-2"
+                      >
+                        <item.icon className="size-5" />
+                        <span className="text-sm font-medium tracking-tight">
+                          {item.label}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
 
         <div className="px-4 py-2">
