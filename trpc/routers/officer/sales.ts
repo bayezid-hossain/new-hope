@@ -20,7 +20,7 @@ const createSaleEventSchema = z.object({
     saleDate: z.date().optional(),
     houseBirds: z.number().int().positive(),
     birdsSold: z.number().int().positive(),
-    mortalityChange: z.number().int().min(0).default(0),
+    mortalityChange: z.number().int().default(0), // Removed .min(0) to allow corrections
     totalMortality: z.number().int().min(0),
     totalWeight: z.number().positive("Total weight must be greater than 0"),
     pricePerKg: z.number().positive("Price must be greater than 0"),
@@ -30,6 +30,8 @@ const createSaleEventSchema = z.object({
     feedStock: z.array(feedItemSchema),
     medicineCost: z.number().min(0).default(0),
 });
+
+// ... (omitted unrelated implementations)
 
 // Sale report generation schema
 const generateReportSchema = z.object({
@@ -71,11 +73,24 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Calculate remaining birds (Initial - Mortality - Already Sold)
             const remainingBirds = cycle.doc - cycle.mortality - cycle.birdsSold;
+            // Note: If mortalityChange is negative (resurrection), remaining birds technically increases.
+            // But we check if BIRDS SOLD > AVAILABLE. 
+            // Available = Current Remaining. The mortality change happens "simultaneously" or we trust the user's manual "House Birds" context?
+            // "House Birds" input is usually what the user counts. 
+            // If user says 100 birds in house, but system thinks 90.
+            // If user enters mortalityChange = -10 (restoring 10 birds), then system matches 100.
+            // For safety, let's stick to system's current count for validation.
+
             if (input.birdsSold > remainingBirds) {
-                throw new TRPCError({
-                    code: "BAD_REQUEST",
-                    message: `Cannot sell ${input.birdsSold} birds. Only ${remainingBirds} birds remaining.`,
-                });
+                // Special case: If mortalityChange is negative, maybe we have enough?
+                // Effective Remaining = Remaining + (-mortalityChange)
+                const effectiveRemaining = remainingBirds - (input.mortalityChange < 0 ? input.mortalityChange : 0);
+                if (input.birdsSold > effectiveRemaining) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Cannot sell ${input.birdsSold} birds. Only ${effectiveRemaining} birds calculated as available.`,
+                    });
+                }
             }
 
             // Calculate averages and totals
@@ -83,6 +98,33 @@ export const officerSalesRouter = createTRPCRouter({
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             const result = await ctx.db.transaction(async (tx) => {
+                // 1. Validate Mortality Floor
+                const newMortality = cycle.mortality + input.mortalityChange;
+
+                // Get Max Mortality from PREVIOUS Sale Events
+                const [maxPrevSale] = await tx
+                    .select({ totalMortality: saleEvents.totalMortality })
+                    .from(saleEvents)
+                    .where(eq(saleEvents.cycleId, input.cycleId))
+                    .orderBy(desc(saleEvents.totalMortality))
+                    .limit(1);
+
+                const floor = maxPrevSale?.totalMortality || 0;
+
+                if (newMortality < floor) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Cannot reduce total mortality to ${newMortality}. A previous sale report recorded ${floor} dead birds.`,
+                    });
+                }
+                if (newMortality < 0) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Total mortality cannot be negative.`,
+                    });
+                }
+
+
                 // Create sale event
                 const [saleEvent] = await tx.insert(saleEvents).values({
                     cycleId: input.cycleId,
@@ -90,7 +132,7 @@ export const officerSalesRouter = createTRPCRouter({
                     saleDate: input.saleDate || new Date(),
                     houseBirds: input.houseBirds,
                     birdsSold: input.birdsSold,
-                    totalMortality: input.totalMortality,
+                    totalMortality: input.totalMortality, // Snapshot of NEW total
                     totalWeight: input.totalWeight.toString(),
                     avgWeight: avgWeight.toFixed(2),
                     pricePerKg: input.pricePerKg.toString(),
@@ -119,10 +161,8 @@ export const officerSalesRouter = createTRPCRouter({
                 });
 
                 // Update cycle: add any new mortality and increment birdsSold
-                const newMortality = cycle.mortality + (input.mortalityChange || 0);
+                // const newMortality calculated above
                 const newBirdsSold = cycle.birdsSold + input.birdsSold;
-
-                // Calculate total feed consumed (bags) from the input snapshot
                 const currentIntake = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
 
                 await tx.update(cycles)
@@ -167,6 +207,21 @@ export const officerSalesRouter = createTRPCRouter({
                     previousValue: cycle.birdsSold,
                     note: `Sale recorded: ${input.birdsSold} birds at ৳${input.pricePerKg}/kg. Location: ${input.location}${cycleEnded ? " (Cycle Completed)" : ""}`,
                 });
+
+                // Add MORTALITY log entry if changed
+                if (input.mortalityChange !== 0) {
+                    await tx.insert(cycleLogs).values({
+                        cycleId: cycleEnded ? null : input.cycleId,
+                        historyId: cycleEnded ? historyId : null,
+                        userId: ctx.user.id,
+                        type: "MORTALITY",
+                        valueChange: input.mortalityChange,
+                        newValue: newMortality,
+                        previousValue: cycle.mortality,
+                        note: `Mortality adjustment during sale.`,
+                        createdAt: input.saleDate || new Date()
+                    });
+                }
 
                 return { saleEvent, cycleEnded, historyId };
             });

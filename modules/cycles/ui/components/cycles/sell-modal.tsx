@@ -34,7 +34,7 @@ const formSchema = z.object({
     location: z.string().min(1, "Location is required"),
     farmerMobile: z.string().optional(),
     birdsSold: z.number().int().positive("Must sell at least 1 bird"),
-    mortalityChange: z.number().int().min(0),
+    mortalityChange: z.number().int(), // REMOVED min(0)
     totalWeight: z.number().positive("Weight must be greater than 0"),
     pricePerKg: z.number().positive("Price must be greater than 0"),
     cashReceived: z.number().min(0),
@@ -43,6 +43,10 @@ const formSchema = z.object({
     feedStock: z.array(feedItemSchema),
     medicineCost: z.number().min(0),
 });
+
+// ... (rest of the file until the render function)
+
+
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -333,21 +337,30 @@ export const SellModal = ({
                                                 <div className="space-y-1">
                                                     <Input
                                                         type="number"
-                                                        min={mortality}
-                                                        max={birdsInHouse + mortality} // Can't define more active birds as dead than exist
+                                                        min={0} // Allow going down to 0
+                                                        // max={birdsInHouse + mortality} // Technically, we can't exceed DOC. But let's leave it open or max={doc}
                                                         placeholder={`Current: ${mortality}`}
                                                         value={currentTotal}
                                                         onChange={(e) => {
                                                             const newTotal = e.target.valueAsNumber;
                                                             if (isNaN(newTotal)) return;
-                                                            const delta = Math.max(0, newTotal - mortality);
+                                                            // Allow negative delta
+                                                            const delta = newTotal - mortality;
                                                             field.onChange(delta);
                                                         }}
                                                         onBlur={field.onBlur}
                                                     />
-                                                    {field.value > 0 && (
-                                                        <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                                                            <span className="text-red-500 font-bold">+{field.value}</span> new deaths added
+                                                    {field.value !== 0 && (
+                                                        <p className={`text-[11px] font-medium flex items-center gap-1 ${field.value > 0 ? "text-muted-foreground" : "text-amber-600"}`}>
+                                                            {field.value > 0 ? (
+                                                                <>
+                                                                    <span className="text-red-500 font-bold">+{field.value}</span> new deaths added
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="font-bold">{field.value}</span> correction (restoring birds)
+                                                                </>
+                                                            )}
                                                         </p>
                                                     )}
                                                 </div>
