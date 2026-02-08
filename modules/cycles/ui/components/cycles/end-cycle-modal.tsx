@@ -3,12 +3,12 @@
 import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Import Input
-import { Label } from "@/components/ui/label"; // Import Label
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ShoppingCart } from "lucide-react";
+import { AlertTriangle, ShoppingCart, XCircle } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -52,14 +52,16 @@ export const EndCycleModal = ({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { orgId } = useCurrentOrg()
-  // State to track manual remaining stock
+
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
   const [showSellModal, setShowSellModal] = useState(false);
+  const [confirmNoSale, setConfirmNoSale] = useState(false);
 
-  // Sync state when prop changes or modal opens
+  // Reset confirmation state when modal opens/closes
   useEffect(() => {
     if (open) {
       setIntake(intake?.toString() || "0");
+      setConfirmNoSale(false);
     }
   }, [intake, open]);
 
@@ -71,7 +73,6 @@ export const EndCycleModal = ({
 
         const baseOptions = { orgId: orgId! };
 
-        // Invalidate both Active (removed) and Past (added) queries across all routers
         await Promise.all([
           queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
           queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
@@ -79,22 +80,18 @@ export const EndCycleModal = ({
           queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
           queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
           queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
-
-          // Invalidate Organization/Farmer summary lists
           queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
         ]);
 
         onOpenChange(false);
-        setIntake(intakeStock.toString()); // Reset
-
-
+        setIntake(intakeStock.toString());
+        setConfirmNoSale(false);
       },
       onError: (error) => toast.error(error.message),
     })
   );
 
   const handleEndCycle = () => {
-    // Validate input
     const stockValue = parseFloat(intakeStock.toString());
     if (isNaN(stockValue) || stockValue < 0) {
       toast.error("Please enter a valid intake amount");
@@ -142,36 +139,80 @@ export const EndCycleModal = ({
             </p>
           </div>
 
-          {/* Buttons */}
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="default"
-              onClick={() => {
-                onOpenChange(false);
-                setShowSellModal(true);
-              }}
-              disabled={endMutation.isPending}
-              className="gap-2"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              Record Sale & End
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleEndCycle}
-              disabled={endMutation.isPending}
-              className="text-white"
-            >
-              {endMutation.isPending ? "Archiving..." : "End Without Sale"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={endMutation.isPending}
-            >
-              Cancel
-            </Button>
-          </div>
+          {/* No Sale Confirmation Warning */}
+          {confirmNoSale && (
+            <div className="rounded-lg border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-full bg-amber-500/20 p-2">
+                  <XCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-700 dark:text-amber-300">No Sale Report!</p>
+                  <p className="text-sm text-amber-600/90 dark:text-amber-400/80 mt-1">
+                    You are about to end this cycle <strong>without recording a sale</strong>. This means:
+                  </p>
+                  <ul className="mt-2 list-disc list-inside text-sm text-amber-600/90 dark:text-amber-400/80 space-y-0.5">
+                    <li>No revenue will be recorded</li>
+                    <li>Profit calculations will show zero income</li>
+                    <li>Birds will be marked as unaccounted</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setConfirmNoSale(false)}
+                  disabled={endMutation.isPending}
+                >
+                  Go Back
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleEndCycle}
+                  disabled={endMutation.isPending}
+                >
+                  {endMutation.isPending ? "Archiving..." : "Yes, End Anyway"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Buttons (Hide when confirming no sale) */}
+          {!confirmNoSale && (
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="default"
+                onClick={() => {
+                  onOpenChange(false);
+                  setShowSellModal(true);
+                }}
+                disabled={endMutation.isPending}
+                className="gap-2"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Record Sale & End
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmNoSale(true)}
+                disabled={endMutation.isPending}
+                className="text-white"
+              >
+                End Without Sale
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={endMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       </ResponsiveDialog>
 
