@@ -193,8 +193,9 @@ export const SellModal = ({
     const onSubmit = (values: FormValues) => {
         mutation.mutate({
             cycleId,
+            saleDate: new Date(values.saleDate),
             location: values.location,
-            houseBirds: doc, // This `doc` is the initial number of birds
+            houseBirds: doc,
             birdsSold: values.birdsSold,
             mortalityChange: values.mortalityChange,
             totalMortality: mortality + values.mortalityChange,
