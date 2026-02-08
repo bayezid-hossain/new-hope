@@ -490,9 +490,19 @@ export const officerSalesRouter = createTRPCRouter({
                 };
             };
 
+            // Calculate cumulative revenue PER CYCLE/HISTORY
+            // We pre-calculate sums for all cycles in the result set
+            const revenueMap = new Map<string, number>();
+            events.forEach(ev => {
+                const key = ev.cycleId || ev.historyId || "unknown";
+                const current = revenueMap.get(key) || 0;
+                revenueMap.set(key, current + (parseFloat(ev.totalAmount) || 0));
+            });
+
             return events.map((e) => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
+                const groupKey = e.cycleId || e.historyId || "unknown";
 
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
@@ -508,11 +518,8 @@ export const officerSalesRouter = createTRPCRouter({
 
                 const { fcr, epi } = calculateMetrics(doc, mortality, totalWeight, feedConsumed, age, isEnded);
 
-                // Calculate cumulative revenue for the entire cycle
-                // This is the sum of totalAmount from ALL events in this cycle/history
-                // Since 'events' array contains all of them (fetched above), we can sum them up here
-                // Note: 'events' array is already filtered by cycleId or historyId in the query
-                const cumulativeRevenue = events.reduce((sum, ev) => sum + (parseFloat(ev.totalAmount) || 0), 0);
+                // Get cumulative revenue for THIS cycle from our pre-calculated map
+                const cumulativeRevenue = revenueMap.get(groupKey) || 0;
 
                 return {
                     ...e,

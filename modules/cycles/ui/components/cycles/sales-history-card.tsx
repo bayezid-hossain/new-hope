@@ -363,9 +363,10 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
 
                         {/* Farmer Profit Calculation - Only show on LATEST sale card AND if cycle is ENDED */}
                         {isLatest && sale.cycleContext?.isEnded && (() => {
-                            const totalFeedBags = calculateTotalBags(sale.feedConsumed);
-                            // Use CUMULATIVE revenue from context if available, otherwise fallback (though context should have it)
+                            // Use CUMULATIVE revenue from context
                             const revenue = sale.cycleContext?.revenue ?? 0;
+                            // Use CUMULATIVE feed from context (which is cycle.intake or history.finalIntake)
+                            const totalFeedBags = sale.cycleContext?.feedConsumed ?? 0;
                             const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
 
                             if (totalFeedBags <= 0 || revenue <= 0) return null;
@@ -447,6 +448,41 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
         })
     );
 
+    const groupedSales = useMemo(() => {
+        if (!salesEvents) return [];
+
+        // If not grouping by farmer, just return single group or handled separately
+        if (!farmerId) return null;
+
+        const groups: Record<string, { name: string, sales: typeof salesEvents, isEnded: boolean }> = {};
+
+        salesEvents.forEach(sale => {
+            // Group by cycle/history ID primarily, name as fallback
+            const key = sale.cycleId || sale.historyId || "unknown";
+
+            if (!groups[key]) {
+                groups[key] = {
+                    name: sale.cycleName || "Unknown Cycle",
+                    sales: [],
+                    isEnded: !!sale.historyId
+                };
+            }
+            groups[key].sales.push(sale);
+        });
+
+        // Convert to array and sort by latest sale date
+        return Object.entries(groups)
+            .map(([key, group]) => ({
+                id: key,
+                ...group
+            }))
+            .sort((a, b) => {
+                const dateA = new Date(a.sales[0]?.saleDate || 0).getTime();
+                const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
+                return dateB - dateA;
+            });
+    }, [salesEvents, farmerId]);
+
     // PRO GATE
     if (!isPro) {
         return (
@@ -484,40 +520,7 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
         );
     }
 
-    const groupedSales = useMemo(() => {
-        if (!salesEvents) return [];
 
-        // If not grouping by farmer, just return single group or handled separately
-        if (!farmerId) return null;
-
-        const groups: Record<string, { name: string, sales: typeof salesEvents, isEnded: boolean }> = {};
-
-        salesEvents.forEach(sale => {
-            // Group by cycle/history ID primarily, name as fallback
-            const key = sale.cycleId || sale.historyId || "unknown";
-
-            if (!groups[key]) {
-                groups[key] = {
-                    name: sale.cycleName || "Unknown Cycle",
-                    sales: [],
-                    isEnded: !!sale.historyId
-                };
-            }
-            groups[key].sales.push(sale);
-        });
-
-        // Convert to array and sort by latest sale date
-        return Object.entries(groups)
-            .map(([key, group]) => ({
-                id: key,
-                ...group
-            }))
-            .sort((a, b) => {
-                const dateA = new Date(a.sales[0]?.saleDate || 0).getTime();
-                const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
-                return dateB - dateA;
-            });
-    }, [salesEvents, farmerId]);
 
     if (!salesEvents || salesEvents.length === 0) {
         return (

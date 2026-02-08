@@ -136,7 +136,7 @@ export const SellModal = ({
             onSuccess: (data) => {
                 if (data.cycleEnded) {
                     toast.success("Sale recorded & cycle ended!", { description: "All birds sold. Cycle has been archived." });
-                    router.push("/cycles");
+                    // router.push("/cycles");
                 } else {
                     toast.success("Sale recorded successfully");
                 }
