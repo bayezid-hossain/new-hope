@@ -12,13 +12,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG, GRAMS_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Banknote, Bird, Box, Calculator, Calendar, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { Banknote, Bird, Box, Calendar, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -467,38 +466,7 @@ export const SellModal = ({
                             />
                         </div>
 
-                        {/* Farmer Profit Calculation */}
-                        {(() => {
-                            const feedConsumed = form.watch("feedConsumed") || [];
-                            const totalFeedBags = feedConsumed.reduce((sum: number, item: { bags: number }) => sum + (item.bags || 0), 0);
-                            const totalFeedKg = totalFeedBags * (GRAMS_PER_BAG / 1000);
-                            const meat = watchWeight; // Total weight in kg
-                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
-                            const docCost = doc * DOC_PRICE_PER_BIRD;
 
-                            // Profit formula
-                            const revenue = watchPrice > BASE_SELLING_PRICE
-                                ? (BASE_SELLING_PRICE + (watchPrice - BASE_SELLING_PRICE) / 2) * meat
-                                : BASE_SELLING_PRICE * meat;
-                            const profit = revenue - (feedCost + docCost);
-                            const profitFormatted = profit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-                            return watchWeight > 0 && totalFeedBags > 0 ? (
-                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">
-                                        <Calculator className="h-4 w-4" /> Farmer&apos;s Profit Estimate
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                        <div>Feed Cost: ৳{feedCost.toLocaleString()}</div>
-                                        <div>DOC Cost: ৳{docCost.toLocaleString()}</div>
-                                        <div>Revenue: ৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                                        <div className={`font-bold text-sm ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                            Profit: ৳{profitFormatted}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : null;
-                        })()}
                     </div>
 
                     <Separator />
@@ -528,6 +496,7 @@ export const SellModal = ({
                                     <strong> TOTAL feed consumed for the ENTIRE cycle</strong> below.
                                     This exact amount will be deducted from your stock, overriding previous calculations.
                                 </div>
+
                             )}
 
                             <FormLabel>Feed Types & Bags</FormLabel>

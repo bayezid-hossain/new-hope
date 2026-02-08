@@ -1,16 +1,22 @@
 "use client";
 
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
+import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Calculator, Check, ChevronDown, ClipboardCopy, History, Pencil, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
 
@@ -70,7 +76,13 @@ export interface SaleEvent {
         isEnded: boolean;
         fcr: number;
         epi: number;
+        revenue?: number;
     };
+}
+
+interface SaleEventCardProps {
+    sale: SaleEvent;
+    isLatest?: boolean;
 }
 
 const formatFeedBreakdown = (items: { type: string; bags: number }[]): string => {
@@ -132,11 +144,9 @@ Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
 `;
 };
 
-export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
-    const [copied, setCopied] = useState(false);
-    const [isAdjustOpen, setIsAdjustOpen] = useState(false);
-    const { role, activeMode } = useCurrentOrg();
-
+export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
+    const trpc = useTRPC();
+    const { activeMode, role } = useCurrentOrg();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const reports = sale.reports || [];
@@ -167,6 +177,9 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
             toast.error("Failed to copy report");
         }
     };
+
+    const [copied, setCopied] = useState(false);
+    const [isAdjustOpen, setIsAdjustOpen] = useState(false);
 
     return (
         <>
@@ -348,39 +361,35 @@ export const SaleEventCard = ({ sale }: { sale: SaleEvent }) => {
                             </div>
                         </div>
 
-                        {/* Farmer Profit Calculation */}
-                        {(() => {
+                        {/* Farmer Profit Calculation - Only show on LATEST sale card AND if cycle is ENDED */}
+                        {isLatest && sale.cycleContext?.isEnded && (() => {
                             const totalFeedBags = calculateTotalBags(sale.feedConsumed);
-                            const totalWeight = parseFloat(displayTotalWeight) || 0;
-                            const pricePerKg = parseFloat(displayPricePerKg) || 0;
+                            // Use CUMULATIVE revenue from context if available, otherwise fallback (though context should have it)
+                            const revenue = sale.cycleContext?.revenue ?? 0;
                             const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
 
-                            if (totalFeedBags <= 0 || totalWeight <= 0) return null;
+                            if (totalFeedBags <= 0 || revenue <= 0) return null;
 
                             const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
                             const docCost = doc * DOC_PRICE_PER_BIRD;
-
-                            const revenue = pricePerKg > BASE_SELLING_PRICE
-                                ? (BASE_SELLING_PRICE + (pricePerKg - BASE_SELLING_PRICE) / 2) * totalWeight
-                                : BASE_SELLING_PRICE * totalWeight;
                             const profit = revenue - (feedCost + docCost);
 
                             return (
-                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 mt-4">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
                                         <Calculator className="h-4 w-4" /> Farmer&apos;s Profit Estimate
                                     </div>
                                     <div className="space-y-1 text-sm font-mono">
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Revenue</span>
-                                            <span className="font-medium">{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            <span className="text-muted-foreground">Revenue (Cumulative)</span>
+                                            <span className="font-medium">৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                         </div>
                                         <div className="flex justify-between text-red-600 dark:text-red-400">
                                             <span>- DOC Cost</span>
                                             <span>{docCost.toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between text-red-600 dark:text-red-400">
-                                            <span>- Feed Cost</span>
+                                            <span>- Feed Cost (Cumulative)</span>
                                             <span>{feedCost.toLocaleString()}</span>
                                         </div>
                                         <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
@@ -475,6 +484,41 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
         );
     }
 
+    const groupedSales = useMemo(() => {
+        if (!salesEvents) return [];
+
+        // If not grouping by farmer, just return single group or handled separately
+        if (!farmerId) return null;
+
+        const groups: Record<string, { name: string, sales: typeof salesEvents, isEnded: boolean }> = {};
+
+        salesEvents.forEach(sale => {
+            // Group by cycle/history ID primarily, name as fallback
+            const key = sale.cycleId || sale.historyId || "unknown";
+
+            if (!groups[key]) {
+                groups[key] = {
+                    name: sale.cycleName || "Unknown Cycle",
+                    sales: [],
+                    isEnded: !!sale.historyId
+                };
+            }
+            groups[key].sales.push(sale);
+        });
+
+        // Convert to array and sort by latest sale date
+        return Object.entries(groups)
+            .map(([key, group]) => ({
+                id: key,
+                ...group
+            }))
+            .sort((a, b) => {
+                const dateA = new Date(a.sales[0]?.saleDate || 0).getTime();
+                const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
+                return dateB - dateA;
+            });
+    }, [salesEvents, farmerId]);
+
     if (!salesEvents || salesEvents.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border/50">
@@ -500,10 +544,36 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                 </CardHeader>
             )}
             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                {salesEvents.map((sale) => (
-                    // @ts-ignore
-                    <SaleEventCard key={sale.id} sale={sale} />
-                ))}
+                {farmerId && groupedSales ? (
+                    <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className="space-y-4">
+                        {groupedSales.map((group) => (
+                            <AccordionItem value={group.id} key={group.id} className="border rounded-lg bg-card px-2">
+                                <AccordionTrigger className="hover:no-underline py-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-sm">{group.name}</span>
+                                        <Badge variant={group.isEnded ? "secondary" : "default"} className="text-[10px] h-5 px-1.5">
+                                            {group.isEnded ? "Ended" : "Active"}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground font-normal ml-1">
+                                            ({group.sales.length} sales)
+                                        </span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-4 space-y-4">
+                                    {group.sales.map((sale, index) => (
+                                        // @ts-ignore
+                                        <SaleEventCard key={sale.id} sale={sale} isLatest={index === 0} />
+                                    ))}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                ) : (
+                    salesEvents.map((sale, index) => (
+                        // @ts-ignore
+                        <SaleEventCard key={sale.id} sale={sale} isLatest={index === 0} />
+                    ))
+                )}
             </div>
         </div>
     );

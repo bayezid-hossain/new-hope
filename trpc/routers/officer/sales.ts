@@ -122,10 +122,14 @@ export const officerSalesRouter = createTRPCRouter({
                 const newMortality = cycle.mortality + (input.mortalityChange || 0);
                 const newBirdsSold = cycle.birdsSold + input.birdsSold;
 
+                // Calculate total feed consumed (bags) from the input snapshot
+                const currentIntake = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
+
                 await tx.update(cycles)
                     .set({
                         mortality: newMortality,
                         birdsSold: newBirdsSold,
+                        intake: currentIntake,
                         updatedAt: new Date()
                     })
                     .where(eq(cycles.id, input.cycleId));
@@ -137,7 +141,7 @@ export const officerSalesRouter = createTRPCRouter({
 
                 if (newBirdsSold >= totalBirdsAfterMortality) {
                     // MANUAL OVERRIDE: For the last sale, we use the input feed as the TOTAL cycle consumption
-                    const manualTotalBags = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
+                    const manualTotalBags = currentIntake;
 
                     // Call shared end logic
                     const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
@@ -504,6 +508,12 @@ export const officerSalesRouter = createTRPCRouter({
 
                 const { fcr, epi } = calculateMetrics(doc, mortality, totalWeight, feedConsumed, age, isEnded);
 
+                // Calculate cumulative revenue for the entire cycle
+                // This is the sum of totalAmount from ALL events in this cycle/history
+                // Since 'events' array contains all of them (fetched above), we can sum them up here
+                // Note: 'events' array is already filtered by cycleId or historyId in the query
+                const cumulativeRevenue = events.reduce((sum, ev) => sum + (parseFloat(ev.totalAmount) || 0), 0);
+
                 return {
                     ...e,
                     feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
@@ -518,7 +528,8 @@ export const officerSalesRouter = createTRPCRouter({
                         feedConsumed,
                         isEnded,
                         fcr,
-                        epi
+                        epi,
+                        revenue: cumulativeRevenue // Added cumulative revenue
                     }
                 };
             });
