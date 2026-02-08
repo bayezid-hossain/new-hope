@@ -101,8 +101,14 @@ export const SellModal = ({
             pricePerKg: 0,
             cashReceived: 0,
             depositReceived: 0,
-            feedConsumed: [{ type: "B1", bags: intake || 0 }],
-            feedStock: [{ type: "B1", bags: 0 }],
+            feedConsumed: [
+                { type: "B1", bags: intake || 0 },
+                { type: "B2", bags: 0 }
+            ],
+            feedStock: [
+                { type: "B1", bags: 0 },
+                { type: "B2", bags: 0 }
+            ],
             medicineCost: 0,
         },
     });
@@ -121,8 +127,14 @@ export const SellModal = ({
                 pricePerKg: 0,
                 cashReceived: 0,
                 depositReceived: 0,
-                feedConsumed: [{ type: "B1", bags: intake || 0 }],
-                feedStock: [{ type: "B1", bags: 0 }],
+                feedConsumed: [
+                    { type: "B1", bags: intake || 0 },
+                    { type: "B2", bags: 0 }
+                ],
+                feedStock: [
+                    { type: "B1", bags: 0 },
+                    { type: "B2", bags: 0 }
+                ],
                 medicineCost: 0,
             });
         }

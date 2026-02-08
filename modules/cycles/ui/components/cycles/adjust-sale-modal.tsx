@@ -77,6 +77,27 @@ interface AdjustSaleModalProps {
     };
 }
 
+// Helper to ensure B1 and B2 are present and at the top
+const ensureB1B2 = (items: { type: string; bags: number }[] = []) => {
+    const result = [...items];
+    if (!result.find(i => i.type.toUpperCase() === "B1")) {
+        result.push({ type: "B1", bags: 0 });
+    }
+    if (!result.find(i => i.type.toUpperCase() === "B2")) {
+        result.push({ type: "B2", bags: 0 });
+    }
+    // Sort to keep B1 and B2 at top
+    return result.sort((a, b) => {
+        const typeA = a.type.toUpperCase();
+        const typeB = b.type.toUpperCase();
+        if (typeA === "B1") return -1;
+        if (typeB === "B1") return 1;
+        if (typeA === "B2") return -1;
+        if (typeB === "B2") return 1;
+        return 0;
+    });
+};
+
 export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: AdjustSaleModalProps) => {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -94,8 +115,8 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
         medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
 
-        feedConsumed: saleEvent.feedConsumed?.length > 0 ? saleEvent.feedConsumed : [{ type: "B1", bags: 0 }],
-        feedStock: saleEvent.feedStock?.length > 0 ? saleEvent.feedStock : [{ type: "B1", bags: 0 }],
+        feedConsumed: ensureB1B2(saleEvent.feedConsumed),
+        feedStock: ensureB1B2(saleEvent.feedStock),
 
         adjustmentNote: "",
     };
@@ -159,8 +180,8 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
                 medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
 
-                feedConsumed: saleEvent.feedConsumed?.length > 0 ? saleEvent.feedConsumed : [{ type: "B1", bags: 0 }],
-                feedStock: saleEvent.feedStock?.length > 0 ? saleEvent.feedStock : [{ type: "B1", bags: 0 }],
+                feedConsumed: ensureB1B2(saleEvent.feedConsumed),
+                feedStock: ensureB1B2(saleEvent.feedStock),
 
                 adjustmentNote: "",
             });
