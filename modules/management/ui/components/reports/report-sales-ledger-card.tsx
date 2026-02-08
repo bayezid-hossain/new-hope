@@ -69,7 +69,7 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                                 {stats.lastSaleDate && (
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                                        <span>Last sale: {format(new Date(stats.lastSaleDate), "MMM dd")}</span>
+                                        <span>Last sale: {format(new Date(stats.lastSaleDate), "dd/MM/yyyy")}</span>
                                     </>
                                 )}
                             </div>
@@ -120,7 +120,7 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-semibold text-sm text-foreground">
-                                                        {format(new Date(sale.date), "dd MMM yyyy")}
+                                                        {format(new Date(sale.date), "dd/MM/yyyy")}
                                                     </span>
                                                     {sale.location && (
                                                         <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 border rounded-md">

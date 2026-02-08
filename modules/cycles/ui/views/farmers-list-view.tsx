@@ -166,7 +166,7 @@ export const FarmersListView = () => {
 
                                             {/* Joined Date */}
                                             <TableCell className="text-right text-muted-foreground font-medium text-[10px] sm:text-[11px] px-4 py-3">
-                                                {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                                {format(new Date(farmer.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
 
                                             {/* Action: Link to History View */}

@@ -81,7 +81,7 @@ export function SecurityMoneyHistoryModal({
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
                                             <p className="text-sm font-medium">{log.editor?.name || "System"}</p>
-                                            <p className="text-xs text-muted-foreground">{format(new Date(log.changedAt), "MMM d, yyyy h:mm a")}</p>
+                                            <p className="text-xs text-muted-foreground">{format(new Date(log.changedAt), "dd/MM/yyyy h:mm a")}</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold">{Number(log.newAmount).toLocaleString()}</p>
@@ -112,7 +112,7 @@ export function SecurityMoneyHistoryModal({
                                     {data.map((log) => (
                                         <TableRow key={log.id}>
                                             <TableCell className="whitespace-nowrap">
-                                                {format(new Date(log.changedAt), "MMM d, yyyy")}
+                                                {format(new Date(log.changedAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell>
                                                 {log.editor?.name || "System"}

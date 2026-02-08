@@ -57,8 +57,8 @@ export function FeedOrderCard({ order }: FeedOrderCardProps) {
     );
 
     const generateCopyText = () => {
-        const orderDateStr = format(new Date(order.orderDate), "d MMM yy");
-        const deliveryDateStr = format(new Date(order.deliveryDate), "d MMM yy");
+        const orderDateStr = format(new Date(order.orderDate), "dd/MM/yyyy");
+        const deliveryDateStr = format(new Date(order.deliveryDate), "dd/MM/yyyy");
 
         let text = `Dear sir,\nFeed order date: ${orderDateStr}\nFeed delivery  date: ${deliveryDateStr}\n\n`;
 
@@ -122,10 +122,10 @@ export function FeedOrderCard({ order }: FeedOrderCardProps) {
                         <div className="flex flex-col">
                             <CardTitle className="text-base font-semibold flex items-center gap-2">
                                 <Truck className="h-4 w-4 text-primary" />
-                                Order: {format(new Date(order.orderDate), "dd MMM")}
+                                Order: {format(new Date(order.orderDate), "dd/MM/yyyy")}
                             </CardTitle>
                             <span className="text-xs text-muted-foreground">
-                                Delivery: {format(new Date(order.deliveryDate), "dd MMM")} • {totalBags} Bags
+                                Delivery: {format(new Date(order.deliveryDate), "dd/MM/yyyy")} • {totalBags} Bags
                             </span>
                         </div>
                         <div className="flex gap-2">

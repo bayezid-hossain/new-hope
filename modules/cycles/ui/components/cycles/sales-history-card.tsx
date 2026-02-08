@@ -10,15 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
+import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calculator, Check, ChevronDown, ClipboardCopy, History, Pencil, ShoppingCart } from "lucide-react";
+import { Calculator, Check, ChevronDown, ClipboardCopy, History, Info, Lock, Pencil, ShoppingCart, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
+import { ProfitDetailsModal } from "./profit-details-modal";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -77,6 +78,7 @@ export interface SaleEvent {
         fcr: number;
         epi: number;
         revenue?: number;
+        totalWeight?: number;
     };
 }
 
@@ -180,6 +182,7 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
 
     const [copied, setCopied] = useState(false);
     const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+    const [showProfitModal, setShowProfitModal] = useState(false);
 
     return (
         <>
@@ -198,7 +201,7 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
 
                             </CardTitle>
                             <CardDescription className="text-xs mt-0.5 ml-6">
-                                {format(new Date(sale.saleDate), "MMM d, yyyy HH:mm")}
+                                {format(new Date(sale.saleDate), "dd/MM/yyyy HH:mm")}
                             </CardDescription>
                         </div>
                         <div className="flex gap-2 shrink-0 w-full sm:w-auto ml-6 sm:ml-0" onClick={(e) => e.stopPropagation()}>
@@ -232,7 +235,7 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
                                     <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground">
                                         <History className="h-3.5 w-3.5 mr-1.5" />
                                         {activeReport ? (
-                                            `Version ${reports.length - reports.findIndex(r => r.id === activeReport.id)} • ${format(new Date(activeReport.createdAt), "MMM d, HH:mm")} `
+                                            `Version ${reports.length - reports.findIndex(r => r.id === activeReport.id)} • ${format(new Date(activeReport.createdAt), "dd/MM/yyyy HH:mm")} `
                                         ) : "Original"}
                                         <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
                                     </Button>
@@ -255,7 +258,7 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
                                                     {selectedReportId === report.id && <Check className="h-3 w-3 text-primary" />}
                                                 </div>
                                                 <span className="text-[10px] text-muted-foreground">
-                                                    {format(new Date(report.createdAt), "MMM d, yyyy HH:mm")} by {report.createdByUser?.name}
+                                                    {format(new Date(report.createdAt), "dd/MM/yyyy HH:mm")} by {report.createdByUser?.name}
                                                 </span>
                                             </DropdownMenuItem>
                                         );
@@ -361,46 +364,93 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
                             </div>
                         </div>
 
-                        {/* Farmer Profit Calculation - Only show on LATEST sale card AND if cycle is ENDED */}
-                        {isLatest && sale.cycleContext?.isEnded && (() => {
-                            // Use CUMULATIVE revenue from context
-                            const revenue = sale.cycleContext?.revenue ?? 0;
-                            // Use CUMULATIVE feed from context (which is cycle.intake or history.finalIntake)
-                            const totalFeedBags = sale.cycleContext?.feedConsumed ?? 0;
-                            const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
+                        {/* Farmer Profit Calculation - Only show on LATEST sale card */}
+                        {isLatest && sale.cycleContext && (() => {
+                            // CUMULATIVE VALUES from Backend (Context)
+                            const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
+                            const cycleTotalRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
 
-                            if (totalFeedBags <= 0 || revenue <= 0) return null;
+                            // Calculate weighted average price for the whole cycle
+                            const avgPrice = cycleTotalWeight > 0
+                                ? cycleTotalRevenue / cycleTotalWeight
+                                : parseFloat(sale.pricePerKg);
 
-                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
-                            const docCost = doc * DOC_PRICE_PER_BIRD;
-                            const profit = revenue - (feedCost + docCost);
+                            // Effective Rate Formula: 141 + (AvgPrice - 141) / 2
+                            const effectiveRate = BASE_SELLING_PRICE + (avgPrice - BASE_SELLING_PRICE) / 2;
+
+                            // Formula Revenue: Total Weight * Effective Rate
+                            const formulaRevenue = cycleTotalWeight * effectiveRate;
+
+                            // Costs (Only calculated if cycle is ENDED)
+                            const isEnded = sale.cycleContext.isEnded;
+                            const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
+                            const doc = sale.cycleContext.doc || sale.houseBirds || 0;
+
+                            const feedCost = isEnded ? totalFeedBags * FEED_PRICE_PER_BAG : 0;
+                            const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                            const totalDeductions = feedCost + docCost;
+
+                            const formulaProfit = formulaRevenue - totalDeductions;
 
                             return (
                                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 mt-4">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
-                                        <Calculator className="h-4 w-4" /> Farmer&apos;s Profit Estimate
+                                        <Calculator className="h-4 w-4" /> {isEnded ? "Final Profit Estimate" : "Estimated Revenue (Running)"}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0 hover:bg-amber-200/50 rounded-full"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowProfitModal(true);
+                                            }}
+                                        >
+                                            <Info className="h-3.5 w-3.5 cursor-pointer text-amber-600 hover:text-amber-800" />
+                                        </Button>
                                     </div>
                                     <div className="space-y-1 text-sm font-mono">
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Revenue (Cumulative)</span>
-                                            <span className="font-medium">৳{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            <span className="text-muted-foreground">Est. Total Revenue</span>
+                                            <span className="font-medium">৳{formulaRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                         </div>
-                                        <div className="flex justify-between text-red-600 dark:text-red-400">
-                                            <span>- DOC Cost</span>
-                                            <span>{docCost.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-red-600 dark:text-red-400">
-                                            <span>- Feed Cost (Cumulative)</span>
-                                            <span>{feedCost.toLocaleString()}</span>
-                                        </div>
-                                        <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
-                                        <div className="flex justify-between font-bold text-base">
-                                            <span>Profit</span>
-                                            <span className={profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
-                                                {profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                            </span>
-                                        </div>
+
+                                        {isEnded ? (
+                                            <>
+                                                <div className="flex justify-between text-red-600 dark:text-red-400">
+                                                    <span>- DOC Cost</span>
+                                                    <span>{docCost.toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between text-red-600 dark:text-red-400">
+                                                    <span>- Feed Cost</span>
+                                                    <span>{feedCost.toLocaleString()}</span>
+                                                </div>
+                                                <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
+                                                <div className="flex justify-between font-bold text-base">
+                                                    <span>Net Profit</span>
+                                                    <span className={formulaProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                                                        {formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="mt-2 text-xs text-amber-600/80 italic">
+                                                * Costs will be deducted when cycle ends.
+                                            </div>
+                                        )}
                                     </div>
+
+                                    <ProfitDetailsModal
+                                        open={showProfitModal}
+                                        onOpenChange={setShowProfitModal}
+                                        revenue={formulaRevenue}
+                                        totalWeight={cycleTotalWeight}
+                                        avgPrice={avgPrice}
+                                        feedBags={totalFeedBags} // Passed but handled in modal?
+                                        docCount={doc}
+                                        feedCost={feedCost}
+                                        docCost={docCost}
+                                        profit={formulaProfit}
+                                    />
                                 </div>
                             );
                         })()}
@@ -417,17 +467,6 @@ export const SaleEventCard = ({ sale, isLatest }: SaleEventCardProps) => {
         </>
     );
 };
-
-interface SalesHistoryCardProps {
-    cycleId?: string | null;
-    historyId?: string | null;
-    farmerId?: string | null;
-    isMobile?: boolean;
-}
-
-import { Lock, Sparkles } from "lucide-react";
-
-// ... existing imports
 
 interface SalesHistoryCardProps {
     cycleId?: string | null;

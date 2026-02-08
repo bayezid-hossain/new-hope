@@ -247,6 +247,7 @@ export const cycleLogs = pgTable("cycle_logs", {
   note: text("note"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  isReverted: boolean("is_reverted").default(false).notNull(),
 }, (t) => [
   index("idx_logs_cycle_id").on(t.cycleId),
   index("idx_logs_history_id").on(t.historyId),

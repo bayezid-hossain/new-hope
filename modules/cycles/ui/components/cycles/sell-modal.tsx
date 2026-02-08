@@ -61,8 +61,10 @@ interface SellModalProps {
     mortality: number;
     birdsSold: number;
     intake: number;
+
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    startDate: Date;
 }
 
 export const SellModal = ({
@@ -78,6 +80,7 @@ export const SellModal = ({
     intake,
     open,
     onOpenChange,
+    startDate
 }: SellModalProps) => {
     const trpc = useTRPC();
     const router = useRouter();
@@ -264,7 +267,11 @@ export const SellModal = ({
                                     <FormItem>
                                         <FormLabel>Sale Date</FormLabel>
                                         <FormControl>
-                                            <Input type="date" {...field} />
+                                            <Input
+                                                type="date"
+                                                min={startDate ? format(startDate, "yyyy-MM-dd") : undefined}
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

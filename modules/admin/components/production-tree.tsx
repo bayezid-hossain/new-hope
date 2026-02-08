@@ -206,7 +206,7 @@ export const ProductionTree = ({
                                                                                         </Link>
                                                                                     </TableCell>
                                                                                     <TableCell className="py-2 text-xs text-muted-foreground">
-                                                                                        {format(new Date(h.endDate), "dd MMM, yy")}
+                                                                                        {format(new Date(h.endDate), "dd/MM/yyyy")}
                                                                                     </TableCell>
                                                                                     <TableCell className="py-2 text-xs text-right font-bold text-destructive">{h.mortality}</TableCell>
                                                                                 </TableRow>

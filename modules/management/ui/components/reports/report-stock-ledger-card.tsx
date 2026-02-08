@@ -60,7 +60,7 @@ export function ReportStockLedgerCard({ farmer, orgId }: ReportStockLedgerCardPr
                             </Link>
                             <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/80 animate-pulse"></span>
-                                Updated: {format(new Date(farmer.updatedAt), "MMM dd, yyyy")}
+                                Updated: {format(new Date(farmer.updatedAt), "dd/MM/yyyy")}
                             </p>
                         </div>
                     </div>
@@ -121,7 +121,7 @@ export function ReportStockLedgerCard({ farmer, orgId }: ReportStockLedgerCardPr
                                                         </span>
                                                     </div>
                                                     <div className="text-xs text-muted-foreground mt-0.5 font-medium">
-                                                        {format(new Date(log.createdAt!), "MMM dd, yyyy")}
+                                                        {format(new Date(log.createdAt!), "dd/MM/yyyy")}
                                                     </div>
                                                     {log.note && (
                                                         <p className="text-xs text-muted-foreground italic mt-1 max-w-[240px] leading-relaxed">

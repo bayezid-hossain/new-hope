@@ -229,7 +229,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                 </TableCell>
 
                                                 <TableCell className="text-muted-foreground/60 text-[11px] font-medium">
-                                                    {format(new Date(status === "active" ? farmer.createdAt : farmer.deletedAt || farmer.updatedAt), "MMM d, yyyy")}
+                                                    {format(new Date(status === "active" ? farmer.createdAt : farmer.deletedAt || farmer.updatedAt), "dd/MM/yyyy")}
                                                 </TableCell>
                                                 <TableCell className="px-6 text-right">
                                                     <div className="flex justify-end gap-2">

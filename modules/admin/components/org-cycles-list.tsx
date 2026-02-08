@@ -304,7 +304,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <div className="col-span-2">
                                                     <div className="text-[11px] font-medium text-muted-foreground/70 flex items-center gap-2">
                                                         <div className="w-1 h-1 rounded-full bg-border" />
-                                                        {format(new Date(cycle.createdAt), "MMM d, yyyy")}
+                                                        {format(new Date(cycle.createdAt), "dd/MM/yyyy")}
                                                     </div>
                                                 </div>
                                                 <GroupRowActions cycle={cycle} prefix={prefix} isAdmin={isAdmin} isManagement={isManagement} orgId={orgId} />
@@ -395,7 +395,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right text-[11px] font-medium text-muted-foreground/60">
-                                                {format(new Date(cycle.createdAt), "MMM d, y") === format(new Date(), "MMM d, y") ? "Today" : format(new Date(cycle.createdAt), "MMM d, y")}
+                                                {format(new Date(cycle.createdAt), "dd/MM/yyyy") === format(new Date(), "dd/MM/yyyy") ? "Today" : format(new Date(cycle.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center justify-end gap-1 transition-opacity">

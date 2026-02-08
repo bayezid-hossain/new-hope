@@ -108,7 +108,7 @@ export const OrgSalesList = ({ orgId }: OrgSalesListProps) => {
                                         <TableCell className="px-6 py-4">
                                             <div className="flex flex-col gap-1">
                                                 <span className="font-bold text-sm tracking-tight group-hover:text-primary transition-colors">
-                                                    {format(new Date(sale.saleDate), "MMM dd, yyyy")}
+                                                    {format(new Date(sale.saleDate), "dd/MM/yyyy")}
                                                 </span>
                                                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-wider">
                                                     <MapPin className="h-2.5 w-2.5" />

@@ -54,6 +54,8 @@ export const CorrectMortalityModal = ({
     const mortalityLogs =
         cycleData?.logs?.filter((l) => l.type === "MORTALITY") || [];
 
+    const startDate = cycleData?.data?.startDate ? new Date(cycleData.data.startDate) : undefined;
+
     // Mutations
     const updateMutation = useMutation(
         trpc.officer.cycles.updateMortalityLog.mutationOptions({
@@ -90,6 +92,19 @@ export const CorrectMortalityModal = ({
     const handleSave = () => {
         if (!editingLogId) return;
         const amount = parseInt(editAmount);
+
+        // Validate Date
+        if (editDate && startDate) {
+            const d = new Date(editDate);
+            d.setHours(0, 0, 0, 0);
+            const s = new Date(startDate);
+            s.setHours(0, 0, 0, 0);
+            if (d < s) {
+                toast.error("Date cannot be before cycle start date");
+                return;
+            }
+        }
+
         if (isNaN(amount) || amount < 0) {
             toast.error("Invalid amount");
             return;
@@ -143,7 +158,7 @@ export const CorrectMortalityModal = ({
                                     return (
                                         <TableRow key={log.id}>
                                             <TableCell className="text-muted-foreground text-xs">
-                                                {format(new Date(log.createdAt), "dd MMM yyyy")}
+                                                {format(new Date(log.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell>
                                                 {isEditing ? (
@@ -170,6 +185,14 @@ export const CorrectMortalityModal = ({
                                                                 selected={editDate}
                                                                 onSelect={setEditDate}
                                                                 initialFocus
+                                                                disabled={(date) => {
+                                                                    if (startDate) {
+                                                                        const s = new Date(startDate);
+                                                                        s.setHours(0, 0, 0, 0);
+                                                                        return date < s;
+                                                                    }
+                                                                    return false;
+                                                                }}
                                                             />
                                                         </PopoverContent>
                                                     </Popover>

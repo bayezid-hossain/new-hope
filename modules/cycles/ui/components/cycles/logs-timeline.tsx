@@ -17,6 +17,7 @@ export interface TimelineLog {
     createdAt: string | Date;
     note?: string | null;
     cycleId?: string | null;
+    isReverted?: boolean;
 }
 
 // --- Log Item Component ---
@@ -29,7 +30,11 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
     const normalizedType = log.type.toUpperCase();
 
-    if (normalizedType === "FEED" || normalizedType === "STOCK_IN" || normalizedType === "TRANSFER_IN") {
+    if (log.isReverted) {
+        icon = <Settings className="h-4 w-4" />;
+        colorClass = "bg-gray-400";
+        title = "Reverted Log";
+    } else if (normalizedType === "FEED" || normalizedType === "STOCK_IN" || normalizedType === "TRANSFER_IN") {
         icon = <Wheat className="h-4 w-4" />;
         colorClass = "bg-amber-500";
         title = normalizedType === "TRANSFER_IN" ? "Transferred In" : "Added Feed";
@@ -64,7 +69,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
     const [showEditModal, setShowEditModal] = useState(false);
 
     return (
-        <div className="flex gap-4 group">
+        <div className={`flex gap-4 group ${log.isReverted ? "opacity-50 grayscale" : ""}`}>
             <div className="flex flex-col items-center">
                 <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-background z-10", colorClass)}>
                     {icon}
@@ -74,10 +79,13 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
             <div className="pb-8 space-y-1.5 flex-1">
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">{title}</span>
+                    <span className="font-semibold text-sm text-foreground flex items-center gap-2">
+                        {title}
+                        {log.isReverted && <Badge variant="outline" className="text-[10px] h-4 px-1">Reverted</Badge>}
+                    </span>
                     <div className="flex items-center gap-2">
                         {/* Edit Action for Mortality */}
-                        {isActive && normalizedType === "MORTALITY" && (
+                        {isActive && normalizedType === "MORTALITY" && !log.isReverted && (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -119,7 +127,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
             </div>
 
             {/* Revert Action for Mortality */}
-            {isActive && normalizedType === "MORTALITY" && (log.valueChange ?? 0) > 0 && (
+            {isActive && normalizedType === "MORTALITY" && (log.valueChange ?? 0) > 0 && !log.isReverted && (
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center">
                     <RevertMortalityModal logId={log.id} amount={log.valueChange} note={log.note} />
                 </div>

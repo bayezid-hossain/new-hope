@@ -257,7 +257,7 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
                                                         {farmer.cycles.map((cycle, idx) => (
                                                             <TableRow key={idx}>
                                                                 <TableCell className="font-medium">{cycle.name}</TableCell>
-                                                                <TableCell>{format(new Date(cycle.date), 'PP')}</TableCell>
+                                                                <TableCell>{format(new Date(cycle.date), 'dd/MM/yyyy')}</TableCell>
                                                                 <TableCell>
                                                                     <Badge variant="outline" className="text-xs uppercase">
                                                                         {cycle.status}

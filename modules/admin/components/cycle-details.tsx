@@ -155,7 +155,7 @@ const AnalysisContent = ({
                             <CardContent className="space-y-4">
                                 <div className="flex items-center justify-between py-2 border-b border-border/50">
                                     <span className="text-muted-foreground text-sm">Start Date</span>
-                                    <span className="font-bold text-foreground">{format(new Date(cycle.createdAt), "dd MMM, yyyy")}</span>
+                                    <span className="font-bold text-foreground">{format(new Date(cycle.createdAt), "dd/MM/yyyy")}</span>
                                 </div>
                                 <div className="flex items-center justify-between py-2 border-b border-border/50">
                                     <span className="text-muted-foreground text-sm">Initial Stock (DOC)</span>

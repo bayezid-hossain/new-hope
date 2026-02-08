@@ -71,8 +71,8 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
     });
 
     const generateCopyText = (items: FeedItem[], oDate: Date, dDate: Date) => {
-        const orderDateStr = format(oDate, "d MMM yy");
-        const deliveryDateStr = format(dDate, "d MMM yy");
+        const orderDateStr = format(oDate, "dd/MM/yyyy");
+        const deliveryDateStr = format(dDate, "dd/MM/yyyy");
 
         let text = `Dear sir,\nFeed order date: ${orderDateStr}\nFeed delivery  date: ${deliveryDateStr}\n\n`;
 
@@ -223,7 +223,7 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !orderDate && "text-muted-foreground")}>
-                                        {orderDate ? format(orderDate, "PPP") : <span>Pick a date</span>}
+                                        {orderDate ? format(orderDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
@@ -237,7 +237,7 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId }: CreateFeedOr
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !deliveryDate && "text-muted-foreground")}>
-                                        {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
+                                        {deliveryDate ? format(deliveryDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>

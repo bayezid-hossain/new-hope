@@ -20,6 +20,7 @@ interface EndCycleModalProps {
   farmerName: string;
   farmerLocation?: string | null;
   farmerMobile?: string | null;
+  startDate: Date;
   open: boolean;
   age: number;
   intake: number;
@@ -34,6 +35,7 @@ export const EndCycleModal = ({
   cycleId,
   cycleName,
   farmerName,
+  startDate,
   farmerLocation,
   farmerMobile,
   open,
@@ -85,21 +87,7 @@ export const EndCycleModal = ({
         onOpenChange(false);
         setIntake(intakeStock.toString()); // Reset
 
-        const isCycleDetailsPage =
-          pathname === `/cycles/${cycleId}` ||
-          pathname === `/management/cycles/${cycleId}` ||
-          (pathname.includes(`/cycles/`) && pathname.endsWith(cycleId));
 
-        if (isCycleDetailsPage) {
-          showLoading("Going back to cycles...")
-          if (prefix?.includes("/admin")) {
-            router.push(`/admin/organizations/${orgId}/cycles`);
-          } else if (prefix?.includes("/management")) {
-            router.push(`/management/cycles`);
-          } else {
-            router.push(`/cycles`);
-          }
-        }
       },
       onError: (error) => toast.error(error.message),
     })
@@ -190,6 +178,7 @@ export const EndCycleModal = ({
       <SellModal
         cycleId={cycleId}
         cycleName={cycleName}
+        startDate={startDate}
         farmerName={farmerName}
         cycleAge={age}
         farmerLocation={farmerLocation}

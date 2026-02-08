@@ -71,6 +71,22 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot sell from an archived farmer" });
             }
 
+            // DATE VALIDATION: Cannot sell before cycle started
+            const effectiveSaleDate = input.saleDate || new Date();
+            // Reset time components for comparison (compare dates only)
+            const saleDateOnly = new Date(effectiveSaleDate);
+            saleDateOnly.setHours(0, 0, 0, 0);
+
+            const cycleStartDate = new Date(cycle.createdAt);
+            cycleStartDate.setHours(0, 0, 0, 0);
+
+            if (saleDateOnly < cycleStartDate) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: `Sale date cannot be before cycle start date (${cycle.createdAt.toLocaleDateString()}).`
+                });
+            }
+
             // Calculate remaining birds (Initial - Mortality - Already Sold)
             const remainingBirds = cycle.doc - cycle.mortality - cycle.birdsSold;
             // Note: If mortalityChange is negative (resurrection), remaining birds technically increases.
@@ -545,13 +561,18 @@ export const officerSalesRouter = createTRPCRouter({
                 };
             };
 
-            // Calculate cumulative revenue PER CYCLE/HISTORY
+            // Calculate cumulative revenue AND weight PER CYCLE/HISTORY
             // We pre-calculate sums for all cycles in the result set
             const revenueMap = new Map<string, number>();
+            const weightMap = new Map<string, number>();
+
             events.forEach(ev => {
                 const key = ev.cycleId || ev.historyId || "unknown";
-                const current = revenueMap.get(key) || 0;
-                revenueMap.set(key, current + (parseFloat(ev.totalAmount) || 0));
+                const currentRevenue = revenueMap.get(key) || 0;
+                const currentWeight = weightMap.get(key) || 0;
+
+                revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
+                weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
             });
 
             return events.map((e) => {
@@ -573,8 +594,9 @@ export const officerSalesRouter = createTRPCRouter({
 
                 const { fcr, epi } = calculateMetrics(doc, mortality, totalWeight, feedConsumed, age, isEnded);
 
-                // Get cumulative revenue for THIS cycle from our pre-calculated map
+                // Get cumulative totals for THIS cycle from our pre-calculated map
                 const cumulativeRevenue = revenueMap.get(groupKey) || 0;
+                const cumulativeWeight = weightMap.get(groupKey) || 0;
 
                 return {
                     ...e,
@@ -591,7 +613,8 @@ export const officerSalesRouter = createTRPCRouter({
                         isEnded,
                         fcr,
                         epi,
-                        revenue: cumulativeRevenue // Added cumulative revenue
+                        revenue: cumulativeRevenue,
+                        totalWeight: cumulativeWeight // Added cumulative weight
                     }
                 };
             });

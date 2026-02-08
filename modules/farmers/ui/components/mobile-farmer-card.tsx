@@ -173,8 +173,8 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             <div className={cn("flex justify-between items-center text-[10px] text-muted-foreground", actions ? "pt-2 border-t border-border mt-2" : "pt-2")}>
                 <span>
                     {farmer.status === "deleted"
-                        ? `Archived ${farmer.deletedAt ? format(new Date(farmer.deletedAt), "MMM d, yyyy") : format(new Date(farmer.updatedAt), "MMM d, yyyy")}`
-                        : `Joined ${farmer.createdAt ? format(new Date(farmer.createdAt), "MMM d, yyyy") : "-"}`
+                        ? `Archived ${farmer.deletedAt ? format(new Date(farmer.deletedAt), "dd/MM/yyyy") : format(new Date(farmer.updatedAt), "dd/MM/yyyy")}`
+                        : `Joined ${farmer.createdAt ? format(new Date(farmer.createdAt), "dd/MM/yyyy") : "-"}`
                     }
                 </span>
                 <span className="flex items-center gap-1 text-primary hover:text-primary/80 font-bold transition-opacity">

@@ -629,6 +629,21 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
+                // Date Validation
+                if (input.newDate) {
+                    const validationDate = new Date(input.newDate);
+                    validationDate.setHours(0, 0, 0, 0);
+                    const cycleStartDate = new Date(activeCycle.createdAt);
+                    cycleStartDate.setHours(0, 0, 0, 0);
+
+                    if (validationDate < cycleStartDate) {
+                        throw new TRPCError({
+                            code: "BAD_REQUEST",
+                            message: `Mortality log date cannot be before cycle start date (${activeCycle.createdAt.toLocaleDateString()}).`
+                        });
+                    }
+                }
+
                 const delta = input.newAmount - log.valueChange;
                 const newTotalMortality = activeCycle.mortality + delta;
 
@@ -724,6 +739,20 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
+                if (log.isReverted) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "This log has already been reverted."
+                    });
+                }
+
+                if ((log.valueChange ?? 0) <= 0) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "Cannot revert a negative log or a correction."
+                    });
+                }
+
                 // Update Cycle Mortality
                 const revertAmount = log.valueChange; // This was +Amount
                 const newTotalMortality = (activeCycle.mortality || 0) - revertAmount;
@@ -752,6 +781,12 @@ export const officerCyclesRouter = createTRPCRouter({
                     }
                 }
 
+                // 1. Mark original log as reverted
+                await tx.update(cycleLogs)
+                    .set({ isReverted: true })
+                    .where(eq(cycleLogs.id, input.logId));
+
+                // 2. Update Cycle Stats
                 await tx.update(cycles)
                     .set({
                         mortality: sql`${cycles.mortality} - ${revertAmount}`,
@@ -759,7 +794,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     })
                     .where(eq(cycles.id, cycleId));
 
-                // Create Correction Log (Stay as MORTALITY type for intake calculation)
+                // 3. Create Correction Log (Stay as MORTALITY type for intake calculation)
                 // EXPERIMENTAL: We backdate the correction to the original log's date.
                 // This ensures that the feed calculation cancels out perfectly at the time of the error,
                 // treating the birds as alive for the entire interim period.

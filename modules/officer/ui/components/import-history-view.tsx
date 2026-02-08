@@ -74,7 +74,7 @@ export function ImportHistoryView() {
                                             </Badge>
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            {format(batch.createdAt, "PPP 'at' p")}
+                                            {format(batch.createdAt, "dd/MM/yyyy 'at' p")}
                                         </p>
                                     </div>
                                 </div>
