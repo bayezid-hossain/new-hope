@@ -100,7 +100,6 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
 
                     <DropdownMenuItem
                         onClick={() => setShowCorrectMortality(true)}
-                        disabled={cycle.birdsSold > 0}
                         title={cycle.birdsSold > 0 ? "Cannot correct mortality after sales have started, you can update it in the next sale report or end the cycle" : ""}
                     >
                         <Wrench className="mr-2 h-4 w-4" />

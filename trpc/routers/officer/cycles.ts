@@ -402,7 +402,8 @@ export const officerCyclesRouter = createTRPCRouter({
                     ctx.user.id,
                     true,
                     tx,
-                    `Mortality added (${input.amount} birds). Recalculated intake based on ${result.doc - result.mortality} live birds.`
+                    `Mortality added (${input.amount} birds). Recalculated intake based on ${result.doc - result.mortality} live birds.`,
+                    input.date || new Date()
                 );
 
                 // Fetch full updated cycle to return
@@ -644,6 +645,28 @@ export const officerCyclesRouter = createTRPCRouter({
                     }
                 }
 
+                // SAFETY LOCK: Cannot edit mortality that happened before a sale
+                const [latestSale] = await tx
+                    .select({ saleDate: saleEvents.saleDate })
+                    .from(saleEvents)
+                    .where(eq(saleEvents.cycleId, cycleId))
+                    .orderBy(desc(saleEvents.saleDate))
+                    .limit(1);
+
+                if (latestSale) {
+                    const saleDate = new Date(latestSale.saleDate);
+                    saleDate.setHours(0, 0, 0, 0);
+                    const logDate = new Date(log.createdAt);
+                    logDate.setHours(0, 0, 0, 0);
+
+                    if (logDate <= saleDate) {
+                        throw new TRPCError({
+                            code: "BAD_REQUEST",
+                            message: "Cannot edit mortality logs that occurred before or during a recorded sale."
+                        });
+                    }
+                }
+
                 const delta = input.newAmount - log.valueChange;
                 const newTotalMortality = activeCycle.mortality + delta;
 
@@ -697,7 +720,8 @@ export const officerCyclesRouter = createTRPCRouter({
                         ctx.user.id,
                         true,
                         tx,
-                        `Mortality Log Updated. Recalculated intake.`
+                        `Mortality Log Updated. Recalculated intake.`,
+                        input.newDate || log.createdAt
                     );
                 }
 
@@ -817,7 +841,8 @@ export const officerCyclesRouter = createTRPCRouter({
                         ctx.user.id,
                         true,
                         tx,
-                        `Mortality Reverted. Recalculated intake based on updated live bird count.`
+                        `Mortality Reverted. Recalculated intake based on updated live bird count.`,
+                        log.createdAt
                     );
                 }
 

@@ -1,14 +1,15 @@
 import { getCumulativeFeedForDay, GRAMS_PER_BAG } from "@/constants";
 import { db } from "@/db";
 import { cycleLogs, cycles } from "@/db/schema";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 
 export const updateCycleFeed = async (
     cycle: typeof cycles.$inferSelect,
     userId: string,
     forceUpdate = false,
     tx?: any, // Optional transaction client
-    reason?: string // Optional reason for the update
+    reason?: string, // Optional reason for the update
+    logDate?: Date // Optional date for the cycle logs
 ) => {
     // //conosle.log(`[updateCycleFeed] Starting for Cycle: ${cycle.id}, Doc: ${cycle.doc}`);
 
@@ -77,7 +78,9 @@ export const updateCycleFeed = async (
 
     // Cumulative Feed Logic (Marginal)
     // We need: Cumulative(CurrentAge) - Cumulative(CheckpointAge)
-    const ageAtCheckpoint = Math.max(0, currentAge - daysSinceCheckpoint);
+    // If no sale exists, we start from Day 0 to include Day 1 consumption.
+    // If a sale exists, we start from that sale's age.
+    const ageAtCheckpoint = lastSale ? Math.max(0, currentAge - daysSinceCheckpoint) : 0;
     const cumulativeNow = getCumulativeFeedForDay(currentAge);
     const cumulativeCheckpoint = getCumulativeFeedForDay(ageAtCheckpoint);
 
@@ -89,7 +92,7 @@ export const updateCycleFeed = async (
     const activeSales = await database.select().from(saleEvents).where(
         and(
             eq(saleEvents.cycleId, cycle.id),
-            sql`${saleEvents.saleDate} > ${calculationStartDate.toISOString()}`
+            gt(saleEvents.saleDate, calculationStartDate)
         )
     );
 
@@ -113,7 +116,7 @@ export const updateCycleFeed = async (
         and(
             eq(cycleLogs.cycleId, cycle.id),
             eq(cycleLogs.type, "MORTALITY"),
-            sql`${cycleLogs.createdAt} > ${calculationStartDate.toISOString()}`
+            gt(cycleLogs.createdAt, calculationStartDate)
         )
     );
 
@@ -166,7 +169,8 @@ export const updateCycleFeed = async (
                     valueChange: consumedAmount,
                     note: forceUpdate
                         ? (reason || `Intake Recalculated: ${totalNewBags.toFixed(2)} bags total.`)
-                        : `Daily Consumption: ${consumedAmount.toFixed(2)} bags (Age ${currentAge})`
+                        : `Daily Consumption: ${consumedAmount.toFixed(2)} bags (Age ${currentAge})`,
+                    createdAt: logDate || new Date()
                 });
             }
 
@@ -179,7 +183,8 @@ export const updateCycleFeed = async (
                     valueChange: consumedAmount,
                     previousValue: previousIntake,
                     newValue: totalNewBags,
-                    note: reason || "Forced feed intake recalculation due to cycle change."
+                    note: reason || "Forced feed intake recalculation due to cycle change.",
+                    createdAt: logDate || new Date()
                 });
             }
             // //conosle.log(`[updateCycleFeed] Database update completed.`);

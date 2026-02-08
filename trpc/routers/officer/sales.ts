@@ -149,7 +149,7 @@ export const officerSalesRouter = createTRPCRouter({
                     saleDate: input.saleDate || new Date(),
                     houseBirds: input.houseBirds,
                     birdsSold: input.birdsSold,
-                    totalMortality: input.totalMortality, // Snapshot of NEW total
+                    totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     avgWeight: avgWeight.toFixed(2),
                     pricePerKg: input.pricePerKg.toString(),
@@ -160,21 +160,23 @@ export const officerSalesRouter = createTRPCRouter({
                     feedStock: JSON.stringify(input.feedStock),
                     medicineCost: input.medicineCost.toString(),
                     createdBy: ctx.user.id,
+                    createdAt: input.saleDate || new Date(),
                 }).returning();
 
                 // Auto-generate first report with SAME values (Financials + Mortality included)
                 await tx.insert(saleReports).values({
                     saleEventId: saleEvent.id,
                     birdsSold: input.birdsSold,
-                    totalMortality: input.totalMortality, // Added
+                    totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     pricePerKg: input.pricePerKg.toString(),
                     totalAmount: totalAmount.toFixed(2),
                     avgWeight: avgWeight.toFixed(2),
-                    cashReceived: input.cashReceived.toString(), // Added
-                    depositReceived: input.depositReceived.toString(), // Added
-                    medicineCost: input.medicineCost.toString(), // Added
+                    cashReceived: input.cashReceived.toString(),
+                    depositReceived: input.depositReceived.toString(),
+                    medicineCost: input.medicineCost.toString(),
                     createdBy: ctx.user.id,
+                    createdAt: input.saleDate || new Date(),
                 });
 
                 // Update cycle: add any new mortality and increment birdsSold
@@ -199,7 +201,8 @@ export const officerSalesRouter = createTRPCRouter({
                         ctx.user.id,
                         true, // Force update since population changed
                         tx,
-                        `Sale Event Recorded. Recalculated total intake.`
+                        `Sale Event Recorded. Recalculated total intake.`,
+                        input.saleDate || new Date()
                     );
                 }
 
@@ -235,6 +238,7 @@ export const officerSalesRouter = createTRPCRouter({
                     newValue: newBirdsSold,
                     previousValue: cycle.birdsSold,
                     note: `Sale recorded: ${input.birdsSold} birds at ৳${input.pricePerKg}/kg. Location: ${input.location}${cycleEnded ? " (Cycle Completed)" : ""}`,
+                    createdAt: input.saleDate || new Date()
                 });
 
                 // Add MORTALITY log entry if changed
@@ -388,7 +392,8 @@ export const officerSalesRouter = createTRPCRouter({
                                 ctx.user.id,
                                 true,
                                 tx,
-                                `Sale Report Adjusted. Recalculated total intake.`
+                                `Sale Report Adjusted. Recalculated total intake.`,
+                                event.saleDate
                             );
                         }
 
@@ -408,6 +413,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 type: "MORTALITY",
                                 valueChange: mortalityDifference,
                                 note: `Sale Report Adjustment (Mortality change: ${mortalityDifference})`,
+                                createdAt: event.saleDate
                             });
                         }
 
@@ -418,6 +424,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 type: "SYSTEM",
                                 valueChange: birdsSoldDifference,
                                 note: `Sale Report Adjustment (Birds sold adjusted by: ${birdsSoldDifference})`,
+                                createdAt: event.saleDate
                             });
                         }
                     }
@@ -431,6 +438,7 @@ export const officerSalesRouter = createTRPCRouter({
                     type: "SALES",
                     valueChange: birdsSoldDifference,
                     note: `Sale Adjustment Recorded: birds sold adjusted by ${birdsSoldDifference}. ${input.adjustmentNote || ""}`,
+                    createdAt: event.saleDate
                 });
 
                 return { report, birdsSoldDifference };
