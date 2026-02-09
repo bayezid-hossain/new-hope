@@ -268,11 +268,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                     <>
                                                                         <MetricRow
                                                                             icon={Bird}
-                                                                            value={(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}
-                                                                            label="live"
-                                                                            valueColor="text-primary"
+                                                                            value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                            label="initial"
+                                                                            valueColor="text-foreground"
                                                                         />
-                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">initiald: {Number(cycle.doc || 0).toLocaleString()}</span>
+                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">live: {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
                                                                     </>
                                                                 ) : (
                                                                     <MetricRow
@@ -373,11 +373,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                         <div className="flex flex-col">
                                                             <MetricRow
                                                                 icon={Bird}
-                                                                value={(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}
-                                                                label="live"
-                                                                valueColor="text-primary"
+                                                                value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                label="initial"
+                                                                valueColor="text-foreground"
                                                             />
-                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">initial {Number(cycle.doc || 0).toLocaleString()}</span>
+                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">live {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex flex-col gap-1">
                                                             <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />

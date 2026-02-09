@@ -101,9 +101,9 @@ export default function SalesPage() {
                     </Card>
                 )}
 
-                <div className="space-y-6">
+                <div className="space-y-6 p-0">
                     {sales?.map((sale) => (
-                        <div key={sale.id} className="relative">
+                        <div key={sale.id} className="relative p-0">
 
                             {/* @ts-ignore - mismatch in feed type inference usually but structure matches */}
                             <SaleEventCard sale={{

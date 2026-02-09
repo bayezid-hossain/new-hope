@@ -467,10 +467,17 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             </div>
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">
-                                <span className="text-xs sm:text-sm text-muted-foreground">Live Birds</span>
+                                <span className="text-xs sm:text-sm text-muted-foreground pt-1.5 self-start">Birds Status</span>
                                 <div className="text-right">
-                                    <div className="font-bold text-sm sm:text-base text-foreground">{liveBirds.toLocaleString()}</div>
-                                    <div className="text-[10px] sm:text-xs text-muted-foreground">Initial DOC: {cycle.doc}</div>
+                                    {cycle.birdsSold > 0 && (
+                                        <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mb-0.5">
+                                            {cycle.birdsSold.toLocaleString()} Sold
+                                        </div>
+                                    )}
+                                    <div className="font-bold text-lg sm:text-xl text-foreground -mb-1">{liveBirds.toLocaleString()}</div>
+                                    <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-tight font-medium opacity-70">
+                                        of {cycle.doc.toLocaleString()} DOC
+                                    </div>
                                 </div>
                             </div>
                             <Separator className="bg-border/50" />

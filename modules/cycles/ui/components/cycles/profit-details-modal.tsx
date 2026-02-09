@@ -48,7 +48,7 @@ export const ProfitDetailsModal = ({
             title="Profit Calculation Details"
             description="Step-by-step breakdown of the farmer's profit estimation."
         >
-            <div className="space-y-6 pt-2 max-h-[80vh] overflow-y-auto px-1">
+            <div className="space-y-6 pt-2 max-h-[50vh] overflow-y-auto px-1">
                 {/* Formula Summary */}
                 <div className="bg-muted/30 p-3 rounded-lg text-xs font-mono text-muted-foreground border border-border/50">
                     <p className="font-semibold text-foreground mb-1">Profit Formula:</p>

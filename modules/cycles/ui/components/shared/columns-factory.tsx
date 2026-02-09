@@ -341,7 +341,7 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
         },
         {
             accessorKey: "doc",
-            header: "Live Birds",
+            header: "Birds (Initial/Live)",
             cell: ({ row }) => {
                 const doc = parseInt(String(row.original.doc || 0));
                 const mortality = parseInt(String(row.original.mortality || 0));
@@ -350,8 +350,8 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
 
                 return (
                     <div className="flex flex-col">
-                        <span className="text-xs sm:text-sm font-bold text-primary">{liveBirds.toLocaleString()}</span>
-                        <span className="text-[10px] text-muted-foreground">of {doc.toLocaleString()}</span>
+                        <span className="text-xs sm:text-sm font-bold text-foreground">{doc.toLocaleString()}</span>
+                        <span className="text-[10px] text-muted-foreground">Live: {liveBirds.toLocaleString()}</span>
                     </div>
                 );
             },
@@ -462,16 +462,18 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                 return (
                     <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
-                            <span className="bg-primary/10 text-primary w-fit rounded px-1.5 py-0.5 font-mono text-[10px] sm:text-xs font-bold">
+                            <span className="text-xs sm:text-sm font-bold text-foreground">{doc.toLocaleString()} Initial</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 opacity-80">
+                            <span className="bg-primary/10 text-primary w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                 {sold.toLocaleString()} Sold
                             </span>
                             {remaining > 0 && row.original.status !== 'archived' && (
-                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit rounded px-1.5 py-0.5 font-mono text-[10px] sm:text-xs font-bold">
+                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                     {remaining.toLocaleString()} Live
                                 </span>
                             )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground ml-1">Initial: {doc.toLocaleString()}</span>
                     </div>
                 );
             },
