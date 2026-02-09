@@ -40,7 +40,7 @@ export const FcrEpiDetailsModal = ({
             title="Performance Details"
             description="Detailed breakdown of production metrics (FCR & EPI)."
         >
-            <div className="space-y-6 pt-2 pb-8 max-h-[70vh] overflow-y-auto px-1">
+            <div className="space-y-6 pt-2 pb-8  max-h-[50vh] sm:max-h-[80vh] m-0 overflow-y-auto px-1 overscroll-contain">
                 {/* Step 1: FCR */}
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">

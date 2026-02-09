@@ -27,6 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
@@ -57,6 +58,7 @@ import {
     RotateCcw,
     Scale,
     Search,
+    ShoppingCart,
     Trash2,
     User,
     Wheat
@@ -407,6 +409,10 @@ export default function ManagementFarmerDetailsPage() {
                                     <Archive className="h-4 w-4" />
                                     History
                                 </TabsTrigger>
+                                <TabsTrigger value="sales" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Sales History
+                                </TabsTrigger>
                                 <TabsTrigger value="ledger" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                                     <Scale className="h-4 w-4" />
                                     Ledger
@@ -419,6 +425,10 @@ export default function ManagementFarmerDetailsPage() {
 
                             <TabsContent value="history" className="mt-0 focus-visible:outline-none">
                                 <ArchivedCyclesSection isLoading={false} isError={false} data={history} />
+                            </TabsContent>
+
+                            <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
+                                <SalesHistoryCard farmerId={farmerId} />
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
@@ -451,6 +461,18 @@ export default function ManagementFarmerDetailsPage() {
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
                                     <ArchivedCyclesSection isLoading={false} isError={false} data={history} />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                                <AccordionTrigger className="hover:no-underline py-4 text-foreground border-none">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingCart className="h-5 w-5 text-blue-500" />
+                                        <span className="font-bold tracking-tight">Sales History</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-4">
+                                    <SalesHistoryCard farmerId={farmerId} isMobile />
                                 </AccordionContent>
                             </AccordionItem>
 

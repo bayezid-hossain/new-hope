@@ -9,6 +9,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { ActionsCell, getHistoryColumns, HistoryActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
@@ -443,6 +444,9 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     <TabsTrigger value="timeline" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
                         <History className="h-4 w-4" /> Timeline
                     </TabsTrigger>
+                    <TabsTrigger value="sales" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
+                        <ShoppingCart className="h-4 w-4" /> Sales
+                    </TabsTrigger>
                     <TabsTrigger value="others" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
                         <Archive className="h-4 w-4" /> Other Cycles
                     </TabsTrigger>
@@ -462,6 +466,10 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
+                    <SalesHistoryCard cycleId={cycleId} />
                 </TabsContent>
 
                 <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
