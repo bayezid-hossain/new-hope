@@ -237,18 +237,18 @@ export default function FarmerDetails() {
 
   return (
     <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
-      <div ref={sentinelRef} className="h-4 w-full -mt-6 pointer-events-none" />
+      <div ref={sentinelRef} className="h-4 w-full pointer-events-none" />
 
       <div className={cn(
-        "flex flex-col transition-all duration-300 ease-in-out will-change-[padding,margin,background-color]",
+        "flex flex-col transition-[padding,background-color,border-color,box-shadow,margin] duration-200 ease-in-out will-change-[padding,background-color,box-shadow]",
         isSticky
-          ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-3 -mx-4 px-4 border-b border-border/50 shadow-sm"
+          ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
           : "relative py-0 mb-4"
       )}>
         <div className="flex flex-col gap-1 w-full">
           <div className="flex items-center gap-3 w-full justify-between">
             <h1 className={cn(
-              "font-bold tracking-tight text-foreground transition-all duration-300 ease-in-out truncate",
+              "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
               isSticky ? "text-lg md:text-xl" : "text-xl md:text-2xl"
             )}>
               {farmerQuery.isLoading ? <Skeleton className="h-6 w-32 inline-block" /> : (farmerQuery.data?.name || "N/A")}
@@ -261,7 +261,7 @@ export default function FarmerDetails() {
                     variant="outline"
                     size={isSticky ? "icon" : "default"}
                     className={cn(
-                      "gap-2 shadow-sm font-bold transition-all duration-300 ease-in-out bg-muted/50 hover:bg-muted border-border/40",
+                      "gap-2 shadow-sm font-bold transition-[width,height,padding,background-color] duration-200 ease-in-out bg-muted/50 hover:bg-muted border-border/40",
                       isSticky ? "rounded-full h-8 w-8" : "px-4"
                     )}
                   >
@@ -301,8 +301,8 @@ export default function FarmerDetails() {
           </div>
 
           <div className={cn(
-            "text-sm text-muted-foreground italic transition-all duration-300 ease-in-out overflow-hidden will-change-[max-height,opacity]",
-            isSticky ? "max-h-0 opacity-0" : "max-h-12 opacity-100"
+            "text-sm text-muted-foreground italic transition-[max-height,opacity,margin] duration-200 ease-in-out overflow-hidden will-change-[max-height,opacity]",
+            isSticky ? "max-h-0 opacity-0 mt-0" : "max-h-12 opacity-100 mt-1"
           )}>
             Farmer History & Details • Production & Stock Management
           </div>
