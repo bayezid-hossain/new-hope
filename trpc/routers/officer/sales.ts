@@ -1,13 +1,77 @@
 import { BASE_SELLING_PRICE } from "@/constants";
 import { cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 const officerProcedure = protectedProcedure;
+
+// --- Shared Helpers for Metric Calculations ---
+const calculateMetrics = (
+    doc: number,
+    mortality: number,
+    totalWeight: number,
+    feedConsumed: number, // in bags
+    age: number,
+    isEnded: boolean
+) => {
+    if (!isEnded) {
+        return { fcr: 0, epi: 0 };
+    }
+
+    const survivors = doc - mortality;
+    const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
+    const totalWeightKg = totalWeight;
+    const feedKg = feedConsumed * 50; // 50kg per bag
+
+    // FCR = Total Feed (kg) / Total Live Weight (kg)
+    const fcr = totalWeightKg > 0 ? feedKg / totalWeightKg : 0;
+
+    // EPI = (Survival % × Avg Weight kg) / (FCR × Age) × 100
+    const avgWeightKg = survivors > 0 ? totalWeightKg / survivors : 0;
+    const epi = (fcr > 0 && age > 0)
+        ? (survivalRate * avgWeightKg) / (fcr * age) * 100
+        : 0;
+
+    return {
+        fcr: parseFloat(fcr.toFixed(2)),
+        epi: parseFloat(epi.toFixed(0))
+    };
+};
+
+const getCycleStats = (events: any[]) => {
+    const revenueMap = new Map<string, number>();
+    const weightMap = new Map<string, number>();
+    const birdsSoldMap = new Map<string, number>();
+    const adjustmentsMap = new Map<string, number>();
+
+    events.forEach(ev => {
+        const key = ev.cycleId || ev.historyId || "unknown";
+        const currentRevenue = revenueMap.get(key) || 0;
+        const currentWeight = weightMap.get(key) || 0;
+        const currentBirdsSold = birdsSoldMap.get(key) || 0;
+        let currentAdjustment = adjustmentsMap.get(key) || 0;
+
+        const price = parseFloat(ev.pricePerKg);
+        revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
+        weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
+        birdsSoldMap.set(key, currentBirdsSold + (ev.birdsSold || 0));
+
+        // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
+        const diff = price - BASE_SELLING_PRICE;
+        if (diff > 0) {
+            currentAdjustment += diff / 2;
+        } else if (diff < 0) {
+            currentAdjustment += diff;
+        }
+        adjustmentsMap.set(key, currentAdjustment);
+    });
+
+    return { revenueMap, weightMap, birdsSoldMap, adjustmentsMap };
+};
 
 // Feed item schema for dynamic arrays
 const feedItemSchema = z.object({
@@ -599,64 +663,8 @@ export const officerSalesRouter = createTRPCRouter({
                 });
             }
 
-            // Helper function to calculate FCR and EPI
-            const calculateMetrics = (
-                doc: number,
-                mortality: number,
-                totalWeight: number,
-                feedConsumed: number, // in bags
-                age: number,
-                isEnded: boolean
-            ) => {
-                if (!isEnded) {
-                    return { fcr: 0, epi: 0 };
-                }
-
-                const survivors = doc - mortality;
-                const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
-                const totalWeightKg = totalWeight;
-                const feedKg = feedConsumed * 50; // 50kg per bag
-
-                // FCR = Total Feed (kg) / Total Live Weight (kg)
-                const fcr = totalWeightKg > 0 ? feedKg / totalWeightKg : 0;
-
-                // EPI = (Survival % × Avg Weight kg) / (FCR × Age) × 100
-                const avgWeightKg = survivors > 0 ? totalWeightKg / survivors : 0;
-                const epi = (fcr > 0 && age > 0)
-                    ? (survivalRate * avgWeightKg) / (fcr * age) * 100
-                    : 0;
-
-                return {
-                    fcr: parseFloat(fcr.toFixed(2)),
-                    epi: parseFloat(epi.toFixed(0))
-                };
-            };
-
             // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
-            const revenueMap = new Map<string, number>();
-            const weightMap = new Map<string, number>();
-            const adjustmentsMap = new Map<string, number>();
-            const processedPrices = new Map<string, Set<number>>();
-
-            events.forEach(ev => {
-                const key = ev.cycleId || ev.historyId || "unknown";
-                const currentRevenue = revenueMap.get(key) || 0;
-                const currentWeight = weightMap.get(key) || 0;
-                let currentAdjustment = adjustmentsMap.get(key) || 0;
-
-                const price = parseFloat(ev.pricePerKg);
-                revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
-                weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
-
-                // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
-                const diff = price - BASE_SELLING_PRICE;
-                if (diff > 0) {
-                    currentAdjustment += diff / 2;
-                } else if (diff < 0) {
-                    currentAdjustment += diff;
-                }
-                adjustmentsMap.set(key, currentAdjustment);
-            });
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap } = getCycleStats(events);
 
             return events.map((e) => {
                 const cycleOrHistory = e.cycle || e.history;
@@ -674,6 +682,7 @@ export const officerSalesRouter = createTRPCRouter({
                 // Get cumulative totals
                 const cumulativeRevenue = revenueMap.get(groupKey) || 0;
                 const cumulativeWeight = weightMap.get(groupKey) || 0;
+                const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
                 const netAdjustment = adjustmentsMap.get(groupKey) || 0;
 
                 // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
@@ -700,6 +709,7 @@ export const officerSalesRouter = createTRPCRouter({
                         revenue: formulaRevenue, // Updated to use the formula revenue
                         actualRevenue: cumulativeRevenue,
                         totalWeight: cumulativeWeight,
+                        cumulativeBirdsSold,
                         effectiveRate,
                         netAdjustment
                     }
@@ -751,30 +761,43 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
+            // Fetch cumulative data for these cycles to calculate correct metrics
+            const cycleIds = [...new Set(events.map(e => e.cycleId).filter(Boolean))] as string[];
+            const historyIds = [...new Set(events.map(e => e.historyId).filter(Boolean))] as string[];
+
+            const allCycleEvents = await ctx.db.query.saleEvents.findMany({
+                where: or(
+                    cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
+                    historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
+                )
+            });
+
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap } = getCycleStats(allCycleEvents);
+
             let formattedEvents = events.map(e => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
+                const groupKey = e.cycleId || e.historyId || "unknown";
 
                 const doc = cycleOrHistory?.doc || 0;
                 const mortality = cycleOrHistory?.mortality || 0;
                 const age = cycleOrHistory?.age || 0;
-                const feedConsumedBags = isEnded
+                const feedConsumed = isEnded
                     ? (e.history?.finalIntake || 0)
                     : (e.cycle?.intake || 0);
-                const totalWeight = parseFloat(e.totalWeight) || 0;
 
-                // Calculate FCR/EPI only for ended cycles
-                let fcr = 0, epi = 0;
-                if (isEnded) {
-                    const survivors = doc - mortality;
-                    const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
-                    const feedKg = feedConsumedBags * 50;
-                    fcr = totalWeight > 0 ? parseFloat((feedKg / totalWeight).toFixed(2)) : 0;
-                    const avgWeightKg = survivors > 0 ? totalWeight / survivors : 0;
-                    epi = (fcr > 0 && age > 0)
-                        ? parseFloat(((survivalRate * avgWeightKg) / (fcr * age) * 100).toFixed(0))
-                        : 0;
-                }
+                // Get cumulative totals
+                const cumulativeRevenue = revenueMap.get(groupKey) || 0;
+                const cumulativeWeight = weightMap.get(groupKey) || 0;
+                const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
+                const netAdjustment = adjustmentsMap.get(groupKey) || 0;
+
+                // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
+                const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+                const formulaRevenue = effectiveRate * cumulativeWeight;
+
+                // Calculate FCR/EPI
+                const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
 
                 return {
                     ...e,
@@ -786,10 +809,16 @@ export const officerSalesRouter = createTRPCRouter({
                         doc,
                         mortality,
                         age,
-                        feedConsumed: feedConsumedBags,
+                        feedConsumed,
                         isEnded,
                         fcr,
-                        epi
+                        epi,
+                        revenue: formulaRevenue,
+                        actualRevenue: cumulativeRevenue,
+                        totalWeight: cumulativeWeight,
+                        cumulativeBirdsSold,
+                        effectiveRate,
+                        netAdjustment
                     }
                 };
             });

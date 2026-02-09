@@ -90,12 +90,12 @@ export const EditAgeModal = ({ cycleId, currentAge, open: controlledOpen, onOpen
                     <Label>Correct Age (Days)</Label>
                     <Input
                         type="number"
-                        max={34}
+                        max={40}
                         value={newAge}
                         onChange={(e) => {
                             const val = parseInt(e.target.value);
-                            if (val > 34) {
-                                toast.error("Maximum age is 34 days");
+                            if (val > 40) {
+                                toast.error("Maximum age is 40 days");
                                 return;
                             }
                             setNewAge(e.target.value);

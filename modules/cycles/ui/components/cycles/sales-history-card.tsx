@@ -10,14 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -25,17 +17,46 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calculator, Check, ChevronDown, ClipboardCopy, Eye, History, Info, Lock, MoreHorizontal, Pencil, ShoppingCart, Sparkles } from "lucide-react";
+import {
+    Activity,
+    Calculator,
+    Check,
+    CheckCircle2,
+    ChevronDown,
+    CircleDashed,
+    ClipboardCopy,
+    CreditCard,
+    History,
+    Info,
+    Lock,
+    MoreHorizontal,
+    PackageCheck,
+    Pencil,
+    Scale,
+    ShoppingBag,
+    ShoppingCart,
+    Sparkles,
+    TrendingDown,
+    Users,
+    Warehouse,
+    Weight,
+    Zap
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
@@ -62,6 +83,8 @@ export interface SaleReport {
 
 export interface SaleEvent {
     id: string;
+    cycleId?: string | null;
+    historyId?: string | null;
     location: string;
     party?: string | null;
     saleDate: Date;
@@ -92,9 +115,11 @@ export interface SaleEvent {
         revenue?: number;
         actualRevenue?: number;
         totalWeight?: number;
+        cumulativeBirdsSold?: number;
         effectiveRate?: number;
         netAdjustment?: number;
     };
+    isLatestInCycle?: boolean;
 }
 
 interface SaleEventCardProps {
@@ -216,6 +241,20 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hide
                                         ? `Sale ${totalInGroup - indexInGroup}`
                                         : (hideName ? "Sale Record" : (sale.farmerName || sale.cycleName || "Sale Record"))}
                                 </span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="shrink-0">
+                                            {sale.cycleContext?.isEnded ? (
+                                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                            ) : (
+                                                <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
+                                            )}
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-[10px]">{sale.cycleContext?.isEnded ? "Cycle Ended" : "Cycle Running"}</p>
+                                    </TooltipContent>
+                                </Tooltip>
                                 {sale.location && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
                                         {sale.location}{sale.party ? ` • ${sale.party}` : ""}
@@ -316,6 +355,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hide
                             setShowProfitModal={setShowProfitModal}
                             showFcrEpiModal={showFcrEpiModal}
                             showProfitModal={showProfitModal}
+                            isMobileView={true}
                         />
                     </CardContent>
                 )}
@@ -334,9 +374,25 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hide
 // ----------------------------------------------------------------------
 // SHARED CONTENT COMPONENT
 // ----------------------------------------------------------------------
+interface SaleDetailsContentProps {
+    sale: SaleEvent;
+    isLatest?: boolean;
+    displayBirdsSold: number;
+    displayTotalWeight: string;
+    displayAvgWeight: string;
+    displayPricePerKg: string;
+    displayTotalAmount: string;
+    displayMortality: number;
+    setShowFcrEpiModal: (open: boolean) => void;
+    setShowProfitModal: (open: boolean) => void;
+    showFcrEpiModal: boolean;
+    showProfitModal: boolean;
+    isMobileView?: boolean;
+}
+
 const SaleDetailsContent = ({
     sale,
-    isLatest,
+    isLatest = false,
     displayBirdsSold,
     displayTotalWeight,
     displayAvgWeight,
@@ -346,131 +402,338 @@ const SaleDetailsContent = ({
     setShowFcrEpiModal,
     setShowProfitModal,
     showFcrEpiModal,
-    showProfitModal
-}: any) => {
-    return (
-        <>
-            {/* FCR/EPI Row - Prominent at top - ONLY ON LATEST SALE */}
-            {isLatest && sale.cycleContext && (
-                <div className="flex gap-2 sm:gap-4 mb-4">
-                    <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg p-3 border border-blue-100 dark:border-blue-900/50">
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-medium">FCR</div>
-                            {sale.cycleContext.isEnded && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-4 w-4 p-0 hover:bg-blue-200/50 rounded-full"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowFcrEpiModal(true);
-                                    }}
-                                >
+    showProfitModal,
+    isMobileView = false
+}: SaleDetailsContentProps) => {
+    // Calculate cumulative average weight - ONLY for the final sale of the cycle
+    const cumulativeWeight = sale.cycleContext?.totalWeight || 0;
+    const cumulativeBirdsSold = sale.cycleContext?.cumulativeBirdsSold || 0;
+    const finalAvgWeight = (isLatest && cumulativeWeight > 0 && cumulativeBirdsSold > 0)
+        ? (cumulativeWeight / cumulativeBirdsSold).toFixed(2)
+        : displayAvgWeight;
+
+    if (isMobileView) {
+        return (
+            <div className="space-y-4">
+                {/* FCR/EPI Row */}
+                {isLatest && sale.cycleContext && sale.cycleContext.isEnded && (
+                    <div className="flex gap-2 sm:gap-4 mb-4">
+                        <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg p-3 border border-blue-100 dark:border-blue-900/50">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-medium">FCR</div>
+                                <Button variant="ghost" size="sm" className="h-4 w-4 p-0 hover:bg-blue-200/50 rounded-full" onClick={(e) => { e.stopPropagation(); setShowFcrEpiModal(true); }}>
                                     <Info className="h-3 w-3 text-blue-600" />
                                 </Button>
-                            )}
+                            </div>
+                            <div className="text-xl font-bold text-blue-700 dark:text-blue-300">{sale.cycleContext.fcr}</div>
                         </div>
-                        <div className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                            {sale.cycleContext.isEnded ? sale.cycleContext.fcr : <span className="text-muted-foreground text-sm">N/A</span>}
+                        <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-100 dark:border-emerald-900/50">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-medium">EPI</div>
+                                <Button variant="ghost" size="sm" className="h-4 w-4 p-0 hover:bg-emerald-200/50 rounded-full" onClick={(e) => { e.stopPropagation(); setShowFcrEpiModal(true); }}>
+                                    <Info className="h-3 w-3 text-emerald-600" />
+                                </Button>
+                            </div>
+                            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{sale.cycleContext.epi}</div>
                         </div>
                     </div>
-                    <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-100 dark:border-emerald-900/50">
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-medium">EPI</div>
-                            {sale.cycleContext.isEnded && (
+                )}
+
+                {/* Main Stats Grid */}
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Sale Age</span>
+                            <span className="font-semibold">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium text-[10px]">days</small></span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Total DOC</span>
+                            <span className="font-semibold">{sale.cycleContext?.doc || sale.houseBirds}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
+                            <span className="font-semibold">{displayBirdsSold}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
+                            <span className="font-medium text-red-500">{displayMortality}</span>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Total Weight</span>
+                            <span className="font-semibold text-end">{displayTotalWeight} <small className="text-muted-foreground font-medium text-[10px]">kg</small></span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Avg Weight</span>
+                            <span className="font-semibold">{finalAvgWeight}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Price/kg</span>
+                            <span className="font-semibold">৳{displayPricePerKg}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Total</span>
+                            <span className="font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator className="my-4" />
+
+                {/* Financial Breakdown */}
+                <div className="grid grid-cols-3 gap-2 text-xs mb-4">
+                    <div className="bg-muted/30 rounded-lg p-2 text-center">
+                        <div className="text-muted-foreground text-[10px] uppercase">Cash</div>
+                        <div className="font-semibold">৳{parseFloat(sale.cashReceived || "0").toLocaleString()}</div>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-2 text-center">
+                        <div className="text-muted-foreground text-[10px] uppercase">Deposit</div>
+                        <div className="font-semibold">৳{parseFloat(sale.depositReceived || "0").toLocaleString()}</div>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-2 text-center">
+                        <div className="text-muted-foreground text-[10px] uppercase">Medicine</div>
+                        <div className="font-semibold">৳{parseFloat(sale.medicineCost || "0").toLocaleString()}</div>
+                    </div>
+                </div>
+
+                {/* Feed Info */}
+                <div className="grid grid-cols-2 gap-3 text-xs mb-4">
+                    <div>
+                        <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
+                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground block mb-0.5">Feed Stock:</span>
+                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
+                    </div>
+                </div>
+
+                {/* Profit Card */}
+                {isLatest && sale.cycleContext && sale.cycleContext.isEnded && (() => {
+                    const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
+                    const formulaRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
+                    const actualRevenue = sale.cycleContext.actualRevenue || parseFloat(sale.totalAmount);
+                    const effectiveRate = sale.cycleContext.effectiveRate || BASE_SELLING_PRICE;
+                    const netAdjustment = sale.cycleContext.netAdjustment || 0;
+                    const fcr = sale.cycleContext.fcr || 0;
+                    const epi = sale.cycleContext.epi || 0;
+                    const mortality = sale.cycleContext.mortality || 0;
+                    const avgPrice = cycleTotalWeight > 0 ? actualRevenue / cycleTotalWeight : parseFloat(sale.pricePerKg);
+                    const isEnded = sale.cycleContext.isEnded;
+                    const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
+                    const doc = sale.cycleContext.doc || sale.houseBirds || 0;
+                    const feedCost = isEnded ? totalFeedBags * FEED_PRICE_PER_BAG : 0;
+                    const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                    const totalDeductions = feedCost + docCost;
+                    const formulaProfit = formulaRevenue - totalDeductions;
+
+                    return (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 mt-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
+                                <Calculator className="h-4 w-4" /> {isEnded ? "Final Profit Estimate" : "Estimated Revenue (Running)"}
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-4 w-4 p-0 hover:bg-emerald-200/50 rounded-full"
+                                    className="h-5 w-5 p-0 hover:bg-amber-200/50 rounded-full"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setShowFcrEpiModal(true);
+                                        setShowProfitModal(true);
                                     }}
                                 >
-                                    <Info className="h-3 w-3 text-emerald-600" />
+                                    <Info className="h-3.5 w-3.5 cursor-pointer text-amber-600 hover:text-amber-800" />
                                 </Button>
-                            )}
+                            </div>
+                            <div className="space-y-1 text-sm font-mono">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Est. Total Revenue</span>
+                                    <span className="font-medium">৳{formulaRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                {isEnded ? (
+                                    <>
+                                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                                            <span>- DOC Cost</span>
+                                            <span>{docCost.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                                            <span>- Feed Cost</span>
+                                            <span>{feedCost.toLocaleString()}</span>
+                                        </div>
+                                        <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
+                                        <div className="flex justify-between font-bold text-base">
+                                            <span>Net Profit</span>
+                                            <span className={formulaProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                                                {formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="mt-2 text-xs text-amber-600/80 italic">* Costs will be deducted when cycle ends.</div>
+                                )}
+                            </div>
+                            <ProfitDetailsModal open={showProfitModal} onOpenChange={setShowProfitModal} revenue={formulaRevenue} actualRevenue={actualRevenue} totalWeight={cycleTotalWeight} avgPrice={avgPrice} effectiveRate={effectiveRate} netAdjustment={netAdjustment} feedBags={totalFeedBags} docCount={doc} feedCost={feedCost} docCost={docCost} profit={formulaProfit} />
+                            <FcrEpiDetailsModal open={showFcrEpiModal} onOpenChange={setShowFcrEpiModal} fcr={fcr} epi={epi} doc={doc} mortality={mortality} age={sale.cycleContext?.age || 0} totalWeight={cycleTotalWeight} feedBags={totalFeedBags} />
                         </div>
-                        <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
-                            {sale.cycleContext.isEnded ? sale.cycleContext.epi : <span className="text-muted-foreground text-sm">N/A</span>}
+                    );
+                })()}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* SECTION 1: PERFORMANCE & YIELD */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                        <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+                            <Activity className="h-4 w-4" />
+                        </div>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">Performance & Yield</h4>
+                    </div>
+
+                    <div className="space-y-3 px-1">
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-2">
+                                <History className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                                <span className="text-sm text-muted-foreground">Sale Age</span>
+                            </div>
+                            <span className="text-sm font-semibold text-foreground">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium uppercase text-[10px]">days</small></span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                                <span className="text-sm text-muted-foreground">Main Stock (DOC)</span>
+                            </div>
+                            <span className="text-sm font-semibold text-foreground">{sale.cycleContext?.doc?.toLocaleString() || sale.houseBirds?.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                                <ShoppingBag className="h-3.5 w-3.5" />
+                                <span className="text-sm font-medium">Birds Sold</span>
+                            </div>
+                            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-none font-bold tabular-nums">
+                                {displayBirdsSold.toLocaleString()}
+                            </Badge>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-2 text-red-500">
+                                <TrendingDown className="h-3.5 w-3.5" />
+                                <span className="text-sm font-medium">Mortality</span>
+                            </div>
+                            <span className="text-sm font-bold text-red-500 tabular-nums">{displayMortality}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                            <div className="flex items-center gap-2">
+                                <Scale className="h-3.5 w-3.5 text-muted-foreground/50" />
+                                <span className="text-sm text-muted-foreground">Avg. Weight</span>
+                            </div>
+                            <span className="text-sm font-bold text-foreground">{finalAvgWeight} <small className="text-muted-foreground font-normal text-[10px]">kg</small></span>
+                        </div>
+                        <div className="flex justify-between items-center group bg-primary/5 p-2 rounded-lg border border-primary/10">
+                            <div className="flex items-center gap-2 text-primary">
+                                <Weight className="h-4 w-4" />
+                                <span className="text-sm font-bold">Total Weight</span>
+                            </div>
+                            <span className="text-base font-black text-primary tabular-nums">{parseFloat(displayTotalWeight).toLocaleString()} kg</span>
                         </div>
                     </div>
                 </div>
-            )}
 
-            {/* Main Stats Grid */}
-            <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
-                <div className="space-y-3">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Sale Age</span>
-                        <span className="font-semibold">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium">days</small></span>
+                {/* SECTION 2: FINANCIAL OVERVIEW */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                        <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                            <CreditCard className="h-4 w-4" />
+                        </div>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">Financial Details</h4>
                     </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Total DOC</span>
-                        <span className="font-semibold">{sale.cycleContext?.doc || sale.houseBirds}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
-                        <span className="font-semibold">{displayBirdsSold}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Mortality</span>
-                        <span className="font-medium text-red-500">{displayMortality}</span>
+
+                    <div className="space-y-3 px-1">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Price per kg</span>
+                            <span className="text-sm font-semibold">৳{displayPricePerKg}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Total Revenue</span>
+                            <span className="text-base font-black text-emerald-600 dark:text-emerald-400 tabular-nums">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
+                        </div>
+
+                        <Separator className="my-2 opacity-50" />
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-muted/30 rounded-lg p-2.5 border border-border/40">
+                                <div className="text-[9px] uppercase font-bold text-muted-foreground tracking-tight mb-1">Cash In Hand</div>
+                                <div className="text-sm font-bold text-foreground">৳{parseFloat(sale.cashReceived || "0").toLocaleString()}</div>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2.5 border border-border/40">
+                                <div className="text-[9px] uppercase font-bold text-muted-foreground tracking-tight mb-1">Bank Deposit</div>
+                                <div className="text-sm font-bold text-foreground">৳{parseFloat(sale.depositReceived || "0").toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div className="bg-amber-500/5 dark:bg-amber-500/10 rounded-lg p-2.5 border border-amber-500/20 flex justify-between items-center">
+                            <div className="text-xs font-bold text-amber-600 uppercase tracking-tight">Medicine Adjustment</div>
+                            <div className="text-sm font-bold text-amber-700 dark:text-amber-300">৳{parseFloat(sale.medicineCost || "0").toLocaleString()}</div>
+                        </div>
                     </div>
                 </div>
-                <div className="space-y-3">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Total Weight</span>
-                        <span className="font-semibold text-end">{displayTotalWeight} <small className="text-muted-foreground font-medium">kg</small></span>
+
+                {/* SECTION 3: RESOURCE & EFFICIENCY */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                        <div className="p-1.5 rounded-md bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                            <Zap className="h-4 w-4" />
+                        </div>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">Resource & Context</h4>
                     </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Avg Weight</span>
-                        <span className="font-semibold">{displayAvgWeight}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Price/kg</span>
-                        <span className="font-semibold">৳{displayPricePerKg}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground text-xs uppercase tracking-tight">Total</span>
-                        <span className="font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</span>
+
+                    <div className="space-y-4 px-1">
+                        {/* FCR/EPI Display - ALWAYS available if ended, but more prominent if latest */}
+                        {sale.cycleContext?.isEnded && (
+                            <div className="flex gap-2">
+                                <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg p-2.5 border border-blue-100 dark:border-blue-900/40">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <div className="text-[9px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold">FCR</div>
+                                        <Info className="h-3 w-3 text-blue-600/50 cursor-pointer" onClick={() => setShowFcrEpiModal(true)} />
+                                    </div>
+                                    <div className="text-lg font-black text-blue-700 dark:text-blue-300">{sale.cycleContext.fcr}</div>
+                                </div>
+                                <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-lg p-2.5 border border-emerald-100 dark:border-emerald-900/40">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <div className="text-[9px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold">EPI</div>
+                                        <Info className="h-3 w-3 text-emerald-600/50 cursor-pointer" onClick={() => setShowFcrEpiModal(true)} />
+                                    </div>
+                                    <div className="text-lg font-black text-emerald-700 dark:text-emerald-300">{sale.cycleContext.epi}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-3 pt-1">
+                            <div className="group">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                    <PackageCheck className="h-3.5 w-3.5 text-muted-foreground/60" />
+                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Feed Consumed</span>
+                                </div>
+                                <div className="text-xs font-medium bg-muted/30 p-2 rounded-md border border-border/40 whitespace-pre-line leading-relaxed italic">
+                                    {formatFeedBreakdown(sale.feedConsumed)}
+                                </div>
+                            </div>
+                            <div className="group">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                    <Warehouse className="h-3.5 w-3.5 text-muted-foreground/60" />
+                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Current Stock</span>
+                                </div>
+                                <div className="text-xs font-medium bg-muted/30 p-2 rounded-md border border-border/40 whitespace-pre-line leading-relaxed italic">
+                                    {formatFeedBreakdown(sale.feedStock)}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <Separator className="my-4" />
-
-            {/* Financial Breakdown */}
-            <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                <div className="bg-muted/30 rounded-lg p-2 text-center">
-                    <div className="text-muted-foreground text-[10px] uppercase">Cash</div>
-                    <div className="font-semibold">৳{parseFloat(sale.cashReceived || "0").toLocaleString()}</div>
-                </div>
-                <div className="bg-muted/30 rounded-lg p-2 text-center">
-                    <div className="text-muted-foreground text-[10px] uppercase">Deposit</div>
-                    <div className="font-semibold">৳{parseFloat(sale.depositReceived || "0").toLocaleString()}</div>
-                </div>
-                <div className="bg-muted/30 rounded-lg p-2 text-center">
-                    <div className="text-muted-foreground text-[10px] uppercase">Medicine</div>
-                    <div className="font-semibold">৳{parseFloat(sale.medicineCost || "0").toLocaleString()}</div>
-                </div>
-            </div>
-
-            {/* Feed Info */}
-            <div className="grid grid-cols-2 gap-3 text-xs mb-4">
-                <div>
-                    <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
-                    <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
-                </div>
-                <div>
-                    <span className="text-muted-foreground block mb-0.5">Feed Stock:</span>
-                    <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
-                </div>
-            </div>
-
-            {/* Farmer Profit Calculation - Only show on LATEST sale card */}
-            {isLatest && sale.cycleContext && (() => {
-                // CUMULATIVE VALUES from Backend (Context)
+            {/* INTEGRATED PROFIT ESTIMATE CARD - ONLY ON LATEST SALE OF ENDED CYCLE */}
+            {isLatest && sale.cycleContext && sale.cycleContext.isEnded && (() => {
                 const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
                 const formulaRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
                 const actualRevenue = sale.cycleContext.actualRevenue || parseFloat(sale.totalAmount);
@@ -480,12 +743,8 @@ const SaleDetailsContent = ({
                 const epi = sale.cycleContext.epi || 0;
                 const mortality = sale.cycleContext.mortality || 0;
 
-                // Calculate weighted average price for ACTUAL sales
-                const avgPrice = cycleTotalWeight > 0
-                    ? actualRevenue / cycleTotalWeight
-                    : parseFloat(sale.pricePerKg);
+                const avgPrice = cycleTotalWeight > 0 ? actualRevenue / cycleTotalWeight : parseFloat(sale.pricePerKg);
 
-                // Costs (Only calculated if cycle is ENDED)
                 const isEnded = sale.cycleContext.isEnded;
                 const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
                 const doc = sale.cycleContext.doc || sale.houseBirds || 0;
@@ -495,54 +754,57 @@ const SaleDetailsContent = ({
                 const totalDeductions = feedCost + docCost;
 
                 const formulaProfit = formulaRevenue - totalDeductions;
+                const isPositive = formulaProfit >= 0;
 
                 return (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 mt-4">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
-                            <Calculator className="h-4 w-4" /> {isEnded ? "Final Profit Estimate" : "Estimated Revenue (Running)"}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0 hover:bg-amber-200/50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowProfitModal(true);
-                                }}
-                            >
-                                <Info className="h-3.5 w-3.5 cursor-pointer text-amber-600 hover:text-amber-800" />
-                            </Button>
-                        </div>
-                        <div className="space-y-1 text-sm font-mono">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Est. Total Revenue</span>
-                                <span className="font-medium">৳{formulaRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <div className={cn(
+                        "relative overflow-hidden p-6 rounded-2xl border transition-all duration-300",
+                        isPositive
+                            ? "bg-gradient-to-br from-emerald-500/5 via-background to-emerald-500/10 border-emerald-500/20 shadow-sm"
+                            : "bg-gradient-to-br from-red-500/5 via-background to-red-500/10 border-red-500/20 shadow-sm"
+                    )}>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center gap-2 text-primary font-bold tracking-tight">
+                                    <Calculator className="h-5 w-5 text-primary/70" />
+                                    <span className="text-base uppercase tracking-wider text-muted-foreground/80 font-black">Final Profit Estimate</span>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted" onClick={() => setShowProfitModal(true)}>
+                                                    <Info className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>View deep breakdown</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <p className="text-xs text-muted-foreground max-w-md">
+                                    Based on cumulative sales of <span className="font-bold text-foreground">{cycleTotalWeight.toLocaleString()}kg</span> and
+                                    estimated costs for <span className="font-bold text-foreground">{doc} birds</span> and <span className="font-bold text-foreground">{totalFeedBags} bags</span>.
+                                </p>
                             </div>
 
-                            {isEnded ? (
-                                <>
-                                    <div className="flex justify-between text-red-600 dark:text-red-400">
-                                        <span>- DOC Cost</span>
-                                        <span>{docCost.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-red-600 dark:text-red-400">
-                                        <span>- Feed Cost</span>
-                                        <span>{feedCost.toLocaleString()}</span>
-                                    </div>
-                                    <div className="border-t border-amber-300 dark:border-amber-700 my-2"></div>
-                                    <div className="flex justify-between font-bold text-base">
-                                        <span>Net Profit</span>
-                                        <span className={formulaProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
-                                            {formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                        </span>
-                                    </div>
-
-                                </>
-                            ) : (
-                                <div className="mt-2 text-xs text-amber-600/80 italic">
-                                    * Costs will be deducted when cycle ends.
+                            <div className="flex items-center gap-8 pr-4">
+                                <div className="text-right space-y-0.5">
+                                    <div className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest">Est. Revenue</div>
+                                    <div className="text-lg font-bold">৳{formulaRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                                 </div>
-                            )}
+                                <div className="h-10 w-px bg-border/50"></div>
+                                <div className="text-right space-y-0.5">
+                                    <div className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest">Est. Profit</div>
+                                    <div className={cn("text-3xl font-black tabular-nums tracking-tighter", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600")}>
+                                        ৳{formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Background Decoration */}
+                        <div className={cn(
+                            "absolute -bottom-6 -right-6 h-32 w-32 rounded-full blur-3xl opacity-20 transition-colors",
+                            isPositive ? "bg-emerald-500" : "bg-red-500"
+                        )}></div>
 
                         <ProfitDetailsModal
                             open={showProfitModal}
@@ -567,41 +829,49 @@ const SaleDetailsContent = ({
                             epi={epi}
                             doc={doc}
                             mortality={mortality}
-                            age={sale.cycleContext.age}
+                            age={sale.cycleContext?.age || 0}
                             totalWeight={cycleTotalWeight}
                             feedBags={totalFeedBags}
                         />
                     </div>
                 );
             })()}
-        </>
+        </div>
     );
-}
+};
 
 // ----------------------------------------------------------------------
 // DESKTOP TABLE ROW
 // ----------------------------------------------------------------------
 
-const DesktopSalesTable = ({ sales }: { sales: SaleEvent[] }) => {
+export const DesktopSalesTable = ({ sales }: { sales: SaleEvent[] }) => {
     return (
         <Card className="border-none shadow-none bg-transparent">
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                            <TableHead className="w-[140px]">Date</TableHead>
+                        <TableRow className="hover:bg-transparent border-b-none">
+                            <TableHead className="w-[40px]"></TableHead>
+                            <TableHead className="w-[120px]">Date</TableHead>
                             <TableHead>Location</TableHead>
-                            <TableHead className="text-right">Sold</TableHead>
+                            <TableHead className="text-right">Age</TableHead>
+                            <TableHead className="text-right">DOC</TableHead>
+                            <TableHead className="text-right font-semibold">Sold</TableHead>
+                            <TableHead className="text-right">Mortality</TableHead>
                             <TableHead className="text-right">Weight</TableHead>
-                            <TableHead className="text-right">Avg Wt.</TableHead>
-                            <TableHead className="text-right">Price</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="w-[100px] text-right">Actions</TableHead>
+                            <TableHead className="text-right font-bold text-emerald-600">Total</TableHead>
+                            <TableHead className="text-right">Profit</TableHead>
+                            <TableHead className="text-right">FCR/EPI</TableHead>
+                            <TableHead className="w-[80px] text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {sales.map((sale, index) => (
-                            <DesktopSaleRow key={sale.id} sale={sale} isLatest={index === 0} />
+                            <DesktopSaleRow
+                                key={sale.id}
+                                sale={sale}
+                                isLatest={(sale as any).isLatestInCycle ?? (index === 0)}
+                            />
                         ))}
                     </TableBody>
                 </Table>
@@ -641,88 +911,75 @@ const DesktopSaleRow = ({ sale, isLatest }: { sale: SaleEvent, isLatest: boolean
         }
     };
 
+    const [isExpanded, setIsExpanded] = useState(false);
+
     return (
         <>
-            <TableRow className="group">
-                <TableCell className="font-medium align-top py-3">
+            <TableRow className={cn("group cursor-pointer hover:bg-muted/10 transition-colors", isExpanded && "bg-muted/5 border-b-0")} onClick={() => setIsExpanded(!isExpanded)}>
+                <TableCell className="py-3">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 text-muted-foreground/50", isExpanded && "rotate-180")} />
+                </TableCell>
+                <TableCell className="font-medium py-3">
                     <div className="flex flex-col">
-                        <span>{format(new Date(sale.saleDate), "dd MMM, yyyy")}</span>
-                        <span className="text-xs text-muted-foreground">{format(new Date(sale.saleDate), "HH:mm")}</span>
+                        <span className="text-sm">{format(new Date(sale.saleDate), "dd MMM, yyyy")}</span>
+                        <span className="text-[10px] text-muted-foreground">{format(new Date(sale.saleDate), "HH:mm")}</span>
                         {activeReport && (
-                            <Badge variant="outline" className="mt-1 w-fit text-[10px] h-4 px-1">
-                                Ver. {reports.length - reports.findIndex(r => r.id === activeReport.id)}
+                            <Badge variant="outline" className="mt-1 w-fit text-[9px] h-3.5 px-1 font-normal">
+                                v{reports.length - reports.findIndex(r => r.id === activeReport.id)}
                             </Badge>
                         )}
                     </div>
                 </TableCell>
-                <TableCell className="align-top py-3">
-                    <div className="flex flex-col gap-1">
-                        <span className="font-medium text-sm">{sale.farmerName || sale.cycleName}</span>
+                <TableCell className="py-3">
+                    <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-sm truncate max-w-[150px]">{sale.farmerName || sale.cycleName}</span>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="shrink-0 cursor-help">
+                                        {sale.cycleContext?.isEnded ? (
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                        ) : (
+                                            <CircleDashed className="h-3.5 w-3.5 text-blue-500 animate-[spin_3s_linear_infinite]" />
+                                        )}
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p className="text-[10px]">{sale.cycleContext?.isEnded ? "Cycle Ended" : "Cycle Running"}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                         {sale.location && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">
                                 {sale.location} {sale.party && `• ${sale.party}`}
                             </span>
                         )}
-                        {/* Report Selector if multiple versions */}
-                        {hasReports && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="link" className="h-auto p-0 text-[10px] text-primary self-start">
-                                        See versions <ChevronDown className="h-3 w-3 ml-0.5" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuLabel>Versions</DropdownMenuLabel>
-                                    {reports.map((report, idx) => (
-                                        <DropdownMenuItem key={report.id} onClick={() => setSelectedReportId(report.id)}>
-                                            <div className="flex justify-between w-full items-center gap-2">
-                                                <span>Version {reports.length - idx}</span>
-                                                {selectedReportId === report.id && <Check className="h-3 w-3" />}
-                                            </div>
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
                     </div>
                 </TableCell>
-                <TableCell className="text-right align-top py-3">{displayBirdsSold}</TableCell>
-                <TableCell className="text-right align-top py-3">{displayTotalWeight} kg</TableCell>
-                <TableCell className="text-right align-top py-3">{displayAvgWeight} kg</TableCell>
-                <TableCell className="text-right align-top py-3">৳{displayPricePerKg}</TableCell>
-                <TableCell className="text-right align-top py-3 font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</TableCell>
-                <TableCell className="text-right align-top py-3">
+                <TableCell className="text-right py-3 tabular-nums font-medium">{sale.cycleContext?.age || "N/A"}d</TableCell>
+                <TableCell className="text-right py-3 tabular-nums text-muted-foreground">{sale.cycleContext?.doc?.toLocaleString() || sale.houseBirds?.toLocaleString()}</TableCell>
+                <TableCell className="text-right py-3 tabular-nums font-bold text-foreground">{displayBirdsSold.toLocaleString()}</TableCell>
+                <TableCell className="text-right py-3 tabular-nums text-red-500/80 font-medium">{displayMortality}</TableCell>
+                <TableCell className="text-right py-3 tabular-nums">{parseFloat(displayTotalWeight).toLocaleString()} kg</TableCell>
+                <TableCell className="text-right py-3 tabular-nums font-bold text-emerald-600">৳{parseFloat(displayTotalAmount).toLocaleString()}</TableCell>
+                <TableCell className="text-right py-3 tabular-nums font-bold text-emerald-600">
+                    {isLatest && sale.cycleContext?.isEnded ? (
+                        (() => {
+                            const formulaRevenue = sale.cycleContext.revenue || parseFloat(displayTotalAmount);
+                            const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
+                            const doc = sale.cycleContext.doc || sale.houseBirds || 0;
+                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
+                            const docCost = doc * DOC_PRICE_PER_BIRD;
+                            const profit = formulaRevenue - (feedCost + docCost);
+                            return `৳${profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                        })()
+                    ) : "-"}
+                </TableCell>
+                <TableCell className="text-right py-3 tabular-nums font-medium text-blue-600 dark:text-blue-400">
+                    {isLatest && sale.cycleContext?.isEnded ? `${sale.cycleContext.fcr} / ${sale.cycleContext.epi}` : "-"}
+                </TableCell>
+                <TableCell className="text-right py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
-                                <DialogHeader className="p-6 pb-2">
-                                    <DialogTitle>Sale Details</DialogTitle>
-                                    <DialogDescription>{format(new Date(sale.saleDate), "PPPP p")}</DialogDescription>
-                                </DialogHeader>
-                                <ScrollArea className="flex-1 p-6 pt-2">
-                                    <SaleDetailsContent
-                                        sale={sale}
-                                        isLatest={isLatest}
-                                        displayBirdsSold={displayBirdsSold}
-                                        displayTotalWeight={displayTotalWeight}
-                                        displayAvgWeight={displayAvgWeight}
-                                        displayPricePerKg={displayPricePerKg}
-                                        displayTotalAmount={displayTotalAmount}
-                                        displayMortality={displayMortality}
-                                        setShowFcrEpiModal={setShowFcrEpiModal}
-                                        setShowProfitModal={setShowProfitModal}
-                                        showFcrEpiModal={showFcrEpiModal}
-                                        showProfitModal={showProfitModal}
-                                    />
-                                </ScrollArea>
-                            </DialogContent>
-                        </Dialog>
-
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
@@ -733,16 +990,60 @@ const DesktopSaleRow = ({ sale, isLatest }: { sale: SaleEvent, isLatest: boolean
                                 <DropdownMenuItem onClick={handleCopy}>
                                     <ClipboardCopy className="h-4 w-4 mr-2" /> Copy Report
                                 </DropdownMenuItem>
+                                {hasReports && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground/50 px-2 py-1">Versions</DropdownMenuLabel>
+                                        {reports.map((report, idx) => (
+                                            <DropdownMenuItem key={report.id} onClick={() => setSelectedReportId(report.id)}>
+                                                <div className="flex justify-between w-full items-center gap-2">
+                                                    <span>Version {reports.length - idx}</span>
+                                                    {selectedReportId === report.id && <Check className="h-3 w-3" />}
+                                                </div>
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </>
+                                )}
                                 {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
-                                    <DropdownMenuItem onClick={() => setIsAdjustOpen(true)}>
-                                        <Pencil className="h-4 w-4 mr-2" /> Adjust Sale
-                                    </DropdownMenuItem>
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setIsAdjustOpen(true)}>
+                                            <Pencil className="h-4 w-4 mr-2" /> Adjust Sale
+                                        </DropdownMenuItem>
+                                    </>
                                 )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
                 </TableCell>
             </TableRow>
+
+            {/* Expanded Row Content */}
+            {isExpanded && (
+                <TableRow className="bg-muted/5 border-b hover:bg-transparent">
+                    <TableCell colSpan={12} className="p-0">
+                        <div className="px-6 lg:px-14 py-6 border-l-2 border-primary/20 bg-gradient-to-r from-background to-transparent animate-in slide-in-from-top-2 duration-200">
+                            <div className="w-full">
+                                <SaleDetailsContent
+                                    sale={sale}
+                                    isLatest={isLatest}
+                                    displayBirdsSold={displayBirdsSold}
+                                    displayTotalWeight={displayTotalWeight}
+                                    displayAvgWeight={displayAvgWeight}
+                                    displayPricePerKg={displayPricePerKg}
+                                    displayTotalAmount={displayTotalAmount}
+                                    displayMortality={displayMortality}
+                                    setShowFcrEpiModal={setShowFcrEpiModal}
+                                    setShowProfitModal={setShowProfitModal}
+                                    showFcrEpiModal={showFcrEpiModal}
+                                    showProfitModal={showProfitModal}
+                                    isMobileView={false}
+                                />
+                            </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            )}
             <AdjustSaleModal
                 isOpen={isAdjustOpen}
                 onClose={() => setIsAdjustOpen(false)}
@@ -758,29 +1059,70 @@ interface SalesHistoryCardProps {
     historyId?: string | null;
     farmerId?: string | null;
     isMobile?: boolean;
+    recent?: boolean;
+    limit?: number;
+    search?: string;
+    showLoadMore?: boolean;
+    onLoadMore?: () => void;
 }
 
-export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: SalesHistoryCardProps) => {
+export const SalesHistoryCard = ({
+    cycleId,
+    historyId,
+    farmerId,
+    isMobile,
+    recent = false,
+    limit = 20,
+    search = "",
+    showLoadMore = false,
+    onLoadMore
+}: SalesHistoryCardProps) => {
     const trpc = useTRPC();
     const { isPro } = useCurrentOrg();
 
-    const { data: salesEvents, isLoading } = useQuery(
-        trpc.officer.sales.getSaleEvents.queryOptions({
-            cycleId: cycleId || undefined,
-            historyId: historyId || undefined,
-            farmerId: farmerId || undefined
-        })
+    // Use getRecentSales for global feed, or getSaleEvents for specific context
+    const recentQuery = useQuery(
+        trpc.officer.sales.getRecentSales.queryOptions(
+            { limit, search },
+            { enabled: isPro && recent }
+        )
     );
 
-    const groupedSales = useMemo(() => {
-        if (!salesEvents) return [];
+    const eventsQuery = useQuery(
+        trpc.officer.sales.getSaleEvents.queryOptions(
+            {
+                cycleId: cycleId || undefined,
+                historyId: historyId || undefined,
+                farmerId: farmerId || undefined
+            },
+            { enabled: isPro && !recent }
+        )
+    );
 
-        // If not grouping by farmer, just return single group or handled separately
+    const salesEvents = recent ? recentQuery.data : eventsQuery.data;
+    const isLoading = recent ? recentQuery.isLoading : eventsQuery.isLoading;
+
+    const groupedSales = useMemo(() => {
+        const rawEvents = (salesEvents || []) as any[];
+        if (rawEvents.length === 0) return [];
+
+        // Map to SaleEvent interface (dates are strings from TRPC)
+        const events: SaleEvent[] = rawEvents.map(e => ({
+            ...e,
+            saleDate: new Date(e.saleDate),
+            createdAt: new Date(e.createdAt),
+            reports: (e.reports || []).map((r: any) => ({
+                ...r,
+                createdAt: new Date(r.createdAt)
+            }))
+        }));
+
+        // If not grouping by farmer, just return null (handled by direct renderSalesFeed call below)
         if (!farmerId) return null;
 
         const groups: Record<string, {
             name: string,
-            sales: typeof salesEvents,
+            sales: SaleEvent[],
             isEnded: boolean,
             doc: number,
             mortality: number,
@@ -788,7 +1130,7 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
             totalSold: number,
         }> = {};
 
-        salesEvents.forEach(sale => {
+        events.forEach(sale => {
             // Group by cycle/history ID primarily, name as fallback
             const key = sale.cycleId || sale.historyId || "unknown";
 
@@ -804,8 +1146,9 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                     totalSold: 0,
                 };
             }
-            groups[key].sales.push(sale);
-            groups[key].totalSold += (sale.birdsSold || 0);
+            const group = groups[key]!;
+            group.sales.push(sale);
+            group.totalSold += (sale.birdsSold || 0);
         });
 
         // Convert to array and sort by latest sale date
@@ -870,9 +1213,75 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
         );
     }
 
+    const renderSalesFeed = (events: SaleEvent[]) => {
+        return (
+            <TooltipProvider>
+                <div className="space-y-6">
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-4">
+                        {events.map((sale, index) => {
+                            const cycleKey = sale.cycleId || sale.historyId;
+                            const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId) === cycleKey);
+                            const isLatestInCycle = index === firstOccurrenceIdx;
+
+                            return (
+                                <div key={sale.id} className="relative p-0 border-b pb-4 last:border-0">
+                                    <SaleEventCard
+                                        sale={{
+                                            ...sale,
+                                            saleDate: new Date(sale.saleDate),
+                                            createdAt: new Date(sale.createdAt),
+                                            reports: (sale.reports || []).map((r: any) => ({
+                                                ...r,
+                                                createdAt: new Date(r.createdAt)
+                                            }))
+                                        }}
+                                        isLatest={isLatestInCycle}
+                                        indexInGroup={index}
+                                        totalInGroup={events.length}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Desktop View */}
+                    <div className="hidden md:block bg-background rounded-xl border shadow-sm overflow-hidden">
+                        <DesktopSalesTable
+                            sales={events.map((sale, index) => {
+                                const cycleKey = sale.cycleId || sale.historyId;
+                                const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId) === cycleKey);
+                                const isLatestInCycle = index === firstOccurrenceIdx;
+
+                                return {
+                                    ...sale,
+                                    saleDate: new Date(sale.saleDate),
+                                    createdAt: new Date(sale.createdAt),
+                                    reports: (sale.reports || []).map((r: any) => ({
+                                        ...r,
+                                        createdAt: new Date(r.createdAt)
+                                    })),
+                                    isLatestInCycle
+                                };
+                            })}
+                        />
+                    </div>
+
+                    {showLoadMore && onLoadMore && events.length >= limit && !search && (
+                        <div className="flex justify-center pt-4 pb-8">
+                            <Button variant="outline" onClick={onLoadMore}>
+                                Load More
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </TooltipProvider>
+        );
+    };
+
     return (
         <div className={isMobile ? "space-y-3" : "space-y-4"}>
-            {!isMobile && (
+            {!isMobile && !recent && (
                 <CardHeader className="px-0 pt-0 pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg text-foreground">
                         <ShoppingCart className="h-5 w-5 text-muted-foreground" /> Sales History
@@ -891,64 +1300,50 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                         {groupedSales.map((group) => (
                             <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
                                 <AccordionTrigger className="hover:no-underline py-3 px-0">
-                                    <div className="grid grid-cols-13 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
-                                        <div className="col-span-2 sm:col-span-1">
-                                            <Badge variant={group.isEnded ? "secondary" : "default"} className="text-[8px] xs:text-[9px] h-4 px-1 xs:px-1.5 uppercase font-bold tracking-tight shrink-0 w-fit">
-                                                {group.isEnded ? "Ended" : "Running"}
-                                            </Badge>
+                                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
+                                        <div className="col-span-1">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="shrink-0 w-fit">
+                                                            {group.isEnded ? (
+                                                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                                            ) : (
+                                                                <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
+                                                            )}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p className="text-[10px]">{group.isEnded ? "Cycle Ended" : "Cycle Running"}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
                                         <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
                                             {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
                                         </div>
-                                        <div className="col-span-2 sm:col-span-2 flex items-center gap-0.5 sm:gap-1 pl-1">
+                                        <div className="col-span-2 sm:col-span-3 flex items-center gap-0.5 sm:gap-1 pl-1">
                                             <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">Age:</span>
                                             <span className="font-bold">{group.age}d</span>
                                         </div>
-                                        <div className="col-span-3 sm:col-span-3 flex items-center gap-0.5 sm:gap-1">
+                                        <div className="col-span-3 flex items-center gap-0.5 sm:gap-1">
                                             <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
                                             <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
                                         </div>
-                                        <div className="col-span-3 sm:col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
+                                        <div className="col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
                                             <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">{group.totalSold.toLocaleString()}</span>
                                         </div>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4 space-y-4 px-0">
-                                    {/* Mobile View */}
-                                    <div className="md:hidden space-y-3">
-                                        {group.sales.map((sale, index) => (
-                                            <SaleEventCard
-                                                key={sale.id}
-                                                sale={sale}
-                                                isLatest={index === 0}
-                                                indexInGroup={index}
-                                                totalInGroup={group.sales.length}
-                                                hideName={true}
-                                            />
-                                        ))}
-                                    </div>
-                                    {/* Desktop View */}
-                                    <div className="hidden md:block">
-                                        <DesktopSalesTable sales={group.sales} />
-                                    </div>
+                                    {renderSalesFeed(group.sales)}
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
                     </Accordion>
                 ) : (
-                    <>
-                        {/* Mobile View */}
-                        <div className="md:hidden space-y-3">
-                            {salesEvents.map((sale, index) => (
-                                <SaleEventCard key={sale.id} sale={sale} isLatest={index === 0} />
-                            ))}
-                        </div>
-                        {/* Desktop View */}
-                        <div className="hidden md:block">
-                            <DesktopSalesTable sales={salesEvents} />
-                        </div>
-                    </>
+                    renderSalesFeed(salesEvents)
                 )}
             </div>
         </div>

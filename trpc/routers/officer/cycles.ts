@@ -146,7 +146,7 @@ export const officerCyclesRouter = createTRPCRouter({
             farmerId: z.string(),
             orgId: z.string(),
             doc: z.number().int().positive().max(200000, "Maximum 200,000 birds allowed per cycle"),
-            age: z.number().int().min(0).max(30, "Maximum age is 30 days for new cycles").default(0),
+            age: z.number().int().min(0).max(40, "Maximum age is 40 days for new cycles").default(0),
         }))
         .mutation(async ({ input, ctx }) => {
             const farmerData = await ctx.db.query.farmer.findFirst({

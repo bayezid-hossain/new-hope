@@ -17,19 +17,19 @@ export const farmerInsertSchema = z.object({
   name: z.string()
     .min(1, "Name is required")
     .regex(alphanumericRegex, "Only English letters and numbers are allowed"),
-    
+
   doc: z.number()
     .min(1, "Doc is required")
-    ,
-    
+  ,
+
   inputFeed: z.number().min(0, "Input feed must be a positive number"),
-  age: z.number().min(1, "Age must be at least 1").max(34, "Age cannot exceed 34"),
+  age: z.number().min(1, "Age must be at least 1").max(40, "Age cannot exceed 40"),
 });
 
 export const farmerSearchSchema = z.object({
   page: z.number().default(1),
   pageSize: z.number().default(10),
-  
+
   search: z.string()
     .optional()
     // We modify the refine/regex check to allow undefined (empty search)
@@ -37,8 +37,8 @@ export const farmerSearchSchema = z.object({
     .refine((val) => !val || alphanumericRegex.test(val), {
       message: "Search can only contain English letters and numbers",
     }),
-    
+
   status: z.enum(["active", "history"]).default("active"),
-  sortBy: z.string().optional(), 
+  sortBy: z.string().optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });
