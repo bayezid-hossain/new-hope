@@ -891,13 +891,13 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                         {groupedSales.map((group) => (
                             <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
                                 <AccordionTrigger className="hover:no-underline py-3 px-0">
-                                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
+                                    <div className="grid grid-cols-13 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
                                         <div className="col-span-2 sm:col-span-1">
                                             <Badge variant={group.isEnded ? "secondary" : "default"} className="text-[8px] xs:text-[9px] h-4 px-1 xs:px-1.5 uppercase font-bold tracking-tight shrink-0 w-fit">
                                                 {group.isEnded ? "Ended" : "Running"}
                                             </Badge>
                                         </div>
-                                        <div className="col-span-2 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
+                                        <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
                                             {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
                                         </div>
                                         <div className="col-span-2 sm:col-span-2 flex items-center gap-0.5 sm:gap-1 pl-1">
@@ -908,7 +908,7 @@ export const SalesHistoryCard = ({ cycleId, historyId, farmerId, isMobile }: Sal
                                             <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
                                             <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
                                         </div>
-                                        <div className="col-span-3 sm:col-span-4 flex items-center justify-end gap-0.5 sm:gap-1">
+                                        <div className="col-span-3 sm:col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
                                             <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">{group.totalSold.toLocaleString()}</span>
                                         </div>
