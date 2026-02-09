@@ -35,6 +35,7 @@ import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-far
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
@@ -65,7 +66,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => {
@@ -197,6 +198,24 @@ export default function ManagementFarmerDetailsPage() {
         enabled: !!orgId
     });
 
+    const [isSticky, setIsSticky] = useState(false);
+    const sentinelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsSticky(!entry.isIntersecting);
+            },
+            { threshold: [0], rootMargin: "-40px 0px 0px 0px" }
+        );
+
+        if (sentinelRef.current) {
+            observer.observe(sentinelRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
     if (isMembershipPending || isHubLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
     if (!hubData) return <div className="p-8 text-center text-muted-foreground">Farmer not found or access denied.</div>;
 
@@ -204,76 +223,113 @@ export default function ManagementFarmerDetailsPage() {
 
     return (
         <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-card border border-border/50">
-                        <ChevronLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex flex-col gap-1">
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{farmerData.name}</h1>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                            <span>Officer:</span>
-                            <Link
-                                href={`/management/officers/${farmerData.officerId}`}
-                                className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline underline-offset-4 transition-all"
-                            >
-                                <User className="h-3.5 w-3.5" />
-                                {farmerData.officerName}
-                            </Link>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
-                            {farmerData.status === "deleted" ? (
-                                <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
-                            ) : activeCycles.items && activeCycles.items.length > 0 ? (
-                                <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
-                            ) : (
-                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+            <div ref={sentinelRef} className="h-4 w-full -mt-6 pointer-events-none" />
+
+            <div className={cn(
+                "flex flex-col transition-all duration-300 ease-in-out will-change-[padding,margin,background-color]",
+                isSticky
+                    ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-3 -mx-4 px-4 border-b border-border/50 shadow-sm"
+                    : "relative py-0 mb-4"
+            )}>
+                <div className="flex flex-col gap-1 w-full">
+                    <div className="flex items-center gap-3 w-full justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {!isSticky && (
+                                <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-card border border-border/50 shrink-0">
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
                             )}
+                            <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                <h1 className={cn(
+                                    "font-bold tracking-tight text-foreground transition-all duration-300 ease-in-out truncate",
+                                    isSticky ? "text-lg md:text-xl" : "text-2xl md:text-3xl"
+                                )}>
+                                    {farmerData.name}
+                                </h1>
+                                {!isSticky && (
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                                            <span>Officer:</span>
+                                            <Link
+                                                href={`/management/officers/${farmerData.officerId}`}
+                                                className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline underline-offset-4 transition-all"
+                                            >
+                                                <User className="h-3.5 w-3.5" />
+                                                {farmerData.officerName}
+                                            </Link>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
+                                            {farmerData.status === "deleted" ? (
+                                                <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
+                                            ) : activeCycles.items && activeCycles.items.length > 0 ? (
+                                                <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size={isSticky ? "icon" : "default"}
+                                        className={cn(
+                                            "gap-2 shadow-sm font-bold transition-all duration-300 ease-in-out bg-muted/50 hover:bg-muted border-border/40",
+                                            isSticky ? "rounded-full h-8 w-8" : "px-4"
+                                        )}
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                        {!isSticky && <span>Actions</span>}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-[200px]">
+                                    <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {farmerData.status === "deleted" ? (
+                                        <DropdownMenuItem
+                                            onClick={() => setShowRestoreModal(true)}
+                                            className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
+                                        >
+                                            <RotateCcw className="h-4 w-4" />
+                                            Restore Profile
+                                        </DropdownMenuItem>
+                                    ) : (
+                                        <>
+                                            <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
+                                                <Wheat className="h-4 w-4 text-amber-500" />
+                                                Restock
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
+                                                <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                                                Transfer Stock
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => setShowArchiveDialog(true)}
+                                                className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Delete Profile
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-2 order-first md:order-last">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button className="gap-2 shadow-sm font-bold">
-                                <MoreVertical className="h-4 w-4" />
-                                Actions
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[200px]">
-                            <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {farmerData.status === "deleted" ? (
-                                <DropdownMenuItem
-                                    onClick={() => setShowRestoreModal(true)}
-                                    className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
-                                >
-                                    <RotateCcw className="h-4 w-4" />
-                                    Restore Profile
-                                </DropdownMenuItem>
-                            ) : (
-                                <>
-                                    <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
-                                        <Wheat className="h-4 w-4 text-amber-500" />
-                                        Restock
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
-                                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                                        Transfer Stock
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => setShowArchiveDialog(true)}
-                                        className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete Profile
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+
+                    <div className={cn(
+                        "text-sm text-muted-foreground italic transition-all duration-300 ease-in-out overflow-hidden will-change-[max-height,opacity]",
+                        isSticky ? "max-h-0 opacity-0" : "max-h-12 opacity-100"
+                    )}>
+                        Farmer History & Details • Production & Stock Management
+                    </div>
                 </div>
             </div>
 

@@ -223,7 +223,9 @@ export default function FarmerDetails() {
       ([entry]) => {
         setIsSticky(!entry.isIntersecting);
       },
-      { threshold: [0], rootMargin: "-1px 0px 0px 0px" }
+      // rootMargin: -40px triggers when sentinel (at y=0 relative to page) hits viewport y=40.
+      // Since header is at y=24, it hits viewport y=64 (navbar bottom) at that exact moment.
+      { threshold: [0], rootMargin: "-64px 0px 0px 0px" }
     );
 
     if (sentinelRef.current) {
@@ -235,18 +237,18 @@ export default function FarmerDetails() {
 
   return (
     <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
-      <div ref={sentinelRef} className="h-px w-full absolute top-0 left-0 pointer-events-none" />
+      <div ref={sentinelRef} className="h-4 w-full -mt-6 pointer-events-none" />
 
       <div className={cn(
-        "flex flex-col transition-all duration-200 ease-in-out will-change-[transform,opacity,padding,margin]",
+        "flex flex-col transition-all duration-300 ease-in-out will-change-[padding,margin,background-color]",
         isSticky
-          ? "sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-3 -mx-4 px-4 border-b border-border/50 shadow-sm"
+          ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-3 -mx-4 px-4 border-b border-border/50 shadow-sm"
           : "relative py-0 mb-4"
       )}>
         <div className="flex flex-col gap-1 w-full">
           <div className="flex items-center gap-3 w-full justify-between">
             <h1 className={cn(
-              "font-bold tracking-tight text-foreground transition-all duration-200 ease-in-out truncate",
+              "font-bold tracking-tight text-foreground transition-all duration-300 ease-in-out truncate",
               isSticky ? "text-lg md:text-xl" : "text-xl md:text-2xl"
             )}>
               {farmerQuery.isLoading ? <Skeleton className="h-6 w-32 inline-block" /> : (farmerQuery.data?.name || "N/A")}
@@ -256,10 +258,10 @@ export default function FarmerDetails() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant={isSticky ? "ghost" : "default"}
+                    variant="outline"
                     size={isSticky ? "icon" : "default"}
                     className={cn(
-                      "gap-2 shadow-sm font-bold transition-all duration-200 ease-in-out",
+                      "gap-2 shadow-sm font-bold transition-all duration-300 ease-in-out bg-muted/50 hover:bg-muted border-border/40",
                       isSticky ? "rounded-full h-8 w-8" : "px-4"
                     )}
                   >
@@ -299,8 +301,8 @@ export default function FarmerDetails() {
           </div>
 
           <div className={cn(
-            "text-sm text-muted-foreground italic transition-all duration-200 ease-in-out overflow-hidden h-auto opacity-100 will-change-[height,opacity]",
-            isSticky && "h-0 opacity-0"
+            "text-sm text-muted-foreground italic transition-all duration-300 ease-in-out overflow-hidden will-change-[max-height,opacity]",
+            isSticky ? "max-h-0 opacity-0" : "max-h-12 opacity-100"
           )}>
             Farmer History & Details • Production & Stock Management
           </div>
@@ -438,7 +440,7 @@ export default function FarmerDetails() {
       <div className="w-full min-w-0">
         {/* Desktop View: Tabs */}
         <div className="hidden sm:block">
-          <Tabs defaultValue="sales" className="w-full space-y-6">
+          <Tabs defaultValue="active" className="w-full space-y-6">
             <TabsList className="inline-flex w-auto bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto">
               <TabsTrigger value="active" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                 <Activity className="h-4 w-4" />
@@ -480,7 +482,7 @@ export default function FarmerDetails() {
 
         {/* Mobile View: Accordion */}
         <div className="block sm:hidden">
-          <Accordion type="single" collapsible defaultValue="sales" className="space-y-4">
+          <Accordion type="single" collapsible defaultValue="active" className="space-y-4">
             <AccordionItem value="active" className="border-none rounded-none bg-transparent shadow-none overflow-hidden py-0">
               <AccordionTrigger className="hover:no-underline py-4 text-foreground px-0">
                 <div className="flex items-center gap-2">
