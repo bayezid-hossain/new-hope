@@ -35,6 +35,7 @@ import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-far
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
@@ -216,10 +217,10 @@ export default function ManagementFarmerDetailsPage() {
         return () => observer.disconnect();
     }, []);
 
-    if (isMembershipPending || isHubLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!hubData) return <div className="p-8 text-center text-muted-foreground">Farmer not found or access denied.</div>;
-
-    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
+    const farmerData = hubData?.farmer;
+    const activeCycles = hubData?.activeCycles || { items: [] };
+    const history = hubData?.history || { items: [] };
+    const stockLogs = hubData?.stockLogs || [];
 
     return (
         <div className="w-full space-y-6 p-4 md:p-8 pt-2 max-w-7xl mx-auto bg-background min-h-screen">
@@ -228,7 +229,7 @@ export default function ManagementFarmerDetailsPage() {
             <div className={cn(
                 "flex flex-col transition-[padding,background-color,border-color,box-shadow,margin] duration-200 ease-in-out will-change-[padding,background-color,box-shadow]",
                 isSticky
-                    ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
+                    ? "sticky top-16 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
                     : "relative py-0 mb-4"
             )}>
                 <div className="flex flex-col gap-1 w-full">
@@ -244,9 +245,14 @@ export default function ManagementFarmerDetailsPage() {
                                     "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
                                     isSticky ? "text-xl md:text-2xl" : "text-2xl md:text-3xl"
                                 )}>
-                                    {farmerData.name}
+                                    {isHubLoading ? <Skeleton className="h-8 w-48" /> : (farmerData?.name || "N/A")}
                                 </h1>
-                                {!isSticky && (
+                                {isHubLoading ? (
+                                    <div className="space-y-2 mt-1">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-4 w-24" />
+                                    </div>
+                                ) : farmerData && (
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
                                             <span>Officer:</span>
@@ -285,13 +291,12 @@ export default function ManagementFarmerDetailsPage() {
                                         )}
                                     >
                                         <MoreVertical className="h-4 w-4" />
-                                        {!isSticky && <span>Actions</span>}
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-[200px]">
                                     <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    {farmerData.status === "deleted" ? (
+                                    {farmerData?.status === "deleted" ? (
                                         <DropdownMenuItem
                                             onClick={() => setShowRestoreModal(true)}
                                             className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
@@ -348,7 +353,7 @@ export default function ManagementFarmerDetailsPage() {
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-3xl font-bold text-foreground">
                                             <span className="text-lg text-muted-foreground font-normal mr-1">TK.</span>
-                                            {parseFloat(farmerData.securityMoney || "0").toLocaleString()}
+                                            {isHubLoading ? <Skeleton className="h-8 w-24 inline-block align-middle" /> : parseFloat(farmerData?.securityMoney || "0").toLocaleString()}
                                         </span>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">Refundable upon account closure</p>
@@ -382,72 +387,86 @@ export default function ManagementFarmerDetailsPage() {
                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock Overview</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {(() => {
-                                const activeCyclesList = (activeCycles?.items || []) as any[];
-                                const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                const activeBirds = activeCyclesList.reduce((acc: number, c: any) => acc + ((c.doc || 0) - (c.mortality || 0)), 0);
-                                const remaining = farmerData.mainStock - activeConsumption;
-                                const isLow = remaining < 3;
+                            {isHubLoading ? (
+                                <div className="space-y-4">
+                                    <Skeleton className="h-10 w-32" />
+                                    <Skeleton className="h-4 w-full rounded-full" />
+                                    <div className="space-y-2 pt-2 border-t border-border">
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-full" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {(() => {
+                                        const activeCyclesList = (activeCycles?.items || []) as any[];
+                                        const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                        const activeBirds = activeCyclesList.reduce((acc: number, c: any) => acc + ((c.doc || 0) - (c.mortality || 0)), 0);
+                                        const remaining = (farmerData?.mainStock || 0) - activeConsumption;
+                                        const isLow = remaining < 3;
 
-                                if (farmerData.status === "deleted") {
-                                    return (
-                                        <div className="space-y-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-muted-foreground">
-                                                        --
-                                                    </span>
-                                                    <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                        if (farmerData?.status === "deleted") {
+                                            return (
+                                                <div className="space-y-4">
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="text-4xl font-black text-muted-foreground">
+                                                                --
+                                                            </span>
+                                                            <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground font-medium">Profile archived - no active cycles permitted.</p>
+                                                    </div>
+                                                    <div className="pt-4 border-t border-border">
+                                                        <div className="flex justify-between items-center text-xs">
+                                                            <span className="text-muted-foreground font-medium uppercase tracking-tighter">Archived Balance</span>
+                                                            <span className="font-bold text-muted-foreground">{(farmerData?.mainStock || 0).toFixed(2)} b</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground font-medium">Profile archived - no active cycles permitted.</p>
-                                            </div>
-                                            <div className="pt-4 border-t border-border">
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-muted-foreground font-medium uppercase tracking-tighter">Archived Balance</span>
-                                                    <span className="font-bold text-muted-foreground">{farmerData.mainStock.toFixed(2)} b</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                }
+                                            );
+                                        }
 
-                                return (
-                                    <>
-                                        <div className="space-y-1">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`text-4xl font-bold ${isLow ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>
-                                                    {remaining.toFixed(2)}
-                                                </span>
-                                                <span className="text-muted-foreground font-medium text-sm">bags left</span>
-                                            </div>
-                                            {isLow && (
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold uppercase tracking-wide">
-                                                    Urgent Restock Needed
+                                        return (
+                                            <>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className={`text-4xl font-black tracking-tighter transition-colors ${isLow ? 'text-red-500' : 'text-foreground'}`}>
+                                                            {remaining.toFixed(2)}
+                                                        </span>
+                                                        <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                                    </div>
+                                                    {isLow && (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold uppercase tracking-wide">
+                                                            Urgent Restock Needed
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
 
-                                        <div className="space-y-3 pt-2 border-t border-border">
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Total Active Birds</span>
-                                                <span className="font-semibold text-foreground">{activeBirds.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Active Consumption</span>
-                                                <span className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
-                                                <span className="font-semibold text-foreground">{farmerData.mainStock.toFixed(2)}</span>
-                                            </div>
-                                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
-                                                <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
-                                                <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${Math.min((activeConsumption / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
+                                                <div className="space-y-3 pt-2 border-t border-border">
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Total Active Birds</span>
+                                                        <span className="font-semibold text-foreground">{activeBirds.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Active Consumption</span>
+                                                        <span className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
+                                                        <span className="font-semibold text-foreground">{(farmerData?.mainStock || 0).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
+                                                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / ((farmerData?.mainStock || 0) || 1)) * 100, 100)}%` }} />
+                                                        <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${Math.min((activeConsumption / ((farmerData?.mainStock || 0) || 1)) * 100, 100)}%` }} />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -488,7 +507,7 @@ export default function ManagementFarmerDetailsPage() {
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
-                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
+                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData?.mainStock || 0} />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -540,7 +559,7 @@ export default function ManagementFarmerDetailsPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
+                                    <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData?.mainStock || 0} />
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
@@ -550,8 +569,8 @@ export default function ManagementFarmerDetailsPage() {
 
             <TransferStockModal
                 sourceFarmerId={farmerId}
-                sourceFarmerName={farmerData.name}
-                currentStock={farmerData.mainStock}
+                sourceFarmerName={farmerData?.name || "N/A"}
+                currentStock={farmerData?.mainStock || 0}
                 open={showTransferModal}
                 onOpenChange={setShowTransferModal}
             />
@@ -568,16 +587,16 @@ export default function ManagementFarmerDetailsPage() {
                 />
             </ResponsiveDialog>
             <FarmerNavigation
-                orgId={farmerData.organizationId}
+                orgId={farmerData?.organizationId || ""}
                 currentFarmerId={farmerId}
-                currentOfficerId={farmerData.officerId}
+                currentOfficerId={farmerData?.officerId || ""}
                 prefix="/management"
             />
 
             <ArchiveFarmerDialog
                 open={showArchiveDialog}
                 onOpenChange={setShowArchiveDialog}
-                farmerName={farmerData.name}
+                farmerName={farmerData?.name || "N/A"}
                 isPending={deleteMutation.isPending}
                 onConfirm={() => deleteMutation.mutate({ orgId: orgId as string, farmerId: farmerId })}
             />
@@ -586,30 +605,32 @@ export default function ManagementFarmerDetailsPage() {
                 open={showRestoreModal}
                 onOpenChange={setShowRestoreModal}
                 farmerId={farmerId}
-                archivedName={farmerData.name}
+                archivedName={farmerData?.name || "N/A"}
                 orgId={orgId as string}
             />
-            {orgId && (
-                <>
-                    <EditSecurityMoneyModal
-                        farmerId={farmerId}
-                        currentAmount={parseFloat(farmerData.securityMoney || "0")}
-                        open={showEditSecurityMoneyModal}
-                        onOpenChange={setShowEditSecurityMoneyModal}
-                        variant="management"
-                        orgId={orgId}
-                    />
-                    <SecurityMoneyHistoryModal
-                        farmerId={farmerId}
-                        farmerName={farmerData.name}
-                        open={showSecurityHistoryModal}
-                        onOpenChange={setShowSecurityHistoryModal}
-                        variant="management"
-                        orgId={orgId}
-                    />
-                </>
-            )}
-        </div>
+            {
+                orgId && (
+                    <>
+                        <EditSecurityMoneyModal
+                            farmerId={farmerId}
+                            currentAmount={parseFloat(farmerData?.securityMoney || "0")}
+                            open={showEditSecurityMoneyModal}
+                            onOpenChange={setShowEditSecurityMoneyModal}
+                            variant="management"
+                            orgId={orgId}
+                        />
+                        <SecurityMoneyHistoryModal
+                            farmerId={farmerId}
+                            farmerName={farmerData?.name || "N/A"}
+                            open={showSecurityHistoryModal}
+                            onOpenChange={setShowSecurityHistoryModal}
+                            variant="management"
+                            orgId={orgId}
+                        />
+                    </>
+                )
+            }
+        </div >
     );
 }
 

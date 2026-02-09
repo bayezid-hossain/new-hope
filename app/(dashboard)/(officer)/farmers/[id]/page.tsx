@@ -242,7 +242,7 @@ export default function FarmerDetails() {
       <div className={cn(
         "flex flex-col transition-[padding,background-color,border-color,box-shadow,margin] duration-200 ease-in-out will-change-[padding,background-color,box-shadow]",
         isSticky
-          ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
+          ? "sticky top-16 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
           : "relative py-0 mb-4"
       )}>
         <div className="flex flex-col gap-1 w-full">

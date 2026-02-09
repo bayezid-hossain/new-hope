@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     TableBody,
     TableCell,
@@ -165,10 +166,10 @@ export default function AdminFarmerDetailsPage() {
         return () => observer.disconnect();
     }, []);
 
-    if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!hubData) return <div className="p-8 text-center text-muted-foreground">Farmer not found or access denied.</div>;
-
-    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
+    const farmerData = hubData?.farmer;
+    const activeCycles = hubData?.activeCycles || { items: [] };
+    const history = hubData?.history || { items: [] };
+    const stockLogs = hubData?.stockLogs || [];
 
     return (
         <AdminGuard>
@@ -178,7 +179,7 @@ export default function AdminFarmerDetailsPage() {
                 <div className={cn(
                     "flex flex-col transition-[padding,background-color,border-color,box-shadow,margin] duration-200 ease-in-out will-change-[padding,background-color,box-shadow]",
                     isSticky
-                        ? "sticky top-16 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
+                        ? "sticky top-16 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
                         : "relative py-0 mb-4"
                 )}>
                     <div className="flex flex-col gap-1 w-full">
@@ -194,9 +195,14 @@ export default function AdminFarmerDetailsPage() {
                                         "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
                                         isSticky ? "text-xl md:text-2xl" : "text-2xl md:text-3xl"
                                     )}>
-                                        {farmerData.name}
+                                        {isLoading ? <Skeleton className="h-8 w-48" /> : (farmerData?.name || "N/A")}
                                     </h1>
-                                    {!isSticky && (
+                                    {isLoading ? (
+                                        <div className="space-y-2 mt-1">
+                                            <Skeleton className="h-4 w-32" />
+                                            <Skeleton className="h-4 w-24" />
+                                        </div>
+                                    ) : farmerData && (
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
                                                 <span>Officer:</span>
@@ -236,13 +242,12 @@ export default function AdminFarmerDetailsPage() {
                                             )}
                                         >
                                             <MoreVertical className="h-4 w-4" />
-                                            {!isSticky && <span>Actions</span>}
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-[200px]">
                                         <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {farmerData.status === "deleted" ? (
+                                        {farmerData?.status === "deleted" ? (
                                             <DropdownMenuItem
                                                 onClick={() => setShowRestoreModal(true)}
                                                 className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
@@ -299,7 +304,7 @@ export default function AdminFarmerDetailsPage() {
                                         <div className="flex items-baseline gap-2">
                                             <span className="text-3xl font-bold text-foreground">
                                                 <span className="text-lg text-muted-foreground font-normal mr-1">TK.</span>
-                                                {parseFloat(farmerData.securityMoney || "0").toLocaleString()}
+                                                {isLoading ? <Skeleton className="h-8 w-24 inline-block align-middle" /> : parseFloat(farmerData?.securityMoney || "0").toLocaleString()}
                                             </span>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">Refundable upon account closure</p>
@@ -333,37 +338,46 @@ export default function AdminFarmerDetailsPage() {
                                 <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock Status</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {(() => {
-                                    const activeCyclesList = (activeCycles?.items || []) as any[];
-                                    const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                    const remaining = farmerData.mainStock - activeConsumption;
+                                {isLoading ? (
+                                    <div className="space-y-4">
+                                        <Skeleton className="h-10 w-32" />
+                                        <Skeleton className="h-4 w-full rounded-full" />
+                                    </div>
+                                ) : (
+                                    <>
+                                        {(() => {
+                                            const activeCyclesList = (activeCycles?.items || []) as any[];
+                                            const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                            const remaining = (farmerData?.mainStock || 0) - activeConsumption;
 
-                                    if (farmerData.status === "deleted") {
-                                        return (
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-bold text-muted-foreground/60">{farmerData.mainStock.toFixed(2)}</span>
-                                                    <span className="text-muted-foreground/60 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                                            if (farmerData?.status === "deleted") {
+                                                return (
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="text-4xl font-bold text-muted-foreground/60">{(farmerData?.mainStock || 0).toFixed(2)}</span>
+                                                            <span className="text-muted-foreground/60 font-bold text-xs uppercase tracking-widest leading-none">Remaining Bags</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground/50 font-medium italic mt-1">Archived - No active consumption</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-foreground'}`}>{remaining.toFixed(2)}</span>
+                                                        <span className="text-muted-foreground font-medium lowercase">bags available</span>
+                                                    </div>
+                                                    {activeConsumption > 0 && (
+                                                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
+                                                            {activeConsumption.toFixed(2)} bags currently in-use
+                                                        </p>
+                                                    )}
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground/50 font-medium italic mt-1">Archived - No active consumption</p>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div className="space-y-2">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`text-4xl font-bold ${remaining < 3 ? 'text-red-500' : 'text-foreground'}`}>{remaining.toFixed(2)}</span>
-                                                <span className="text-muted-foreground font-medium lowercase">bags available</span>
-                                            </div>
-                                            {activeConsumption > 0 && (
-                                                <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
-                                                    {activeConsumption.toFixed(2)} bags currently in-use
-                                                </p>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
+                                            );
+                                        })()}
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -390,11 +404,11 @@ export default function AdminFarmerDetailsPage() {
                             </TabsList>
 
                             <TabsContent value="active" className="mt-0 focus-visible:outline-none">
-                                <ActiveCyclesSection isLoading={false} data={activeCycles} prefix={`/admin/organizations/${params.id}`} />
+                                <ActiveCyclesSection isLoading={isLoading} data={activeCycles} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="history" className="mt-0 focus-visible:outline-none">
-                                <ArchivedCyclesSection isLoading={false} isError={false} data={history} prefix={`/admin/organizations/${params.id}`} />
+                                <ArchivedCyclesSection isLoading={isLoading} isError={false} data={history} prefix={`/admin/organizations/${params.id}`} />
                             </TabsContent>
 
                             <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
@@ -402,7 +416,7 @@ export default function AdminFarmerDetailsPage() {
                             </TabsContent>
 
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
-                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
+                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData?.mainStock || 0} />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -410,9 +424,9 @@ export default function AdminFarmerDetailsPage() {
 
                 <TransferStockModal
                     sourceFarmerId={farmerId}
-                    sourceFarmerName={farmerData.name}
-                    currentStock={farmerData.mainStock}
-                    officerId={farmerData.officerId}
+                    sourceFarmerName={farmerData?.name || "N/A"}
+                    currentStock={farmerData?.mainStock || 0}
+                    officerId={farmerData?.officerId || ""}
                     open={showTransferModal}
                     onOpenChange={setShowTransferModal}
                 />
@@ -429,16 +443,16 @@ export default function AdminFarmerDetailsPage() {
                     />
                 </ResponsiveDialog>
                 <FarmerNavigation
-                    orgId={farmerData.organizationId}
+                    orgId={farmerData?.organizationId || ""}
                     currentFarmerId={farmerId}
-                    currentOfficerId={farmerData.officerId}
+                    currentOfficerId={farmerData?.officerId || ""}
                     prefix={`/admin/organizations/${params.id}`}
                 />
 
                 <ArchiveFarmerDialog
                     open={showArchiveDialog}
                     onOpenChange={setShowArchiveDialog}
-                    farmerName={farmerData.name}
+                    farmerName={farmerData?.name || "N/A"}
                     isPending={deleteMutation.isPending}
                     onConfirm={() => deleteMutation.mutate({ orgId, farmerId })}
                 />
@@ -447,13 +461,13 @@ export default function AdminFarmerDetailsPage() {
                     open={showRestoreModal}
                     onOpenChange={setShowRestoreModal}
                     farmerId={farmerId}
-                    archivedName={farmerData.name}
+                    archivedName={farmerData?.name || "N/A"}
                     orgId={orgId}
                 />
 
                 <EditSecurityMoneyModal
                     farmerId={farmerId}
-                    currentAmount={parseFloat(farmerData.securityMoney || "0")}
+                    currentAmount={parseFloat(farmerData?.securityMoney || "0")}
                     open={showEditSecurityMoneyModal}
                     onOpenChange={setShowEditSecurityMoneyModal}
                     variant="management"
@@ -461,7 +475,7 @@ export default function AdminFarmerDetailsPage() {
                 />
                 <SecurityMoneyHistoryModal
                     farmerId={farmerId}
-                    farmerName={farmerData.name}
+                    farmerName={farmerData?.name || "N/A"}
                     open={showSecurityHistoryModal}
                     onOpenChange={setShowSecurityHistoryModal}
                     variant="management"
