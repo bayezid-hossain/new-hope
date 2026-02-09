@@ -45,6 +45,7 @@ export const authRouter = createTRPCRouter({
         organizationId: input.orgId,
         role: input.role,
         status: "PENDING",
+        accessLevel: input.role === "OFFICER" ? "EDIT" : "VIEW",
       }).returning();
 
       return newMember;
@@ -67,7 +68,8 @@ export const authRouter = createTRPCRouter({
       role: null,
       isPro: ctx.user.isPro,
       proExpiresAt: ctx.user.proExpiresAt,
-      activeMode: undefined
+      activeMode: undefined,
+      accessLevel: undefined
     };
 
     return {
@@ -76,6 +78,7 @@ export const authRouter = createTRPCRouter({
       orgId: membership.organizationId,
       role: membership.role,
       activeMode: membership.activeMode,
+      accessLevel: membership.accessLevel,
       isPro: ctx.user.isPro,
       proExpiresAt: ctx.user.proExpiresAt
     };

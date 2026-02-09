@@ -21,5 +21,10 @@ export function useCurrentOrg() {
     isLoading: query.isPending,
     isAuthenticated: query.data?.status === "ACTIVE",
     activeMode: query.data?.activeMode,
+    accessLevel: query.data?.accessLevel,
+    canEdit:
+      query.data?.role === "OWNER" ||
+      query.data?.role === "OFFICER" ||
+      (query.data?.role === "MANAGER" && query.data?.accessLevel === "EDIT"),
   };
 }

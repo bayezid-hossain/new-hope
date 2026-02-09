@@ -96,7 +96,7 @@ export const SellModal = ({
     const router = useRouter();
     const pathname = usePathname();
     const queryClient = useQueryClient();
-    const { orgId } = useCurrentOrg();
+    const { orgId, canEdit } = useCurrentOrg();
     // Initial remaining birds for default value calculation
     const initialRemainingBirds = doc - mortality - birdsSold;
 
@@ -751,10 +751,15 @@ export const SellModal = ({
 
                     {/* Submit */}
                     <div className="pt-2">
-                        <Button type="submit" className="w-full" size="lg" disabled={mutation.isPending}>
+                        <Button type="submit" className="w-full" size="lg" disabled={mutation.isPending || !canEdit}>
                             <ShoppingCart className="h-4 w-4 mr-2" />
                             {mutation.isPending ? "Recording Sale..." : "Record Sale"}
                         </Button>
+                        {!canEdit && (
+                            <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+                                View Only: You cannot record sales.
+                            </p>
+                        )}
                     </div>
                 </form>
             </Form>

@@ -266,6 +266,14 @@ export const managementFarmersRouter = createTRPCRouter({
             newName: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to restore farmers."
+                });
+            }
+
             const archivedFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
             });
@@ -338,6 +346,14 @@ export const managementFarmersRouter = createTRPCRouter({
     delete: orgProcedure
         .input(z.object({ farmerId: z.string() }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to delete farmers."
+                });
+            }
+
             const archivedFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
             });
@@ -400,6 +416,14 @@ export const managementFarmersRouter = createTRPCRouter({
             reason: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to update security money."
+                });
+            }
+
             const oldFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.id), eq(farmer.organizationId, input.orgId))
             });

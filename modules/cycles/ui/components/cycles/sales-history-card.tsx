@@ -155,7 +155,7 @@ ${!isEnded ? "\n--- Sale not complete ---" : ""}`;
 
 export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: SaleEventCardProps) => {
     const trpc = useTRPC();
-    const { activeMode, role } = useCurrentOrg();
+    const { activeMode, role, canEdit } = useCurrentOrg();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const reports = sale.reports || [];
@@ -217,7 +217,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup }: Sa
                             </CardDescription>
                         </div>
                         <div className="flex gap-2 shrink-0 w-full sm:w-auto ml-6 sm:ml-0" onClick={(e) => e.stopPropagation()}>
-                            {(activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && (
+                            {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
                                 <Button
                                     variant="outline"
                                     size="sm"

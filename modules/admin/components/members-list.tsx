@@ -66,6 +66,16 @@ export function MembersList({ orgId }: { orgId: string }) {
     })
   );
 
+  const accessMutation = useMutation(
+    trpc.management.members.updateAccess.mutationOptions({
+      onSuccess: () => {
+        toast.success("Access level updated");
+        queryClient.invalidateQueries(trpc.management.members.list.queryOptions({ orgId }));
+      },
+      onError: (err) => toast.error(err.message)
+    })
+  );
+
   const statusMutation = useMutation(
     trpc.management.members.updateStatus.mutationOptions({
       onSuccess: () => {
@@ -105,6 +115,7 @@ export function MembersList({ orgId }: { orgId: string }) {
                   <TableHead className="font-semibold text-foreground/70">User</TableHead>
                   <TableHead className="font-semibold text-foreground/70">Status</TableHead>
                   <TableHead className="font-semibold text-foreground/70">Role</TableHead>
+                  <TableHead className="font-semibold text-foreground/70">Access</TableHead>
                   <TableHead className="text-right font-semibold text-foreground/70">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -149,6 +160,31 @@ export function MembersList({ orgId }: { orgId: string }) {
                           <SelectItem value="OFFICER">Officer</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {member.role === "MANAGER" ? (
+                        <Select
+                          defaultValue={member.accessLevel || "VIEW"}
+                          onValueChange={(val) => accessMutation.mutate({
+                            memberId: member.id,
+                            accessLevel: val as "VIEW" | "EDIT",
+                            orgId
+                          })}
+                          disabled={member.userId === currentUserId}
+                        >
+                          <SelectTrigger className="w-[110px] h-7 text-[11px] bg-muted/50 border-none shadow-none focus:ring-1 focus:ring-primary/20">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="VIEW">View Only</SelectItem>
+                            <SelectItem value="EDIT">Full Edit</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-2">
+                          {member.role === "OFFICER" ? "Edit (Default)" : "Full Control"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">

@@ -162,6 +162,30 @@ export const officerCyclesRouter = createTRPCRouter({
 
             // SECURITY CHECK: Verify ownership
             if (farmerData.officerId !== ctx.user.id) {
+                // Allow if Admin or Owner/Manager with permissions? 
+                // Currently strict ownership usually implies Officer assignment.
+                // But if Manager is acting as officer, they must be assigned?
+                // For now, keep strict ownership check, but ALSO check Manager permissions if they ARE the assigned officer (e.g. self-assigned)
+
+                // Whatever the ownership logic, if they ARE a manager, check VIEW mode.
+                // We need to fetch membership to be sure of role/accessLevel
+            }
+
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, farmerData.organizationId)
+                    )
+                });
+
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot create cycles." });
+                }
+            }
+
+            if (farmerData.officerId !== ctx.user.id) {
                 throw new TRPCError({
                     code: "FORBIDDEN",
                     message: "You do not have permission to create cycles for this farmer."
@@ -336,9 +360,22 @@ export const officerCyclesRouter = createTRPCRouter({
     end: officerProcedure
         .input(z.object({
             id: z.string(),
-            intake: z.number().nonnegative(), // Removed .positive() to allow ending with 0 if needed, though strictly positive usually makes sense for consumption. But user said "end cycle intake" logic check.
+            intake: z.number().nonnegative(),
         }))
         .mutation(async ({ input, ctx }) => {
+            const [cycle] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
+            if (cycle && ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, cycle.organizationId)
+                    )
+                });
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot end cycles." });
+                }
+            }
+
             return await ctx.db.transaction(async (tx) => {
                 const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
                 return await endCycleLogic(tx, input.id, input.intake, ctx.user.id, ctx.user.name);
@@ -365,6 +402,20 @@ export const officerCyclesRouter = createTRPCRouter({
                     code: "BAD_REQUEST",
                     message: "Cannot add mortality to a cycle of an archived farmer."
                 });
+            }
+
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, farmerData.organizationId)
+                    )
+                });
+
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot add mortality." });
+                }
             }
 
             // LOGIC CHECK: New mortality + existing mortality + birds sold should not exceed DOC
@@ -469,6 +520,20 @@ export const officerCyclesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "FORBIDDEN", message: "Farmer not found or archived." });
             }
 
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, record.organizationId!)
+                    )
+                });
+
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot delete history." });
+                }
+            }
+
             await ctx.db.update(cycleHistory)
                 .set({ status: "deleted" })
                 .where(eq(cycleHistory.id, input.id));
@@ -504,6 +569,23 @@ export const officerCyclesRouter = createTRPCRouter({
                         )
                     });
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+
+                    // Enforce Manager View Mode
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot reopen cycles." });
+                    }
+                } else if (ctx.user.globalRole !== "ADMIN") {
+                    // Even if they are the officer (owned), if they are a Manager in VIEW mode, block it.
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, historyRecord.organizationId!),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot reopen cycles." });
+                    }
                 }
 
                 // 2. Move back to Cycles (Active)
@@ -628,6 +710,22 @@ export const officerCyclesRouter = createTRPCRouter({
                         )
                     });
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot edit logs." });
+                    }
+                } else if (ctx.user.globalRole !== "ADMIN") {
+                    // Check if Manager (even if officerId matches)
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot edit logs." });
+                    }
                 }
 
                 // Date Validation
@@ -761,6 +859,21 @@ export const officerCyclesRouter = createTRPCRouter({
                         )
                     });
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot revert logs." });
+                    }
+                } else if (ctx.user.globalRole !== "ADMIN") {
+                    // Check if Manager (even if officerId matches)
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot revert logs." });
+                    }
                 }
 
                 if (log.isReverted) {

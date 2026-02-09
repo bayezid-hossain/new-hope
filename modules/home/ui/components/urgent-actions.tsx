@@ -13,9 +13,10 @@ interface UrgentActionsProps {
         farmerMainStock?: number;
         availableStock: number;
     }>;
+    canEdit: boolean;
 }
 
-export const UrgentActions = ({ lowStockCycles }: UrgentActionsProps) => {
+export const UrgentActions = ({ lowStockCycles, canEdit }: UrgentActionsProps) => {
     return (
         <Card className="col-span-1 md:col-span-2 lg:col-span-3 border-amber-500/20 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-300">
             <CardHeader className="pb-4">
@@ -48,11 +49,13 @@ export const UrgentActions = ({ lowStockCycles }: UrgentActionsProps) => {
                                         </Badge>
                                     </div>
                                 </div>
-                                <Button size="sm" variant="secondary" className="h-9 px-4 font-black uppercase text-[10px] tracking-widest rounded-xl bg-background border-border/50 hover:bg-amber-500 hover:text-white transition-all shadow-sm" asChild>
-                                    <Link href={`/cycles`}>
-                                        Manage
-                                    </Link>
-                                </Button>
+                                {canEdit && (
+                                    <Button size="sm" variant="secondary" className="h-9 px-4 font-black uppercase text-[10px] tracking-widest rounded-xl bg-background border-border/50 hover:bg-amber-500 hover:text-white transition-all shadow-sm" asChild>
+                                        <Link href={`/cycles`}>
+                                            Manage
+                                        </Link>
+                                    </Button>
+                                )}
                             </div>
                         ))}
                         {lowStockCycles.length > 3 && (

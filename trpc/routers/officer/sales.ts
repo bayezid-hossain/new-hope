@@ -1,7 +1,7 @@
 import { BASE_SELLING_PRICE } from "@/constants";
-import { cycleLogs, cycles, farmer, saleEvents, saleReports } from "@/db/schema";
+import { cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
@@ -90,6 +90,20 @@ export const officerSalesRouter = createTRPCRouter({
                     code: "BAD_REQUEST",
                     message: `Sale date cannot be before cycle start date (${cycle.createdAt.toLocaleDateString()}).`
                 });
+            }
+
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, cycle.organizationId)
+                    )
+                });
+
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot record sales." });
+                }
             }
 
             // Calculate remaining birds (Initial - Mortality - Already Sold)
@@ -304,6 +318,20 @@ export const officerSalesRouter = createTRPCRouter({
             const farmerData = event.cycle?.farmer || event.history?.farmer;
             if (!farmerData || farmerData.officerId !== ctx.user.id) {
                 throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+            }
+
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, farmerData.organizationId)
+                    )
+                });
+
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot adjust sales." });
+                }
             }
 
             // Calculate totals

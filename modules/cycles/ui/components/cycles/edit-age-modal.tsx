@@ -4,6 +4,7 @@ import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock } from "lucide-react";
@@ -21,6 +22,7 @@ export const EditAgeModal = ({ cycleId, currentAge, open: controlledOpen, onOpen
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen ?? internalOpen;
     const setOpen = controlledOnOpenChange ?? setInternalOpen;
+    const { canEdit } = useCurrentOrg();
 
     const [newAge, setNewAge] = useState(currentAge.toString());
     const [reason, setReason] = useState("");
@@ -113,7 +115,7 @@ export const EditAgeModal = ({ cycleId, currentAge, open: controlledOpen, onOpen
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={mutation.isPending}
+                        disabled={mutation.isPending || !canEdit}
                     >
                         {mutation.isPending ? "Saving..." : "Save Change"}
                     </Button>

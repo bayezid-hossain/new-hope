@@ -17,6 +17,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +40,7 @@ export const CorrectMortalityModal = ({
 }: CorrectMortalityModalProps) => {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
+    const { canEdit } = useCurrentOrg();
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
     const [editAmount, setEditAmount] = useState<string>("");
     const [editDate, setEditDate] = useState<Date | undefined>(undefined);
@@ -228,7 +230,7 @@ export const CorrectMortalityModal = ({
                                                             size="icon"
                                                             variant="default"
                                                             onClick={handleSave}
-                                                            disabled={updateMutation.isPending}
+                                                            disabled={updateMutation.isPending || !canEdit}
                                                         >
                                                             <Save className="h-4 w-4" />
                                                         </Button>
@@ -239,17 +241,20 @@ export const CorrectMortalityModal = ({
                                                             size="icon"
                                                             variant="ghost"
                                                             onClick={() => handleEdit(log)}
+                                                            disabled={!canEdit}
                                                         >
                                                             <Edit2 className="h-4 w-4" />
                                                         </Button>
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            className="text-destructive hover:text-destructive"
-                                                            onClick={() => handleDelete(log.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        {canEdit && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="text-destructive hover:text-destructive"
+                                                                onClick={() => handleDelete(log.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </TableCell>

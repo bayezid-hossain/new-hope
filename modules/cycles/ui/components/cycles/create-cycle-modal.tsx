@@ -66,7 +66,7 @@ interface CreateCycleModalProps {
 }
 
 export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: CreateCycleModalProps) => {
-  const { orgId } = useCurrentOrg();
+  const { orgId, canEdit } = useCurrentOrg();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -263,10 +263,7 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
             />
           </div>
 
-          {/* --- 3. Input Feed --- */}
-
-
-          <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+          <Button type="submit" className="w-full" disabled={createMutation.isPending || !canEdit}>
             {createMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -276,6 +273,11 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
               "Start Cycle"
             )}
           </Button>
+          {!canEdit && (
+            <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+              View Only: You cannot start new cycles.
+            </p>
+          )}
         </form>
       </Form>
     </ResponsiveDialog>

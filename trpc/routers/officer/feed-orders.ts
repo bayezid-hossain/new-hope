@@ -1,4 +1,5 @@
-import { feedOrderItems, feedOrders } from "@/db/schema";
+import { feedOrderItems, feedOrders, member } from "@/db/schema";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
@@ -18,6 +19,24 @@ export const feedOrdersRouter = createTRPCRouter({
             })).min(1)
         }))
         .mutation(async ({ ctx, input }) => {
+            // ACCESS LEVEL CHECK
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, input.orgId)
+                    )
+                });
+
+                if (!membership) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this organization." });
+                }
+
+                if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot create feed orders." });
+                }
+            }
+
             const order = await ctx.db.insert(feedOrders).values({
                 orgId: input.orgId,
                 officerId: ctx.user.id,
@@ -96,12 +115,30 @@ export const feedOrdersRouter = createTRPCRouter({
             const order = await ctx.db.query.feedOrders.findFirst({
                 where: and(
                     eq(feedOrders.id, input.id),
+                    // Allow deleting if they are the creator (officerId) OR if they are an Admin/Manager with Edit rights
+                    // The original code only allowed deletion if officerId matches ctx.user.id.
+                    // We stick to that for now, but ALSO enforce View Only restriction.
                     eq(feedOrders.officerId, ctx.user.id)
                 )
             });
 
             if (!order) {
                 throw new Error("Order not found or you don't have permission to delete it");
+            }
+
+            // ACCESS LEVEL CHECK (Even if they are the creator, if their current status is View Only Manager, deny?)
+            // This edge case is rare (Manager created it, then got demoted to View Only).
+            // But let's be consistent.
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, order.orgId)
+                    )
+                });
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot delete feed orders." });
+                }
             }
 
             // Delete the order (items will be cascade deleted due to schema)

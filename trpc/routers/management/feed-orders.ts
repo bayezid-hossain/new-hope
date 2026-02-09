@@ -1,7 +1,8 @@
 import { feedOrders } from "@/db/schema";
+import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, orgProcedure, protectedProcedure } from "../../init";
 
 export const managementFeedOrdersRouter = createTRPCRouter({
     // List all feed orders in the organization (for managers/admins)
@@ -68,12 +69,21 @@ export const managementFeedOrdersRouter = createTRPCRouter({
         }),
 
     // Delete any feed order (manager permission)
-    delete: protectedProcedure
+    // Delete any feed order (manager permission)
+    delete: orgProcedure
         .input(z.object({
             id: z.string(),
-            orgId: z.string()
+            // orgId is already required by orgProcedure's input schema merging
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to delete feed orders."
+                });
+            }
+
             // Verify the order belongs to this org
             const order = await ctx.db.query.feedOrders.findFirst({
                 where: eq(feedOrders.id, input.id)

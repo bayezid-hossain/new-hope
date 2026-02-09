@@ -2,6 +2,7 @@
 
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, RotateCcw, Skull } from "lucide-react";
@@ -16,6 +17,9 @@ interface RevertMortalityModalProps {
 
 export const RevertMortalityModal = ({ logId, amount, note }: RevertMortalityModalProps) => {
     const [open, setOpen] = useState(false);
+    const { canEdit } = useCurrentOrg();
+
+    if (!canEdit) return null;
 
     const trpc = useTRPC();
     const queryClient = useQueryClient();

@@ -51,7 +51,7 @@ export const AddMortalityModal = ({
 }: AddMortalityModalProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { orgId } = useCurrentOrg();
+  const { orgId, canEdit } = useCurrentOrg();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -166,9 +166,14 @@ export const AddMortalityModal = ({
               </FormItem>
             )}
           />
-          <Button type="submit" variant="destructive" className="w-full text-white" disabled={mutation.isPending}>
+          <Button type="submit" variant="destructive" className="w-full text-white" disabled={mutation.isPending || !canEdit}>
             {mutation.isPending ? "Recording..." : "Record Mortality"}
           </Button>
+          {!canEdit && (
+            <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+              View Only: You cannot record mortality.
+            </p>
+          )}
         </form>
       </Form>
     </ResponsiveDialog>

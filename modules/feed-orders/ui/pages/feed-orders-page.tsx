@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
@@ -14,6 +15,7 @@ interface FeedOrdersPageProps {
 
 export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const { canEdit } = useCurrentOrg();
     const trpc = useTRPC();
 
     const { data: orders, isPending } = useQuery(
@@ -30,10 +32,12 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
                     <h2 className="text-lg font-bold tracking-tight">Feed Orders</h2>
                     <p className="text-sm text-muted-foreground">Manage and share feed requests</p>
                 </div>
-                <Button onClick={() => setIsCreateOpen(true)} size="sm" className="bg-primary text-primary-foreground">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Order
-                </Button>
+                {canEdit && (
+                    <Button onClick={() => setIsCreateOpen(true)} size="sm" className="bg-primary text-primary-foreground">
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Order
+                    </Button>
+                )}
             </div>
 
             {isCreateOpen && (
@@ -56,7 +60,7 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
                 ) : (
                     <div className="text-center py-10 text-muted-foreground border rounded-lg border-dashed">
                         <p>No feed orders found</p>
-                        <Button variant="link" onClick={() => setIsCreateOpen(true)}>Create your first order</Button>
+                        {canEdit && <Button variant="link" onClick={() => setIsCreateOpen(true)}>Create your first order</Button>}
                     </div>
                 )}
             </div>

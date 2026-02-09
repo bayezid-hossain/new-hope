@@ -37,7 +37,7 @@ interface ColumnsFactoryOptions {
 
 // --- Actions Component ---
 export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
-    const { isPro } = useCurrentOrg();
+    const { isPro, canEdit } = useCurrentOrg();
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
     const [showEditAge, setShowEditAge] = useState(false);
@@ -46,6 +46,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     const [showSellModal, setShowSellModal] = useState(false);
 
     if (cycle.status === "history") return null;
+    if (!canEdit) return null;
 
     return (
         <>
@@ -187,9 +188,11 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
     const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();
     const queryClient = useQueryClient();
-    const { orgId } = useCurrentOrg();
+    const { orgId, canEdit } = useCurrentOrg();
 
     const isAdmin = prefix?.includes("/admin");
+
+    if (!canEdit) return null;
 
     const deleteMutation = useMutation(
         (isAdmin ? trpc.admin.cycles.deleteHistory : trpc.officer.cycles.deleteHistory).mutationOptions({

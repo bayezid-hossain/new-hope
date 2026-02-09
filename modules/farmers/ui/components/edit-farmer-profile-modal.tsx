@@ -40,7 +40,7 @@ export function EditFarmerProfileModal({
     onOpenChange,
 }: EditFarmerProfileModalProps) {
     const trpc = useTRPC();
-    const { orgId } = useCurrentOrg();
+    const { orgId, canEdit } = useCurrentOrg();
     const queryClient = useQueryClient();
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -162,14 +162,20 @@ export function EditFarmerProfileModal({
                         </Button>
                         <Button
                             type="submit"
-                            disabled={updateMutation.isPending || !form.watch("name").trim()}
+                            disabled={updateMutation.isPending || !form.watch("name").trim() || !canEdit}
                         >
                             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
                         </Button>
                     </div>
+                    {!canEdit && (
+                        <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+                            View Only: You cannot edit farmer profiles.
+                        </p>
+                    )}
+
                 </form>
             </Form>
-        </ResponsiveDialog>
+        </ResponsiveDialog >
     );
 }

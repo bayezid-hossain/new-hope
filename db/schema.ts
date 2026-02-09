@@ -128,6 +128,9 @@ export const member = pgTable("member", {
   status: memberStatusEnum("status").notNull().default("PENDING"),
   activeMode: text("active_mode").$type<"MANAGEMENT" | "OFFICER">().notNull().default("OFFICER"),
 
+  // Access Level for Managers (VIEW or EDIT)
+  accessLevel: text("access_level").$type<"VIEW" | "EDIT">().notNull().default("VIEW"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [

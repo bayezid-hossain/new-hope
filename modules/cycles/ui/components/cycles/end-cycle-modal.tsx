@@ -51,7 +51,7 @@ export const EndCycleModal = ({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { orgId } = useCurrentOrg()
+  const { orgId, canEdit } = useCurrentOrg()
 
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
   const [showSellModal, setShowSellModal] = useState(false);
@@ -173,7 +173,7 @@ export const EndCycleModal = ({
                   size="sm"
                   className="flex-1"
                   onClick={handleEndCycle}
-                  disabled={endMutation.isPending}
+                  disabled={endMutation.isPending || !canEdit}
                 >
                   {endMutation.isPending ? "Archiving..." : "Yes, End Anyway"}
                 </Button>
@@ -190,7 +190,7 @@ export const EndCycleModal = ({
                   onOpenChange(false);
                   setShowSellModal(true);
                 }}
-                disabled={endMutation.isPending}
+                disabled={endMutation.isPending || !canEdit}
                 className="gap-2"
               >
                 <ShoppingCart className="h-4 w-4" />
@@ -199,7 +199,7 @@ export const EndCycleModal = ({
               <Button
                 variant="destructive"
                 onClick={() => setConfirmNoSale(true)}
-                disabled={endMutation.isPending}
+                disabled={endMutation.isPending || !canEdit}
                 className="text-white"
               >
                 End Without Sale
@@ -211,6 +211,11 @@ export const EndCycleModal = ({
               >
                 Cancel
               </Button>
+              {!canEdit && (
+                <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+                  View Only: You cannot end cycles.
+                </p>
+              )}
             </div>
           )}
         </div>
