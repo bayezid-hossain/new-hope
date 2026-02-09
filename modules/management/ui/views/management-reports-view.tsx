@@ -12,7 +12,7 @@ interface ManagementReportsViewProps {
 
 export function ManagementReportsView({ orgId }: ManagementReportsViewProps) {
     return (
-        <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
+        <div className="flex-1 space-y-8 p-4 md:p-8 pt-2 max-w-7xl mx-auto">
             <div className="flex items-center justify-between space-y-2">
                 <div>
                     <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">

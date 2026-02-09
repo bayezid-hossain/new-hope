@@ -172,7 +172,7 @@ export default function AdminFarmerDetailsPage() {
 
     return (
         <AdminGuard>
-            <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
+            <div className="w-full space-y-6 p-4 md:p-8 pt-2 max-w-7xl mx-auto bg-background min-h-screen">
                 <div ref={sentinelRef} className="h-4 w-full pointer-events-none" />
 
                 <div className={cn(
