@@ -38,8 +38,8 @@ import {
     UsersIcon
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 // --- Sub-components replicating standard detail page logic ---
 
@@ -284,8 +284,19 @@ interface CycleDetailsProps {
 export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsProps) => {
     const trpc = useTRPC();
     const router = useRouter();
-    const { orgId } = useCurrentOrg()
+    const { orgId, canEdit } = useCurrentOrg()
+    const searchParams = useSearchParams();
     const [showReopenModal, setShowReopenModal] = useState(false);
+    const initialTab = searchParams.get("tab") || "timeline";
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Sync state if URL changes (optional but good for back/forward)
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab && (tab === "timeline" || tab === "sales" || tab === "others" || tab === "analytics")) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     const { data: response, isLoading } = useQuery(
         isAdmin
@@ -360,7 +371,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
                     {/* Unified Actions Dropdown */}
-                    {useCurrentOrg().canEdit && (
+                    {canEdit && (
                         <div className="bg-card border border-border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
                             {normalizedCycle.status === "active" ? (
                                 <ActionsCell
@@ -465,7 +476,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             </div>
 
             <div className="hidden md:block">
-                <Tabs defaultValue="timeline" className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                     <TabsList className="bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto inline-flex overflow-x-auto max-w-full">
                         <TabsTrigger value="timeline" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
                             <History className="h-4 w-4" /> Timeline
@@ -490,7 +501,10 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </TabsContent>
 
                     <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
-                        <SalesHistoryCard cycleId={cycleId} />
+                        <SalesHistoryCard
+                            cycleId={normalizedCycle.status === 'active' ? cycleId : undefined}
+                            historyId={normalizedCycle.status !== 'active' ? cycleId : undefined}
+                        />
                     </TabsContent>
 
                     <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
@@ -514,7 +528,13 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
 
             {/* Mobile View: Accordion */}
             <div className="block md:hidden">
-                <Accordion type="single" collapsible defaultValue="timeline" className="space-y-4">
+                <Accordion
+                    type="single"
+                    collapsible
+                    value={activeTab}
+                    onValueChange={(val) => val && setActiveTab(val)}
+                    className="space-y-4"
+                >
                     <AccordionItem value="timeline" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
                         <AccordionTrigger className="hover:no-underline py-4 text-foreground">
                             <div className="flex items-center gap-2">
@@ -535,7 +555,11 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2 pb-4">
-                            <SalesHistoryCard cycleId={cycleId} isMobile />
+                            <SalesHistoryCard
+                                cycleId={normalizedCycle.status === 'active' ? cycleId : undefined}
+                                historyId={normalizedCycle.status !== 'active' ? cycleId : undefined}
+                                isMobile
+                            />
                         </AccordionContent>
                     </AccordionItem>
 

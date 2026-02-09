@@ -110,7 +110,7 @@ export function ReportSalesLedgerCard({ stats, orgId }: ReportSalesLedgerCardPro
                                 {history.map((sale) => (
                                     <Link
                                         key={sale.id}
-                                        href={`/management/cycles/${(sale as any).cycleId || (sale as any).historyId}`}
+                                        href={`/management/cycles/${(sale as any).cycleId || (sale as any).historyId}?tab=sales`}
                                         className="p-4 hover:bg-muted/40 transition-colors flex items-center justify-between group/row"
                                     >
                                         <div className="flex items-start gap-3">

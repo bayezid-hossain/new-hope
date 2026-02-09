@@ -47,6 +47,7 @@
   --color-sidebar-management-from: var(--sidebar-management-from);
   --color-sidebar-management-to: var(--sidebar-management-to);
   --color-card-hover: var(--card-hover);
+  --grid-template-columns-13: repeat(13, minmax(0, 1fr));
 }
 
 :root {
