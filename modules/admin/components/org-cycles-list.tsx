@@ -50,7 +50,7 @@ type CyclesQueryResult = {
 const StatusBadge = ({ status }: { status: CycleItem["status"] }) => {
     switch (status) {
         case "active":
-            return <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Active</Badge>;
+            return null;
         case "deleted":
             return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Deleted</Badge>;
         default:
@@ -208,7 +208,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 sm:p-6 max-w-7xl min-h-[500px] mx-auto w-full">
+            <div className="flex-1 overflow-auto p-1 sm:p-6 max-w-7xl min-h-[500px] mx-auto w-full">
                 {isPending ? (
                     <div className="flex flex-col items-center justify-center p-20 gap-3">
                         <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
