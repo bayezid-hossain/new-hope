@@ -1,4 +1,4 @@
-import { BASE_SELLING_PRICE } from "@/constants";
+import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
@@ -757,6 +757,12 @@ export const officerSalesRouter = createTRPCRouter({
                 // Calculate FCR/EPI
                 const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
 
+                // Profit calculation (backend-only)
+                const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;
+                const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                const profit = formulaRevenue - feedCost - docCost;
+                const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
+
                 return {
                     ...e,
                     feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
@@ -771,12 +777,16 @@ export const officerSalesRouter = createTRPCRouter({
                         isEnded,
                         fcr,
                         epi,
-                        revenue: formulaRevenue, // Updated to use the formula revenue
+                        revenue: formulaRevenue,
                         actualRevenue: cumulativeRevenue,
                         totalWeight: cumulativeWeight,
                         cumulativeBirdsSold,
                         effectiveRate,
-                        netAdjustment
+                        netAdjustment,
+                        feedCost,
+                        docCost,
+                        profit,
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
                     }
                 };
             });
@@ -938,6 +948,12 @@ export const officerSalesRouter = createTRPCRouter({
                 // Calculate FCR/EPI
                 const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
 
+                // Profit calculation (backend-only)
+                const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;
+                const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                const profit = formulaRevenue - feedCost - docCost;
+                const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
+
                 return {
                     ...e,
                     feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
@@ -957,7 +973,11 @@ export const officerSalesRouter = createTRPCRouter({
                         totalWeight: cumulativeWeight,
                         cumulativeBirdsSold,
                         effectiveRate,
-                        netAdjustment
+                        netAdjustment,
+                        feedCost,
+                        docCost,
+                        profit,
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
                     }
                 };
             });
