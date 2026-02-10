@@ -63,7 +63,7 @@ export function SecurityMoneyHistoryModal({
             title={`Security Money History - ${farmerName}`}
             description="Log of all changes to security money."
         >
-            <div className="max-h-[60vh] overflow-auto scroll-smooth scrollbar-thin">
+            <div className="overflow-auto scroll-smooth scrollbar-thin">
                 {isLoading ? (
                     <div className="flex justify-center p-8">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

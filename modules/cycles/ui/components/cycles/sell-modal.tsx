@@ -295,7 +295,7 @@ export const SellModal = ({
                 onOpenChange={onOpenChange}
             >
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[50vh] sm:max-h-[80vh] overflow-y-auto pr-1">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">
                         {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
                         <div className="space-y-4">
                             {/* Farmer Header */}
