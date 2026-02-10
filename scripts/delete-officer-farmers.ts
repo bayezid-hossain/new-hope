@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "../db";
-import { cycleHistory, cycleLogs, cycles, farmer, farmerSecurityMoneyLogs, feedOrderItems, saleEvents, saleReports, stockLogs, user } from "../db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, farmerSecurityMoneyLogs, feedOrderItems, feedOrders, saleEvents, saleReports, stockLogs, user } from "../db/schema";
 
 async function main() {
     const email = process.argv[2];
@@ -24,6 +24,10 @@ async function main() {
         }
 
         console.log(`🔍 Found Officer: ${officer.name} (${officer.email})`);
+
+        // 5. DELETE THE FARMERS THEMSELVES
+        console.log("  - Deleting feed orders records...");
+        await db.delete(feedOrders).where(eq(feedOrders.officerId, officer.id));
 
         // 2. Find all farmers managed by this officer
         const managedFarmers = await db.select({ id: farmer.id, name: farmer.name }).from(farmer).where(eq(farmer.officerId, officer.id));
@@ -98,7 +102,6 @@ async function main() {
             console.log("  - Deleting cycle history...");
             await db.delete(cycleHistory).where(inArray(cycleHistory.id, historyIds));
         }
-
         // 5. DELETE THE FARMERS THEMSELVES
         console.log("  - Deleting farmer records...");
         await db.delete(farmer).where(inArray(farmer.id, farmerIds));

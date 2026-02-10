@@ -26,7 +26,7 @@ export default function SalesPage() {
     }
 
     if (!isPro) {
-        return <ProBlocker feature="Sales Feed" description="View all your recent sales in one place." />;
+        return <ProBlocker feature="Sales" description="View all your recent sales in one place." />;
     }
 
     return (
@@ -40,7 +40,7 @@ export default function SalesPage() {
                                 <ShoppingBag className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold tracking-tight">Sales Feed</h1>
+                                <h1 className="text-xl font-bold tracking-tight">Sales</h1>
                                 <p className="text-xs text-muted-foreground">Recent sales activity across your farmers</p>
                             </div>
                         </div>

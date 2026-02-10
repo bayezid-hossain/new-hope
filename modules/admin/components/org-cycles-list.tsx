@@ -176,7 +176,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 pb-4 pt-4 px-4 sm:px-6">
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 pb-4 pt-4 px-2 sm:px-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-center max-w-7xl mx-auto w-full">
                     <div className="relative flex-1 w-full max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -187,12 +187,12 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center bg-muted p-1 rounded-xl w-fit gap-x-2">
+                    <div className="flex items-center justify-between bg-muted p-1 rounded-xl w-full gap-x-2">
                         <Button
                             onClick={() => setViewMode("list")}
                             variant={viewMode === "list" ? "default" : "outline"}
                             size="sm"
-                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
+                            className="h-8 px-2 flex-1 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
                             <TableIcon className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Detailed
                         </Button>
@@ -200,7 +200,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                             onClick={() => setViewMode("group")}
                             variant={viewMode === "group" ? "default" : "outline"}
                             size="sm"
-                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
+                            className="h-8 px-2 flex-1 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
                             <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
                         </Button>
