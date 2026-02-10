@@ -44,7 +44,7 @@ const adjustSaleSchema = z.object({
     location: z.string().min(1, "Location is required"),
     party: z.string().optional(),
     farmerMobile: z.string().optional(),
-    adjustmentNote: z.string().min(10, "Please provide a more detailed reason for this adjustment"),
+    adjustmentNote: z.string().min(0, "Please provide a more detailed reason for this adjustment"),
 });
 
 interface AdjustSaleModalProps {

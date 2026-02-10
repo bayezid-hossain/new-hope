@@ -187,9 +187,12 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
 
     const totalMortality = (report && report.totalMortality !== undefined && report.totalMortality !== null) ? report.totalMortality : sale.totalMortality;
 
-    const feedTotal = calculateTotalBags(sale.feedConsumed);
-    const feedBreakdown = formatFeedBreakdown(sale.feedConsumed);
-    const stockBreakdown = formatFeedBreakdown(sale.feedStock);
+    // Use report's feed data if available, otherwise fall back to sale event
+    const feedConsumed = report?.feedConsumed ? JSON.parse(report.feedConsumed) : sale.feedConsumed;
+    const feedStock = report?.feedStock ? JSON.parse(report.feedStock) : sale.feedStock;
+    const feedTotal = calculateTotalBags(feedConsumed);
+    const feedBreakdown = formatFeedBreakdown(feedConsumed);
+    const stockBreakdown = formatFeedBreakdown(feedStock);
 
     const fcr = sale.cycleContext?.fcr || 0;
     const epi = sale.cycleContext?.epi || 0;
@@ -766,7 +769,7 @@ const SaleDetailsContent = ({
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Feed Consumed</span>
                                 </div>
                                 <div className="text-xs font-medium bg-muted/30 p-2 rounded-md border border-border/40 whitespace-pre-line leading-relaxed italic">
-                                    {formatFeedBreakdown(sale.feedConsumed)}
+                                    {formatFeedBreakdown(currentFeedConsumed)}
                                 </div>
                             </div>
                             <div className="group">
@@ -775,7 +778,7 @@ const SaleDetailsContent = ({
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Current Stock</span>
                                 </div>
                                 <div className="text-xs font-medium bg-muted/30 p-2 rounded-md border border-border/40 whitespace-pre-line leading-relaxed italic">
-                                    {formatFeedBreakdown(sale.feedStock)}
+                                    {formatFeedBreakdown(currentFeedStock)}
                                 </div>
                             </div>
                         </div>

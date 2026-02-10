@@ -138,6 +138,30 @@ const generateReportSchema = z.object({
     feedStock: z.array(feedItemSchema).optional(),
 });
 
+// Helper to count bags from feed JSON
+const countFeedBags = (feedJson: string | null | undefined): number => {
+    if (!feedJson) return 0;
+    try {
+        const items = JSON.parse(feedJson) as { bags: number }[];
+        if (!Array.isArray(items)) return 0;
+        return items.reduce((sum, item) => sum + (Number(item.bags) || 0), 0);
+    } catch {
+        return 0;
+    }
+};
+
+const getFeedFromEvent = (evt: any) => {
+    // 1. If a report is selected, use it
+    if (evt.selectedReportId && evt.reports) {
+        const report = evt.reports.find((r: any) => r.id === evt.selectedReportId);
+        if (report) {
+            return countFeedBags(report.feedConsumed);
+        }
+    }
+    // 2. Fallback to event's own data
+    return countFeedBags(evt.feedConsumed);
+};
+
 export const officerSalesRouter = createTRPCRouter({
     // Create a new sale event
     createSaleEvent: proProcedure
@@ -282,8 +306,8 @@ export const officerSalesRouter = createTRPCRouter({
                     createdAt: input.saleDate || new Date(),
                 }).returning();
 
-                // Auto-generate first report with SAME values (Financials + Mortality included)
-                await tx.insert(saleReports).values({
+                // Auto-generate first report with SAME values (including feed data)
+                const [firstReport] = await tx.insert(saleReports).values({
                     saleEventId: saleEvent.id,
                     birdsSold: input.birdsSold,
                     totalMortality: input.totalMortality,
@@ -294,9 +318,16 @@ export const officerSalesRouter = createTRPCRouter({
                     cashReceived: input.cashReceived.toString(),
                     depositReceived: input.depositReceived.toString(),
                     medicineCost: input.medicineCost.toString(),
+                    feedConsumed: JSON.stringify(input.feedConsumed),
+                    feedStock: JSON.stringify(input.feedStock),
                     createdBy: ctx.user.id,
                     createdAt: input.saleDate || new Date(),
-                });
+                }).returning();
+
+                // Set selectedReportId on the parent event
+                await tx.update(saleEvents)
+                    .set({ selectedReportId: firstReport.id })
+                    .where(eq(saleEvents.id, saleEvent.id));
 
                 // Update cycle: add any new mortality and increment birdsSold
                 // const newMortality calculated above
@@ -439,6 +470,23 @@ export const officerSalesRouter = createTRPCRouter({
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             const result = await ctx.db.transaction(async (tx) => {
+                // BACKFILL: Before overwriting the parent event, ensure existing reports
+                // that lack feedConsumed/feedStock get the CURRENT parent event values.
+                // This preserves Version 1's original data for older sales created before this fix.
+                const existingReports = await tx.query.saleReports.findMany({
+                    where: eq(saleReports.saleEventId, event.id),
+                });
+                for (const existingReport of existingReports) {
+                    if (!existingReport.feedConsumed || !existingReport.feedStock) {
+                        await tx.update(saleReports)
+                            .set({
+                                feedConsumed: existingReport.feedConsumed || event.feedConsumed,
+                                feedStock: existingReport.feedStock || event.feedStock,
+                            })
+                            .where(eq(saleReports.id, existingReport.id));
+                    }
+                }
+
                 const [report] = await tx.insert(saleReports).values({
                     saleEventId: event.id,
                     birdsSold: input.birdsSold,
@@ -454,10 +502,11 @@ export const officerSalesRouter = createTRPCRouter({
                     feedStock: JSON.stringify(input.feedStock),
                     adjustmentNote: input.adjustmentNote,
                     createdBy: ctx.user.id,
+                    createdAt: new Date(), // Ensure adjustment is always newer than original
                 }).returning();
 
                 // 1. SYNC PARENT SUMMARY (SaleEvents)
-                // Keep the parent record updated with the latest verson's summary data
+                // Keep the parent record updated with the latest version's summary data
                 await tx.update(saleEvents)
                     .set({
                         selectedReportId: report.id,
@@ -751,6 +800,18 @@ export const officerSalesRouter = createTRPCRouter({
             // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
             const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(events);
 
+            // Pre-calculate LATEST feed intake for each History Group from the events themselves
+            // (Since events are sorted DESC, the first event for a historyId is the Final Sale)
+            const historyFeedMap = new Map<string, number>();
+
+            for (const ev of events) {
+                if (ev.historyId && !historyFeedMap.has(ev.historyId)) {
+                    // This is the latest sale for this history
+                    const bags = getFeedFromEvent(ev);
+                    historyFeedMap.set(ev.historyId, bags);
+                }
+            }
+
             return events.map((e) => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
@@ -758,26 +819,85 @@ export const officerSalesRouter = createTRPCRouter({
 
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
-                // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
-                const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
+
                 const age = cycleOrHistory?.age || 0;
+
+                // FIX: Use the feed from the LATEST sale event for this history (version-aware),
+                // fallback to database snapshot if needed.
                 const feedConsumed = isEnded
-                    ? (e.history?.finalIntake || 0)
+                    ? (historyFeedMap.get(e.historyId!) ?? e.history?.finalIntake ?? 0)
                     : (e.cycle?.intake || 0);
 
-                // Get cumulative totals
-                const cumulativeRevenue = revenueMap.get(groupKey) || 0;
-                const cumulativeWeight = weightMap.get(groupKey) || 0;
-                const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
-                const netAdjustment = adjustmentsMap.get(groupKey) || 0;
+                // For cumulative calculations, we need to recalculate based on selected versions
+                // Get all events in this cycle/history group
+                const groupEvents = events.filter(evt => {
+                    const key = evt.cycleId || evt.historyId || "unknown";
+                    return key === groupKey;
+                });
+
+                // Recalculate cumulative totals using selected report data for each event
+                let cumulativeWeight = 0;
+                let cumulativeRevenue = 0;
+                let cumulativeBirdsSold = 0;
+                let latestMortality = 0;
+                let netAdjustment = 0;
+
+                groupEvents.forEach(evt => {
+                    const selectedReport = evt.reports?.find(
+                        (r: any) => r.id === evt.selectedReportId
+                    );
+
+                    const weight = selectedReport
+                        ? parseFloat(selectedReport.totalWeight)
+                        : parseFloat(evt.totalWeight);
+
+                    const price = selectedReport
+                        ? parseFloat(selectedReport.pricePerKg)
+                        : parseFloat(evt.pricePerKg);
+
+                    const birds = selectedReport
+                        ? selectedReport.birdsSold
+                        : evt.birdsSold;
+
+                    const amount = selectedReport
+                        ? parseFloat(selectedReport.totalAmount)
+                        : parseFloat(evt.totalAmount);
+
+                    const mortality =
+                        selectedReport?.totalMortality ??
+                        evt.totalMortality ??
+                        0;
+
+                    cumulativeWeight += weight;
+                    cumulativeRevenue += amount;
+                    cumulativeBirdsSold += birds;
+
+                    // 🔥 LATEST MORTALITY FROM SELECTED VERSION
+                    latestMortality = Math.max(latestMortality, mortality);
+
+                    // Price adjustment logic (unchanged)
+                    const diff = price - BASE_SELLING_PRICE;
+                    if (diff > 0) netAdjustment += diff / 2;
+                    else netAdjustment += diff;
+                });
 
                 // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
                 const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
                 const formulaRevenue = effectiveRate * cumulativeWeight;
 
-                // Calculate FCR/EPI
-                const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
+                // Use latest mortality from selected reports across all sales in this cycle
+                const mortality = latestMortality || (latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0));
 
+                // Calculate FCR/EPI using version-specific data
+
+                const { fcr, epi } = calculateMetrics(
+                    doc,
+                    latestMortality,     // 🔥 SELECTED VERSION
+                    cumulativeWeight,    // 🔥 SUM OF SELECTED WEIGHTS
+                    feedConsumed,        // 🔥 RECALCULATED FEED
+                    age,
+                    isEnded
+                );
                 // Profit calculation (backend-only)
                 const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;
                 const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
@@ -813,7 +933,6 @@ export const officerSalesRouter = createTRPCRouter({
             });
         }),
 
-    // Set active report version for a sale event
     setActiveVersion: proProcedure
         .input(z.object({
             saleEventId: z.string(),
@@ -821,15 +940,27 @@ export const officerSalesRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const result = await ctx.db.transaction(async (tx) => {
-                // Verify both exist
-                const [event] = await tx.select().from(saleEvents).where(eq(saleEvents.id, input.saleEventId)).limit(1);
-                const [report] = await tx.select().from(saleReports).where(eq(saleReports.id, input.saleReportId)).limit(1);
+
+                const [event] = await tx
+                    .select()
+                    .from(saleEvents)
+                    .where(eq(saleEvents.id, input.saleEventId))
+                    .limit(1);
+
+                const [report] = await tx
+                    .select()
+                    .from(saleReports)
+                    .where(eq(saleReports.id, input.saleReportId))
+                    .limit(1);
 
                 if (!event || !report) {
-                    throw new TRPCError({ code: "NOT_FOUND", message: "Event or Report not found" });
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Event or Report not found"
+                    });
                 }
 
-                // Update selected version
+                // 🔁 Update parent sale event with selected version
                 await tx.update(saleEvents)
                     .set({
                         selectedReportId: report.id,
@@ -846,6 +977,26 @@ export const officerSalesRouter = createTRPCRouter({
                         feedStock: report.feedStock || "[]",
                     })
                     .where(eq(saleEvents.id, event.id));
+
+                // 🔥 FORCE FEED RECALCULATION (THIS FIXES FCR)
+                if (event.cycleId) {
+                    const [freshCycle] = await tx
+                        .select()
+                        .from(cycles)
+                        .where(eq(cycles.id, event.cycleId))
+                        .limit(1);
+
+                    if (freshCycle) {
+                        await updateCycleFeed(
+                            freshCycle,
+                            ctx.user.id,
+                            true, // FORCE
+                            tx,
+                            "Sale version switched. Recalculated feed intake.",
+                            new Date()
+                        );
+                    }
+                }
 
                 return { success: true };
             });
@@ -944,6 +1095,20 @@ export const officerSalesRouter = createTRPCRouter({
 
             const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(allCycleEvents);
 
+            // Pre-calculate LATEST feed intake for each History Group from ALL related events
+            const historyFeedMap = new Map<string, number>();
+            // Sort all events to ensure we find the latest one correctly
+            const sortedAllEvents = [...allCycleEvents].sort((a, b) =>
+                new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()
+            );
+
+            for (const ev of sortedAllEvents) {
+                if (ev.historyId && !historyFeedMap.has(ev.historyId)) {
+                    const bags = getFeedFromEvent(ev);
+                    historyFeedMap.set(ev.historyId, bags);
+                }
+            }
+
             let formattedEvents = events.map(e => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
@@ -953,8 +1118,10 @@ export const officerSalesRouter = createTRPCRouter({
                 // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
                 const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
                 const age = cycleOrHistory?.age || 0;
+
+                // FIX: Use the feed from the LATEST sale event
                 const feedConsumed = isEnded
-                    ? (e.history?.finalIntake || 0)
+                    ? (historyFeedMap.get(e.historyId!) ?? e.history?.finalIntake ?? 0)
                     : (e.cycle?.intake || 0);
 
                 // Get cumulative totals
