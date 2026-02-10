@@ -1072,7 +1072,7 @@ export const officerCyclesRouter = createTRPCRouter({
     correctAge: officerProcedure
         .input(z.object({
             cycleId: z.string(),
-            newAge: z.number().int().positive().max(34, "Maximum 34 days"),
+            newAge: z.number().int().positive().max(40, "Maximum 40 days"),
             reason: z.string().min(3).max(500)
         }))
         .mutation(async ({ ctx, input }) => {
