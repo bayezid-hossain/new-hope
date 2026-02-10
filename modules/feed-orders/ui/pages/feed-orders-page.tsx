@@ -15,6 +15,8 @@ interface FeedOrdersPageProps {
 
 export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<any>(null);
+
     const { canEdit } = useCurrentOrg();
     const trpc = useTRPC();
 
@@ -25,6 +27,36 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
         })
     );
 
+    const handleEdit = (order: any) => {
+        // Group flat items by farmerId for the modal
+        const farmerMap = new Map<string, any>();
+        order.items.forEach((item: any) => {
+            if (!farmerMap.has(item.farmerId)) {
+                farmerMap.set(item.farmerId, {
+                    id: item.id,
+                    farmerId: item.farmerId,
+                    farmerName: item.farmer.name,
+                    location: item.farmer.location,
+                    mobile: item.farmer.mobile,
+                    feeds: []
+                });
+            }
+            farmerMap.get(item.farmerId).feeds.push({
+                type: item.feedType,
+                quantity: item.quantity
+            });
+        });
+
+        const groupedOrder = {
+            id: order.id,
+            orderDate: new Date(order.orderDate),
+            deliveryDate: new Date(order.deliveryDate),
+            items: Array.from(farmerMap.values())
+        };
+
+        setEditingOrder(groupedOrder);
+    };
+
     return (
         <div className="space-y-4 p-4 pb-20">
             <div className="flex items-center justify-between">
@@ -33,18 +65,22 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
                     <p className="text-sm text-muted-foreground">Manage and share feed requests</p>
                 </div>
                 {canEdit && (
-                    <Button onClick={() => setIsCreateOpen(true)} size="sm" className="bg-primary text-primary-foreground">
+                    <Button onClick={() => { setEditingOrder(null); setIsCreateOpen(true); }} size="sm" className="bg-primary text-primary-foreground">
                         <Plus className="h-4 w-4 mr-2" />
                         New Order
                     </Button>
                 )}
             </div>
 
-            {isCreateOpen && (
+            {(isCreateOpen || editingOrder) && (
                 <CreateFeedOrderModal
-                    open={isCreateOpen}
-                    onOpenChange={setIsCreateOpen}
+                    open={isCreateOpen || !!editingOrder}
+                    onOpenChange={(open) => {
+                        setIsCreateOpen(open);
+                        if (!open) setEditingOrder(null);
+                    }}
                     orgId={orgId}
+                    initialData={editingOrder}
                 />
             )}
 
@@ -55,12 +91,12 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
                     </div>
                 ) : orders && orders.length > 0 ? (
                     orders.map((order: any) => (
-                        <FeedOrderCard key={order.id} order={order} />
+                        <FeedOrderCard key={order.id} order={order} onEdit={handleEdit} />
                     ))
                 ) : (
                     <div className="text-center py-10 text-muted-foreground border rounded-lg border-dashed">
                         <p>No feed orders found</p>
-                        {canEdit && <Button variant="link" onClick={() => setIsCreateOpen(true)}>Create your first order</Button>}
+                        {canEdit && <Button variant="link" onClick={() => { setEditingOrder(null); setIsCreateOpen(true); }}>Create your first order</Button>}
                     </div>
                 )}
             </div>

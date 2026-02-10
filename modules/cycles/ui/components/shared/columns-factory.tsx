@@ -121,6 +121,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
 
             <SellModal
                 cycleId={cycle.id}
+                farmerId={cycle.farmerId}
                 cycleName={cycle.name}
                 farmerName={cycle.farmerName || ""}
                 farmerLocation={cycle.farmerLocation}
@@ -144,6 +145,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
 
             <EndCycleModal
                 cycleId={cycle.id}
+                farmerId={cycle.farmerId}
                 cycleName={cycle.name}
                 farmerName={cycle.farmerName || cycle.name}
                 farmerLocation={cycle.farmerLocation}

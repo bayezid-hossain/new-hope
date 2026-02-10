@@ -145,5 +145,61 @@ export const feedOrdersRouter = createTRPCRouter({
             await ctx.db.delete(feedOrders).where(eq(feedOrders.id, input.id));
 
             return { success: true };
-        })
+        }),
+
+    update: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+            orderDate: z.date(),
+            deliveryDate: z.date(),
+            items: z.array(z.object({
+                farmerId: z.string(),
+                feeds: z.array(z.object({
+                    type: z.string(),
+                    quantity: z.number().min(0)
+                }))
+            })).min(1)
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // 1. Fetch original order and verify ownership
+            const order = await ctx.db.query.feedOrders.findFirst({
+                where: and(
+                    eq(feedOrders.id, input.id),
+                    eq(feedOrders.officerId, ctx.user.id)
+                )
+            });
+
+            if (!order) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Order not found or you don't have permission to edit it" });
+            }
+
+            // 2. Perform updates in a transaction
+            return await ctx.db.transaction(async (tx) => {
+                // A. Update parent order
+                await tx.update(feedOrders)
+                    .set({
+                        orderDate: input.orderDate,
+                        deliveryDate: input.deliveryDate
+                    })
+                    .where(eq(feedOrders.id, input.id));
+
+                // B. Sync items (simplest approach: delete and re-insert)
+                await tx.delete(feedOrderItems).where(eq(feedOrderItems.feedOrderId, input.id));
+
+                const itemsToInsert = input.items.flatMap(item =>
+                    item.feeds.map(feed => ({
+                        feedOrderId: input.id,
+                        farmerId: item.farmerId,
+                        feedType: feed.type,
+                        quantity: feed.quantity
+                    }))
+                );
+
+                if (itemsToInsert.length > 0) {
+                    await tx.insert(feedOrderItems).values(itemsToInsert);
+                }
+
+                return { success: true };
+            });
+        }),
 });

@@ -129,16 +129,20 @@ export const officerStockRouter = createTRPCRouter({
 
     // BULK ADD STOCK (Pro Feature)
     bulkAddStock: proProcedure
-        .input(z.array(z.object({
-            farmerId: z.string(),
-            amount: z.number().positive().max(1000),
-            note: z.string().max(500).optional()
-        })).max(50)) // Limit batch size
+        .input(z.object({
+            items: z.array(z.object({
+                farmerId: z.string(),
+                amount: z.number().positive().max(1000),
+                note: z.string().max(500).optional()
+            })).max(50),
+            driverName: z.string().max(100).optional()
+        }))
         .mutation(async ({ ctx, input }) => {
-            if (input.length === 0) return { success: true, count: 0 };
+            const { items, driverName } = input;
+            if (items.length === 0) return { success: true, count: 0 };
 
             const result = await ctx.db.transaction(async (tx) => {
-                const inputFarmerIds = input.map(i => i.farmerId);
+                const inputFarmerIds = items.map(i => i.farmerId);
 
                 // 1. Fetch all valid farmers for this user in one go
                 const validFarmers = await tx.query.farmer.findMany({
@@ -153,7 +157,7 @@ export const officerStockRouter = createTRPCRouter({
                 const orgId = validFarmers[0]?.organizationId;
 
                 // 2. Filter input to only include valid farmers
-                const validInputs = input.filter(item => validFarmerIds.has(item.farmerId));
+                const validInputs = items.filter(item => validFarmerIds.has(item.farmerId));
                 if (validInputs.length === 0) return { success: true, count: 0, orgId };
 
                 // 3. Prepare Bulk Stock Logs
@@ -163,6 +167,7 @@ export const officerStockRouter = createTRPCRouter({
                     amount: item.amount.toString(),
                     type: "RESTOCK",
                     referenceId: batchId,
+                    driverName: driverName,
                     note: item.note || "Bulk Import Restock",
                 }));
 
@@ -671,7 +676,8 @@ export const officerStockRouter = createTRPCRouter({
                     reference_id as "batchId",
                     MIN(created_at) as "createdAt",
                     COUNT(*) as "count",
-                    SUM(CAST(amount AS NUMERIC)) as "totalAmount"
+                    SUM(CAST(amount AS NUMERIC)) as "totalAmount",
+                    MAX(driver_name) as "driverName"
                 FROM ${stockLogs}
                 WHERE type = 'RESTOCK' 
                 AND reference_id IS NOT NULL
@@ -687,7 +693,8 @@ export const officerStockRouter = createTRPCRouter({
                 batchId: String(b.batchId),
                 createdAt: new Date(b.createdAt),
                 count: Number(b.count),
-                totalAmount: Number(b.totalAmount)
+                totalAmount: Number(b.totalAmount),
+                driverName: b.driverName ? String(b.driverName) : null
             }));
 
             let nextCursor: typeof input.cursor | undefined = undefined;
@@ -716,6 +723,7 @@ export const officerStockRouter = createTRPCRouter({
                 amount: stockLogs.amount,
                 note: stockLogs.note,
                 createdAt: stockLogs.createdAt,
+                driverName: stockLogs.driverName,
                 farmerName: farmer.name,
                 farmerId: farmer.id
             })

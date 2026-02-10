@@ -91,7 +91,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
     officerId?: string;
 }) => {
     const trpc = useTRPC();
-    const [viewMode, setViewMode] = useState<"group" | "list">("group");
+    const [viewMode, setViewMode] = useState<"group" | "list">("list");
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
     const [page, setPage] = useState(1);
@@ -189,20 +189,20 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                     </div>
                     <div className="flex items-center bg-muted p-1 rounded-xl w-fit gap-x-2">
                         <Button
-                            onClick={() => setViewMode("group")}
-                            variant={viewMode === "group" ? "default" : "outline"}
-                            size="sm"
-                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
-                        >
-                            <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
-                        </Button>
-                        <Button
                             onClick={() => setViewMode("list")}
                             variant={viewMode === "list" ? "default" : "outline"}
                             size="sm"
                             className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
                             <TableIcon className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Detailed
+                        </Button>
+                        <Button
+                            onClick={() => setViewMode("group")}
+                            variant={viewMode === "group" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
+                        >
+                            <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
                         </Button>
                     </div>
                 </div>

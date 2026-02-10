@@ -142,7 +142,16 @@ const calculateTotalBags = (items: { type: string; bags: number }[]): number => 
 const generateReportText = (sale: SaleEvent, report: SaleReport | null): string => {
     const birdsSold = report ? report.birdsSold : sale.birdsSold;
     const totalWeight = report ? report.totalWeight : sale.totalWeight;
-    const avgWeight = report ? report.avgWeight : sale.avgWeight;
+    const displayAvgWeight = report ? report.avgWeight : sale.avgWeight;
+
+    // Calculate cumulative average weight if this is the final sale
+    const cumulativeWeight = sale.cycleContext?.totalWeight || 0;
+    const cumulativeBirdsSold = sale.cycleContext?.cumulativeBirdsSold || 0;
+    const isLatest = sale.isLatestInCycle || false;
+
+    const avgWeight = (isLatest && cumulativeWeight > 0 && cumulativeBirdsSold > 0)
+        ? (cumulativeWeight / cumulativeBirdsSold).toFixed(2)
+        : displayAvgWeight;
     const pricePerKg = report ? report.pricePerKg : sale.pricePerKg;
     const totalAmount = report ? report.totalAmount : sale.totalAmount;
 

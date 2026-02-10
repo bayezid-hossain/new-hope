@@ -175,9 +175,9 @@ export default function MainStockPage() {
                                 <PopoverTrigger asChild>
                                   <button
                                     title="Missing location or mobile"
-                                    className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
+                                    className="text-destructive cursor-help outline-none p-1 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
                                   >
-                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    <AlertCircle className="h-5 w-5" />
                                   </button>
                                 </PopoverTrigger>
                                 <PopoverContent side="top" align="center" className="w-auto p-2 text-xs font-medium shadow-lg z-50">
@@ -189,14 +189,14 @@ export default function MainStockPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                            className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleEdit(row.id, row.name, row.location, row.mobile);
                             }}
                           >
-                            <Wrench className="h-3 w-3" />
+                            <Wrench className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -256,12 +256,12 @@ export default function MainStockPage() {
                             <Wheat className="h-4 w-4 mr-2" /> Restock
                           </Button>
                           <Button
-                            size="sm"
+                            size="default"
                             variant="ghost"
                             className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                             onClick={() => handleDelete(row.id, row.name)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </TableCell>

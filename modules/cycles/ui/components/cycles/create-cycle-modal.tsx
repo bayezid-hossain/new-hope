@@ -175,10 +175,13 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
                     <Command>
                       <CommandInput placeholder="Search farmer..." />
-                      <CommandList>
+                      <CommandList className="max-h-[300px] overflow-y-auto">
                         {isFetching ? (
                           <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />

@@ -46,7 +46,7 @@ const ResponsiveDialog = ({
               {description}
             </DrawerDescription>
           </DrawerHeader>
-          <div className="p-4">{children}</div>
+          <div className="p-4 flex-1 flex flex-col min-h-0">{children}</div>
         </DrawerContent>
       </Drawer>
     );

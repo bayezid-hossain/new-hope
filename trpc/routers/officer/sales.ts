@@ -96,6 +96,7 @@ const createSaleEventSchema = z.object({
     feedConsumed: z.array(feedItemSchema).min(1, "At least one feed entry required"),
     feedStock: z.array(feedItemSchema),
     medicineCost: z.number().min(0).default(0),
+    farmerMobile: z.string().min(1, "Mobile number is required"),
 });
 
 // ... (omitted unrelated implementations)
@@ -197,6 +198,21 @@ export const officerSalesRouter = createTRPCRouter({
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             const result = await ctx.db.transaction(async (tx) => {
+                // 0. Auto-update farmer profile if location/mobile are missing
+                const updates: Record<string, any> = {};
+                if (!cycle.farmer.location && input.location) {
+                    updates.location = input.location;
+                }
+                if (!cycle.farmer.mobile && input.farmerMobile) {
+                    updates.mobile = input.farmerMobile;
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    await tx.update(farmer)
+                        .set({ ...updates, updatedAt: new Date() })
+                        .where(eq(farmer.id, cycle.farmerId));
+                }
+
                 // 1. Validate Mortality Floor
                 const newMortality = cycle.mortality + input.mortalityChange;
 

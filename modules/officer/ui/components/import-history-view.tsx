@@ -14,7 +14,7 @@ import {
 import { useTRPC } from "@/trpc/client";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, FileSpreadsheet, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileSpreadsheet, Loader2, User } from "lucide-react";
 import { useState } from "react";
 
 export function ImportHistoryView() {
@@ -73,9 +73,17 @@ export function ImportHistoryView() {
                                                 {batch.count} Farmers
                                             </Badge>
                                         </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {format(batch.createdAt, "dd/MM/yyyy 'at' p")}
-                                        </p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                {format(batch.createdAt, "dd/MM/yyyy 'at' p")}
+                                            </p>
+                                            {batch.driverName && (
+                                                <Badge variant="secondary" className="bg-muted/50 text-[10px] h-5 py-0 px-2 font-normal flex items-center gap-1">
+                                                    <User className="h-2.5 w-2.5" />
+                                                    Driver: {batch.driverName}
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -143,6 +151,9 @@ function BatchDetails({ batchId }: { batchId: string }) {
                             </TableCell>
                             <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                                 {log.note}
+                                {log.driverName && (
+                                    <span className="block text-[10px] text-muted-foreground/60 italic">Driver: {log.driverName}</span>
+                                )}
                             </TableCell>
                         </TableRow>
                     ))}

@@ -47,6 +47,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     const [step, setStep] = useState<"INPUT" | "REVIEW">("INPUT");
     const [inputText, setInputText] = useState("");
     const [parsedData, setParsedData] = useState<ParsedItem[]>([]);
+    const [driverName, setDriverName] = useState(""); // Added
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
     const [showProGate, setShowProGate] = useState(false);
@@ -107,6 +108,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             setStep("INPUT");
             setInputText("");
             setParsedData([]);
+            setDriverName(""); // Added
         },
         onError: (err) => {
             toast.error(`Failed to import: ${err.message}`);
@@ -382,15 +384,18 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     };
 
     const handleSubmit = () => {
-        const payload = parsedData
-            .filter(p => p.matchedFarmerId && !p.stockAdded)
-            .map(p => ({
-                farmerId: p.matchedFarmerId!,
-                amount: p.amount,
-                note: `Bulk Import: ${p.matchedName || p.cleanName}`
-            }));
+        const payload = {
+            items: parsedData
+                .filter(p => p.matchedFarmerId && !p.stockAdded)
+                .map(p => ({
+                    farmerId: p.matchedFarmerId!,
+                    amount: p.amount,
+                    note: `Bulk Import: ${p.matchedName || p.cleanName}`
+                })),
+            driverName: driverName || undefined
+        };
 
-        if (payload.length === 0) {
+        if (payload.items.length === 0) {
             toast.error("No valid matches found to import.");
             return;
         }
@@ -428,6 +433,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             setStep("INPUT");
             setInputText("");
             setParsedData([]);
+            setDriverName(""); // Added
             setEditingId(null);
             setEditingAmountId(null);
             setLoadingRowIds(new Set());
@@ -1069,7 +1075,18 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-muted-foreground hover:text-foreground w-full sm:w-auto">
                                         Back to Input
                                     </Button>
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end items-center">
+                                        {step === "REVIEW" && (
+                                            <div className="flex items-center gap-2 mr-0 sm:mr-2 w-full sm:w-auto">
+                                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <Input
+                                                    placeholder="Driver Name (Optional)"
+                                                    className="h-8 w-full sm:w-40 text-xs bg-background"
+                                                    value={driverName}
+                                                    onChange={(e) => setDriverName(e.target.value)}
+                                                />
+                                            </div>
+                                        )}
                                         {parsedData.some(p => !p.matchedFarmerId) && (
                                             <Button
                                                 variant="outline"

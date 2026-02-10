@@ -149,12 +149,17 @@ function CommandList({
     <CommandPrimitive.List
       ref={listRef}
       data-slot="command-list"
+      data-vaul-no-drag
       className={cn(
         "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto",
         className
       )}
       onWheelCapture={(e) => {
         // Prevent cmdk from blocking wheel scroll
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        // Prevent vaul Drawer from intercepting touch scroll
         e.stopPropagation();
       }}
       {...props}

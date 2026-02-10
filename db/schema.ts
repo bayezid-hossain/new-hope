@@ -264,6 +264,7 @@ export const stockLogs = pgTable("stock_logs", {
   amount: decimal("amount").notNull(), // Positive for Add, Negative for Deduct
   type: varchar("type", { length: 50 }).notNull(), // "RESTOCK", "CYCLE_CLOSE", "CORRECTION", "INITIAL"
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
+  driverName: text("driver_name"), // Added for bulk imports
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => [

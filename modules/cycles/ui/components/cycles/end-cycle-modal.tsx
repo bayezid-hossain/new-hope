@@ -16,6 +16,7 @@ import { SellModal } from "./sell-modal";
 
 interface EndCycleModalProps {
   cycleId: string;
+  farmerId: string;
   cycleName: string;
   farmerName: string;
   farmerLocation?: string | null;
@@ -33,6 +34,7 @@ interface EndCycleModalProps {
 
 export const EndCycleModal = ({
   cycleId,
+  farmerId,
   cycleName,
   farmerName,
   startDate,
@@ -223,6 +225,7 @@ export const EndCycleModal = ({
 
       <SellModal
         cycleId={cycleId}
+        farmerId={farmerId}
         cycleName={cycleName}
         startDate={startDate}
         farmerName={farmerName}

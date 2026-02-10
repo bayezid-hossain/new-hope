@@ -31,7 +31,7 @@ export default function SalesPage() {
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/5">
-            <div className="flex-1 p-3 sm:p-6 space-y-6 max-w-5xl mx-auto w-full">
+            <div className="flex-1 p-3 sm:p-6 space-y-6 max-w-6xl mx-auto w-full">
                 {/* Header */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">

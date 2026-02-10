@@ -60,9 +60,9 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                     <PopoverTrigger asChild>
                                         <button
                                             title="Missing location or mobile"
-                                            className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors"
+                                            className="text-destructive cursor-help outline-none p-1 hover:bg-destructive/10 rounded-full transition-colors"
                                         >
-                                            <AlertCircle className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                            <AlertCircle className="h-4 w-4" />
                                         </button>
                                     </PopoverTrigger>
                                     <PopoverContent side="top" align="center" className="w-auto p-2 text-[10px] font-medium shadow-lg">
@@ -78,9 +78,9 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                     e.stopPropagation();
                                     onEdit();
                                 }}
-                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors inline-flex"
+                                className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors inline-flex"
                             >
-                                <Wrench className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
+                                <Wrench className="h-4 w-4" />
                             </button>
                         )}
                         {onDelete && (
@@ -90,9 +90,9 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                                     e.stopPropagation();
                                     onDelete();
                                 }}
-                                className="p-1 xs:p-1 sm:p-1.5 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors inline-flex"
+                                className="p-1.5 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors inline-flex"
                             >
-                                <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5" />
+                                <Trash2 className="h-4 w-4" />
                             </button>
                         )}
                         {farmer.status === "deleted" ? (

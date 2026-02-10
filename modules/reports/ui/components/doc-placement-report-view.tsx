@@ -220,60 +220,88 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {reportData.farmers.map((farmer) => (
-                                    <div key={farmer.farmerName} className="border rounded-lg overflow-hidden">
-                                        <div
-                                            className="p-4 flex items-center justify-between bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
-                                            onClick={() => toggleExpand(farmer.farmerName)}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                                                    {expandedFarmerId === farmer.farmerName ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-semibold">{farmer.farmerName}</h3>
-                                                    <p className="text-sm text-muted-foreground">{farmer.cycles.length} Batches</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <Badge variant="secondary" className="text-sm font-mono">
-                                                    {farmer.totalDoc.toLocaleString()} DOC
-                                                </Badge>
-                                            </div>
-                                        </div>
+                                {reportData.farmers.map((farmer) => {
+                                    const isSingleBatch = farmer.cycles.length === 1;
+                                    const singleCycle = isSingleBatch ? farmer.cycles[0] : null;
 
-                                        {expandedFarmerId === farmer.farmerName && (
-                                            <div className="border-t bg-card animate-in slide-in-from-top-1">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Batch Name</TableHead>
-                                                            <TableHead>Date</TableHead>
-                                                            <TableHead>Status</TableHead>
-                                                            <TableHead className="text-right">DOC</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {farmer.cycles.map((cycle, idx) => (
-                                                            <TableRow key={idx}>
-                                                                <TableCell className="font-medium">{cycle.name}</TableCell>
-                                                                <TableCell>{format(new Date(cycle.date), 'dd/MM/yyyy')}</TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="outline" className="text-xs uppercase">
-                                                                        {cycle.status}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-mono">
-                                                                    {cycle.doc.toLocaleString()}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
+                                    if (isSingleBatch && singleCycle) {
+                                        return (
+                                            <div key={farmer.farmerName} className="border rounded-lg overflow-hidden bg-card">
+                                                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div>
+                                                            <h3 className="font-semibold">{farmer.farmerName}</h3>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="text-xs text-muted-foreground">{format(new Date(singleCycle.date), 'dd/MM/yyyy')}</span>
+
+                                                        </div><Badge variant="outline" className="text-[10px] uppercase h-5">
+                                                            {singleCycle.status}
+                                                        </Badge>
+                                                        <Badge variant="secondary" className="text-sm font-mono h-8 px-3">
+                                                            {singleCycle.doc.toLocaleString()} DOC
+                                                        </Badge>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
+                                        );
+                                    }
+
+                                    return (
+                                        <div key={farmer.farmerName} className="border rounded-lg overflow-hidden">
+                                            <div
+                                                className="p-4 flex items-center justify-between bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                                                onClick={() => toggleExpand(farmer.farmerName)}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                                        {expandedFarmerId === farmer.farmerName ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold">{farmer.farmerName}</h3>
+                                                        <p className="text-sm text-muted-foreground">{farmer.cycles.length} Batches</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <Badge variant="secondary" className="text-sm font-mono">
+                                                        {farmer.totalDoc.toLocaleString()} DOC
+                                                    </Badge>
+                                                </div>
+                                            </div>
+
+                                            {expandedFarmerId === farmer.farmerName && (
+                                                <div className="border-t bg-card animate-in slide-in-from-top-1">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Date</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead className="text-right">DOC</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {farmer.cycles.map((cycle, idx) => (
+                                                                <TableRow key={idx}>
+                                                                    <TableCell>{format(new Date(cycle.date), 'dd/MM/yyyy')}</TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant="outline" className="text-xs uppercase">
+                                                                            {cycle.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono">
+                                                                        {cycle.doc.toLocaleString()}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>
