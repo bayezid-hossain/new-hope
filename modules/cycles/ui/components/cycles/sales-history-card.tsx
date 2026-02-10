@@ -30,7 +30,7 @@ import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/co
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     Activity,
@@ -102,6 +102,7 @@ export interface SaleEvent {
     feedConsumed: { type: string; bags: number }[];
     feedStock: { type: string; bags: number }[];
     medicineCost?: string | null;
+    selectedReportId?: string | null;
     createdAt: Date;
     reports?: SaleReport[];
     cycleName?: string;
@@ -1187,16 +1188,41 @@ export const SalesHistoryCard = ({
                 const next = { ...prev };
                 let changed = false;
                 (salesEventsData as any[]).forEach(sale => {
-                    // Only set if we don't already have a selection for this sale
-                    if (next[sale.id] === undefined && sale.reports && sale.reports.length > 0) {
-                        next[sale.id] = sale.reports[0].id;
-                        changed = true;
+                    // Initialize from backend's selectedReportId if provided, else first report
+                    if (next[sale.id] === undefined) {
+                        if (sale.selectedReportId) {
+                            next[sale.id] = sale.selectedReportId;
+                            changed = true;
+                        } else if (sale.reports && sale.reports.length > 0) {
+                            next[sale.id] = sale.reports[0].id;
+                            changed = true;
+                        }
                     }
                 });
                 return changed ? next : prev;
             });
         }
     }, [salesEventsData]);
+
+    const setActiveVersionMutation = useMutation(
+        trpc.officer.sales.setActiveVersion.mutationOptions({
+            onSuccess: () => {
+                // Refetch to sync active version data
+                recentQuery.refetch();
+                eventsQuery.refetch();
+            }
+        })
+    );
+
+    const handleVersionChange = (saleId: string, reportId: string | null) => {
+        if (!reportId) return;
+
+        setSelectedReports(prev => ({ ...prev, [saleId]: reportId }));
+        setActiveVersionMutation.mutate({
+            saleEventId: saleId,
+            saleReportId: reportId
+        });
+    };
 
     // Helper to calculate cycle metrics dynamically on frontend
     const calculateDynamicCycleContext = (eventsInCycle: SaleEvent[]) => {
@@ -1210,30 +1236,13 @@ export const SalesHistoryCard = ({
         let totalBirdsSold = 0;
         let netAdjustment = 0;
         let totalMortality = 0;
-        const cycleFeedMap = new Map<string, { type: string; bags: number }[]>();
 
         eventsInCycle.forEach(sale => {
-            const activeReportId = selectedReports[sale.id];
-            const activeReport = activeReportId ? sale.reports?.find((r: any) => r.id === activeReportId) : null;
-
-            const birdsSold = activeReport ? activeReport.birdsSold : sale.birdsSold;
-            const weight = parseFloat(activeReport ? activeReport.totalWeight : sale.totalWeight);
-            const price = parseFloat(activeReport ? activeReport.pricePerKg : sale.pricePerKg);
-            const mortality = (activeReport && activeReport.totalMortality !== undefined && activeReport.totalMortality !== null)
-                ? activeReport.totalMortality
-                : sale.totalMortality;
-
-            // Use version-specific feed if available
-            if (activeReport && activeReport.feedConsumed) {
-                try {
-                    const reportFeed = JSON.parse(activeReport.feedConsumed) as { type: string; bags: number }[];
-                    cycleFeedMap.set(sale.id, reportFeed);
-                } catch (e) {
-                    cycleFeedMap.set(sale.id, sale.feedConsumed);
-                }
-            } else {
-                cycleFeedMap.set(sale.id, sale.feedConsumed);
-            }
+            // BACKEND SYNCED: Parent sale record now always reflects the "active" version
+            const birdsSold = sale.birdsSold;
+            const weight = parseFloat(sale.totalWeight);
+            const price = parseFloat(sale.pricePerKg);
+            const mortality = sale.totalMortality;
 
             totalRevenue += weight * price;
             totalWeight += weight;
@@ -1253,20 +1262,15 @@ export const SalesHistoryCard = ({
             }
         });
 
-        // Sum up feed across the cycle based on selections
-        let cycleTotalFeedBags = 0;
-        cycleFeedMap.forEach(feed => {
-            cycleTotalFeedBags += feed.reduce((acc, item) => acc + item.bags, 0);
-        });
-
         const cycleOrHistory = firstSale.cycle || firstSale.history;
         const isEnded = !firstSale.cycleId && !!firstSale.historyId;
         const doc = cycleOrHistory?.doc || 0;
         const age = cycleOrHistory?.age || 0;
 
         // If ended, history.finalIntake is the truth, but we can approximate from selection
-        const feedConsumed = cycleTotalFeedBags;
-
+        const feedConsumed = isEnded
+            ? (firstSale.history?.finalIntake || 0)
+            : (firstSale.cycle?.intake || 0);
         const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
         const formulaRevenue = effectiveRate * totalWeight;
 
@@ -1449,7 +1453,7 @@ export const SalesHistoryCard = ({
                                     indexInGroup={index}
                                     totalInGroup={events.length}
                                     selectedReportId={selectedReports[sale.id] || null}
-                                    onReportSelect={(reportId) => setSelectedReports(prev => ({ ...prev, [sale.id]: reportId }))}
+                                    onReportSelect={(reportId) => handleVersionChange(sale.id, reportId)}
                                     hideName={hideFarmerName}
                                 />
                             </div>
@@ -1472,7 +1476,7 @@ export const SalesHistoryCard = ({
                             };
                         })}
                         selectedReports={selectedReports}
-                        onReportSelect={(saleId, reportId) => setSelectedReports(prev => ({ ...prev, [saleId]: reportId }))}
+                        onReportSelect={handleVersionChange}
                         hideFarmerName={hideFarmerName}
                     />
                 </div>

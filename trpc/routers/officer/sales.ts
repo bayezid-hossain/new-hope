@@ -440,6 +440,7 @@ export const officerSalesRouter = createTRPCRouter({
                 // Keep the parent record updated with the latest verson's summary data
                 await tx.update(saleEvents)
                     .set({
+                        selectedReportId: report.id,
                         birdsSold: input.birdsSold,
                         totalMortality: input.totalMortality,
                         totalWeight: input.totalWeight.toString(),
@@ -449,10 +450,10 @@ export const officerSalesRouter = createTRPCRouter({
                         cashReceived: input.cashReceived.toString(),
                         depositReceived: input.depositReceived.toString(),
                         medicineCost: input.medicineCost.toString(),
-                        ...(input.location && { location: input.location }),
-                        ...(input.party && { party: input.party }),
-                        ...(input.feedConsumed && { feedConsumed: JSON.stringify(input.feedConsumed) }),
-                        ...(input.feedStock && { feedStock: JSON.stringify(input.feedStock) }),
+                        feedConsumed: JSON.stringify(input.feedConsumed),
+                        feedStock: JSON.stringify(input.feedStock),
+                        party: input.party,
+                        location: input.location,
                     })
                     .where(eq(saleEvents.id, input.saleEventId));
 
@@ -779,6 +780,46 @@ export const officerSalesRouter = createTRPCRouter({
                     }
                 };
             });
+        }),
+
+    // Set active report version for a sale event
+    setActiveVersion: proProcedure
+        .input(z.object({
+            saleEventId: z.string(),
+            saleReportId: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const result = await ctx.db.transaction(async (tx) => {
+                // Verify both exist
+                const [event] = await tx.select().from(saleEvents).where(eq(saleEvents.id, input.saleEventId)).limit(1);
+                const [report] = await tx.select().from(saleReports).where(eq(saleReports.id, input.saleReportId)).limit(1);
+
+                if (!event || !report) {
+                    throw new TRPCError({ code: "NOT_FOUND", message: "Event or Report not found" });
+                }
+
+                // Update selected version
+                await tx.update(saleEvents)
+                    .set({
+                        selectedReportId: report.id,
+                        birdsSold: report.birdsSold,
+                        totalMortality: report.totalMortality || 0,
+                        totalWeight: report.totalWeight,
+                        pricePerKg: report.pricePerKg,
+                        totalAmount: report.totalAmount,
+                        avgWeight: report.avgWeight,
+                        cashReceived: report.cashReceived,
+                        depositReceived: report.depositReceived,
+                        medicineCost: report.medicineCost,
+                        feedConsumed: report.feedConsumed || "[]",
+                        feedStock: report.feedStock || "[]",
+                    })
+                    .where(eq(saleEvents.id, event.id));
+
+                return { success: true };
+            });
+
+            return result;
         }),
 
     // Get reports for a sale event

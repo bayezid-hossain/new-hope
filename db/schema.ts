@@ -305,7 +305,7 @@ export const saleEvents = pgTable("sale_events", {
   feedStock: text("feed_stock").notNull(),
 
   medicineCost: decimal("medicine_cost").default("0"),
-
+  selectedReportId: text("selected_report_id"),
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
