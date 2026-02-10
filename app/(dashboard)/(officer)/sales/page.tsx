@@ -70,6 +70,7 @@ export default function SalesPage() {
                         search={search}
                         showLoadMore={true}
                         onLoadMore={() => setLimit(l => l + 20)}
+                        hideFarmerName={false}
                     />
                 </div>
             </div>

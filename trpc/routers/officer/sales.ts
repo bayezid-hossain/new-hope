@@ -420,18 +420,18 @@ export const officerSalesRouter = createTRPCRouter({
 
             const result = await ctx.db.transaction(async (tx) => {
                 const [report] = await tx.insert(saleReports).values({
-                    saleEventId: input.saleEventId,
+                    saleEventId: event.id,
                     birdsSold: input.birdsSold,
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     pricePerKg: input.pricePerKg.toString(),
-                    totalAmount: totalAmount.toFixed(2),
+                    totalAmount: (input.totalWeight * input.pricePerKg).toFixed(2),
                     avgWeight: avgWeight.toFixed(2),
-
                     cashReceived: input.cashReceived.toString(),
                     depositReceived: input.depositReceived.toString(),
                     medicineCost: input.medicineCost.toString(),
-
+                    feedConsumed: JSON.stringify(input.feedConsumed),
+                    feedStock: JSON.stringify(input.feedStock),
                     adjustmentNote: input.adjustmentNote,
                     createdBy: ctx.user.id,
                 }).returning();
@@ -513,9 +513,9 @@ export const officerSalesRouter = createTRPCRouter({
                         }
 
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
-                        const remaining = activeCycle.doc - newMortality - newBirdsSold;
+                        const [refetchedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
+                        const remaining = (refetchedCycle?.doc || 0) - (refetchedCycle?.mortality || 0) - (refetchedCycle?.birdsSold || 0);
                         if (remaining <= 0) {
-                            const [refetchedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
                             const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
                             await endCycleLogic(tx, event.cycleId, refetchedCycle?.intake || 0, ctx.user.id, ctx.user.name);
                         }
@@ -602,8 +602,24 @@ export const officerSalesRouter = createTRPCRouter({
                                 saleEvents: {
                                     with: {
                                         reports: {
+                                            with: { createdByUser: { columns: { name: true } } },
                                             orderBy: desc(saleReports.createdAt),
-                                            with: { createdByUser: { columns: { name: true } } }
+                                            columns: {
+                                                id: true,
+                                                birdsSold: true,
+                                                totalWeight: true,
+                                                pricePerKg: true,
+                                                totalAmount: true,
+                                                avgWeight: true,
+                                                totalMortality: true,
+                                                cashReceived: true,
+                                                depositReceived: true,
+                                                medicineCost: true,
+                                                adjustmentNote: true,
+                                                feedConsumed: true,
+                                                feedStock: true,
+                                                createdAt: true,
+                                            }
                                         },
                                         createdByUser: { columns: { name: true } },
                                         cycle: {
@@ -621,8 +637,24 @@ export const officerSalesRouter = createTRPCRouter({
                                 saleEvents: {
                                     with: {
                                         reports: {
+                                            with: { createdByUser: { columns: { name: true } } },
                                             orderBy: desc(saleReports.createdAt),
-                                            with: { createdByUser: { columns: { name: true } } }
+                                            columns: {
+                                                id: true,
+                                                birdsSold: true,
+                                                totalWeight: true,
+                                                pricePerKg: true,
+                                                totalAmount: true,
+                                                avgWeight: true,
+                                                totalMortality: true,
+                                                cashReceived: true,
+                                                depositReceived: true,
+                                                medicineCost: true,
+                                                adjustmentNote: true,
+                                                feedConsumed: true,
+                                                feedStock: true,
+                                                createdAt: true,
+                                            }
                                         },
                                         createdByUser: { columns: { name: true } },
                                         cycle: {
@@ -664,7 +696,23 @@ export const officerSalesRouter = createTRPCRouter({
                     with: {
                         reports: {
                             orderBy: desc(saleReports.createdAt),
-                            with: { createdByUser: { columns: { name: true } } }
+                            with: { createdByUser: { columns: { name: true } } },
+                            columns: {
+                                id: true,
+                                birdsSold: true,
+                                totalWeight: true,
+                                pricePerKg: true,
+                                totalAmount: true,
+                                avgWeight: true,
+                                totalMortality: true,
+                                cashReceived: true,
+                                depositReceived: true,
+                                medicineCost: true,
+                                adjustmentNote: true,
+                                feedConsumed: true,
+                                feedStock: true,
+                                createdAt: true,
+                            }
                         },
                         createdByUser: {
                             columns: { name: true },
@@ -745,6 +793,24 @@ export const officerSalesRouter = createTRPCRouter({
                         columns: { name: true },
                     },
                 },
+                columns: {
+                    id: true,
+                    birdsSold: true,
+                    totalWeight: true,
+                    pricePerKg: true,
+                    totalAmount: true,
+                    avgWeight: true,
+                    totalMortality: true,
+                    cashReceived: true,
+                    depositReceived: true,
+                    medicineCost: true,
+                    adjustmentNote: true,
+                    feedConsumed: true,
+                    feedStock: true,
+                    createdAt: true,
+                    createdBy: true,
+                    saleEventId: true,
+                }
             });
         }),
 
@@ -771,8 +837,24 @@ export const officerSalesRouter = createTRPCRouter({
                     cycle: { with: { farmer: true } },
                     history: { with: { farmer: true } },
                     reports: {
+                        with: { createdByUser: { columns: { name: true } } },
                         orderBy: desc(saleReports.createdAt),
-                        with: { createdByUser: { columns: { name: true } } }
+                        columns: {
+                            id: true,
+                            birdsSold: true,
+                            totalWeight: true,
+                            pricePerKg: true,
+                            totalAmount: true,
+                            avgWeight: true,
+                            totalMortality: true,
+                            cashReceived: true,
+                            depositReceived: true,
+                            medicineCost: true,
+                            adjustmentNote: true,
+                            feedConsumed: true,
+                            feedStock: true,
+                            createdAt: true,
+                        }
                     }
                 }
             });

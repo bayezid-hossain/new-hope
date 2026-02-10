@@ -83,6 +83,8 @@ interface AdjustSaleModalProps {
         cashReceived?: string | null;
         depositReceived?: string | null;
         medicineCost?: string | null;
+        feedConsumed?: string | null;
+        feedStock?: string | null;
     };
 }
 
@@ -124,8 +126,16 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
         medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
 
-        feedConsumed: ensureB1B2(saleEvent.feedConsumed),
-        feedStock: ensureB1B2(saleEvent.feedStock),
+        feedConsumed: ensureB1B2(
+            latestReport && latestReport.feedConsumed
+                ? JSON.parse(latestReport.feedConsumed)
+                : saleEvent.feedConsumed
+        ),
+        feedStock: ensureB1B2(
+            latestReport && latestReport.feedStock
+                ? JSON.parse(latestReport.feedStock)
+                : saleEvent.feedStock
+        ),
 
         location: saleEvent.location,
         party: saleEvent.party || "",
@@ -192,8 +202,16 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 depositReceived: parseFloat(latestReport?.depositReceived ?? saleEvent.depositReceived ?? "0"),
                 medicineCost: parseFloat(latestReport?.medicineCost ?? saleEvent.medicineCost ?? "0"),
 
-                feedConsumed: ensureB1B2(saleEvent.feedConsumed),
-                feedStock: ensureB1B2(saleEvent.feedStock),
+                feedConsumed: ensureB1B2(
+                    latestReport && latestReport.feedConsumed
+                        ? JSON.parse(latestReport.feedConsumed)
+                        : saleEvent.feedConsumed
+                ),
+                feedStock: ensureB1B2(
+                    latestReport && latestReport.feedStock
+                        ? JSON.parse(latestReport.feedStock)
+                        : saleEvent.feedStock
+                ),
 
                 location: saleEvent.location,
                 party: saleEvent.party || "",

@@ -324,13 +324,14 @@ export const saleReports = pgTable("sale_reports", {
   pricePerKg: decimal("price_per_kg").notNull(),
   totalAmount: decimal("total_amount").notNull(),
   avgWeight: decimal("avg_weight").notNull(),
-
   // Financial Adjustments
   cashReceived: decimal("cash_received").default("0"),
   depositReceived: decimal("deposit_received").default("0"),
   medicineCost: decimal("medicine_cost").default("0"),
 
   adjustmentNote: text("adjustment_note"),
+  feedConsumed: text("feed_consumed"), // JSON stringified array
+  feedStock: text("feed_stock"),       // JSON stringified array
 
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),

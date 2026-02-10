@@ -142,7 +142,7 @@ const ArchivedCyclesSection = ({ isLoading, isError, data }: { isLoading: boolea
 
 const SalesHistorySection = ({ farmerId }: { farmerId: string }) => (
   <div className="space-y-4">
-    <SalesHistoryCard farmerId={farmerId} />
+    <SalesHistoryCard farmerId={farmerId} hideFarmerName={true} />
   </div>
 );
 

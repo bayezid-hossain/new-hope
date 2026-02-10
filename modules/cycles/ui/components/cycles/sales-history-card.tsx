@@ -57,7 +57,7 @@ import {
     Weight,
     Zap
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdjustSaleModal } from "./adjust-sale-modal";
 import { FcrEpiDetailsModal } from "./fcr-epi-details-modal";
@@ -75,8 +75,10 @@ export interface SaleReport {
     depositReceived?: string | null;
     medicineCost?: string | null;
     adjustmentNote?: string | null;
+    feedConsumed?: string | null;
+    feedStock?: string | null;
     createdAt: Date;
-    createdByUser: {
+    createdByUser?: {
         name: string;
     };
 }
@@ -104,6 +106,22 @@ export interface SaleEvent {
     reports?: SaleReport[];
     cycleName?: string;
     farmerName?: string;
+    cycle?: {
+        name: string;
+        doc: number;
+        intake: number;
+        mortality: number;
+        age: number;
+        farmer?: { name: string };
+    } | null;
+    history?: {
+        cycleName: string;
+        doc: number;
+        finalIntake: number;
+        mortality: number;
+        age: number;
+        farmer?: { name: string };
+    } | null;
     cycleContext?: {
         doc: number;
         mortality: number;
@@ -128,6 +146,8 @@ interface SaleEventCardProps {
     indexInGroup?: number;
     totalInGroup?: number;
     hideName?: boolean;
+    selectedReportId: string | null;
+    onReportSelect: (reportId: string | null) => void;
 }
 
 const formatFeedBreakdown = (items: { type: string; bags: number }[]): string => {
@@ -198,15 +218,21 @@ Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
 ${!isEnded ? "\n--- Sale not complete ---" : ""}`;
 };
 
-export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hideName = false }: SaleEventCardProps) => {
+export const SaleEventCard = ({
+    sale,
+    isLatest,
+    indexInGroup,
+    totalInGroup,
+    hideName = false,
+    selectedReportId,
+    onReportSelect
+}: SaleEventCardProps) => {
     const trpc = useTRPC();
     const { activeMode, role, canEdit } = useCurrentOrg();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const reports = sale.reports || [];
     const hasReports = reports.length > 0;
-
-    const [selectedReportId, setSelectedReportId] = useState<string | null>(hasReports ? reports[0].id : null);
 
     const activeReport = selectedReportId
         ? reports.find(r => r.id === selectedReportId) || null
@@ -323,18 +349,16 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hide
                                         return (
                                             <DropdownMenuItem
                                                 key={report.id}
-                                                onClick={() => setSelectedReportId(report.id)}
-                                                className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+                                                onClick={() => onReportSelect(report.id)}
+                                                className={cn(selectedReportId === report.id && "bg-muted font-medium")}
                                             >
-                                                <div className="flex items-center justify-between w-full">
-                                                    <span className={selectedReportId === report.id ? "font-bold text-primary" : "font-medium"}>
-                                                        Version {versionNum}
-                                                    </span>
-                                                    {selectedReportId === report.id && <Check className="h-3 w-3 text-primary" />}
+                                                <div className="flex justify-between w-full items-center gap-2">
+                                                    <div className="flex flex-col">
+                                                        <span>Version {versionNum}</span>
+                                                        <span className="text-[10px] text-muted-foreground">{format(new Date(report.createdAt), "dd/MM/yyyy HH:mm")}</span>
+                                                    </div>
+                                                    {selectedReportId === report.id && <Check className="h-3.5 w-3.5 text-primary" />}
                                                 </div>
-                                                <span className="text-[10px] text-muted-foreground">
-                                                    {format(new Date(report.createdAt), "dd/MM/yyyy HH:mm")} by {report.createdByUser?.name}
-                                                </span>
                                             </DropdownMenuItem>
                                         );
                                     })}
@@ -360,6 +384,7 @@ export const SaleEventCard = ({ sale, isLatest, indexInGroup, totalInGroup, hide
                             displayPricePerKg={displayPricePerKg}
                             displayTotalAmount={displayTotalAmount}
                             displayMortality={displayMortality}
+                            selectedReport={activeReport}
                             setShowFcrEpiModal={setShowFcrEpiModal}
                             setShowProfitModal={setShowProfitModal}
                             showFcrEpiModal={showFcrEpiModal}
@@ -392,6 +417,7 @@ interface SaleDetailsContentProps {
     displayPricePerKg: string;
     displayTotalAmount: string;
     displayMortality: number;
+    selectedReport?: SaleReport | null;
     setShowFcrEpiModal: (open: boolean) => void;
     setShowProfitModal: (open: boolean) => void;
     showFcrEpiModal: boolean;
@@ -408,12 +434,22 @@ const SaleDetailsContent = ({
     displayPricePerKg,
     displayTotalAmount,
     displayMortality,
+    selectedReport, // New prop
     setShowFcrEpiModal,
     setShowProfitModal,
     showFcrEpiModal,
     showProfitModal,
     isMobileView = false
 }: SaleDetailsContentProps) => {
+    // Inventory data from either report or parent sale
+    const currentFeedConsumed = selectedReport?.feedConsumed
+        ? JSON.parse(selectedReport.feedConsumed) as { type: string; bags: number }[]
+        : sale.feedConsumed;
+
+    const currentFeedStock = selectedReport?.feedStock
+        ? JSON.parse(selectedReport.feedStock) as { type: string; bags: number }[]
+        : sale.feedStock;
+
     // Calculate cumulative average weight - ONLY for the final sale of the cycle
     const cumulativeWeight = sale.cycleContext?.totalWeight || 0;
     const cumulativeBirdsSold = sale.cycleContext?.cumulativeBirdsSold || 0;
@@ -510,11 +546,11 @@ const SaleDetailsContent = ({
                 <div className="grid grid-cols-2 gap-3 text-xs mb-4">
                     <div>
                         <span className="text-muted-foreground block mb-0.5">Feed Consumed:</span>
-                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedConsumed)}</span>
+                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(currentFeedConsumed)}</span>
                     </div>
                     <div>
                         <span className="text-muted-foreground block mb-0.5">Feed Stock:</span>
-                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(sale.feedStock)}</span>
+                        <span className="font-medium bg-muted/40 px-1.5 py-0.5 rounded block w-fit whitespace-pre-line">{formatFeedBreakdown(currentFeedStock)}</span>
                     </div>
                 </div>
 
@@ -853,7 +889,17 @@ const SaleDetailsContent = ({
 // DESKTOP TABLE ROW
 // ----------------------------------------------------------------------
 
-export const DesktopSalesTable = ({ sales }: { sales: SaleEvent[] }) => {
+export const DesktopSalesTable = ({
+    sales,
+    selectedReports,
+    onReportSelect,
+    hideFarmerName = false
+}: {
+    sales: SaleEvent[];
+    selectedReports: Record<string, string | null>;
+    onReportSelect: (saleId: string, reportId: string | null) => void;
+    hideFarmerName?: boolean;
+}) => {
     return (
         <Card className="border-none shadow-none bg-transparent">
             <CardContent className="p-0">
@@ -880,6 +926,9 @@ export const DesktopSalesTable = ({ sales }: { sales: SaleEvent[] }) => {
                                 key={sale.id}
                                 sale={sale}
                                 isLatest={(sale as any).isLatestInCycle ?? (index === 0)}
+                                selectedReportId={selectedReports[sale.id] || null}
+                                onReportSelect={(reportId) => onReportSelect(sale.id, reportId)}
+                                hideFarmerName={hideFarmerName}
                             />
                         ))}
                     </TableBody>
@@ -889,14 +938,25 @@ export const DesktopSalesTable = ({ sales }: { sales: SaleEvent[] }) => {
     )
 }
 
-const DesktopSaleRow = ({ sale, isLatest }: { sale: SaleEvent, isLatest: boolean }) => {
+const DesktopSaleRow = ({
+    sale,
+    isLatest,
+    selectedReportId,
+    onReportSelect,
+    hideFarmerName = false
+}: {
+    sale: SaleEvent;
+    isLatest: boolean;
+    selectedReportId: string | null;
+    onReportSelect: (reportId: string | null) => void;
+    hideFarmerName?: boolean;
+}) => {
     const { activeMode, role, canEdit } = useCurrentOrg();
     const [isAdjustOpen, setIsAdjustOpen] = useState(false);
 
     // Logic for reports/versions
     const reports = sale.reports || [];
     const hasReports = reports.length > 0;
-    const [selectedReportId, setSelectedReportId] = useState<string | null>(hasReports ? reports[0].id : null);
     const activeReport = selectedReportId ? reports.find(r => r.id === selectedReportId) || null : (hasReports ? reports[0] : null);
 
     const displayBirdsSold = activeReport ? activeReport.birdsSold : sale.birdsSold;
@@ -942,7 +1002,11 @@ const DesktopSaleRow = ({ sale, isLatest }: { sale: SaleEvent, isLatest: boolean
                 <TableCell className="py-3">
                     <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-sm truncate max-w-[150px]">{sale.farmerName || sale.cycleName}</span>
+                            {!hideFarmerName ? (
+                                <span className="font-semibold text-sm truncate max-w-[150px]">{sale.farmerName || sale.cycleName}</span>
+                            ) : (
+                                <span className="font-semibold text-sm text-muted-foreground/50 italic">Sale Record</span>
+                            )}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className="shrink-0 cursor-help">
@@ -1004,7 +1068,7 @@ const DesktopSaleRow = ({ sale, isLatest }: { sale: SaleEvent, isLatest: boolean
                                         <DropdownMenuSeparator />
                                         <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground/50 px-2 py-1">Versions</DropdownMenuLabel>
                                         {reports.map((report, idx) => (
-                                            <DropdownMenuItem key={report.id} onClick={() => setSelectedReportId(report.id)}>
+                                            <DropdownMenuItem key={report.id} onClick={() => onReportSelect(report.id)}>
                                                 <div className="flex justify-between w-full items-center gap-2">
                                                     <span>Version {reports.length - idx}</span>
                                                     {selectedReportId === report.id && <Check className="h-3 w-3" />}
@@ -1084,10 +1148,14 @@ export const SalesHistoryCard = ({
     limit = 20,
     search = "",
     showLoadMore = false,
-    onLoadMore
-}: SalesHistoryCardProps) => {
+    onLoadMore,
+    hideFarmerName = false,
+}: SalesHistoryCardProps & { hideFarmerName?: boolean }) => {
     const trpc = useTRPC();
     const { isPro } = useCurrentOrg();
+
+    // Track selected report version for each sale event
+    const [selectedReports, setSelectedReports] = useState<Record<string, string | null>>({});
 
     // Use getRecentSales for global feed, or getSaleEvents for specific context
     const recentQuery = useQuery(
@@ -1108,14 +1176,131 @@ export const SalesHistoryCard = ({
         )
     );
 
-    const salesEvents = recent ? recentQuery.data : eventsQuery.data;
+    const salesEventsData = recent ? recentQuery.data : eventsQuery.data;
     const isLoading = recent ? recentQuery.isLoading : eventsQuery.isLoading;
+    const isFetching = recent ? recentQuery.isFetching : eventsQuery.isFetching;
+
+    // Initialize selectedReports when data changes - only if not already set or for new sales
+    useEffect(() => {
+        if (salesEventsData) {
+            setSelectedReports(prev => {
+                const next = { ...prev };
+                let changed = false;
+                (salesEventsData as any[]).forEach(sale => {
+                    // Only set if we don't already have a selection for this sale
+                    if (next[sale.id] === undefined && sale.reports && sale.reports.length > 0) {
+                        next[sale.id] = sale.reports[0].id;
+                        changed = true;
+                    }
+                });
+                return changed ? next : prev;
+            });
+        }
+    }, [salesEventsData]);
+
+    // Helper to calculate cycle metrics dynamically on frontend
+    const calculateDynamicCycleContext = (eventsInCycle: SaleEvent[]) => {
+        if (eventsInCycle.length === 0) return null;
+
+        const firstSale = eventsInCycle[0];
+        const groupKey = firstSale.cycleId || firstSale.historyId || "unknown";
+
+        let totalRevenue = 0;
+        let totalWeight = 0;
+        let totalBirdsSold = 0;
+        let netAdjustment = 0;
+        let totalMortality = 0;
+        const cycleFeedMap = new Map<string, { type: string; bags: number }[]>();
+
+        eventsInCycle.forEach(sale => {
+            const activeReportId = selectedReports[sale.id];
+            const activeReport = activeReportId ? sale.reports?.find((r: any) => r.id === activeReportId) : null;
+
+            const birdsSold = activeReport ? activeReport.birdsSold : sale.birdsSold;
+            const weight = parseFloat(activeReport ? activeReport.totalWeight : sale.totalWeight);
+            const price = parseFloat(activeReport ? activeReport.pricePerKg : sale.pricePerKg);
+            const mortality = (activeReport && activeReport.totalMortality !== undefined && activeReport.totalMortality !== null)
+                ? activeReport.totalMortality
+                : sale.totalMortality;
+
+            // Use version-specific feed if available
+            if (activeReport && activeReport.feedConsumed) {
+                try {
+                    const reportFeed = JSON.parse(activeReport.feedConsumed) as { type: string; bags: number }[];
+                    cycleFeedMap.set(sale.id, reportFeed);
+                } catch (e) {
+                    cycleFeedMap.set(sale.id, sale.feedConsumed);
+                }
+            } else {
+                cycleFeedMap.set(sale.id, sale.feedConsumed);
+            }
+
+            totalRevenue += weight * price;
+            totalWeight += weight;
+            totalBirdsSold += birdsSold;
+
+            // Adjustments logic matches backend independent price adjustment
+            const diff = price - BASE_SELLING_PRICE;
+            if (diff > 0) {
+                netAdjustment += diff / 2;
+            } else if (diff < 0) {
+                netAdjustment += diff;
+            }
+
+            // Latest mortality recorded in the cycle
+            if (mortality > totalMortality) {
+                totalMortality = mortality;
+            }
+        });
+
+        // Sum up feed across the cycle based on selections
+        let cycleTotalFeedBags = 0;
+        cycleFeedMap.forEach(feed => {
+            cycleTotalFeedBags += feed.reduce((acc, item) => acc + item.bags, 0);
+        });
+
+        const cycleOrHistory = firstSale.cycle || firstSale.history;
+        const isEnded = !firstSale.cycleId && !!firstSale.historyId;
+        const doc = cycleOrHistory?.doc || 0;
+        const age = cycleOrHistory?.age || 0;
+
+        // If ended, history.finalIntake is the truth, but we can approximate from selection
+        const feedConsumed = cycleTotalFeedBags;
+
+        const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+        const formulaRevenue = effectiveRate * totalWeight;
+
+        // FCR & EPI calculation logic matches backend
+        const survivors = doc - totalMortality;
+        const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
+        const feedKg = feedConsumed * 50;
+        const fcr = totalWeight > 0 ? feedKg / totalWeight : 0;
+        const avgWeightKg = survivors > 0 ? totalWeight / survivors : 0;
+        const epi = (fcr > 0 && age > 0)
+            ? (survivalRate * avgWeightKg) / (fcr * age) * 100
+            : 0;
+
+        return {
+            doc,
+            mortality: totalMortality,
+            age,
+            feedConsumed,
+            isEnded,
+            fcr: parseFloat(fcr.toFixed(2)),
+            epi: Math.round(epi),
+            revenue: formulaRevenue,
+            actualRevenue: totalRevenue,
+            totalWeight,
+            cumulativeBirdsSold: totalBirdsSold,
+            effectiveRate,
+            netAdjustment
+        };
+    };
 
     const groupedSales = useMemo(() => {
-        const rawEvents = (salesEvents || []) as any[];
+        const rawEvents = (salesEventsData || []) as any[];
         if (rawEvents.length === 0) return [];
 
-        // Map to SaleEvent interface (dates are strings from TRPC)
         const events: SaleEvent[] = rawEvents.map(e => ({
             ...e,
             saleDate: new Date(e.saleDate),
@@ -1126,21 +1311,19 @@ export const SalesHistoryCard = ({
             }))
         }));
 
-        // If not grouping by farmer, just return null (handled by direct renderSalesFeed call below)
         if (!farmerId) return null;
 
         const groups: Record<string, {
-            name: string,
-            sales: SaleEvent[],
-            isEnded: boolean,
-            doc: number,
-            mortality: number,
-            age: number,
-            totalSold: number,
+            name: string;
+            sales: SaleEvent[];
+            isEnded: boolean;
+            doc: number;
+            mortality: number;
+            age: number;
+            totalSold: number;
         }> = {};
 
         events.forEach(sale => {
-            // Group by cycle/history ID primarily, name as fallback
             const key = sale.cycleId || sale.historyId || "unknown";
 
             if (!groups[key]) {
@@ -1155,12 +1338,9 @@ export const SalesHistoryCard = ({
                     totalSold: 0,
                 };
             }
-            const group = groups[key]!;
-            group.sales.push(sale);
-            group.totalSold += (sale.birdsSold || 0);
+            groups[key].sales.push(sale);
         });
 
-        // Convert to array and sort by latest sale date
         return Object.entries(groups)
             .map(([key, group]) => ({
                 id: key,
@@ -1171,9 +1351,26 @@ export const SalesHistoryCard = ({
                 const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
                 return dateB - dateA;
             });
-    }, [salesEvents, farmerId]);
+    }, [salesEventsData, farmerId]);
 
-    // PRO GATE
+    const salesEvents = recent ? (recentQuery.data as SaleEvent[]) : (eventsQuery.data as SaleEvent[]);
+
+    const cycleContexts = useMemo(() => {
+        if (!salesEvents) return {};
+        const cyclesMap: Record<string, SaleEvent[]> = {};
+        salesEvents.forEach(e => {
+            const key = e.cycleId || e.historyId || "unknown";
+            if (!cyclesMap[key]) cyclesMap[key] = [];
+            cyclesMap[key].push(e);
+        });
+
+        const contexts: Record<string, any> = {};
+        Object.keys(cyclesMap).forEach(key => {
+            contexts[key] = calculateDynamicCycleContext(cyclesMap[key]);
+        });
+        return contexts;
+    }, [salesEvents, selectedReports]);
+
     if (!isPro) {
         return (
             <div className={isMobile ? "space-y-3" : "space-y-4"}>
@@ -1201,7 +1398,7 @@ export const SalesHistoryCard = ({
         );
     }
 
-    if (isLoading) {
+    if (isLoading && !salesEventsData) {
         return (
             <div className="space-y-4">
                 <Skeleton className="h-40 w-full" />
@@ -1209,8 +1406,6 @@ export const SalesHistoryCard = ({
             </div>
         );
     }
-
-
 
     if (!salesEvents || salesEvents.length === 0) {
         return (
@@ -1224,137 +1419,142 @@ export const SalesHistoryCard = ({
 
     const renderSalesFeed = (events: SaleEvent[]) => {
         return (
-            <TooltipProvider>
-                <div className="space-y-6">
-                    {/* Mobile View */}
-                    <div className="md:hidden space-y-4">
-                        {events.map((sale, index) => {
-                            const cycleKey = sale.cycleId || sale.historyId;
-                            const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId) === cycleKey);
-                            const isLatestInCycle = index === firstOccurrenceIdx;
-
-                            return (
-                                <div key={sale.id} className="relative p-0 border-b pb-4 last:border-0">
-                                    <SaleEventCard
-                                        sale={{
-                                            ...sale,
-                                            saleDate: new Date(sale.saleDate),
-                                            createdAt: new Date(sale.createdAt),
-                                            reports: (sale.reports || []).map((r: any) => ({
-                                                ...r,
-                                                createdAt: new Date(r.createdAt)
-                                            }))
-                                        }}
-                                        isLatest={isLatestInCycle}
-                                        indexInGroup={index}
-                                        totalInGroup={events.length}
-                                    />
-                                </div>
-                            );
-                        })}
+            <div className={cn("space-y-6 transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
+                {isFetching && (
+                    <div className="absolute inset-x-0 -top-2 h-0.5 bg-primary/20 animate-pulse overflow-hidden">
+                        <div className="h-full bg-primary animate-[shimmer_1.5s_infinite]" style={{ width: '40%' }}></div>
                     </div>
+                )}
+                <div className="md:hidden space-y-4">
+                    {events.map((sale, index) => {
+                        const cycleKey = sale.cycleId || sale.historyId || "unknown";
+                        const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId || "unknown") === cycleKey);
+                        const isLatestInCycle = index === firstOccurrenceIdx;
+                        const dynamicContext = cycleContexts[cycleKey];
 
-                    {/* Desktop View */}
-                    <div className="hidden md:block bg-background rounded-xl border shadow-sm overflow-hidden">
-                        <DesktopSalesTable
-                            sales={events.map((sale, index) => {
-                                const cycleKey = sale.cycleId || sale.historyId;
-                                const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId) === cycleKey);
-                                const isLatestInCycle = index === firstOccurrenceIdx;
-
-                                return {
-                                    ...sale,
-                                    saleDate: new Date(sale.saleDate),
-                                    createdAt: new Date(sale.createdAt),
-                                    reports: (sale.reports || []).map((r: any) => ({
-                                        ...r,
-                                        createdAt: new Date(r.createdAt)
-                                    })),
-                                    isLatestInCycle
-                                };
-                            })}
-                        />
-                    </div>
-
-                    {showLoadMore && onLoadMore && events.length >= limit && !search && (
-                        <div className="flex justify-center pt-4 pb-8">
-                            <Button variant="outline" onClick={onLoadMore}>
-                                Load More
-                            </Button>
-                        </div>
-                    )}
+                        return (
+                            <div key={sale.id} className="relative p-0 border-b pb-4 last:border-0">
+                                <SaleEventCard
+                                    sale={{
+                                        ...sale,
+                                        saleDate: new Date(sale.saleDate),
+                                        createdAt: new Date(sale.createdAt),
+                                        reports: (sale.reports || []).map((r: any) => ({
+                                            ...r,
+                                            createdAt: new Date(r.createdAt)
+                                        })),
+                                        cycleContext: dynamicContext
+                                    }}
+                                    isLatest={isLatestInCycle}
+                                    indexInGroup={index}
+                                    totalInGroup={events.length}
+                                    selectedReportId={selectedReports[sale.id] || null}
+                                    onReportSelect={(reportId) => setSelectedReports(prev => ({ ...prev, [sale.id]: reportId }))}
+                                    hideName={hideFarmerName}
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
-            </TooltipProvider>
+
+                <div className="hidden md:block bg-background rounded-xl border shadow-sm overflow-hidden">
+                    <DesktopSalesTable
+                        sales={events.map((sale, index) => {
+                            const cycleKey = sale.cycleId || sale.historyId || "unknown";
+                            const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId || "unknown") === cycleKey);
+                            const isLatestInCycle = index === firstOccurrenceIdx;
+                            const dynamicContext = cycleContexts[cycleKey];
+
+                            return {
+                                ...sale,
+                                isLatestInCycle,
+                                cycleContext: dynamicContext
+                            };
+                        })}
+                        selectedReports={selectedReports}
+                        onReportSelect={(saleId, reportId) => setSelectedReports(prev => ({ ...prev, [saleId]: reportId }))}
+                        hideFarmerName={hideFarmerName}
+                    />
+                </div>
+
+                {showLoadMore && onLoadMore && events.length >= limit && !search && (
+                    <div className="flex justify-center pt-4 pb-8">
+                        <Button variant="outline" onClick={onLoadMore}>
+                            Load More
+                        </Button>
+                    </div>
+                )}
+            </div>
         );
     };
 
     return (
-        <div className={isMobile ? "space-y-3" : "space-y-4"}>
-            {!isMobile && !recent && (
-                <CardHeader className="px-0 pt-0 pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg text-foreground">
-                        <ShoppingCart className="h-5 w-5 text-muted-foreground" /> Sales History
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                        {farmerId
-                            ? "All recorded sales for this farmer across all cycles."
-                            : "All recorded sales for this cycle. You can create adjusted versions for reports."}
-                    </CardDescription>
-                </CardHeader>
-            )}
-
-            <div className="space-y-4 pr-1">
-                {farmerId && groupedSales ? (
-                    <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className="space-y-4">
-                        {groupedSales.map((group) => (
-                            <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
-                                <AccordionTrigger className="hover:no-underline py-3 px-0">
-                                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
-                                        <div className="col-span-1">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <div className="shrink-0 w-fit">
-                                                            {group.isEnded ? (
-                                                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                                            ) : (
-                                                                <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
-                                                            )}
-                                                        </div>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        <p className="text-[10px]">{group.isEnded ? "Cycle Ended" : "Cycle Running"}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </div>
-                                        <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
-                                            {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
-                                        </div>
-                                        <div className="col-span-2 sm:col-span-3 flex items-center gap-0.5 sm:gap-1 pl-1">
-                                            <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">Age:</span>
-                                            <span className="font-bold">{group.age}d</span>
-                                        </div>
-                                        <div className="col-span-3 flex items-center gap-0.5 sm:gap-1">
-                                            <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
-                                            <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
-                                        </div>
-                                        <div className="col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
-                                            <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{group.totalSold.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="pt-2 pb-4 space-y-4 px-0">
-                                    {renderSalesFeed(group.sales)}
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
-                ) : (
-                    renderSalesFeed(salesEvents)
+        <TooltipProvider>
+            <div className={isMobile ? "space-y-3" : "space-y-4"}>
+                {!isMobile && !recent && (
+                    <CardHeader className="px-0 pt-0 pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                            <ShoppingCart className="h-5 w-5 text-muted-foreground" /> Sales History
+                        </CardTitle>
+                        <CardDescription className="text-muted-foreground">
+                            {farmerId
+                                ? "All recorded sales for this farmer across all cycles."
+                                : "All recorded sales for this cycle. You can create adjusted versions for reports."}
+                        </CardDescription>
+                    </CardHeader>
                 )}
+
+                <div className="space-y-4 pr-1">
+                    {farmerId && groupedSales && Array.isArray(groupedSales) ? (
+                        <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className={cn("space-y-4 transition-opacity", isFetching && "opacity-60")}>
+                            {groupedSales.map((group) => {
+                                const groupSales = group.sales;
+                                const dynamicContext = cycleContexts[group.id];
+
+                                return (
+                                    <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
+                                        <AccordionTrigger className="hover:no-underline py-3 px-0">
+                                            <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
+                                                <div className="col-span-1">
+                                                    <div className="shrink-0 w-fit">
+                                                        {group.isEnded ? (
+                                                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                                        ) : (
+                                                            <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
+                                                    {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-3 flex items-center gap-0.5 sm:gap-1 pl-1">
+                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">Age:</span>
+                                                    <span className="font-bold">{group.age}d</span>
+                                                </div>
+                                                <div className="col-span-3 flex items-center gap-0.5 sm:gap-1">
+                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
+                                                    <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
+                                                </div>
+                                                <div className="col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
+                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
+                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                                        {dynamicContext?.cumulativeBirdsSold?.toLocaleString() || group.totalSold.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="pt-2 pb-4 space-y-4 px-0">
+                                            {renderSalesFeed(group.sales)}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                );
+                            })}
+                        </Accordion>
+                    ) : (
+                        renderSalesFeed(salesEventsData as SaleEvent[] || [])
+                    )}
+                </div>
             </div>
-        </div>
+        </TooltipProvider>
     );
 };
