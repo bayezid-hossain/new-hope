@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { type SaleReport } from "./sales-history-card";
 
 const feedItemSchema = z.object({
     type: z.string().min(1, "Required"),
@@ -75,17 +76,7 @@ interface AdjustSaleModalProps {
             cumulativeBirdsSold?: number;
         };
     };
-    latestReport?: {
-        birdsSold: number;
-        totalMortality?: number | null;
-        totalWeight: string;
-        pricePerKg: string;
-        cashReceived?: string | null;
-        depositReceived?: string | null;
-        medicineCost?: string | null;
-        feedConsumed?: string | null;
-        feedStock?: string | null;
-    };
+    latestReport?: SaleReport | null;
 }
 
 // Helper to ensure B1 and B2 are present and at the top

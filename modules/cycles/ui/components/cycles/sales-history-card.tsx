@@ -26,7 +26,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
+import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
@@ -43,6 +43,7 @@ import {
     CreditCard,
     History,
     Info,
+    Loader2,
     Lock,
     MoreHorizontal,
     PackageCheck,
@@ -137,6 +138,10 @@ export interface SaleEvent {
         cumulativeBirdsSold?: number;
         effectiveRate?: number;
         netAdjustment?: number;
+        feedCost?: number;
+        docCost?: number;
+        profit?: number;
+        avgPrice?: number;
     };
     isLatestInCycle?: boolean;
 }
@@ -400,7 +405,7 @@ export const SaleEventCard = ({
                 isOpen={isAdjustOpen}
                 onClose={() => setIsAdjustOpen(false)}
                 saleEvent={sale}
-                latestReport={reports[0]}
+                latestReport={activeReport}
             />
         </>
     );
@@ -557,22 +562,22 @@ const SaleDetailsContent = ({
 
                 {/* Profit Card */}
                 {isLatest && sale.cycleContext && sale.cycleContext.isEnded && (() => {
-                    const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
-                    const formulaRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
-                    const actualRevenue = sale.cycleContext.actualRevenue || parseFloat(sale.totalAmount);
-                    const effectiveRate = sale.cycleContext.effectiveRate || BASE_SELLING_PRICE;
-                    const netAdjustment = sale.cycleContext.netAdjustment || 0;
-                    const fcr = sale.cycleContext.fcr || 0;
-                    const epi = sale.cycleContext.epi || 0;
-                    const mortality = sale.cycleContext.mortality || 0;
-                    const avgPrice = cycleTotalWeight > 0 ? actualRevenue / cycleTotalWeight : parseFloat(sale.pricePerKg);
-                    const isEnded = sale.cycleContext.isEnded;
-                    const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
-                    const doc = sale.cycleContext.doc || sale.houseBirds || 0;
-                    const feedCost = isEnded ? totalFeedBags * FEED_PRICE_PER_BAG : 0;
-                    const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
-                    const totalDeductions = feedCost + docCost;
-                    const formulaProfit = formulaRevenue - totalDeductions;
+                    const ctx = sale.cycleContext;
+                    const cycleTotalWeight = ctx.totalWeight || 0;
+                    const formulaRevenue = ctx.revenue || 0;
+                    const actualRevenue = ctx.actualRevenue || 0;
+                    const effectiveRate = ctx.effectiveRate || 0;
+                    const netAdjustment = ctx.netAdjustment || 0;
+                    const fcr = ctx.fcr || 0;
+                    const epi = ctx.epi || 0;
+                    const mortality = ctx.mortality || 0;
+                    const avgPrice = ctx.avgPrice || 0;
+                    const totalFeedBags = ctx.feedConsumed ?? 0;
+                    const doc = ctx.doc || 0;
+                    const feedCost = ctx.feedCost || 0;
+                    const docCost = ctx.docCost || 0;
+                    const formulaProfit = ctx.profit || 0;
+                    const isEnded = ctx.isEnded;
 
                     return (
                         <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 mt-4">
@@ -780,26 +785,21 @@ const SaleDetailsContent = ({
 
             {/* INTEGRATED PROFIT ESTIMATE CARD - ONLY ON LATEST SALE OF ENDED CYCLE */}
             {isLatest && sale.cycleContext && sale.cycleContext.isEnded && (() => {
-                const cycleTotalWeight = sale.cycleContext.totalWeight || parseFloat(sale.totalWeight);
-                const formulaRevenue = sale.cycleContext.revenue || parseFloat(sale.totalAmount);
-                const actualRevenue = sale.cycleContext.actualRevenue || parseFloat(sale.totalAmount);
-                const effectiveRate = sale.cycleContext.effectiveRate || BASE_SELLING_PRICE;
-                const netAdjustment = sale.cycleContext.netAdjustment || 0;
-                const fcr = sale.cycleContext.fcr || 0;
-                const epi = sale.cycleContext.epi || 0;
-                const mortality = sale.cycleContext.mortality || 0;
-
-                const avgPrice = cycleTotalWeight > 0 ? actualRevenue / cycleTotalWeight : parseFloat(sale.pricePerKg);
-
-                const isEnded = sale.cycleContext.isEnded;
-                const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
-                const doc = sale.cycleContext.doc || sale.houseBirds || 0;
-
-                const feedCost = isEnded ? totalFeedBags * FEED_PRICE_PER_BAG : 0;
-                const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
-                const totalDeductions = feedCost + docCost;
-
-                const formulaProfit = formulaRevenue - totalDeductions;
+                const ctx = sale.cycleContext;
+                const cycleTotalWeight = ctx.totalWeight || 0;
+                const formulaRevenue = ctx.revenue || 0;
+                const actualRevenue = ctx.actualRevenue || 0;
+                const effectiveRate = ctx.effectiveRate || 0;
+                const netAdjustment = ctx.netAdjustment || 0;
+                const fcr = ctx.fcr || 0;
+                const epi = ctx.epi || 0;
+                const mortality = ctx.mortality || 0;
+                const avgPrice = ctx.avgPrice || 0;
+                const totalFeedBags = ctx.feedConsumed ?? 0;
+                const doc = ctx.doc || 0;
+                const feedCost = ctx.feedCost || 0;
+                const docCost = ctx.docCost || 0;
+                const formulaProfit = ctx.profit || 0;
                 const isPositive = formulaProfit >= 0;
 
                 return (
@@ -1122,7 +1122,7 @@ const DesktopSaleRow = ({
                 isOpen={isAdjustOpen}
                 onClose={() => setIsAdjustOpen(false)}
                 saleEvent={sale}
-                latestReport={reports[0]}
+                latestReport={activeReport}
             />
         </>
     )
@@ -1157,6 +1157,7 @@ export const SalesHistoryCard = ({
 
     // Track selected report version for each sale event
     const [selectedReports, setSelectedReports] = useState<Record<string, string | null>>({});
+    const [isVersionChanging, setIsVersionChanging] = useState(false);
 
     // Use getRecentSales for global feed, or getSaleEvents for specific context
     const recentQuery = useQuery(
@@ -1188,15 +1189,11 @@ export const SalesHistoryCard = ({
                 const next = { ...prev };
                 let changed = false;
                 (salesEventsData as any[]).forEach(sale => {
-                    // Initialize from backend's selectedReportId if provided, else first report
-                    if (next[sale.id] === undefined) {
-                        if (sale.selectedReportId) {
-                            next[sale.id] = sale.selectedReportId;
-                            changed = true;
-                        } else if (sale.reports && sale.reports.length > 0) {
-                            next[sale.id] = sale.reports[0].id;
-                            changed = true;
-                        }
+                    // Update if backend's selectedReportId changed, or if not yet initialized
+                    const backendSelectedId = sale.selectedReportId || (sale.reports?.[0]?.id ?? null);
+                    if (next[sale.id] !== backendSelectedId) {
+                        next[sale.id] = backendSelectedId;
+                        changed = true;
                     }
                 });
                 return changed ? next : prev;
@@ -1205,101 +1202,32 @@ export const SalesHistoryCard = ({
     }, [salesEventsData]);
 
     const setActiveVersionMutation = useMutation(
-        trpc.officer.sales.setActiveVersion.mutationOptions({
-            onSuccess: () => {
-                // Refetch to sync active version data
-                recentQuery.refetch();
-                eventsQuery.refetch();
-            }
-        })
+        trpc.officer.sales.setActiveVersion.mutationOptions({})
     );
 
-    const handleVersionChange = (saleId: string, reportId: string | null) => {
+    const handleVersionChange = async (saleId: string, reportId: string | null) => {
         if (!reportId) return;
 
         setSelectedReports(prev => ({ ...prev, [saleId]: reportId }));
-        setActiveVersionMutation.mutate({
-            saleEventId: saleId,
-            saleReportId: reportId
-        });
+        setIsVersionChanging(true);
+
+        try {
+            await setActiveVersionMutation.mutateAsync({
+                saleEventId: saleId,
+                saleReportId: reportId
+            });
+            // Await refetch so backend recalculates all metrics (EPI, FCR, profit)
+            if (recent) {
+                await recentQuery.refetch();
+            } else {
+                await eventsQuery.refetch();
+            }
+        } finally {
+            setIsVersionChanging(false);
+        }
     };
 
-    // Helper to calculate cycle metrics dynamically on frontend
-    const calculateDynamicCycleContext = (eventsInCycle: SaleEvent[]) => {
-        if (eventsInCycle.length === 0) return null;
-
-        const firstSale = eventsInCycle[0];
-        const groupKey = firstSale.cycleId || firstSale.historyId || "unknown";
-
-        let totalRevenue = 0;
-        let totalWeight = 0;
-        let totalBirdsSold = 0;
-        let netAdjustment = 0;
-        let totalMortality = 0;
-
-        eventsInCycle.forEach(sale => {
-            // BACKEND SYNCED: Parent sale record now always reflects the "active" version
-            const birdsSold = sale.birdsSold;
-            const weight = parseFloat(sale.totalWeight);
-            const price = parseFloat(sale.pricePerKg);
-            const mortality = sale.totalMortality;
-
-            totalRevenue += weight * price;
-            totalWeight += weight;
-            totalBirdsSold += birdsSold;
-
-            // Adjustments logic matches backend independent price adjustment
-            const diff = price - BASE_SELLING_PRICE;
-            if (diff > 0) {
-                netAdjustment += diff / 2;
-            } else if (diff < 0) {
-                netAdjustment += diff;
-            }
-
-            // Latest mortality recorded in the cycle
-            if (mortality > totalMortality) {
-                totalMortality = mortality;
-            }
-        });
-
-        const cycleOrHistory = firstSale.cycle || firstSale.history;
-        const isEnded = !firstSale.cycleId && !!firstSale.historyId;
-        const doc = cycleOrHistory?.doc || 0;
-        const age = cycleOrHistory?.age || 0;
-
-        // If ended, history.finalIntake is the truth, but we can approximate from selection
-        const feedConsumed = isEnded
-            ? (firstSale.history?.finalIntake || 0)
-            : (firstSale.cycle?.intake || 0);
-        const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
-        const formulaRevenue = effectiveRate * totalWeight;
-
-        // FCR & EPI calculation logic matches backend
-        const survivors = doc - totalMortality;
-        const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
-        const feedKg = feedConsumed * 50;
-        const fcr = totalWeight > 0 ? feedKg / totalWeight : 0;
-        const avgWeightKg = survivors > 0 ? totalWeight / survivors : 0;
-        const epi = (fcr > 0 && age > 0)
-            ? (survivalRate * avgWeightKg) / (fcr * age) * 100
-            : 0;
-
-        return {
-            doc,
-            mortality: totalMortality,
-            age,
-            feedConsumed,
-            isEnded,
-            fcr: parseFloat(fcr.toFixed(2)),
-            epi: Math.round(epi),
-            revenue: formulaRevenue,
-            actualRevenue: totalRevenue,
-            totalWeight,
-            cumulativeBirdsSold: totalBirdsSold,
-            effectiveRate,
-            netAdjustment
-        };
-    };
+    // cycleContext is now fully computed by the backend — no frontend calculations needed
 
     const groupedSales = useMemo(() => {
         const rawEvents = (salesEventsData || []) as any[];
@@ -1359,21 +1287,7 @@ export const SalesHistoryCard = ({
 
     const salesEvents = recent ? (recentQuery.data as SaleEvent[]) : (eventsQuery.data as SaleEvent[]);
 
-    const cycleContexts = useMemo(() => {
-        if (!salesEvents) return {};
-        const cyclesMap: Record<string, SaleEvent[]> = {};
-        salesEvents.forEach(e => {
-            const key = e.cycleId || e.historyId || "unknown";
-            if (!cyclesMap[key]) cyclesMap[key] = [];
-            cyclesMap[key].push(e);
-        });
-
-        const contexts: Record<string, any> = {};
-        Object.keys(cyclesMap).forEach(key => {
-            contexts[key] = calculateDynamicCycleContext(cyclesMap[key]);
-        });
-        return contexts;
-    }, [salesEvents, selectedReports]);
+    // cycleContext comes from backend response directly — no frontend aggregation needed
 
     if (!isPro) {
         return (
@@ -1423,8 +1337,16 @@ export const SalesHistoryCard = ({
 
     const renderSalesFeed = (events: SaleEvent[]) => {
         return (
-            <div className={cn("space-y-6 transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
-                {isFetching && (
+            <div className={cn("relative space-y-6 transition-opacity duration-200", (isFetching || isVersionChanging) && "opacity-50 pointer-events-none")}>
+                {isVersionChanging && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg">
+                        <div className="flex flex-col items-center gap-2 p-4 bg-background rounded-xl border shadow-lg">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <span className="text-sm font-medium text-muted-foreground">Recalculating metrics...</span>
+                        </div>
+                    </div>
+                )}
+                {isFetching && !isVersionChanging && (
                     <div className="absolute inset-x-0 -top-2 h-0.5 bg-primary/20 animate-pulse overflow-hidden">
                         <div className="h-full bg-primary animate-[shimmer_1.5s_infinite]" style={{ width: '40%' }}></div>
                     </div>
@@ -1434,7 +1356,6 @@ export const SalesHistoryCard = ({
                         const cycleKey = sale.cycleId || sale.historyId || "unknown";
                         const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId || "unknown") === cycleKey);
                         const isLatestInCycle = index === firstOccurrenceIdx;
-                        const dynamicContext = cycleContexts[cycleKey];
 
                         return (
                             <div key={sale.id} className="relative p-0 border-b pb-4 last:border-0">
@@ -1446,8 +1367,7 @@ export const SalesHistoryCard = ({
                                         reports: (sale.reports || []).map((r: any) => ({
                                             ...r,
                                             createdAt: new Date(r.createdAt)
-                                        })),
-                                        cycleContext: dynamicContext
+                                        }))
                                     }}
                                     isLatest={isLatestInCycle}
                                     indexInGroup={index}
@@ -1467,12 +1387,10 @@ export const SalesHistoryCard = ({
                             const cycleKey = sale.cycleId || sale.historyId || "unknown";
                             const firstOccurrenceIdx = events.findIndex(s => (s.cycleId || s.historyId || "unknown") === cycleKey);
                             const isLatestInCycle = index === firstOccurrenceIdx;
-                            const dynamicContext = cycleContexts[cycleKey];
 
                             return {
                                 ...sale,
-                                isLatestInCycle,
-                                cycleContext: dynamicContext
+                                isLatestInCycle
                             };
                         })}
                         selectedReports={selectedReports}
@@ -1513,7 +1431,7 @@ export const SalesHistoryCard = ({
                         <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className={cn("space-y-4 transition-opacity", isFetching && "opacity-60")}>
                             {groupedSales.map((group) => {
                                 const groupSales = group.sales;
-                                const dynamicContext = cycleContexts[group.id];
+                                const firstSaleContext = groupSales[0]?.cycleContext;
 
                                 return (
                                     <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
@@ -1542,7 +1460,7 @@ export const SalesHistoryCard = ({
                                                 <div className="col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
                                                     <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
                                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {dynamicContext?.cumulativeBirdsSold?.toLocaleString() || group.totalSold.toLocaleString()}
+                                                        {firstSaleContext?.cumulativeBirdsSold?.toLocaleString() || group.totalSold.toLocaleString()}
                                                     </span>
                                                 </div>
                                             </div>
