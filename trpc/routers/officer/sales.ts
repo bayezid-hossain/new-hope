@@ -73,6 +73,26 @@ const getCycleStats = (events: any[]) => {
     return { revenueMap, weightMap, birdsSoldMap, adjustmentsMap };
 };
 
+const getCycleStatsWithMortality = (events: any[]) => {
+    const stats = getCycleStats(events);
+    const latestMortalityMap = new Map<string, number>();
+    const latestDateMap = new Map<string, Date>();
+
+    events.forEach(ev => {
+        const key = ev.cycleId || ev.historyId || "unknown";
+        const saleDate = new Date(ev.saleDate);
+        const existingDate = latestDateMap.get(key);
+
+        if (!existingDate || saleDate >= existingDate) {
+            latestDateMap.set(key, saleDate);
+            // Use the mortality stored on the event (which is synced from selected report)
+            latestMortalityMap.set(key, ev.totalMortality);
+        }
+    });
+
+    return { ...stats, latestMortalityMap };
+};
+
 // Feed item schema for dynamic arrays
 const feedItemSchema = z.object({
     type: z.string().min(1, "Feed type is required"),
@@ -729,7 +749,7 @@ export const officerSalesRouter = createTRPCRouter({
             }
 
             // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap } = getCycleStats(events);
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(events);
 
             return events.map((e) => {
                 const cycleOrHistory = e.cycle || e.history;
@@ -738,7 +758,8 @@ export const officerSalesRouter = createTRPCRouter({
 
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
-                const mortality = cycleOrHistory?.mortality || 0;
+                // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
+                const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
                 const age = cycleOrHistory?.age || 0;
                 const feedConsumed = isEnded
                     ? (e.history?.finalIntake || 0)
@@ -921,7 +942,7 @@ export const officerSalesRouter = createTRPCRouter({
                 )
             });
 
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap } = getCycleStats(allCycleEvents);
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(allCycleEvents);
 
             let formattedEvents = events.map(e => {
                 const cycleOrHistory = e.cycle || e.history;
@@ -929,7 +950,8 @@ export const officerSalesRouter = createTRPCRouter({
                 const groupKey = e.cycleId || e.historyId || "unknown";
 
                 const doc = cycleOrHistory?.doc || 0;
-                const mortality = cycleOrHistory?.mortality || 0;
+                // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
+                const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
                 const age = cycleOrHistory?.age || 0;
                 const feedConsumed = isEnded
                     ? (e.history?.finalIntake || 0)
