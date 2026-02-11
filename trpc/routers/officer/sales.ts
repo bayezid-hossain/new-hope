@@ -1013,6 +1013,13 @@ export const officerSalesRouter = createTRPCRouter({
                     }
                 }
 
+                // Recalculate metrics for this cycle/history to update Production Report
+                await SaleMetricsService.recalculateForCycle(
+                    event.cycleId || undefined,
+                    event.historyId || undefined,
+                    tx
+                );
+
                 return { success: true };
             });
 

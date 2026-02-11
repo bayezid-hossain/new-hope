@@ -1,4 +1,4 @@
-import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
+import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { db } from "@/db";
 import { cycleHistory, cycles, saleEvents, saleMetrics } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -87,6 +87,8 @@ export class SaleMetricsService {
 
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
+        let netAdjustment = 0;
+
         for (const sale of sales) {
             // Use selected report data if available, otherwise use event data
             const data = sale.selectedReport || sale;
@@ -94,11 +96,20 @@ export class SaleMetricsService {
             const birdsSold = Number(data.birdsSold);
             const weight = parseFloat(data.totalWeight);
             const amount = parseFloat(data.totalAmount);
+            const price = parseFloat(data.pricePerKg);
 
             totalBirdsSold += birdsSold;
             totalWeight += isNaN(weight) ? 0 : weight;
             totalRevenue += isNaN(amount) ? 0 : amount;
             totalMedicineCost += parseFloat(data.medicineCost || "0") || 0;
+
+            // Calculate Price Adjustment
+            const diff = price - BASE_SELLING_PRICE;
+            if (diff > 0) {
+                netAdjustment += diff / 2;
+            } else {
+                netAdjustment += diff;
+            }
         }
 
         // Determine Total Feed Consumption
@@ -139,10 +150,19 @@ export class SaleMetricsService {
         const survivalRate = this.calculateSR(cycle.doc, cycle.mortality || 0);
         const epi = this.calculateEPI(survivalRate, averageWeight, fcr, averageAge);
 
-        // 4. Calculate costs
+        // 4. Calculate costs and profit
+        // Profit Formula matches sales-history-card.tsx:
+        // Profit = Formula Revenue - DOC Cost - Feed Cost
+        // Medicine Cost is EXCLUDED from profit calculation (but still tracked)
+
+        const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+        const formulaRevenue = effectiveRate * totalWeight;
+
         const docCost = cycle.doc * DOC_PRICE_PER_BIRD;
         const feedCost = totalFeedBags * orgFeedPrice;
-        const netProfit = totalRevenue - docCost - feedCost - totalMedicineCost;
+
+        // Use formula revenue for profit, and exclude medicine cost
+        const netProfit = formulaRevenue - docCost - feedCost;
 
         // 5. Upsert metrics
         await dbConnection.insert(saleMetrics).values({
@@ -160,7 +180,7 @@ export class SaleMetricsService {
             feedCost: feedCost.toString(),
             medicineCost: totalMedicineCost.toString(),
             totalRevenue: totalRevenue.toString(),
-            netProfit: netProfit.toString(),
+            netProfit: netProfit.toFixed(2).toString(),
             feedPriceUsed: FEED_PRICE_PER_BAG.toString(),
             docPriceUsed: DOC_PRICE_PER_BIRD.toString(),
             lastRecalculatedAt: new Date(),
