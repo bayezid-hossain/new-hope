@@ -314,7 +314,6 @@ private static async getSalesMetricsForMonth(
     let totalBirdsSold = 0;
     let totalWeight = 0;
     let totalAmount = 0;
-    let totalPrice = 0;
     let totalAge = 0;
     let totalFeedBags = 0;
 
@@ -355,7 +354,7 @@ private static async getSalesMetricsForMonth(
         totalBirdsSold += cycleTotalBirds;
         totalWeight += cycleTotalWeight;
         totalAmount += cycleTotalAmount;
-        totalPrice += price;
+
         totalAge += age;
         totalFeedBags += feedBags;
 
@@ -404,7 +403,9 @@ private static async getSalesMetricsForMonth(
         fcr: fcrs.length > 0
             ? fcrs.reduce((a, b) => a + b, 0) / fcrs.length
             : 0,
-        averagePrice: numCycles > 0 ? totalPrice / numCycles : 0,
+        averagePrice: totalWeight > 0
+    ? totalAmount / totalWeight
+    : 0,
         totalRevenue: totalAmount,
     };
 }
