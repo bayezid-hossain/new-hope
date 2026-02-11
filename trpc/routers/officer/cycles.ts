@@ -74,6 +74,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     birdsSold: d.cycle.birdsSold,
+                    birdType: d.cycle.birdType,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -133,6 +134,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     birdsSold: d.history.birdsSold,
+                    birdType: d.history.birdType,
                     endDate: d.history.endDate
                 })),
                 total: total.count,
@@ -147,6 +149,7 @@ export const officerCyclesRouter = createTRPCRouter({
             orgId: z.string(),
             doc: z.number().int().positive().max(200000, "Maximum 200,000 birds allowed per cycle"),
             age: z.number().int().min(0).max(40, "Maximum age is 40 days for new cycles").default(0),
+            birdType: z.string().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
             const farmerData = await ctx.db.query.farmer.findFirst({
@@ -198,6 +201,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 organizationId: farmerData.organizationId, // STRICT: Use farmer's org, ignore input.orgId
                 doc: input.doc,
                 age: input.age,
+                birdType: input.birdType,
                 createdAt: input.age > 1
                     ? new Date(new Date().setDate(new Date().getDate() - (input.age - 1)))
                     : new Date()
@@ -208,7 +212,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 userId: ctx.user.id,
                 type: "SYSTEM",
                 valueChange: 0,
-                note: `Cycle started. Initial Age: ${input.age}, Birds: ${input.doc}`
+                note: `Cycle started. Initial Age: ${input.age}, Birds: ${input.doc}${input.birdType ? `, Type: ${input.birdType}` : ""}`
             });
 
             await updateCycleFeed(newCycle, ctx.user.id, true);
@@ -292,6 +296,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         startDate: activeCycle.createdAt,
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
+                        birdType: activeCycle.birdType,
                     },
                     logs,
                     history: combinedHistory,
@@ -350,6 +355,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
+                    birdType: historyRecord.birdType,
                 },
                 logs,
                 history: combinedHistory,

@@ -1,6 +1,6 @@
-import { feedOrderItems, feedOrders, member } from "@/db/schema";
+import { farmer, feedOrderItems, feedOrders, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../../init";
 
@@ -198,6 +198,55 @@ export const feedOrdersRouter = createTRPCRouter({
                 if (itemsToInsert.length > 0) {
                     await tx.insert(feedOrderItems).values(itemsToInsert);
                 }
+
+                return { success: true };
+            });
+        }),
+
+    confirm: proProcedure
+        .input(z.object({
+            id: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const order = await ctx.db.query.feedOrders.findFirst({
+                where: eq(feedOrders.id, input.id),
+                with: {
+                    items: true
+                }
+            });
+
+            if (!order) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+            }
+
+            if (order.status === "CONFIRMED") {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Order is already confirmed" });
+            }
+
+            // Group quantities by farmer
+            const farmerUpdates = new Map<string, number>();
+            for (const item of order.items) {
+                const current = farmerUpdates.get(item.farmerId) || 0;
+                farmerUpdates.set(item.farmerId, current + item.quantity);
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                // Update each farmer's mainStock
+                for (const [farmerId, quantity] of farmerUpdates.entries()) {
+                    await tx.update(farmer)
+                        .set({
+                            mainStock: sql`${farmer.mainStock} + ${quantity}`,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(farmer.id, farmerId));
+                }
+
+                // Mark order as confirmed
+                await tx.update(feedOrders)
+                    .set({
+                        status: "CONFIRMED"
+                    })
+                    .where(eq(feedOrders.id, input.id));
 
                 return { success: true };
             });

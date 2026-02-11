@@ -41,6 +41,7 @@ const createCycleSchema = z.object({
   farmerName: z.string().min(1, "Farmer name is required"), // Display only
   doc: z.coerce.number().min(1, "Must have at least 1 bird"),
   age: z.coerce.number().min(0).default(1).optional(),
+  birdType: z.string().max(50, "Max 50 characters").optional(),
 });
 
 type FormValues = z.infer<typeof createCycleSchema>;
@@ -79,6 +80,7 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
       farmerName: preSelectedFarmer?.name || "",
       doc: 0,
       age: 1,
+      birdType: "",
     },
   });
 
@@ -134,7 +136,9 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
       orgId: orgId.toString()!,
       farmerId: values.farmerId,
       doc: values.doc,
-      age: values.age, name: values.farmerName
+      age: values.age,
+      name: values.farmerName,
+      birdType: values.birdType || undefined
     });
   };
 
@@ -265,6 +269,23 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="birdType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bird Type (Optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g. Broiler, Sonali, Layer"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <Button type="submit" className="w-full" disabled={createMutation.isPending || !canEdit}>
             {createMutation.isPending ? (

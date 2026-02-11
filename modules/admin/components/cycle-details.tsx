@@ -318,7 +318,8 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
             birdsSold: (cycle as any).birdsSold || 0,
-            status: type === 'active' ? 'active' : (cycle as any).status
+            status: type === 'active' ? 'active' : (cycle as any).status,
+            birdType: (cycle as any).birdType,
         };
     }, [response]);
 
@@ -364,6 +365,11 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                             ) : (
                                 <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">
                                     <Archive className="h-3 w-3 mr-1" /> Archived
+                                </Badge>
+                            )}
+                            {normalizedCycle.birdType && (
+                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[10px] uppercase tracking-wider">
+                                    {normalizedCycle.birdType}
                                 </Badge>
                             )}
                         </div>

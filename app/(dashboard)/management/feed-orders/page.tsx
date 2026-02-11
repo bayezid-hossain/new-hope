@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -142,6 +143,7 @@ function ManagementFeedOrderCard({ order }: {
         id: string;
         orderDate: Date | string;
         deliveryDate: Date | string;
+        status: "PENDING" | "CONFIRMED";
         officer?: {
             id: string;
             name: string;
@@ -233,6 +235,15 @@ function ManagementFeedOrderCard({ order }: {
                                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                                         <Truck className="h-4 w-4 text-primary" />
                                         Order: {format(new Date(order.orderDate), "dd MMM")}
+                                        <Badge
+                                            variant={order.status === "CONFIRMED" ? "default" : "secondary"}
+                                            className={`h-4 px-1 text-[10px] font-bold border-none ${order.status === "CONFIRMED"
+                                                    ? "bg-emerald-500/20 text-emerald-600"
+                                                    : "bg-orange-500/20 text-orange-600"
+                                                }`}
+                                        >
+                                            {order.status === "CONFIRMED" ? "Confirmed" : "Pending"}
+                                        </Badge>
                                     </CardTitle>
                                     <span className="text-xs text-muted-foreground">
                                         by {order.officer?.name || "Unknown"} • {totalBags} Bags

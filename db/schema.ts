@@ -203,6 +203,7 @@ export const cycles = pgTable("cycles", {
   mortality: integer("mortality").notNull().default(0),
   age: integer("age").notNull().default(0),
   status: text("status").notNull().default("active"),
+  birdType: text("bird_type"),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -229,6 +230,7 @@ export const cycleHistory = pgTable("cycle_history", {
   status: text("status").notNull().default("archived"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").defaultNow().notNull(),
+  birdType: text("bird_type"),
 }, (t) => [
   index("idx_history_org_id").on(t.organizationId),
   index("idx_history_farmer_id").on(t.farmerId),
@@ -452,6 +454,7 @@ export const saleReportRelations = relations(saleReports, ({ one }) => ({
 // =========================================================
 
 export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE", "SALES"]);
+export const feedOrderStatusEnum = pgEnum("feed_order_status", ["PENDING", "CONFIRMED"]);
 
 export const notification = pgTable("notification", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -485,6 +488,7 @@ export const feedOrders = pgTable("feed_orders", {
 
   orderDate: timestamp("order_date").notNull(),
   deliveryDate: timestamp("delivery_date").notNull(),
+  status: feedOrderStatusEnum("status").notNull().default("PENDING"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
