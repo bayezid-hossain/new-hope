@@ -410,7 +410,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // Recalculate metrics for this cycle/history
-                await SaleMetricsService.recalculateForCycle(input.cycleId, historyId);
+                await SaleMetricsService.recalculateForCycle(input.cycleId, historyId, tx);
 
                 return { saleEvent, cycleEnded, historyId };
             });
@@ -636,7 +636,8 @@ export const officerSalesRouter = createTRPCRouter({
                 // Recalculate metrics
                 await SaleMetricsService.recalculateForCycle(
                     event.cycleId || undefined,
-                    event.historyId || undefined
+                    event.historyId || undefined,
+                    tx
                 );
 
                 return { report, birdsSoldDifference };

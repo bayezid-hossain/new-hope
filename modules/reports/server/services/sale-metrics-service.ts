@@ -1,6 +1,6 @@
 import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { db } from "@/db";
-import { cycleHistory, cycles, saleMetrics } from "@/db/schema";
+import { cycleHistory, cycles, saleEvents, saleMetrics } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export class SaleMetricsService {
@@ -13,13 +13,16 @@ export class SaleMetricsService {
      */
     static async recalculateForCycle(
         cycleId?: string,
-        historyId?: string
+        historyId?: string,
+        tx?: any
     ): Promise<void> {
         if (!cycleId && !historyId) throw new Error("Must provide cycleId or historyId");
 
+        const dbConnection = tx ?? db;
+
         // 1. Fetch ALL sales for this cycle
-        const sales = await db.query.saleEvents.findMany({
-            where: (saleEvents, { eq }) => cycleId
+        const sales = await dbConnection.query.saleEvents.findMany({
+            where: cycleId
                 ? eq(saleEvents.cycleId, cycleId)
                 : eq(saleEvents.historyId, historyId!),
             with: {
@@ -29,7 +32,7 @@ export class SaleMetricsService {
 
         if (sales.length === 0) {
             // No sales yet, delete any existing metrics
-            await db.delete(saleMetrics).where(
+            await dbConnection.delete(saleMetrics).where(
                 cycleId
                     ? eq(saleMetrics.cycleId, cycleId)
                     : eq(saleMetrics.historyId, historyId!)
@@ -43,14 +46,46 @@ export class SaleMetricsService {
         let totalRevenue = 0;
         let totalMedicineCost = 0;
         let totalFeedBags = 0;
-        let totalAge = 0;
 
         // Get cycle data for DOC and mortality
         const cycle = cycleId
-            ? await db.query.cycles.findFirst({ where: eq(cycles.id, cycleId) })
-            : await db.query.cycleHistory.findFirst({ where: eq(cycleHistory.id, historyId!) });
+            ? await dbConnection.query.cycles.findFirst({
+                where: eq(cycles.id, cycleId),
+                with: {
+                    farmer: {
+                        with: {
+                            organization: true
+                        }
+                    }
+                }
+            })
+            : await dbConnection.query.cycleHistory.findFirst({
+                where: eq(cycleHistory.id, historyId!),
+                with: {
+                    farmer: {
+                        with: {
+                            organization: true
+                        }
+                    }
+                }
+            });
 
         if (!cycle) return;
+
+        const cycleStartDate = cycleId ? cycle.createdAt : cycle.startDate;
+        // Use organization's feed price if available, otherwise fallback to constant
+        // Note: We use the CURRENT feed price. Ideally this should be snapshot at cycle creation,
+        // but for now this is better than a hardcoded constant.
+        const orgFeedPrice = Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG;
+
+        // Sort sales to find the latest one (Logic matches sales.ts)
+        const sortedSales = [...sales].sort((a, b) => {
+            const dateDiff = new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
         for (const sale of sales) {
             // Use selected report data if available, otherwise use event data
@@ -64,17 +99,40 @@ export class SaleMetricsService {
             totalWeight += isNaN(weight) ? 0 : weight;
             totalRevenue += isNaN(amount) ? 0 : amount;
             totalMedicineCost += parseFloat(data.medicineCost || "0") || 0;
-            totalFeedBags += this.countFeedBags(
-                sale.selectedReport?.feedConsumed || sale.feedConsumed
-            );
+        }
 
-            // Age from cycle, not individual sales
-            totalAge += (cycle.age || 0);
+        // Determine Total Feed Consumption
+        // Logic:
+        // 1. If Active Cycle: Use cycle.intake (which includes estimated living consumption + sold/dead locked intake)
+        // 2. If History (Ended): Use the feed from the LATEST sale event (cumulative).
+        //    Fallback to history.finalIntake if available.
+
+        if (cycleId) {
+            // Active Cycle: cycle.intake is the master source of truth (managed by feed-service)
+            // Need to cast to any/unknown first because cycle could be from cycles or cycleHistory table type definition mismatch in the union
+            const activeCycle = cycle as typeof cycles.$inferSelect;
+            totalFeedBags = Number(activeCycle.intake) || 0;
+        } else {
+            // Ended Cycle: Use latest sale's feed data (which should be the final cumulative amount)
+            if (latestSale) {
+                totalFeedBags = this.countFeedBags(
+                    latestSale.selectedReport?.feedConsumed || latestSale.feedConsumed
+                );
+            } else {
+                // No sales? Fallback to history final intake
+                const endedCycle = cycle as typeof cycleHistory.$inferSelect;
+                totalFeedBags = Number(endedCycle.finalIntake) || 0;
+            }
         }
 
         const numSales = sales.length;
-        const averageAge = numSales > 0 ? totalAge / numSales : 0;
-        const averageWeight = totalBirdsSold > 0 ? totalWeight / totalBirdsSold : 0;
+        // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx)
+        const averageAge = cycle.age || 0;
+
+        // Calculate Average Weight using SURVIVORS (DOC - Mortality) to match frontend logic
+        // This accounts for missing birds/theft which reduces the effective average weight of the flock
+        const survivors = cycle.doc - (cycle.mortality || 0);
+        const averageWeight = survivors > 0 ? totalWeight / survivors : 0;
 
         // 3. Calculate metrics
         const fcr = this.calculateFCR(totalFeedBags, totalWeight);
@@ -83,11 +141,11 @@ export class SaleMetricsService {
 
         // 4. Calculate costs
         const docCost = cycle.doc * DOC_PRICE_PER_BIRD;
-        const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
+        const feedCost = totalFeedBags * orgFeedPrice;
         const netProfit = totalRevenue - docCost - feedCost - totalMedicineCost;
 
         // 5. Upsert metrics
-        await db.insert(saleMetrics).values({
+        await dbConnection.insert(saleMetrics).values({
             cycleId,
             historyId,
             fcr: fcr.toString(),

@@ -244,7 +244,10 @@ export class PerformanceAnalyticsService {
                 selected_report_id: saleEvents.selectedReportId,
                 report_feed_consumed: saleReports.feedConsumed,
                 cycle_age: cycles.age,
-                history_age: cycleHistory.age
+                history_age: cycleHistory.age,
+                cycle_id: saleEvents.cycleId,
+                history_id: saleEvents.historyId,
+                sale_date: saleEvents.saleDate
             })
             .from(saleEvents)
             .leftJoin(saleReports, eq(saleEvents.selectedReportId, saleReports.id))
@@ -284,6 +287,7 @@ export class PerformanceAnalyticsService {
         let survivalRates: number[] = [];
         let fcrs: number[] = [];
         let epis: number[] = [];
+        const latestFeedPerCycle = new Map<string, { feedBags: number, saleDate: Date }>();
 
         for (const sale of sales) {
             const birdsSold = Number(sale.birds_sold) || 0;
@@ -299,10 +303,25 @@ export class PerformanceAnalyticsService {
 
             totalBirdsSold += birdsSold;
             totalWeight += weight;
-            totalAmount += amount;
-            totalFeedBags += feedBags;
             totalPrice += price;
             totalAge += age;
+
+            // NOTE: We do NOT add to totalFeedBags here. We calculate it after the loop.
+            // totalFeedBags += feedBags; // REMOVED
+
+            // Track latest feed consumption for each cycle/history
+            const cycleKey = sale.cycle_id || sale.history_id;
+            if (cycleKey) {
+                const existing = latestFeedPerCycle.get(cycleKey);
+                const currentSaleDate = sale.sale_date;
+
+                if (!existing || currentSaleDate > existing.saleDate) {
+                    latestFeedPerCycle.set(cycleKey, {
+                        feedBags: feedBags,
+                        saleDate: currentSaleDate
+                    });
+                }
+            }
 
             // Calculate per-sale metrics
             if (houseBirds > 0) {
@@ -322,6 +341,10 @@ export class PerformanceAnalyticsService {
                 }
             }
         }
+
+        // Calculate final Total Feed Consumption from the Map
+        // Sum the feed bags from the LATEST sale of each cycle/history
+        totalFeedBags = Array.from(latestFeedPerCycle.values()).reduce((sum, item) => sum + item.feedBags, 0);
 
         const numSales = sales.length;
 

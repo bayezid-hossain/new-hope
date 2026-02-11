@@ -143,6 +143,12 @@ const managementReportsSection = [
     href: "/management/reports/performance",
     isPro: true,
   },
+  {
+    icon: FaProductHunt,
+    label: "Monthly Production",
+    href: "/management/reports/production",
+    isPro: true,
+  },
 ];
 
 

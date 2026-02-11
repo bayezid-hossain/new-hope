@@ -93,7 +93,7 @@ export const endCycleLogic = async (
 
     // 5. Trigger Metric Calculation for the finalized cycle
     // We pass historyId because the cycle is now in history
-    await SaleMetricsService.recalculateForCycle(undefined, history.id);
+    await SaleMetricsService.recalculateForCycle(undefined, history.id, tx);
 
     return { success: true, historyId: history.id };
 };
