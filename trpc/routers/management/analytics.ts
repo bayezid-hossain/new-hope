@@ -1,37 +1,21 @@
 import { cycles, farmer, member } from "@/db/schema";
-import { TRPCError } from "@trpc/server";
 import { and, count, eq } from "drizzle-orm";
-import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 import { fetchOfficerAnalytics } from "../utils";
 
 export const managementAnalyticsRouter = createTRPCRouter({
-    getOfficerAnalytics: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+    getOfficerAnalytics: managementProcedure
+        // orgId is inherited
         .query(async ({ ctx, input }) => {
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
+            const { orgId } = input;
 
             return await fetchOfficerAnalytics(ctx.db, input.orgId);
         }),
 
-    getDashboardStats: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+    getDashboardStats: managementProcedure
+        // orgId is inherited
         .query(async ({ ctx, input }) => {
-            // Access Check (Manager/Owner)
-            const membership = await ctx.db.query.member.findFirst({
-                where: and(
-                    eq(member.userId, ctx.user.id),
-                    eq(member.organizationId, input.orgId),
-                    eq(member.status, "ACTIVE")
-                )
-            });
-            if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+            const { orgId } = input;
 
             const [memberCount] = await ctx.db.select({ count: count() })
                 .from(member)

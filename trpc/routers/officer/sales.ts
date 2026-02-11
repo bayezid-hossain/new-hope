@@ -210,7 +210,7 @@ export const officerSalesRouter = createTRPCRouter({
                     )
                 });
 
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot record sales." });
                 }
             }
@@ -460,7 +460,7 @@ export const officerSalesRouter = createTRPCRouter({
                     )
                 });
 
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot adjust sales." });
                 }
             }

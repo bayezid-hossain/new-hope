@@ -310,9 +310,9 @@ export function MembersList({ orgId }: { orgId: string }) {
                 </Badge>
               </div>
 
-              <div className="flex items-center justify-between gap-4 pt-2">
-                <div className="flex gap-2">
-                  <span className=" items-center flex text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1 block">Role</span>
+              <div className="flex items-start gap-4 pt-2">
+                <div className="flex-1">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1 block">Role</span>
                   <Select
                     defaultValue={member.role}
                     onValueChange={(val) => roleMutation.mutate({
@@ -332,78 +332,101 @@ export function MembersList({ orgId }: { orgId: string }) {
                   </Select>
                 </div>
 
-                <div className="flex flex-row gap-1 items-center justify-center">
-                  {/* Approve Button */}
-                  {member.status === "PENDING" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-primary border-primary/20 h-8 w-8 p-0 hover:bg-primary/10"
-                      onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
-
-                  {/* Toggle Status Button */}
-                  {(member.status === "ACTIVE" || member.status === "INACTIVE") && member.role !== "OWNER" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className={`${member.status === "ACTIVE"
-                        ? "text-muted-foreground/40 border-border"
-                        : "text-amber-600 border-amber-500/20 bg-amber-500/10"
-                        } h-8 w-8 p-0`}
-                      onClick={() => statusMutation.mutate({
+                {member.role === "MANAGER" && (
+                  <div className="flex-1">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1 block">Access</span>
+                    <Select
+                      defaultValue={member.accessLevel || "VIEW"}
+                      onValueChange={(val) => accessMutation.mutate({
                         memberId: member.id,
-                        status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                        accessLevel: val as "VIEW" | "EDIT",
                         orgId
                       })}
-                      disabled={statusMutation.isPending || member.userId === currentUserId}
+                      disabled={member.userId === currentUserId}
                     >
-                      {statusMutation.isPending ? (
+                      <SelectTrigger className="w-full h-8 text-xs bg-muted/50 border-none shadow-none focus:ring-1 focus:ring-primary/20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="VIEW">View Only</SelectItem>
+                        <SelectItem value="EDIT">Full Edit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-row gap-1 items-center justify-center">
+                {/* Approve Button */}
+                {member.status === "PENDING" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-primary border-primary/20 h-8 w-8 p-0 hover:bg-primary/10"
+                    onClick={() => approveMutation.mutate({ memberId: member.id, orgId })}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {/* Toggle Status Button */}
+                {(member.status === "ACTIVE" || member.status === "INACTIVE") && member.role !== "OWNER" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`${member.status === "ACTIVE"
+                      ? "text-muted-foreground/40 border-border"
+                      : "text-amber-600 border-amber-500/20 bg-amber-500/10"
+                      } h-8 w-8 p-0`}
+                    onClick={() => statusMutation.mutate({
+                      memberId: member.id,
+                      status: member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                      orgId
+                    })}
+                    disabled={statusMutation.isPending || member.userId === currentUserId}
+                  >
+                    {statusMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Power className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+
+                {/* Kick Button */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive border-destructive/20 hover:bg-destructive/10 h-8 w-8 p-0"
+                      disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
+                    >
+                      {deletingId === member.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Power className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       )}
                     </Button>
-                  )}
-
-                  {/* Kick Button */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive border-destructive/20 hover:bg-destructive/10 h-8 w-8 p-0"
-                        disabled={member.role === "OWNER" || deletingId === member.id || member.userId === currentUserId}
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl bg-card border-border shadow-xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-foreground text-lg">Remove Member?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-muted-foreground">
+                        Are you sure you want to remove <span className="font-bold text-foreground">{member.name}</span>?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-muted text-foreground border-none hover:bg-muted/80 rounded-xl">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
                       >
-                        {deletingId === member.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="w-[95vw] max-w-md rounded-2xl bg-card border-border shadow-xl">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-foreground text-lg">Remove Member?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-muted-foreground">
-                          Are you sure you want to remove <span className="font-bold text-foreground">{member.name}</span>?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-muted text-foreground border-none hover:bg-muted/80 rounded-xl">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => removeMutation.mutate({ memberId: member.id, orgId })}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
-                        >
-                          Remove
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}

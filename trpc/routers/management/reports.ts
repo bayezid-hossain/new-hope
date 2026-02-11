@@ -1,29 +1,18 @@
 
-import { cycleHistory, cycles, farmer, member, saleEvents, stockLogs } from "@/db/schema";
-import { TRPCError } from "@trpc/server";
+import { cycleHistory, cycles, farmer, saleEvents, stockLogs } from "@/db/schema";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementReportsRouter = createTRPCRouter({
-    getSalesSummary: protectedProcedure
+    getSalesSummary: managementProcedure
         .input(z.object({
-            orgId: z.string(),
+            // orgId is inherited from managementProcedure
             startDate: z.date().optional(),
             endDate: z.date().optional(),
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, startDate, endDate } = input;
-
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
-                    throw new TRPCError({ code: "FORBIDDEN", message: "Only Managers and Owners can view reports" });
-                }
-            }
 
             // 1. Get relevant farmers first (optional but good for strict org scoping)
             const farmersQuery = await ctx.db.select({ id: farmer.id, name: farmer.name }).from(farmer).where(eq(farmer.organizationId, orgId));
@@ -141,9 +130,9 @@ export const managementReportsRouter = createTRPCRouter({
             };
         }),
 
-    getSalesLedger: protectedProcedure
+    getSalesLedger: managementProcedure
         .input(z.object({
-            orgId: z.string(),
+            // orgId is inherited
             farmerId: z.string(),
             page: z.number().default(1),
             pageSize: z.number().default(20),
@@ -152,16 +141,6 @@ export const managementReportsRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, farmerId, page, pageSize, startDate, endDate } = input;
-
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
-                    throw new TRPCError({ code: "FORBIDDEN" });
-                }
-            }
 
             // Build Where Clause for specific farmer's sales
             // Need to join via Cycles/History again to ensure we only get sales for THIS farmer AND Org
@@ -221,16 +200,9 @@ export const managementReportsRouter = createTRPCRouter({
             };
         }),
 
-    getStockSummary: protectedProcedure
-        .input(z.object({ orgId: z.string() }))
+    getStockSummary: managementProcedure
+        // orgId is inherited
         .query(async ({ ctx, input }) => {
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
 
             const farmers = await ctx.db.select({
                 id: farmer.id,
@@ -254,9 +226,9 @@ export const managementReportsRouter = createTRPCRouter({
             };
         }),
 
-    getStockLedger: protectedProcedure
+    getStockLedger: managementProcedure
         .input(z.object({
-            orgId: z.string(),
+            // orgId is inherited
             page: z.number().default(1),
             pageSize: z.number().default(20),
             farmerId: z.string().optional(),
@@ -265,14 +237,6 @@ export const managementReportsRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, page, pageSize, farmerId, startDate, endDate } = input;
-
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
 
             const offset = (page - 1) * pageSize;
 
@@ -312,25 +276,15 @@ export const managementReportsRouter = createTRPCRouter({
                 totalPages: Math.ceil(Number(total.count) / pageSize)
             };
         }),
-    getMonthlyDocPlacements: protectedProcedure
+    getMonthlyDocPlacements: managementProcedure
         .input(z.object({
-            orgId: z.string(),
+            // orgId is inherited
             officerId: z.string(),
             month: z.number().min(1).max(12),
             year: z.number().int().min(2000).max(2100)
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, officerId, month, year } = input;
-
-            // Access Check
-            if (ctx.user.globalRole !== "ADMIN") {
-                const membership = await ctx.db.query.member.findFirst({
-                    where: and(eq(member.userId, ctx.user.id), eq(member.organizationId, orgId), eq(member.status, "ACTIVE"))
-                });
-                if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
-                    throw new TRPCError({ code: "FORBIDDEN" });
-                }
-            }
 
             // Verify the officer belongs to this org (optional but good practice)
             // We can just rely on the join with farmer->orgId, but if an officer has no farmers, we might show empty.

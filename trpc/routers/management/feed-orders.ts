@@ -2,17 +2,18 @@ import { feedOrders } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, orgProcedure, protectedProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementFeedOrdersRouter = createTRPCRouter({
     // List all feed orders in the organization (for managers/admins)
-    list: protectedProcedure
+    list: managementProcedure
         .input(z.object({
-            orgId: z.string(),
+            // orgId is inherited
             limit: z.number().min(1).max(100).default(50),
             officerId: z.string().optional(), // Filter by specific officer
         }))
         .query(async ({ ctx, input }) => {
+            const { orgId } = input;
 
             const orders = await ctx.db.query.feedOrders.findMany({
                 where: (feedOrders, { and, eq }) => and(
@@ -42,8 +43,9 @@ export const managementFeedOrdersRouter = createTRPCRouter({
         }),
 
     // Get single feed order details
-    get: protectedProcedure
+    get: managementProcedure
         .input(z.object({
+            orgId: z.string(),
             id: z.string()
         }))
         .query(async ({ ctx, input }) => {
@@ -70,7 +72,7 @@ export const managementFeedOrdersRouter = createTRPCRouter({
 
     // Delete any feed order (manager permission)
     // Delete any feed order (manager permission)
-    delete: orgProcedure
+    delete: managementProcedure
         .input(z.object({
             id: z.string(),
             // orgId is already required by orgProcedure's input schema merging

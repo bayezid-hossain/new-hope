@@ -165,7 +165,7 @@ const StockLedgerSection = ({ isLoading, data, mainStock }: { isLoading: boolean
 export default function FarmerDetails() {
   const trpc = useTRPC();
   const router = useRouter();
-  const { orgId } = useCurrentOrg();
+  const { orgId, canEdit } = useCurrentOrg();
   const params = useParams();
   const farmerId = params.id as string;
 
@@ -284,17 +284,21 @@ export default function FarmerDetails() {
                     Transfer Stock
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowEditFarmerModal(true)} className="gap-2 cursor-pointer font-medium">
-                    <Pencil className="h-4 w-4 text-primary" />
-                    Edit Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowArchiveDialog(true)}
-                    className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Profile
-                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => setShowEditFarmerModal(true)} className="gap-2 cursor-pointer font-medium">
+                      <Pencil className="h-4 w-4 text-primary" />
+                      Edit Profile
+                    </DropdownMenuItem>
+                  )}
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onClick={() => setShowArchiveDialog(true)}
+                      className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Profile
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -410,19 +414,24 @@ export default function FarmerDetails() {
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-3 border-t border-border/50">
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2 text-xs font-bold h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary transition-all"
+                    onClick={() => setShowEditSecurityMoneyModal(true)}
+                  >
+                    <Pencil className="h-3 w-3 text-primary" />
+                    Edit Amount
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
-                  onClick={() => setShowEditSecurityMoneyModal(true)}
-                >
-                  <Pencil className="h-3 w-3 text-primary" />
-                  Edit Amount
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-2 font-bold text-[10px] uppercase tracking-wider h-9 bg-card border-border/50 hover:bg-muted/50 transition-colors shadow-sm"
+                  className={cn(
+                    "gap-2 text-xs font-bold h-9 bg-muted/30 hover:bg-muted border-border/50 transition-all",
+                    canEdit ? "flex-1" : "w-full"
+                  )}
                   onClick={() => setShowSecurityHistoryModal(true)}
                 >
                   <History className="h-3 w-3 text-muted-foreground" />

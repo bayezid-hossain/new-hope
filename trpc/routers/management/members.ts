@@ -2,10 +2,10 @@ import { member, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, orgProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementMembersRouter = createTRPCRouter({
-    list: orgProcedure
+    list: managementProcedure
         .query(async ({ ctx, input }) => {
             return await ctx.db.select({
                 id: member.id,
@@ -28,7 +28,7 @@ export const managementMembersRouter = createTRPCRouter({
                 );
         }),
 
-    approve: orgProcedure
+    approve: managementProcedure
         .input(z.object({
             memberId: z.string()
         }))
@@ -65,7 +65,7 @@ export const managementMembersRouter = createTRPCRouter({
             return updatedMember;
         }),
 
-    updateRole: orgProcedure
+    updateRole: managementProcedure
         .input(z.object({ memberId: z.string(), role: z.enum(["MANAGER", "OFFICER"]) }))
         .mutation(async ({ ctx, input }) => {
             const actorMember = ctx.membership;
@@ -102,7 +102,7 @@ export const managementMembersRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    updateAccess: orgProcedure
+    updateAccess: managementProcedure
         .input(z.object({
             memberId: z.string(),
             accessLevel: z.enum(["VIEW", "EDIT"])
@@ -147,7 +147,7 @@ export const managementMembersRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    updateStatus: orgProcedure
+    updateStatus: managementProcedure
         .input(z.object({
             memberId: z.string(),
             status: z.enum(["ACTIVE", "INACTIVE"])
@@ -189,7 +189,7 @@ export const managementMembersRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    remove: orgProcedure
+    remove: managementProcedure
         .input(z.object({ memberId: z.string() }))
         .mutation(async ({ ctx, input }) => {
             const actorMember = ctx.membership;

@@ -180,7 +180,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     )
                 });
 
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot create cycles." });
                 }
             }
@@ -371,7 +371,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         eq(member.organizationId, cycle.organizationId)
                     )
                 });
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot end cycles." });
                 }
             }
@@ -412,8 +412,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         eq(member.organizationId, farmerData.organizationId)
                     )
                 });
-
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot add mortality." });
                 }
             }
@@ -528,8 +527,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         eq(member.organizationId, record.organizationId!)
                     )
                 });
-
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot delete history." });
                 }
             }
@@ -571,7 +569,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
 
                     // Enforce Manager View Mode
-                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot reopen cycles." });
                     }
                 } else if (ctx.user.globalRole !== "ADMIN") {
@@ -583,7 +581,7 @@ export const officerCyclesRouter = createTRPCRouter({
                             eq(member.status, "ACTIVE")
                         )
                     });
-                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot reopen cycles." });
                     }
                 }
@@ -711,7 +709,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     });
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
 
-                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot edit logs." });
                     }
                 } else if (ctx.user.globalRole !== "ADMIN") {
@@ -723,7 +721,7 @@ export const officerCyclesRouter = createTRPCRouter({
                             eq(member.status, "ACTIVE")
                         )
                     });
-                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot edit logs." });
                     }
                 }
@@ -859,7 +857,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         )
                     });
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot revert logs." });
                     }
                 } else if (ctx.user.globalRole !== "ADMIN") {
@@ -871,7 +869,7 @@ export const officerCyclesRouter = createTRPCRouter({
                             eq(member.status, "ACTIVE")
                         )
                     });
-                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                         throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot revert logs." });
                     }
                 }

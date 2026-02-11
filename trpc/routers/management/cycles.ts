@@ -2,13 +2,7 @@ import { cycleHistory, cycleLogs, cycles, farmer, member, user } from "@/db/sche
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
-
-const managementProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-    // Logic to verify user is manager/owner of org or global admin
-    // For now, passing through as the procedures check membership individually
-    return next();
-});
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 const cycleSearchSchema = z.object({
     search: z.string().optional(),

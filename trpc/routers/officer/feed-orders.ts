@@ -32,7 +32,7 @@ export const feedOrdersRouter = createTRPCRouter({
                     throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this organization." });
                 }
 
-                if (membership.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot create feed orders." });
                 }
             }
@@ -136,7 +136,7 @@ export const feedOrdersRouter = createTRPCRouter({
                         eq(member.organizationId, order.orgId)
                     )
                 });
-                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW") {
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot delete feed orders." });
                 }
             }

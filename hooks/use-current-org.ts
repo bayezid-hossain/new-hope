@@ -25,6 +25,6 @@ export function useCurrentOrg() {
     canEdit:
       query.data?.role === "OWNER" ||
       query.data?.role === "OFFICER" ||
-      (query.data?.role === "MANAGER" && query.data?.accessLevel === "EDIT"),
+      (query.data?.role === "MANAGER" && (query.data?.activeMode === "OFFICER" || query.data?.accessLevel === "EDIT")),
   };
 }
