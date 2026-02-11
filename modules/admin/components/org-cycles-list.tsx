@@ -137,7 +137,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
         if (useOfficerRouter) {
             return trpc.officer.cycles.listPast.queryOptions(historyInput as any);
         }
-        return (isAdmin ? trpc.admin.cycles.listPast : trpc.management.cycles.listPast).queryOptions(historyInput as any);
+
+        if (isAdmin) {
+            return trpc.admin.cycles.listPast.queryOptions(historyInput as any);
+        }
+        return trpc.management.cycles.listPast.queryOptions(historyInput as any);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
