@@ -194,8 +194,6 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
 
     const isAdmin = prefix?.includes("/admin");
 
-    if (!canEdit) return null;
-
     const deleteMutation = useMutation(
         (isAdmin ? trpc.admin.cycles.deleteHistory : trpc.officer.cycles.deleteHistory).mutationOptions({
             onSuccess: async () => {
@@ -225,6 +223,8 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
             }
         })
     );
+
+    if (!canEdit) return null;
 
 
     // If status is active, show indicator (shouldn't happen in history table usually but duplicate logic from original)
