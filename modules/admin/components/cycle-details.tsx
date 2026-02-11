@@ -302,7 +302,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
         isAdmin
             ? trpc.admin.cycles.getDetails.queryOptions({ id: cycleId })
             : isManagement
-                ? trpc.management.cycles.getDetails.queryOptions({ id: cycleId })
+                ? trpc.management.cycles.getDetails.queryOptions({ id: cycleId, orgId: orgId ?? "" })
                 : trpc.officer.cycles.getDetails.queryOptions({ id: cycleId })
     );
 
