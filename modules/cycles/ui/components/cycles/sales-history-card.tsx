@@ -205,7 +205,7 @@ Location: ${sale.location}
 House bird : ${sale.houseBirds}pcs
 Total Sold : ${birdsSold}pcs
 Total Mortality: ${totalMortality} pcs
-Remaining Birds: ${sale.houseBirds - totalMortality -birdsSold} pcs
+${!isEnded ? `\n Remaining Birds: ${sale.houseBirds - totalMortality -birdsSold} pcs`:""}
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
