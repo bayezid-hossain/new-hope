@@ -303,4 +303,17 @@ export const performanceReportsRouter = createTRPCRouter({
                 years: sortedYears,
             };
         }),
+
+    getMonthlyProductionRecord: proProcedure
+        .input(z.object({
+            year: z.number(),
+            month: z.number(), // 0-11
+        }))
+        .query(async ({ ctx, input }) => {
+            return await PerformanceAnalyticsService.getMonthlyProductionRecord(
+                ctx.user.id,
+                input.year,
+                input.month
+            );
+        }),
 });

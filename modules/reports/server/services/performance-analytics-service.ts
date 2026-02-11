@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { cycleHistory, cycles, farmer, saleEvents, saleReports } from "@/db/schema";
+import { cycleHistory, cycles, farmer, saleEvents, saleMetrics, saleReports } from "@/db/schema";
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
 
 /**
@@ -35,6 +35,18 @@ export interface PerformanceSummary {
     averageFCR: number;
     averageEPI: number;
     totalRevenue: number;
+}
+
+export interface FarmerProductionRecord {
+    farmerId: string;
+    farmerName: string;
+    doc: number;
+    survivalRate: number;
+    averageWeight: number;
+    fcr: number;
+    epi: number;
+    age: number;
+    profit: number;
 }
 
 /**
@@ -330,5 +342,95 @@ export class PerformanceAnalyticsService {
             averagePrice: numSales > 0 ? totalPrice / numSales : 0,
             totalRevenue: totalAmount,
         };
+    }
+
+    /**
+     * Get monthly production record for an officer
+     * Returns per-farmer breakdown of cycles ended in the given month
+     */
+    static async getMonthlyProductionRecord(
+        officerId: string,
+        year: number,
+        month: number
+    ): Promise<FarmerProductionRecord[]> {
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+        // Find all cycles that had their FINAL sale in this month
+        // A cycle's final sale is when it was ended (moved to history)
+        const endedCycles = await db
+            .select({
+                farmerId: farmer.id,
+                farmerName: farmer.name,
+                fcr: saleMetrics.fcr,
+                epi: saleMetrics.epi,
+                survivalRate: saleMetrics.survivalRate,
+                averageWeight: saleMetrics.averageWeight,
+                averageAge: saleMetrics.averageAge,
+                totalDoc: saleMetrics.totalDoc,
+                netProfit: saleMetrics.netProfit,
+            })
+            .from(cycleHistory)
+            .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+            .innerJoin(saleMetrics, eq(saleMetrics.historyId, cycleHistory.id))
+            .where(and(
+                eq(farmer.officerId, officerId),
+                gte(cycleHistory.endDate, startOfMonth),
+                lte(cycleHistory.endDate, endOfMonth)
+            ));
+
+        // Group by farmer (in case they have multiple cycles ended this month)
+        const farmerMap = new Map<string, {
+            farmerId: string;
+            farmerName: string;
+            doc: number;
+            profit: number;
+            survivalRate: number;
+            averageWeight: number;
+            fcr: number;
+            epi: number;
+            age: number;
+            _cycleCount: number;
+        }>();
+
+        for (const cycle of endedCycles) {
+            const existing = farmerMap.get(cycle.farmerId) || {
+                farmerId: cycle.farmerId,
+                farmerName: cycle.farmerName,
+                doc: 0,
+                survivalRate: 0,
+                averageWeight: 0,
+                fcr: 0,
+                epi: 0,
+                age: 0,
+                profit: 0,
+                _cycleCount: 0,
+            };
+
+            // Sum DOC and profit, average the rest
+            existing.doc += Number(cycle.totalDoc);
+            existing.profit += Number(cycle.netProfit);
+            existing.survivalRate += Number(cycle.survivalRate);
+            existing.averageWeight += Number(cycle.averageWeight);
+            existing.fcr += Number(cycle.fcr);
+            existing.epi += Number(cycle.epi);
+            existing.age += Number(cycle.averageAge);
+            existing._cycleCount++;
+
+            farmerMap.set(cycle.farmerId, existing);
+        }
+
+        // Finalize averages
+        return Array.from(farmerMap.values()).map(f => ({
+            farmerId: f.farmerId,
+            farmerName: f.farmerName,
+            doc: f.doc,
+            survivalRate: f._cycleCount > 0 ? f.survivalRate / f._cycleCount : 0,
+            averageWeight: f._cycleCount > 0 ? f.averageWeight / f._cycleCount : 0,
+            fcr: f._cycleCount > 0 ? f.fcr / f._cycleCount : 0,
+            epi: f._cycleCount > 0 ? f.epi / f._cycleCount : 0,
+            age: f._cycleCount > 0 ? f.age / f._cycleCount : 0,
+            profit: f.profit,
+        })).sort((a, b) => a.farmerName.localeCompare(b.farmerName));
     }
 }

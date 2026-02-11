@@ -1,3 +1,0 @@
-﻿modules/feed-orders/ui/components/create-feed-order-modal.tsx(81,13): error TS2322: Type '(err: Error) => void' is not assignable to type '(error: TRPCClientErrorLike<{ input: { orgId: string; orderDate: Date; deliveryDate: Date; items: { farmerId: string; feeds: { type: string; quantity: number; }[]; }[]; }; output: { id: string; createdAt: Date; officerId: string; orgId: string; orderDate: Date; deliveryDate: Date; }; transformer: true; errorShape: D...'.
-  Types of parameters 'err' and 'error' are incompatible.
-    Property 'name' is missing in type 'TRPCClientErrorBase<DefaultErrorShape>' but required in type 'Error'.

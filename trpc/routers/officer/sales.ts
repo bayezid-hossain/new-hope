@@ -1,10 +1,13 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
+
+
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
+import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 const officerProcedure = protectedProcedure;
@@ -406,8 +409,12 @@ export const officerSalesRouter = createTRPCRouter({
                     });
                 }
 
+                // Recalculate metrics for this cycle/history
+                await SaleMetricsService.recalculateForCycle(input.cycleId, historyId);
+
                 return { saleEvent, cycleEnded, historyId };
             });
+
 
             // Send Notification (Outside transaction for performance/reliability)
             try {
@@ -626,8 +633,15 @@ export const officerSalesRouter = createTRPCRouter({
                     createdAt: event.saleDate
                 });
 
+                // Recalculate metrics
+                await SaleMetricsService.recalculateForCycle(
+                    event.cycleId || undefined,
+                    event.historyId || undefined
+                );
+
                 return { report, birdsSoldDifference };
             });
+
 
             // Send Notification (Outside transaction)
             try {

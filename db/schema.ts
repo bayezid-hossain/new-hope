@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar
 } from "drizzle-orm/pg-core";
@@ -113,8 +114,10 @@ export const twoFactor = pgTable("two_factor", {
 export const organization = pgTable("organization", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
+  feedPricePerBag: decimal("feed_price_per_bag").default("2500"), // Default until changed
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -339,6 +342,50 @@ export const saleReports = pgTable("sale_reports", {
   index("idx_sale_reports_event_id").on(t.saleEventId),
 ]);
 
+// 4c. PERFORMANCE METRICS (AGGREGATED)
+// =========================================================
+
+export const saleMetrics = pgTable("sale_metrics", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
+  // Link to cycle (not individual sales)
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }),
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+  // ONE of these must be set - metrics belong to a cycle, active or archived
+
+  // Calculated Production Metrics (for the ENTIRE cycle, all sales combined)
+  fcr: decimal("fcr", { precision: 10, scale: 2 }).notNull(),
+  epi: decimal("epi", { precision: 10, scale: 2 }).notNull(),
+  survivalRate: decimal("survival_rate", { precision: 5, scale: 2 }).notNull(),
+  averageWeight: decimal("average_weight", { precision: 10, scale: 3 }).notNull(), // kg per bird
+
+  // Total birds (all sales combined)
+  totalBirdsSold: integer("total_birds_sold").notNull(),
+  totalDoc: integer("total_doc").notNull(),
+  totalMortality: integer("total_mortality").notNull(),
+  averageAge: decimal("average_age", { precision: 5, scale: 2 }).notNull(),
+
+  // Financial Metrics (entire cycle)
+  docCost: decimal("doc_cost").notNull(), // DOC × DOC_PRICE_PER_BIRD
+  feedCost: decimal("feed_cost").notNull(), // total feed × FEED_PRICE_PER_BAG
+  medicineCost: decimal("medicine_cost").notNull(),
+  totalRevenue: decimal("total_revenue").notNull(),
+  netProfit: decimal("net_profit").notNull(), // revenue - all costs
+
+  // Metadata (audit trail - what prices were used)
+  feedPriceUsed: decimal("feed_price_used").notNull().default("3220"),
+  docPriceUsed: decimal("doc_price_used").notNull().default("41.5"),
+  calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
+  lastRecalculatedAt: timestamp("last_recalculated_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_metrics_cycle").on(t.cycleId),
+  index("idx_sale_metrics_history").on(t.historyId),
+  // Only ONE metrics row per cycle
+  unique("unique_cycle_metrics").on(t.cycleId),
+  unique("unique_history_metrics").on(t.historyId),
+]);
+
+
 // =========================================================
 // 5. RELATIONS
 // =========================================================
@@ -392,6 +439,7 @@ export const saleEventRelations = relations(saleEvents, ({ one, many }) => ({
   history: one(cycleHistory, { fields: [saleEvents.historyId], references: [cycleHistory.id] }),
   createdByUser: one(user, { fields: [saleEvents.createdBy], references: [user.id] }),
   reports: many(saleReports),
+  selectedReport: one(saleReports, { fields: [saleEvents.selectedReportId], references: [saleReports.id] }),
 }));
 
 export const saleReportRelations = relations(saleReports, ({ one }) => ({
