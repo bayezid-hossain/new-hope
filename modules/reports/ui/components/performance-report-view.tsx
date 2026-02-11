@@ -18,6 +18,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { useCurrentOrg } from "@/hooks/use-current-org";
+import { ProUpgradeTeaser } from "@/modules/shared/components/pro-upgrade-teaser";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Filter, Minus, TrendingDown, TrendingUp } from "lucide-react";
@@ -30,25 +32,24 @@ interface PerformanceReportViewProps {
 
 export function PerformanceReportView({ isManagement = false, orgId }: PerformanceReportViewProps) {
     const trpc = useTRPC();
+    const { isPro } = useCurrentOrg();
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedOfficerId, setSelectedOfficerId] = useState<string>("");
 
     // Fetch Officers (Management Only)
-    const { data: officers } = useQuery(
-        trpc.management.officers.getAll.queryOptions(
-            { orgId: orgId! },
-            { enabled: isManagement && !!orgId }
-        )
-    );
+    const { data: officers } = useQuery({
+        ...trpc.management.officers.getAll.queryOptions({ orgId: orgId! }),
+        enabled: isManagement && !!orgId && isPro
+    });
 
     // Fetch available years
-    const { data: yearsData, isLoading: isLoadingYears } = useQuery(
-        trpc.officer.performanceReports.getAvailableYears.queryOptions(
-            { officerId: selectedOfficerId || undefined },
-            { enabled: !isManagement || !!selectedOfficerId }
-        )
-    );
+    const { data: yearsData, isLoading: isLoadingYears } = useQuery({
+        ...trpc.officer.performanceReports.getAvailableYears.queryOptions(
+            { officerId: selectedOfficerId || undefined }
+        ),
+        enabled: isPro && (!isManagement || !!selectedOfficerId)
+    });
 
     // Auto-select latest year when data loads
     useEffect(() => {
@@ -63,17 +64,13 @@ export function PerformanceReportView({ isManagement = false, orgId }: Performan
     // Managers use the same endpoint but provide an officerId
     const targetOfficerId = isManagement ? selectedOfficerId : undefined;
 
-    const { data: performanceData, isLoading, error } = useQuery(
-        trpc.officer.performanceReports.getAnnualPerformance.queryOptions(
-            {
-                year: selectedYear,
-                officerId: targetOfficerId || undefined,
-            },
-            {
-                enabled: !isManagement || !!selectedOfficerId
-            }
-        )
-    );
+    const { data: performanceData, isLoading, error } = useQuery({
+        ...trpc.officer.performanceReports.getAnnualPerformance.queryOptions({
+            year: selectedYear,
+            officerId: targetOfficerId || undefined,
+        }),
+        enabled: isPro && (!isManagement || !!selectedOfficerId)
+    });
 
     const formatNumber = (num: number) => {
         return new Intl.NumberFormat('en-US').format(Math.round(num));
@@ -132,7 +129,13 @@ export function PerformanceReportView({ isManagement = false, orgId }: Performan
                 </div>
             </div>
 
-            {isManagement && !selectedOfficerId ? (
+            {!isPro ? (
+                <ProUpgradeTeaser
+                    title="Performance Intelligence Locked"
+                    description="Deep analytics, FCR trends, and EPI metrics are premium features designed to optimize your production efficiency."
+                    className="py-24"
+                />
+            ) : isManagement && !selectedOfficerId ? (
                 <div className="text-center py-20 bg-muted/5 rounded-3xl border border-dashed border-muted/50">
                     <div className="mx-auto h-16 w-16 bg-muted/20 rounded-full flex items-center justify-center mb-4">
                         <Filter className="h-8 w-8 text-muted-foreground/40" />

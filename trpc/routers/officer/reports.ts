@@ -2,10 +2,10 @@
 import { cycleHistory, cycles, farmer } from "@/db/schema";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, officerProcedure } from "../../init";
+import { createTRPCRouter, proProcedure } from "../../init";
 
 export const officerReportsRouter = createTRPCRouter({
-    getMonthlyDocPlacements: officerProcedure
+    getMonthlyDocPlacements: proProcedure
         .input(z.object({
             month: z.number().min(1).max(12),
             year: z.number().int().min(2000).max(2100)

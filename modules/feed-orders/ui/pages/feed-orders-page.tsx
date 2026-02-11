@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { ProUpgradeTeaser } from "@/modules/shared/components/pro-upgrade-teaser";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
@@ -17,17 +18,19 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<any>(null);
 
-    const { canEdit } = useCurrentOrg();
     const trpc = useTRPC();
+    const { isPro, canEdit } = useCurrentOrg();
 
-    const { data: orders, isPending } = useQuery(
-        trpc.officer.feedOrders.list.queryOptions({
+    const { data: orders, isPending } = useQuery({
+        ...trpc.officer.feedOrders.list.queryOptions({
             orgId,
             limit: 50
-        })
-    );
+        }),
+        enabled: isPro
+    });
 
     const handleEdit = (order: any) => {
+        // ... (rest of handleEdit)
         // Group flat items by farmerId for the modal
         const farmerMap = new Map<string, any>();
         order.items.forEach((item: any) => {
@@ -57,6 +60,23 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
         setEditingOrder(groupedOrder);
     };
 
+    if (!isPro) {
+        return (
+            <div className="space-y-6 p-4 max-w-4xl mx-auto">
+                <div>
+                    <h2 className="text-2xl font-black tracking-tight uppercase">Feed Orders</h2>
+                    <p className="text-sm text-muted-foreground font-medium">Coordinate logistics across multiple farming units.</p>
+                </div>
+
+                <ProUpgradeTeaser
+                    title="Feed Logistics Locked"
+                    description="The centralized feed ordering and tracking system is a Pro feature designed for large scale operations."
+                    className="py-20"
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4 p-4 pb-20">
             <div className="flex items-center justify-between">
@@ -71,6 +91,7 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
                     </Button>
                 )}
             </div>
+            {/* ... rest of the component */}
 
             {(isCreateOpen || editingOrder) && (
                 <CreateFeedOrderModal

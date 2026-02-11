@@ -2,10 +2,10 @@ import { feedOrderItems, feedOrders, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, proProcedure } from "../../init";
 
 export const feedOrdersRouter = createTRPCRouter({
-    create: protectedProcedure
+    create: proProcedure
         .input(z.object({
             orgId: z.string(),
             orderDate: z.date(),
@@ -62,7 +62,7 @@ export const feedOrdersRouter = createTRPCRouter({
             return order[0];
         }),
 
-    list: protectedProcedure
+    list: proProcedure
         .input(z.object({
             orgId: z.string(),
             limit: z.number().min(1).max(100).default(50),
@@ -88,7 +88,7 @@ export const feedOrdersRouter = createTRPCRouter({
             return orders;
         }),
 
-    get: protectedProcedure
+    get: proProcedure
         .input(z.object({
             id: z.string()
         }))
@@ -106,7 +106,7 @@ export const feedOrdersRouter = createTRPCRouter({
             return order;
         }),
 
-    delete: protectedProcedure
+    delete: proProcedure
         .input(z.object({
             id: z.string()
         }))
@@ -147,7 +147,7 @@ export const feedOrdersRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    update: protectedProcedure
+    update: proProcedure
         .input(z.object({
             id: z.string(),
             orderDate: z.date(),

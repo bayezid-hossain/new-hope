@@ -11,6 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { useCurrentOrg } from "@/hooks/use-current-org";
+import { ProUpgradeTeaser } from "@/modules/shared/components/pro-upgrade-teaser";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -24,6 +26,7 @@ interface DocPlacementReportViewProps {
 
 export function DocPlacementReportView({ isManagement = false, orgId }: DocPlacementReportViewProps) {
     const trpc = useTRPC();
+    const { isPro } = useCurrentOrg();
     const now = new Date();
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
@@ -31,28 +34,27 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
     const [expandedFarmerId, setExpandedFarmerId] = useState<string | null>(null);
 
     // Fetch Officers (Management Only)
-    const { data: officers } = useQuery(
-        trpc.management.officers.getAll.queryOptions(
-            { orgId: orgId! },
-            { enabled: isManagement && !!orgId }
-        )
-    );
+    const { data: officers } = useQuery({
+        ...trpc.management.officers.getAll.queryOptions(
+            { orgId: orgId! }
+        ),
+        enabled: isManagement && !!orgId && isPro
+    });
 
     // Fetch Report Data
     // We conditionally use the correct query based on role
     const officerQueryOptions = trpc.officer.reports.getMonthlyDocPlacements.queryOptions(
-        { month, year },
-        { enabled: !isManagement }
+        { month, year }
     );
 
     const managementQueryOptions = trpc.management.reports.getMonthlyDocPlacements.queryOptions(
-        { month, year, orgId: orgId!, officerId: selectedOfficerId },
-        { enabled: isManagement && !!selectedOfficerId && !!orgId }
+        { month, year, orgId: orgId!, officerId: selectedOfficerId }
     );
 
-    const { data, isLoading } = useQuery(
-        isManagement ? managementQueryOptions : officerQueryOptions
-    );
+    const { data, isLoading } = useQuery({
+        ...(isManagement ? managementQueryOptions : officerQueryOptions),
+        enabled: isPro && (isManagement ? (!!selectedOfficerId && !!orgId) : true)
+    });
 
     const reportData = data;
 
@@ -67,6 +69,27 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
+
+    if (!isPro) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-end justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight">DOC Placement Report</h2>
+                        <p className="text-muted-foreground">
+                            Month-wise breakdown of Day Old Chick placements.
+                        </p>
+                    </div>
+                </div>
+
+                <ProUpgradeTeaser
+                    title="Placement Analytics Locked"
+                    description="Monthly DOC placement reports and historical trends are available for Pro organizations."
+                    className="py-24"
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">

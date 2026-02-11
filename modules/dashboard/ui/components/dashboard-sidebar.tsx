@@ -53,7 +53,7 @@ const firstSection = [
   },
   {
     icon: ClipboardList,
-    label: "Stock Ledger",
+    label: "Stock Ledger & Import History",
     href: "/stock-ledger",
     isPro: true,
   },
@@ -61,6 +61,7 @@ const firstSection = [
     icon: Package,
     label: "Feed Orders",
     href: "/feed-orders",
+    isPro: true,
   },
 ];
 
@@ -69,6 +70,7 @@ const reportsSection = [
     icon: FileSpreadsheet,
     label: "Monthly DOC Placements",
     href: "/reports/doc-placements",
+    isPro: true,
   },
   {
     icon: BarChart3,
@@ -111,6 +113,7 @@ const managementSection = [
     icon: Package,
     label: "Feed Orders",
     href: "/management/feed-orders",
+    isPro: true,
   },
 ];
 
@@ -119,16 +122,19 @@ const managementReportsSection = [
     icon: LayoutDashboard,
     label: "Sales & Stock",
     href: "/management/reports",
+    isPro: true,
   },
   {
     icon: FileSpreadsheet,
     label: "Monthly DOC Placements",
     href: "/management/reports/doc-placements",
+    isPro: true,
   },
   {
     icon: BarChart3,
     label: "Performance",
     href: "/management/reports/performance",
+    isPro: true,
   },
 ];
 
@@ -244,12 +250,12 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                         className="flex items-center gap-2"
                       >
                         <item.icon className="size-5 " />
-                        <span className="text-sm font-medium tracking-tight flex-1">
+                        <span className="text-sm font-medium tracking-tight flex-1 truncate">
                           {item.label}
                         </span>
                         {/* @ts-ignore - isPro is optional */}
                         {item.isPro && (
-                          <div className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                          <div className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
                             PRO
                           </div>
                         )}
@@ -288,9 +294,9 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                                 className="flex items-center gap-2"
                               >
                                 <subItem.icon className="size-4 opacity-70" />
-                                <span className="text-sm">{subItem.label}</span>
+                                <span className="text-sm flex-1 truncate">{subItem.label}</span>
                                 {subItem.isPro && (
-                                  <div className="text-[8px] font-bold px-1 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none ml-auto">
+                                  <div className="shrink-0 text-[8px] font-bold px-1 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
                                     PRO
                                   </div>
                                 )}
@@ -328,9 +334,15 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                         className="flex items-center gap-2"
                       >
                         <item.icon className="size-5" />
-                        <span className="text-sm font-medium tracking-tight">
+                        <span className="text-sm font-medium tracking-tight flex-1 truncate">
                           {item.label}
                         </span>
+                        {/* @ts-ignore - isPro is optional */}
+                        {item.isPro && (
+                          <div className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                            PRO
+                          </div>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -366,7 +378,13 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                                 className="flex items-center gap-2"
                               >
                                 <subItem.icon className="size-4 opacity-70" />
-                                <span className="text-sm">{subItem.label}</span>
+                                <span className="text-sm flex-1 truncate">{subItem.label}</span>
+                                {/* @ts-ignore - isPro is optional */}
+                                {subItem.isPro && (
+                                  <div className="shrink-0 text-[8px] font-bold px-1 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                                    PRO
+                                  </div>
+                                )}
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>

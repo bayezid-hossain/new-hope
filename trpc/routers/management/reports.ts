@@ -2,7 +2,7 @@
 import { cycleHistory, cycles, farmer, saleEvents, stockLogs } from "@/db/schema";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, managementProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure, managementProProcedure } from "../../init";
 
 export const managementReportsRouter = createTRPCRouter({
     getSalesSummary: managementProcedure
@@ -276,7 +276,7 @@ export const managementReportsRouter = createTRPCRouter({
                 totalPages: Math.ceil(Number(total.count) / pageSize)
             };
         }),
-    getMonthlyDocPlacements: managementProcedure
+    getMonthlyDocPlacements: managementProProcedure
         .input(z.object({
             // orgId is inherited
             officerId: z.string(),
