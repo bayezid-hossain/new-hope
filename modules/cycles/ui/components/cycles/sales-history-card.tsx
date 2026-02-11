@@ -201,10 +201,11 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
     return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
-Location: ${sale.location}${sale.party ? ` (${sale.party})` : ""}
+Location: ${sale.location}
 House bird : ${sale.houseBirds}pcs
 Total Sold : ${birdsSold}pcs
 Total Mortality: ${totalMortality} pcs
+Remaining Birds: ${sale.houseBirds - totalMortality -birdsSold} pcs
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
