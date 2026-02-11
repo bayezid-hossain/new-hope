@@ -1,18 +1,22 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { ProductionRecordTable } from "@/modules/reports/ui/components/production-record-table";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 
-import { addMonths, format, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 export default function OfficerProductionReportPage() {
-    // Default to previous month as it's more likely to have completed cycles
-    const [date, setDate] = useState(() => subMonths(new Date(), 1));
+    // Default to current month
+    const [date, setDate] = useState(() => new Date());
     const trpc = useTRPC()
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
@@ -22,15 +26,15 @@ export default function OfficerProductionReportPage() {
         month,
     }));
 
-    const handlePreviousMonth = () => {
-        setDate((prev) => subMonths(prev, 1));
-    };
+    const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
 
-    const handleNextMonth = () => {
-        setDate((prev) => addMonths(prev, 1));
-    };
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
 
-    const monthName = format(date, "MMMM");
+    const monthName = months[month];
 
     return (
         <div className="space-y-6">
@@ -42,21 +46,48 @@ export default function OfficerProductionReportPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-card p-1 rounded-md border shadow-sm">
-                    <Button variant="ghost" size="icon" onClick={handlePreviousMonth}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="w-40 text-center font-medium">
-                        {monthName} {year}
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleNextMonth}
-                        disabled={addMonths(date, 1) > new Date()}
+                <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Month Picker */}
+                    <Select
+                        value={month.toString()}
+                        onValueChange={(v) => {
+                            const newDate = new Date(date);
+                            newDate.setMonth(parseInt(v));
+                            setDate(newDate);
+                        }}
                     >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                        <SelectTrigger className="w-[130px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {months.map((m, i) => (
+                                <SelectItem key={i} value={i.toString()}>
+                                    {m}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Year Picker */}
+                    <Select
+                        value={year.toString()}
+                        onValueChange={(v) => {
+                            const newDate = new Date(date);
+                            newDate.setFullYear(parseInt(v));
+                            setDate(newDate);
+                        }}
+                    >
+                        <SelectTrigger className="w-[110px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {years.map((y) => (
+                                <SelectItem key={y} value={y.toString()}>
+                                    {y}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

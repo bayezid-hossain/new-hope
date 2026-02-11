@@ -53,8 +53,7 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
     const avgEpi = data.length > 0 ? data.reduce((sum, item) => sum + item.epi, 0) / data.length : 0;
     const avgSurvival = data.length > 0 ? data.reduce((sum, item) => sum + item.survivalRate, 0) / data.length : 0;
     const avgWeight = data.length > 0 ? data.reduce((sum, item) => sum + item.averageWeight, 0) / data.length : 0;
-    console.log(avgEpi)
-    const formattedTotalProfit = totalProfit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 });
+    const formattedTotalProfit = (totalProfit < 0 ? '-' : '') + 'BDT ' + Math.abs(totalProfit).toLocaleString('en-IN');
 
     return (
         <div className="border rounded-md overflow-hidden">
@@ -81,8 +80,8 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
                             <TableCell className="text-right font-mono">{record.fcr.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono">{record.epi.toFixed(2)}</TableCell>
                             <TableCell className="text-right">{record.age.toFixed(1)}</TableCell>
-                            <TableCell className={`text-right font-medium ${record.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {record.profit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 })}
+                            <TableCell className={`text-right font-medium whitespace-nowrap ${record.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {(record.profit < 0 ? '-' : '') + 'BDT ' + Math.abs(record.profit).toLocaleString('en-IN')}
                             </TableCell>
                         </TableRow>
                     ))}
@@ -95,7 +94,7 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
                         <TableCell className="text-right">{avgFcr.toFixed(2)}</TableCell>
                         <TableCell className="text-right">{avgEpi.toFixed(2)}</TableCell>
                         <TableCell className="text-right">-</TableCell>
-                        <TableCell className={`text-right ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <TableCell className={`text-right whitespace-nowrap ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {formattedTotalProfit}
                         </TableCell>
                     </TableRow>

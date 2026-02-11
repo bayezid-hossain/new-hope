@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
@@ -13,13 +12,12 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { ProductionRecordTable } from "@/modules/reports/ui/components/production-record-table";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { addMonths, format, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useState } from "react";
 
 export default function ManagementProductionReportPage() {
     // Default to previous month
-    const [date, setDate] = useState(() => subMonths(new Date(), 1));
+    const [date, setDate] = useState(() => new Date());
     const [selectedOfficerId, setSelectedOfficerId] = useState<string | undefined>(undefined);
     const { orgId } = useCurrentOrg();
     const year = date.getFullYear();
@@ -41,15 +39,15 @@ export default function ManagementProductionReportPage() {
         }
     ));
 
-    const handlePreviousMonth = () => {
-        setDate((prev) => subMonths(prev, 1));
-    };
+    const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
 
-    const handleNextMonth = () => {
-        setDate((prev) => addMonths(prev, 1));
-    };
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
 
-    const monthName = format(date, "MMMM");
+    const monthName = months[month];
 
     return (
         <div className="space-y-6">
@@ -67,7 +65,7 @@ export default function ManagementProductionReportPage() {
                         value={selectedOfficerId}
                         onValueChange={setSelectedOfficerId}
                     >
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-[180px]">
                             <User className="mr-2 h-4 w-4" />
                             <SelectValue placeholder="Select Officer" />
                         </SelectTrigger>
@@ -81,22 +79,46 @@ export default function ManagementProductionReportPage() {
                     </Select>
 
                     {/* Month Picker */}
-                    <div className="flex items-center gap-2 bg-card p-1 rounded-md border shadow-sm">
-                        <Button variant="ghost" size="icon" onClick={handlePreviousMonth}>
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="w-32 text-center font-medium">
-                            {monthName} {year}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleNextMonth}
-                            disabled={addMonths(date, 1) > new Date()}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    <Select
+                        value={month.toString()}
+                        onValueChange={(v) => {
+                            const newDate = new Date(date);
+                            newDate.setMonth(parseInt(v));
+                            setDate(newDate);
+                        }}
+                    >
+                        <SelectTrigger className="w-[130px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {months.map((m, i) => (
+                                <SelectItem key={i} value={i.toString()}>
+                                    {m}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Year Picker */}
+                    <Select
+                        value={year.toString()}
+                        onValueChange={(v) => {
+                            const newDate = new Date(date);
+                            newDate.setFullYear(parseInt(v));
+                            setDate(newDate);
+                        }}
+                    >
+                        <SelectTrigger className="w-[110px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {years.map((y) => (
+                                <SelectItem key={y} value={y.toString()}>
+                                    {y}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
