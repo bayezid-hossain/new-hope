@@ -140,18 +140,21 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
             bags: f.totalIntake
         }));
 
+    const totalBirdsSold = cycles.reduce((acc, f) => acc + (f.birdsSold || 0), 0);
 
     return (
         <div className="space-y-6 pt-2">
             {/* 1. Top Row KPIs */}
             <KpiCards
                 totalBirds={totalBirds}
+                totalBirdsSold={totalBirdsSold}
                 totalFeedStock={totalMainStock}
                 activeConsumption={totalActiveConsumption}
                 availableStock={totalAvailableStock}
                 lowStockCount={lowStockCycles.length}
                 avgMortality={avgMortality}
                 activeCyclesCount={cycles.length}
+                totalFarmers={uniqueFarmers.size}
             />
 
             {/* 2. Urgent Actions & Performance */}

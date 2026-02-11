@@ -58,12 +58,14 @@ export const officerRouter = createTRPCRouter({
             if (farmerIds.length === 0) {
                 return {
                     totalBirds: 0,
+                    totalBirdsSold: 0,
                     totalFeedStock: 0,
                     activeConsumption: 0,
                     availableStock: 0,
                     lowStockCount: 0,
                     avgMortality: "0",
-                    activeCyclesCount: 0
+                    activeCyclesCount: 0,
+                    totalFarmers: 0
                 };
             }
 
@@ -74,6 +76,7 @@ export const officerRouter = createTRPCRouter({
                 doc: cycles.doc,
                 mortality: cycles.mortality,
                 intake: cycles.intake,
+                birdsSold: cycles.birdsSold,
             })
                 .from(cycles)
                 .where(and(
@@ -83,7 +86,8 @@ export const officerRouter = createTRPCRouter({
                 ));
 
             const totalActiveConsumption = activeCycles.reduce((sum, c) => sum + (c.intake || 0), 0);
-            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0);
+            const totalBirdsSold = activeCycles.reduce((sum, c) => sum + (c.birdsSold || 0), 0);
+            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality - (c.birdsSold || 0)), 0);
             const totalDoc = activeCycles.reduce((sum, c) => sum + c.doc, 0);
             const totalMortality = activeCycles.reduce((sum, c) => sum + c.mortality, 0);
 
@@ -107,12 +111,14 @@ export const officerRouter = createTRPCRouter({
 
             return {
                 totalBirds,
+                totalBirdsSold,
                 totalFeedStock: totalMainStock,
                 activeConsumption: totalActiveConsumption,
                 availableStock: totalMainStock - totalActiveConsumption,
                 lowStockCount,
                 avgMortality,
-                activeCyclesCount: activeCycles.length
+                activeCyclesCount: activeCycles.length,
+                totalFarmers: activeFarmers.length
             };
         }),
     getMyRequestStatus: protectedProcedure

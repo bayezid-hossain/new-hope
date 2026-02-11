@@ -128,12 +128,14 @@ const OperationsContent = ({ orgId, officerId, canEdit }: { orgId: string; offic
       {/* 1. Top Row KPIs */}
       <KpiCards
         totalBirds={stats.totalBirds}
+        totalBirdsSold={stats.totalBirdsSold}
         totalFeedStock={stats.totalFeedStock}
         activeConsumption={stats.activeConsumption}
         availableStock={stats.availableStock}
         lowStockCount={stats.lowStockCount}
         avgMortality={stats.avgMortality}
         activeCyclesCount={stats.activeCyclesCount}
+        totalFarmers={stats.totalFarmers}
       />
 
       {/* 2. Urgent Actions & Performance */}

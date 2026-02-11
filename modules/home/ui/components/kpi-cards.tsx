@@ -3,26 +3,29 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Activity, AlertTriangle, Bird, Layers } from "lucide-react";
+import { Activity, AlertTriangle, Bird, Layers, Wheat } from "lucide-react";
 
 interface KpiCardsProps {
     totalBirds: number;
+    totalBirdsSold?: number;
     totalFeedStock: number;
     activeConsumption: number;
     availableStock: number;
     lowStockCount: number;
     avgMortality: string;
     activeCyclesCount: number;
+    totalFarmers?: number;
 }
 
-export const KpiCards = ({ totalBirds, totalFeedStock, activeConsumption, availableStock, lowStockCount, avgMortality, activeCyclesCount }: KpiCardsProps) => {
+export const KpiCards = ({ totalBirds, totalBirdsSold = 0, totalFeedStock, activeConsumption, availableStock, lowStockCount, avgMortality, activeCyclesCount, totalFarmers }: KpiCardsProps) => {
     const items = [
         {
-            label: "Active Birds",
+            label: "Live Birds",
             value: totalBirds.toLocaleString(),
             icon: Bird,
             color: "text-emerald-500",
             bg: "bg-emerald-500/10",
+            subValue: totalBirdsSold > 0 ? `${totalBirdsSold.toLocaleString()} sold` : undefined,
             description: `Across ${activeCyclesCount} active cycles`
         },
         {
@@ -50,11 +53,21 @@ export const KpiCards = ({ totalBirds, totalFeedStock, activeConsumption, availa
             bg: lowStockCount > 0 ? "bg-destructive/10" : "bg-muted/50",
             description: "Immediate alerts",
             isAlert: lowStockCount > 0
-        }
+        },
+        ...(totalFarmers !== undefined ? [{
+            label: "Total Farmers",
+            value: totalFarmers.toLocaleString(),
+            icon: Wheat,
+            color: "text-sky-500",
+            bg: "bg-sky-500/10",
+            description: "Active under you",
+            isAlert: false,
+            subValue: undefined as string | undefined
+        }] : [])
     ];
 
     return (
-        <div className="grid gap-4 xs:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 xs:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             {items.map((item, i) => (
                 <Card key={i} className={cn(
                     "relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group rounded-2xl md:rounded-[2rem]",

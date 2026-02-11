@@ -14,6 +14,8 @@ interface QuickDetailsProps {
         intake: number;
         age: number;
         doc: number;
+        mortality: number;
+        birdsSold?: number;
         status: string;
     }>;
 }
@@ -40,37 +42,48 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                         <TableHeader className="bg-muted/30">
                             <TableRow className="border-border/50 hover:bg-transparent">
                                 <TableHead className="px-4 py-3 font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Farmer</TableHead>
-                                <TableHead className="px-4 py-3 text-center font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Metrics</TableHead>
+                                <TableHead className="px-4 py-3 text-center font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Birds</TableHead>
+                                <TableHead className="px-4 py-3 text-center font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Feed</TableHead>
                                 <TableHead className="px-4 py-3 text-right font-black text-[10px] uppercase tracking-widest text-muted-foreground/70">Age</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {cycles.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="h-24 text-center">
+                                    <TableCell colSpan={4} className="h-24 text-center">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">No active cycles found.</p>
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                cycles.slice(0, 5).map((cycle) => (
-                                    <TableRow key={cycle.id} className="border-border/50 group/row hover:bg-muted/30 transition-colors">
-                                        <TableCell className="px-4 py-4">
-                                            <div className="font-black text-xs uppercase tracking-tight group-hover/row:text-primary transition-colors">{cycle.farmerName}</div>
-                                            <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                                                {cycle.name}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-4 text-center">
-                                            <div className="font-black text-sm text-amber-500">{cycle.intake.toFixed(0)}</div>
-                                            <div className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">/{cycle.farmerMainStock.toFixed(0)} BAGS</div>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-4 text-right">
-                                            <span className="inline-flex items-center justify-center bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[10px] font-black">
-                                                {cycle.age}D
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                cycles.slice(0, 5).map((cycle) => {
+                                    const liveBirds = cycle.doc - cycle.mortality - (cycle.birdsSold || 0);
+                                    const mortalityRate = cycle.doc > 0 ? ((cycle.mortality / cycle.doc) * 100).toFixed(1) : "0";
+                                    return (
+                                        <TableRow key={cycle.id} className="border-border/50 group/row hover:bg-muted/30 transition-colors">
+                                            <TableCell className="px-4 py-4">
+                                                <div className="font-black text-xs uppercase tracking-tight group-hover/row:text-primary transition-colors">{cycle.farmerName}</div>
+                                                <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
+                                                    {cycle.name}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-4 text-center">
+                                                <div className="font-black text-sm text-emerald-500">{liveBirds.toLocaleString()}</div>
+                                                <div className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">
+                                                    {mortalityRate}% mort
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-4 text-center">
+                                                <div className="font-black text-sm text-amber-500">{cycle.intake.toFixed(0)}</div>
+                                                <div className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">/{cycle.farmerMainStock.toFixed(0)} bags</div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-4 text-right">
+                                                <span className="inline-flex items-center justify-center bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[10px] font-black">
+                                                    {cycle.age}D
+                                                </span>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
