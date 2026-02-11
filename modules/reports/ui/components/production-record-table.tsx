@@ -53,8 +53,8 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
     const avgEpi = data.length > 0 ? data.reduce((sum, item) => sum + item.epi, 0) / data.length : 0;
     const avgSurvival = data.length > 0 ? data.reduce((sum, item) => sum + item.survivalRate, 0) / data.length : 0;
     const avgWeight = data.length > 0 ? data.reduce((sum, item) => sum + item.averageWeight, 0) / data.length : 0;
-
-    const formattedTotalProfit = totalProfit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT' });
+    console.log(avgEpi)
+    const formattedTotalProfit = totalProfit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 });
 
     return (
         <div className="border rounded-md overflow-hidden">
@@ -79,10 +79,10 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
                             <TableCell className="text-right">{record.survivalRate.toFixed(1)}%</TableCell>
                             <TableCell className="text-right">{record.averageWeight.toFixed(3)}</TableCell>
                             <TableCell className="text-right font-mono">{record.fcr.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-mono">{record.epi.toFixed(0)}</TableCell>
+                            <TableCell className="text-right font-mono">{record.epi.toFixed(2)}</TableCell>
                             <TableCell className="text-right">{record.age.toFixed(1)}</TableCell>
                             <TableCell className={`text-right font-medium ${record.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {record.profit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT' })}
+                                {record.profit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 })}
                             </TableCell>
                         </TableRow>
                     ))}
@@ -93,7 +93,7 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
                         <TableCell className="text-right">{avgSurvival.toFixed(1)}%</TableCell>
                         <TableCell className="text-right">{avgWeight.toFixed(3)}</TableCell>
                         <TableCell className="text-right">{avgFcr.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{avgEpi.toFixed(0)}</TableCell>
+                        <TableCell className="text-right">{avgEpi.toFixed(2)}</TableCell>
                         <TableCell className="text-right">-</TableCell>
                         <TableCell className={`text-right ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {formattedTotalProfit}
