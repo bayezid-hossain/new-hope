@@ -25,6 +25,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FaProductHunt } from "react-icons/fa";
 import DashboardUserButton from "./dashboard-user-button";
 import { ModeToggle } from "./mode-toggle";
 import { ThemeToggle } from "./theme-toggle";
@@ -76,6 +77,12 @@ const reportsSection = [
     icon: BarChart3,
     label: "Performance",
     href: "/reports/performance",
+    isPro: true,
+  },
+  {
+    icon: FaProductHunt,
+    label: "Monthly Production",
+    href: "/reports/production",
     isPro: true,
   },
 ];
