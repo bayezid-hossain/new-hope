@@ -1,5 +1,6 @@
-import { farmer, feedOrderItems, feedOrders, member } from "@/db/schema";
+import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
+import { format } from "date-fns";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../../init";
@@ -205,7 +206,8 @@ export const feedOrdersRouter = createTRPCRouter({
 
     confirm: proProcedure
         .input(z.object({
-            id: z.string()
+            id: z.string(),
+            driverName: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
             const order = await ctx.db.query.feedOrders.findFirst({
@@ -231,7 +233,9 @@ export const feedOrdersRouter = createTRPCRouter({
             }
 
             return await ctx.db.transaction(async (tx) => {
-                // Update each farmer's mainStock
+                const logsToInsert: any[] = [];
+
+                // Update each farmer's mainStock and prepare logs
                 for (const [farmerId, quantity] of farmerUpdates.entries()) {
                     await tx.update(farmer)
                         .set({
@@ -239,6 +243,19 @@ export const feedOrdersRouter = createTRPCRouter({
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, farmerId));
+
+                    logsToInsert.push({
+                        farmerId,
+                        amount: quantity.toString(),
+                        type: "RESTOCK",
+                        referenceId: input.id, // Group by Feed Order ID
+                        driverName: input.driverName || null,
+                        note: `Feed Order Confirmed (${format(new Date(), 'dd/MM/yyyy')})`,
+                    });
+                }
+
+                if (logsToInsert.length > 0) {
+                    await tx.insert(stockLogs).values(logsToInsert);
                 }
 
                 // Mark order as confirmed

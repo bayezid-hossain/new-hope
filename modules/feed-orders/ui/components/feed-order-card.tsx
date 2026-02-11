@@ -54,6 +54,7 @@ interface FeedOrderCardProps {
 export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [driverName, setDriverName] = useState("");
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
@@ -77,6 +78,7 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                 // Also invalidate farmers to reflect new stock
                 queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.pathFilter());
                 queryClient.invalidateQueries(trpc.officer.farmers.getMany.pathFilter());
+                setDriverName("");
             },
             onError: (err) => {
                 toast.error(`Confirmation failed: ${err.message}`);
@@ -145,32 +147,42 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
 
     const totalBags = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
+    const isConfirmed = order.status === "CONFIRMED";
+
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <Card className="w-full overflow-hidden border-none shadow-md bg-card/50 hover:bg-card/80 transition-all duration-300">
+            <Card className={`w-full overflow-hidden border transition-all duration-300 ${isConfirmed
+                ? "border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5"
+                : "border-border/50 bg-card/50 hover:bg-card/80 shadow-md"
+                }`}>
                 <CardHeader className="p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex gap-3">
-                            <div className="mt-1 p-2 rounded-xl bg-primary/10 text-primary shrink-0">
-                                <Truck className="h-5 w-5" />
+                            <div className={`mt-1 p-2.5 rounded-xl shrink-0 transition-colors ${isConfirmed
+                                ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20"
+                                : "bg-primary/10 text-primary"
+                                }`}>
+                                {isConfirmed ? <CheckCircle className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
                             </div>
                             <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Delivery Date</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-primary/20 text-primary border-none">
+                                    <Badge variant="secondary" className={`h-5 px-1.5 text-[10px] font-bold border-none transition-colors ${isConfirmed ? "bg-emerald-500/10 text-emerald-700" : "bg-primary/20 text-primary"
+                                        }`}>
                                         {totalBags} Bags
                                     </Badge>
                                     <Badge
-                                        variant={order.status === "CONFIRMED" ? "default" : "secondary"}
-                                        className={`h-5 px-1.5 text-[10px] font-bold border-none ${order.status === "CONFIRMED"
-                                            ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30"
-                                            : "bg-orange-500/20 text-orange-600 hover:bg-orange-500/30"
+                                        variant={isConfirmed ? "default" : "secondary"}
+                                        className={`h-5 px-1.5 text-[10px] font-bold border-none ${isConfirmed
+                                            ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/20 hover:bg-emerald-700"
+                                            : "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
                                             }`}
                                     >
-                                        {order.status === "CONFIRMED" ? "Confirmed" : "Pending"}
+                                        {isConfirmed ? "Confirmed" : "Pending"}
                                     </Badge>
                                 </div>
-                                <CardTitle className="text-xl font-black tracking-tight leading-none text-foreground">
+                                <CardTitle className={`text-xl font-black tracking-tight leading-none transition-colors ${isConfirmed ? "text-emerald-950 dark:text-emerald-50" : "text-foreground"
+                                    }`}>
                                     {format(new Date(order.deliveryDate), "dd MMM, yyyy")}
                                 </CardTitle>
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
@@ -179,13 +191,13 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                            <div className={`grid ${isConfirmed ? "grid-cols-1" : "grid-cols-2"} sm:flex sm:items-center gap-2 w-full`}>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={handleCopy}
-                                    className="h-8 rounded-lg px-3 bg-primary text-primary-foreground hover:bg-primary/90 border-none shadow-sm transition-all active:scale-95"
+                                    className="h-9 rounded-lg px-3 bg-primary text-primary-foreground hover:bg-primary/10 border-none shadow-sm transition-all active:scale-95 text-xs sm:text-sm font-medium w-full sm:w-auto"
                                 >
                                     <Copy className="h-3.5 w-3.5 mr-2" />
                                     Copy
@@ -197,7 +209,7 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-8 rounded-lg px-3 bg-emerald-600 text-white hover:bg-emerald-700 border-none shadow-sm transition-all active:scale-95"
+                                                className="h-9 rounded-lg px-3 bg-emerald-600 text-white hover:bg-emerald-700 border-none shadow-sm transition-all active:scale-95 text-xs sm:text-sm font-medium w-full sm:w-auto"
                                             >
                                                 <CheckCircle className="h-3.5 w-3.5 mr-2" />
                                                 Confirm
@@ -207,31 +219,41 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="text-xl font-bold">Confirm Delivery</AlertDialogTitle>
                                                 <AlertDialogDescription className="text-sm space-y-4">
-                                                    <div className="text-muted-foreground">Are you sure you want to confirm this delivery? This will increase the main stock for the following farmers:</div>
+                                                    <div className="text-muted-foreground">Are you sure you want to confirm this delivery? This will increase the main stock.</div>
 
-                                                    <div className="bg-muted/50 rounded-xl p-3 space-y-3 border border-muted-foreground/10">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Driver Name (Optional)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={driverName}
+                                                            onChange={(e) => setDriverName(e.target.value)}
+                                                            placeholder="Enter driver name..."
+                                                            className="flex h-10 w-full rounded-xl border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        />
+                                                    </div>
+
+                                                    <div className="bg-muted/50 rounded-xl p-3 space-y-3 border border-muted-foreground/10 max-h-[200px] overflow-y-auto">
                                                         {Array.from(order.items.reduce((acc, item) => {
                                                             const existing = acc.get(item.farmerId) || { name: item.farmer.name, current: item.farmer.mainStock || 0, qty: 0 };
                                                             acc.set(item.farmerId, { ...existing, qty: existing.qty + item.quantity });
                                                             return acc;
                                                         }, new Map<string, { name: string, current: number, qty: number }>()).values()).map((f, i) => (
                                                             <div key={i} className="flex flex-col gap-1.5 border-b border-muted-foreground/10 last:border-0 pb-2 last:pb-0">
-                                                                <div className="font-bold text-foreground text-xs flex justify-between">
+                                                                <div className="font-bold text-foreground text-start text-xs flex justify-between">
                                                                     <span>{f.name}</span>
-                                                                    <Badge variant="outline" className="h-4 px-1 text-[10px] font-black bg-emerald-500/5 text-emerald-600 border-emerald-500/20">
-                                                                        +{f.qty} Bags
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 text-[10px] font-semibold 
+             bg-emerald-500/5 text-emerald-600 border-emerald-500/20"
+                                                                    >
+                                                                        <span className="font-bold">
+                                                                            +{f.qty} New Bags
+                                                                        </span>
+
+                                                                        <span className="text-[9px] text-muted-foreground">
+                                                                            {f.current} → {f.current + f.qty}
+                                                                        </span>
                                                                     </Badge>
-                                                                </div>
-                                                                <div className="flex items-center gap-3 text-[11px] bg-background/50 p-1.5 rounded-lg border border-muted-foreground/5">
-                                                                    <div className="flex flex-col flex-1">
-                                                                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Current Stock</span>
-                                                                        <span className="font-semibold">{f.current} Bags</span>
-                                                                    </div>
-                                                                    <div className="text-muted-foreground/30 font-light">→</div>
-                                                                    <div className="flex flex-col flex-1">
-                                                                        <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">Updated Stock</span>
-                                                                        <span className="font-bold text-emerald-600">{f.current + f.qty} Bags</span>
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -241,7 +263,7 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                             <AlertDialogFooter className="gap-2">
                                                 <AlertDialogCancel className="rounded-xl border-muted">Cancel</AlertDialogCancel>
                                                 <AlertDialogAction
-                                                    onClick={() => confirmMutation.mutate({ id: order.id })}
+                                                    onClick={() => confirmMutation.mutate({ id: order.id, driverName })}
                                                     className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-6"
                                                 >
                                                     {confirmMutation.isPending ? "Confirming..." : "Confirm Delivery"}
@@ -253,7 +275,7 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-muted font-bold">
+                                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg hover:bg-muted font-bold hidden sm:flex">
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -273,6 +295,37 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                         <DropdownMenuItem
                                             onSelect={() => setIsDeleteDialogOpen(true)}
                                             className="rounded-lg gap-2 cursor-pointer font-medium text-xs py-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                {/* Mobile Menu Trigger (Visible on small screens) */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-9 rounded-lg hover:bg-muted font-bold sm:hidden flex items-center justify-center gap-2 border border-input col-span-2">
+                                            <MoreHorizontal className="h-4 w-4" />
+
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-[90vw] rounded-xl p-1 border-muted">
+                                        {order.status === "PENDING" && (
+                                            <>
+                                                <DropdownMenuItem
+                                                    onClick={() => onEdit?.(order)}
+                                                    className="rounded-lg gap-2 cursor-pointer font-medium text-xs py-3"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5 text-blue-500" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator className="bg-muted opacity-50" />
+                                            </>
+                                        )}
+                                        <DropdownMenuItem
+                                            onSelect={() => setIsDeleteDialogOpen(true)}
+                                            className="rounded-lg gap-2 cursor-pointer font-medium text-xs py-3 text-destructive focus:text-destructive focus:bg-destructive/10"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                             Delete
@@ -301,7 +354,7 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                 </AlertDialog>
                             </div>
                             <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-full text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors group">
+                                <Button variant="ghost" size="sm" className="h-7 w-full text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors group mt-1">
                                     {isOpen ? "Hide Draft" : "View Draft"}
                                     {isOpen ? <ChevronUp className="h-3 w-3 ml-1.5 opacity-50 group-hover:opacity-100" /> : <ChevronDown className="h-3 w-3 ml-1.5 opacity-50 group-hover:opacity-100" />}
                                 </Button>

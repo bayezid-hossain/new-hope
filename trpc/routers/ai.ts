@@ -203,6 +203,107 @@ export const aiRouter = createTRPCRouter({
             }
         }),
 
+    extractCycleOrders: proProcedure
+        .input(z.object({
+            text: z.string(),
+            candidates: z.array(z.object({
+                id: z.string(),
+                name: z.string()
+            })).default([])
+        }))
+        .mutation(async ({ input }) => {
+            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+            const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
+
+            const systemPrompt = `
+            You are an intelligent data extraction and matching engine for Poultry Cycle Orders.
+            
+            Goal: Extract farmer names, QUANTITY (DOC), BIRD TYPE (e.g. Ross A, EP A), LOCATION, MOBILE, and the DATE of the order from the header.
+            
+            GLOBAL CONTEXT:
+            - The text likely starts with a Header containing a Date (e.g. "Date: 11 February 26"). Extract this date and apply it to all rows.
+            - Structure is often:
+              "Farm No: 01" (IGNORE THIS AS NAME)
+              "Name of Farmer" (EXTRACT THIS)
+              "Quantity..."
+            
+            Match against CANDIDATE LIST:
+            ${candidatesList}
+            
+            CRITICAL INSTRUCTIONS:
+            1. Extract the "Date" from the top of the text if present. Return it as "order_date" (ISO string or standard format).
+            2. Extract EVERY farmer block.
+            3. "Ross A", "EP A" etc are Bird Types/Strains.
+            4. "pcs" or "Quantity" refers to DOC (Day Old Chicks) count.
+            5. If a line says "Farm No 1", "Farm 02", etc., DO NOT use this as the name. Look for the actual Name on the next line or nearby.
+            6. Return a valid STRICT JSON Object.
+            
+            Format: 
+            { 
+              "order_date": "YYYY-MM-DD" | null,
+              "orders": [{ 
+                "original_name": "string", 
+                "doc": number, 
+                "bird_type": "string|null",
+                "location": "string|null", 
+                "mobile": "string|null",
+                "matched_id": "string|null", 
+                "confidence": "HIGH"|"MEDIUM"|"LOW",
+                "suggestions": [] 
+              }] 
+            }
+            `;
+
+            try {
+                // Use the fallback mechanism which enforces json_object mode
+                const aiResponse = await callAiWithFallback(groq, [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: input.text }
+                ]);
+
+                // Robust JSON Parsing
+                let parsed: any = {};
+                try {
+                    parsed = JSON.parse(aiResponse || "{}");
+                } catch (e) {
+                    const jsonMatch = (aiResponse || "").match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        parsed = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error("No JSON object found in AI response");
+                    }
+                }
+
+                const orderDate = parsed.order_date || null;
+                let data = [];
+                if (parsed.orders && Array.isArray(parsed.orders)) data = parsed.orders;
+                else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
+                else if (Array.isArray(parsed)) data = parsed;
+                else return { orderDate, items: [] };
+
+                const mappedData = data.map((item: any) => ({
+                    name: item.original_name || item.name || "Unknown",
+                    doc: Number(item.doc || item.quantity || item.amount) || 0,
+                    birdType: item.bird_type || item.strain || null,
+                    matchedId: item.matched_id || null,
+                    confidence: item.confidence || "LOW",
+                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : [],
+                    location: item.location || null,
+                    mobile: item.mobile || null
+                }));
+
+                return {
+                    orderDate,
+                    items: mappedData
+                };
+
+            } catch (e: any) {
+                console.error("AI Extract Cycle Orders Failed:", e);
+                return { orderDate: null, items: [] };
+            }
+        }),
+
     generateRiskAssessment: proProcedure
         .input(z.object({
             orgId: z.string(),

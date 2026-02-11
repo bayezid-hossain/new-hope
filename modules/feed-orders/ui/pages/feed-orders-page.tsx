@@ -79,7 +79,7 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
 
     return (
         <div className="space-y-4 p-4 pb-20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-4 sm:gap-y-0 justify-between">
                 <div>
                     <h2 className="text-lg font-bold tracking-tight">Feed Orders</h2>
                     <p className="text-sm text-muted-foreground">Manage and share feed requests</p>

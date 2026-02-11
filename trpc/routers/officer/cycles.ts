@@ -242,6 +242,125 @@ export const officerCyclesRouter = createTRPCRouter({
             return newCycle;
         }),
 
+    createBulk: officerProcedure
+        .input(z.object({
+            orgId: z.string(),
+            cycles: z.array(z.object({
+                farmerId: z.string(),
+                doc: z.number().int().positive(),
+                age: z.number().int().min(0).max(40).default(0),
+                birdType: z.string().optional(),
+                startDate: z.date().optional() // Allow explicit start date (e.g. from header)
+            }))
+        }))
+        .mutation(async ({ input, ctx }) => {
+            const results = [];
+            const errors = [];
+
+            // Pre-fetch all farmer data for validation to avoid N+1 queries
+            const farmerIds = [...new Set(input.cycles.map(c => c.farmerId))];
+            const farmers = await ctx.db.query.farmer.findMany({
+                where: and(
+                    sql`${farmer.id} IN ${farmerIds}`,
+                    eq(farmer.status, "active"),
+                    eq(farmer.organizationId, input.orgId)
+                )
+            });
+
+            const farmersMap = new Map(farmers.map(f => [f.id, f]));
+
+            // Access Check (Manager View Mode)
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, input.orgId)
+                    )
+                });
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot create cycles." });
+                }
+            }
+
+            // Loop and create
+            for (const item of input.cycles) {
+                const farmerData = farmersMap.get(item.farmerId);
+
+                if (!farmerData) {
+                    errors.push({ farmerId: item.farmerId, error: "Farmer not found or inactive" });
+                    continue;
+                }
+
+                if (farmerData.officerId !== ctx.user.id) {
+                    // For now, skip if not valid officer. 
+                    // TODO: Allow admins/managers to override?
+                    errors.push({ farmerId: item.farmerId, error: "Not your farmer" });
+                    continue;
+                }
+
+                try {
+                    // Logic to determine CreatedAt based on Age OR specific Start Date
+                    let createdAt = new Date();
+
+                    if (item.startDate) {
+                        // If explicit start date provided (from header date), use it
+                        createdAt = new Date(item.startDate);
+
+                        // Re-calculate age if needed? 
+                        // Implementation Plan said: "return age = differenceInDays(today, extractedDate)"
+                        // If the input has `age`, we trust it OR we trust startDate.
+                        // Let's assume startDate is the source of truth for when the cycle started. 
+                        // If age is also passed, it might be redundant or conflicting.
+                        // BUT, typically `age` is "age at intake".
+                        // If `startDate` is "Intake Date", then `createdAt` = `startDate`. 
+                        // And `age` (at intake) usually 0 or 1.
+
+                        // Use Case: "Date: 11 Feb". Today is 13 Feb.
+                        // Start Date = 11 Feb. CreatedAt = 11 Feb.
+                        // Age (today) would be 2 days. 
+                        // But `cycles` table stores `age` as INITIAL age. 
+                        // So we assume initial age is 0 (DOC) unless specified.
+                    } else if (item.age > 0) {
+                        // Backdate based on age if no start date
+                        const d = new Date();
+                        d.setDate(d.getDate() - item.age);
+                        createdAt = d;
+                    }
+
+                    const [newCycle] = await ctx.db.insert(cycles).values({
+                        name: farmerData.name, // Use Farmer Name as requested
+                        // Better to use a standard name format or generate sequential?
+                        // Let's use a simple distinct name for now.
+                        farmerId: item.farmerId,
+                        organizationId: input.orgId,
+                        doc: item.doc,
+                        age: item.age, // Initial Age
+                        birdType: item.birdType,
+                        createdAt: createdAt
+                    }).returning();
+
+                    await ctx.db.insert(cycleLogs).values({
+                        cycleId: newCycle.id,
+                        userId: ctx.user.id,
+                        type: "SYSTEM",
+                        valueChange: 0,
+                        note: `Bulk Cycle started. Initial Age: ${item.age}, Birds: ${item.doc}, Date: ${createdAt.toLocaleDateString()}`
+                    });
+
+                    await updateCycleFeed(newCycle, ctx.user.id, true);
+                    results.push(newCycle);
+
+                } catch (err: any) {
+                    errors.push({ farmerId: item.farmerId, error: err.message });
+                }
+            }
+
+            return {
+                created: results.length,
+                errors: errors
+            };
+        }),
+
     getDetails: officerProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
