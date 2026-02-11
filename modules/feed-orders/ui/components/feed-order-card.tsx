@@ -53,6 +53,7 @@ interface FeedOrderCardProps {
 
 export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
@@ -206,25 +207,31 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="text-xl font-bold">Confirm Delivery</AlertDialogTitle>
                                                 <AlertDialogDescription className="text-sm space-y-4">
-                                                    <div>Are you sure you want to confirm this delivery? This will increase the main stock for the following farmers:</div>
+                                                    <div className="text-muted-foreground">Are you sure you want to confirm this delivery? This will increase the main stock for the following farmers:</div>
 
-                                                    <div className="bg-muted/50 rounded-xl p-3 space-y-2 border border-muted-foreground/10">
+                                                    <div className="bg-muted/50 rounded-xl p-3 space-y-3 border border-muted-foreground/10">
                                                         {Array.from(order.items.reduce((acc, item) => {
                                                             const existing = acc.get(item.farmerId) || { name: item.farmer.name, current: item.farmer.mainStock || 0, qty: 0 };
                                                             acc.set(item.farmerId, { ...existing, qty: existing.qty + item.quantity });
                                                             return acc;
                                                         }, new Map<string, { name: string, current: number, qty: number }>()).values()).map((f, i) => (
-                                                            <div key={i} className="flex flex-col gap-0.5 border-b border-muted-foreground/10 last:border-0 pb-1.5 last:pb-0">
-                                                                <div className="font-bold text-foreground text-xs">{f.name}</div>
-                                                                <div className="flex justify-between items-center text-[11px]">
-                                                                    <div className="text-muted-foreground font-medium flex gap-2">
-                                                                        <span>Stock: <span className="text-foreground">{f.current}</span></span>
-                                                                        <span className="text-muted-foreground/30">|</span>
-                                                                        <span>New: <span className="text-emerald-600 font-bold">{f.current + f.qty}</span></span>
-                                                                    </div>
+                                                            <div key={i} className="flex flex-col gap-1.5 border-b border-muted-foreground/10 last:border-0 pb-2 last:pb-0">
+                                                                <div className="font-bold text-foreground text-xs flex justify-between">
+                                                                    <span>{f.name}</span>
                                                                     <Badge variant="outline" className="h-4 px-1 text-[10px] font-black bg-emerald-500/5 text-emerald-600 border-emerald-500/20">
                                                                         +{f.qty} Bags
                                                                     </Badge>
+                                                                </div>
+                                                                <div className="flex items-center gap-3 text-[11px] bg-background/50 p-1.5 rounded-lg border border-muted-foreground/5">
+                                                                    <div className="flex flex-col flex-1">
+                                                                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Current Stock</span>
+                                                                        <span className="font-semibold">{f.current} Bags</span>
+                                                                    </div>
+                                                                    <div className="text-muted-foreground/30 font-light">→</div>
+                                                                    <div className="flex flex-col flex-1">
+                                                                        <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">Updated Stock</span>
+                                                                        <span className="font-bold text-emerald-600">{f.current + f.qty} Bags</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -263,33 +270,35 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                                 <DropdownMenuSeparator className="bg-muted opacity-50" />
                                             </>
                                         )}
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <div className="flex items-center w-full px-2 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer gap-2" onClick={(e) => e.stopPropagation()}>
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Delete
-                                                </div>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle className="text-xl font-bold">Delete Feed Order?</AlertDialogTitle>
-                                                    <AlertDialogDescription className="text-sm">
-                                                        This will permanently delete this feed order. This action cannot be undone.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter className="gap-2">
-                                                    <AlertDialogCancel className="rounded-xl border-muted">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        onClick={() => deleteMutation.mutate({ id: order.id })}
-                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl px-6"
-                                                    >
-                                                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                        <DropdownMenuItem
+                                            onSelect={() => setIsDeleteDialogOpen(true)}
+                                            className="rounded-lg gap-2 cursor-pointer font-medium text-xs py-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Delete
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+
+                                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                                    <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle className="text-xl font-bold">Delete Feed Order?</AlertDialogTitle>
+                                            <AlertDialogDescription className="text-sm">
+                                                This will permanently delete this feed order. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="gap-2">
+                                            <AlertDialogCancel className="rounded-xl border-muted">Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => deleteMutation.mutate({ id: order.id })}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl px-6"
+                                            >
+                                                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                             <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-7 w-full text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors group">
