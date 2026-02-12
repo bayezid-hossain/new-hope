@@ -2,6 +2,7 @@
 import { cycleLogs, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
+import Fuse from "fuse.js";
 import Groq from "groq-sdk";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../init";
@@ -138,6 +139,10 @@ const sanitizeOrderInput = (text: string) => {
     return result;
 };
 
+const normalizeName = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, ' ').trim();
+};
+
 export const aiRouter = createTRPCRouter({
     extractFarmers: proProcedure
         .input(z.object({
@@ -256,46 +261,74 @@ export const aiRouter = createTRPCRouter({
             // Sanitize Input Here
             const cleanText = sanitizeOrderInput(input.text);
             console.log(cleanText)
-            const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
-
             const systemPrompt = `
-            You are an intelligent data extraction and matching engine for Poultry Cycle Orders.
-            
-            Goal: Extract farmer names, QUANTITY (DOC), BIRD TYPE (e.g. Ross A, EP A), LOCATION, MOBILE, and the DATE of the order from the header.
-            
-            GLOBAL CONTEXT:
-            - The text likely starts with a Header containing a Date (e.g. "Date: 11 February 26"). Extract this date and apply it to all rows.
-            - Structure is often:
-              "Farm No: 01" (IGNORE THIS AS NAME)
-              "Name of Farmer" (EXTRACT THIS)
-              "Quantity..."
-            
-            Match against CANDIDATE LIST:
-            ${candidatesList}
-            
-            CRITICAL INSTRUCTIONS:
-            1. Extract the "Date" from the top of the text if present. Return it as "order_date" (ISO string or standard format).
-            2. Extract EVERY farmer block.
-            3. "Ross A", "EP A" etc are Bird Types/Strains.
-            4. "pcs" or "Quantity" refers to DOC (Day Old Chicks) count.
-            5. If a line says "Farm No 1", "Farm 02", etc., DO NOT use this as the name. Look for the actual Name on the next line or nearby.
-            6. Return a valid STRICT JSON Object.
-            
-            Format: 
-            { 
-              "order_date": "YYYY-MM-DD" | null,
-              "orders": [{ 
-                "original_name": "string", 
-                "doc": number, 
-                "bird_type": "string|null",
-                "location": "string|null", 
-                "mobile": "string|null",
-                "matched_id": "string|null", 
-                "confidence": "HIGH"|"MEDIUM"|"LOW",
-                "suggestions": [] 
-              }] 
-            }
-            `;
+You extract structured poultry order data from raw text.
+
+TASK:
+Return STRICT JSON only. No explanation.
+
+OBJECTIVE:
+Extract:
+- order_date (from header, if present)
+- Every farmer order block
+
+RULES:
+
+1. Date:
+- Look at top header.
+- Example: "Date: 11 February 26"
+- Convert to ISO format YYYY-MM-DD.
+- If missing, return null.
+
+2. Farmer Name:
+- Use the actual farmer name.
+- If prefixed with numbers (e.g. "3014 Bismillah"), KEEP the number.
+- if '.' is following the number, remove it.
+- Ignore lines like:
+  - "Farm No: 01"
+  - "Farm 02"
+  - Any standalone farm numbering
+- The real name is usually the line after "Farm No".
+
+3. Quantity:
+- "Quantity", "pcs", or number near bird type = DOC count.
+- Must be number.
+- Required.
+
+4. Bird Type:
+- Examples: Ross A, EP A
+- If missing, return null.
+
+5. Location:
+- Extract if present.
+- Otherwise null.
+
+6. Mobile:
+- Extract full number.
+- Keep +880 or leading 0.
+- Otherwise null.
+
+RESPONSE FORMAT:
+
+{
+  "order_date": "YYYY-MM-DD" | null,
+  "orders": [
+    {
+      "original_name": "string",
+      "doc": number,
+      "bird_type": "string|null",
+      "location": "string|null",
+      "mobile": "string|null"
+    }
+  ]
+}
+
+IMPORTANT:
+- Extract ALL orders.
+- Do not merge separate orders.
+- Do not remove numeric prefixes from names.
+- Output valid JSON only.
+`;
 
             try {
                 // Use the fallback mechanism which enforces json_object mode
@@ -324,16 +357,58 @@ export const aiRouter = createTRPCRouter({
                 else if (Array.isArray(parsed)) data = parsed;
                 else return { orderDate, items: [] };
 
-                const mappedData = data.map((item: any) => ({
-                    name: item.original_name || item.name || "Unknown",
-                    doc: Number(item.doc || item.quantity || item.amount) || 0,
-                    birdType: item.bird_type || item.strain || null,
-                    matchedId: item.matched_id || null,
-                    confidence: item.confidence || "LOW",
-                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : [],
-                    location: item.location || null,
-                    mobile: item.mobile || null
-                }));
+                const mappedData = data.map((item: any) => {
+                    const originalName = item.original_name || item.name || "Unknown";
+
+                    // Match Logic using Fuse.js
+                    let matchedId = null;
+                    let matchedName = null;
+                    let confidence: "HIGH" | "MEDIUM" | "LOW" = "LOW";
+                    let suggestions: { id: string, name: string }[] = [];
+
+                    // 1. Exact Match (Case Insensitive + Whitespace Normalized)
+                    const normalizedOriginal = normalizeName(originalName);
+
+                    const exactMatch = input.candidates.find(c => normalizeName(c.name) === normalizedOriginal);
+
+                    if (exactMatch) {
+                        matchedId = exactMatch.id;
+                        matchedName = exactMatch.name;
+                        confidence = "HIGH";
+                    } else {
+                        // 2. Fuzzy Match
+                        const fuse = new Fuse(input.candidates, {
+                            keys: ["name"],
+                            threshold: 0.4, // Adjust sensitivity
+                            includeScore: true
+                        });
+
+                        const results = fuse.search(originalName);
+                        if (results.length > 0) {
+                            const bestMatch = results[0];
+                            // If score is very good (< 0.1), consider it High/Medium confidence
+                            if (bestMatch.score! < 0.2) {
+                                matchedId = bestMatch.item.id;
+                                matchedName = bestMatch.item.name;
+                                confidence = "MEDIUM"; // Fuzzy is rarely explicitly "HIGH" without user confirm, but let's say Medium.
+                            }
+
+                            suggestions = results.slice(0, 3).map(r => ({ id: r.item.id, name: r.item.name }));
+                        }
+                    }
+
+                    return {
+                        name: originalName,
+                        doc: Number(item.doc || item.quantity || item.amount) || 0,
+                        birdType: item.bird_type || item.strain || null,
+                        matchedId,
+                        matchedName,
+                        confidence,
+                        suggestions,
+                        location: item.location || null,
+                        mobile: item.mobile || null
+                    };
+                });
 
                 return {
                     orderDate,

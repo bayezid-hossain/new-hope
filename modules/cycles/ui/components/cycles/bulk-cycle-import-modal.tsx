@@ -74,7 +74,9 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
             const updated = prev.map(p => {
                 if (p.matchedFarmerId) return p;
 
-                const match = farmersList.items.find(f => f.name.toLowerCase().trim() === p.cleanName.toLowerCase().trim());
+                const normalize = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ');
+
+                const match = farmersList.items.find(f => normalize(f.name) === normalize(p.cleanName));
 
                 if (match) {
                     return {
@@ -328,6 +330,24 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
         setParsedData(prev => calculateDuplicates(prev.filter(p => p.id !== id)));
     };
 
+    const handleSelectSuggestion = (item: ParsedItem, suggestion: { id: string; name: string }) => {
+        setParsedData(prev => {
+            const updated = prev.map(p => {
+                if (p.id === item.id) {
+                    return {
+                        ...p,
+                        matchedFarmerId: suggestion.id,
+                        matchedName: suggestion.name,
+                        confidence: "HIGH",
+                        suggestions: [] // Clear suggestions after selection
+                    } as ParsedItem;
+                }
+                return p;
+            });
+            return calculateDuplicates(updated);
+        });
+    };
+
     // --- Pro Check logic (Copied from Stock Modal) ---
     const { data: requestStatus, refetch: refetchStatus, isPending: isLoadingStatus } = useQuery({
         ...trpc.officer.getMyRequestStatus.queryOptions({ feature: "PRO_PACK" }),
@@ -437,14 +457,14 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
                                                 {/* Subtle Glow */}
                                                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
 
-                                                <div className="relative p-4 space-y-4">
+                                                <div className="relative p-2.5 sm:p-4 space-y-2.5 sm:space-y-4">
 
                                                     {/* Top Section */}
-                                                    <div className="flex items-start gap-4">
+                                                    <div className="flex items-start gap-2.5 sm:gap-4">
 
                                                         {/* Status Icon */}
                                                         <div className={`
-        h-12 w-12 rounded-2xl flex items-center justify-center
+        h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0
         shadow-inner border
         ${row.isDuplicate
                                                                 ? "bg-destructive/15 text-destructive border-destructive/30"
@@ -453,84 +473,100 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
                                                                     : "bg-amber-500/15 text-amber-400 border-amber-500/30"
                                                             }
       `}>
-                                                            {row.isDuplicate ? <AlertTriangle className="h-5 w-5" /> :
-                                                                row.matchedFarmerId ? <Check className="h-5 w-5" /> :
-                                                                    <Search className="h-5 w-5" />}
+                                                            {row.isDuplicate ? <AlertTriangle className="h-3.5 w-3.5 sm:h-5 sm:w-5" /> :
+                                                                row.matchedFarmerId ? <Check className="h-3.5 w-3.5 sm:h-5 sm:w-5" /> :
+                                                                    <Search className="h-3.5 w-3.5 sm:h-5 sm:w-5" />}
                                                         </div>
 
                                                         {/* Name + Match */}
                                                         <div className="flex-1 min-w-0">
-                                                            <h4 className="text-base font-bold text-white truncate">
+                                                            <h4 className="text-xs sm:text-base font-bold text-white truncate leading-tight">
                                                                 {row.cleanName}
                                                             </h4>
 
                                                             {row.matchedName && row.matchedName !== row.cleanName && (
-                                                                <div className="mt-1 text-[11px] text-emerald-400 font-semibold">
+                                                                <div className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] text-emerald-400 font-semibold truncate">
                                                                     MATCH → {row.matchedName}
                                                                 </div>
                                                             )}
 
                                                             {/* Location */}
-                                                            <div className="mt-2 text-xs text-gray-400 truncate">
+                                                            <div className="mt-0.5 sm:mt-2 text-[10px] sm:text-xs text-gray-400 truncate">
                                                                 {row.location || "No location"}
                                                             </div>
 
                                                             {/* Mobile */}
                                                             {row.mobile && (
-                                                                <div className="text-xs font-mono text-gray-500 mt-1">
+                                                                <div className="text-[10px] sm:text-xs font-mono text-gray-500 mt-0.5 sm:mt-1 truncate">
                                                                     {row.mobile}
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
 
+                                                    {/* Suggestions */}
+                                                    {!row.matchedFarmerId && row.suggestions && row.suggestions.length > 0 && (
+                                                        <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
+                                                            <span className="text-[9px] sm:text-[10px] text-muted-foreground self-center mr-1">Did you mean?</span>
+                                                            {row.suggestions.map(s => (
+                                                                <button
+                                                                    key={s.id}
+                                                                    onClick={() => handleSelectSuggestion(row, s)}
+                                                                    className="px-2 py-0.5 sm:py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-[9px] sm:text-[10px] font-medium transition-colors border border-primary/20 truncate max-w-[120px] sm:max-w-[150px]"
+                                                                >
+                                                                    {s.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
                                                     {/* Divider */}
-                                                    <div className="h-px bg-white/5" />
+                                                    <div className="h-px bg-white/5 my-0.5 sm:my-1" />
 
                                                     {/* Birds Section */}
                                                     <div className="flex items-center justify-between">
 
                                                         <div>
-                                                            <div className="text-2xl font-extrabold text-white tracking-tight">
+                                                            <div className="text-lg sm:text-2xl font-extrabold text-white tracking-tight">
                                                                 {row.doc}
                                                             </div>
-                                                            <div className="text-[11px] uppercase tracking-wider text-gray-500">
+                                                            <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-gray-500">
                                                                 birds
                                                             </div>
                                                         </div>
 
                                                         {row.birdType && (
-                                                            <div className="text-xs text-gray-400 font-medium text-right">
+                                                            <div className="text-[9px] sm:text-xs text-gray-400 font-medium text-right bg-white/5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg">
                                                                 {row.birdType}
                                                             </div>
                                                         )}
                                                     </div>
 
                                                     {/* Actions */}
-                                                    <div className="flex flex-row items-center gap-2 pt-2 w-full">
+                                                    <div className="flex flex-row items-center gap-1.5 sm:gap-2 pt-1 sm:pt-2 w-full">
 
                                                         {!row.matchedFarmerId ? (
                                                             <Button
-                                                                className="flex-1 h-11 rounded-2xl font-bold text-xs
+                                                                className="flex-1 h-9 sm:h-11 rounded-xl sm:rounded-2xl font-bold text-[10px] sm:text-xs
           bg-white text-black hover:bg-gray-100
           shadow-[0_0_25px_-8px_rgba(255,255,255,0.3)]
-          transition-all active:scale-95 min-w-0"
+          transition-all active:scale-95 min-w-0 px-2 sm:px-4"
                                                                 onClick={() => handleCreateFarmer(row)}
                                                                 disabled={loadingRowIds.has(row.id)}
                                                             >
                                                                 {loadingRowIds.has(row.id) ? (
-                                                                    <Loader2 className="h-4 w-4 animate-spin mr-2 shrink-0" />
+                                                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-1.5 sm:mr-2 shrink-0" />
                                                                 ) : (
-                                                                    <Plus className="h-4 w-4 mr-2 shrink-0" />
+                                                                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 shrink-0" />
                                                                 )}
                                                                 <span className="truncate">CREATE</span>
                                                             </Button>
                                                         ) : (
-                                                            <div className="flex-1 h-11 flex items-center justify-center
-          rounded-2xl text-xs font-bold
+                                                            <div className="flex-1 h-9 sm:h-11 flex items-center justify-center
+          rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-bold
           text-emerald-400 bg-emerald-500/10
           border border-emerald-500/30 min-w-0">
-                                                                <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
+                                                                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 shrink-0" />
                                                                 <span className="truncate">READY</span>
                                                             </div>
                                                         )}
@@ -538,12 +574,12 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-11 w-11 rounded-2xl shrink-0
-        text-gray-500 hover:text-red-400
-        hover:bg-red-500/10"
+                                                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl shrink-0
+         text-gray-500 hover:text-red-400
+         hover:bg-red-500/10"
                                                             onClick={() => handleDismiss(row.id)}
                                                         >
-                                                            <Trash2 className="h-4 w-4" />
+                                                            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                     </div>
 
