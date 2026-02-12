@@ -25,7 +25,7 @@ import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-
 import { CreateFeedOrderModal } from "@/modules/feed-orders/ui/components/create-feed-order-modal";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowRightLeft, Bird, Plus, RefreshCcw, Search, ShoppingCart, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Bird, Plus, Search, ShoppingCart, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -109,23 +109,15 @@ export default function MainStockPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            title="Sync Data"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
-          </Button>
+
           <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
           </Button>
           <Button variant="outline" className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateFeedOrderModal(true)}>
             <ShoppingCart className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Feed Order</span><span className="sm:hidden">Order</span>
           </Button>
-          <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
-            <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
+          <Button className="gap-0 h-8 p-0 has-[svg]:px-1 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
+            <Plus className=" sm:mr-2 h-1.5 w-1.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
           </Button>
         </div>
       </div>

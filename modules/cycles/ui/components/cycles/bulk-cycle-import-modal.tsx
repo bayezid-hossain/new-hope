@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -15,7 +14,7 @@ import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, Check, CheckCircle2, Loader2, Plus, Search, Sparkles, Trash2, User } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -422,68 +421,135 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
                                 <ScrollArea className="h-full p-4">
                                     <div className="space-y-3">
                                         {parsedData.map((row) => (
-                                            <div key={row.id} className={`
-                                            group relative p-3 rounded-xl border transition-all hover:shadow-md bg-card
-                                            ${row.isDuplicate ? "border-destructive/30 bg-destructive/5" : ""}
-                                            ${!row.matchedFarmerId ? "border-amber-500/30 bg-amber-500/5" : "border-border/50"}
-                                         `}>
-                                                <div className="flex items-start gap-3">
-                                                    {/* Status Icon */}
-                                                    <div className="mt-1">
-                                                        {row.isDuplicate ? (
-                                                            <div className="h-8 w-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center"><AlertTriangle className="h-4 w-4" /></div>
-                                                        ) : row.matchedFarmerId ? (
-                                                            <div className="h-8 w-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center relative">
-                                                                <Check className="h-4 w-4" />
-                                                                {row.confidence === "HIGH" && <div className="absolute -top-1 -right-1 bg-background rounded-full border p-0.5"><Sparkles className="h-2 w-2 text-amber-500" /></div>}
+                                            <div
+                                                key={row.id}
+                                                className={`
+    group relative overflow-hidden rounded-3xl
+    border border-white/5
+    bg-gradient-to-br from-[#1c1d1f] via-[#18191b] to-[#121212]
+    shadow-[0_10px_40px_-15px_rgba(0,0,0,0.7)]
+    transition-all duration-500
+    active:scale-[0.99]
+    ${row.isDuplicate ? "border-destructive/30 bg-gradient-to-br from-destructive/10 to-[#121212]" : ""}
+    ${!row.matchedFarmerId && !row.isDuplicate ? "border-amber-500/30" : ""}
+  `}
+                                            >
+                                                {/* Subtle Glow */}
+                                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+
+                                                <div className="relative p-4 space-y-4">
+
+                                                    {/* Top Section */}
+                                                    <div className="flex items-start gap-4">
+
+                                                        {/* Status Icon */}
+                                                        <div className={`
+        h-12 w-12 rounded-2xl flex items-center justify-center
+        shadow-inner border
+        ${row.isDuplicate
+                                                                ? "bg-destructive/15 text-destructive border-destructive/30"
+                                                                : row.matchedFarmerId
+                                                                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                                                    : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                                            }
+      `}>
+                                                            {row.isDuplicate ? <AlertTriangle className="h-5 w-5" /> :
+                                                                row.matchedFarmerId ? <Check className="h-5 w-5" /> :
+                                                                    <Search className="h-5 w-5" />}
+                                                        </div>
+
+                                                        {/* Name + Match */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-base font-bold text-white truncate">
+                                                                {row.cleanName}
+                                                            </h4>
+
+                                                            {row.matchedName && row.matchedName !== row.cleanName && (
+                                                                <div className="mt-1 text-[11px] text-emerald-400 font-semibold">
+                                                                    MATCH → {row.matchedName}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Location */}
+                                                            <div className="mt-2 text-xs text-gray-400 truncate">
+                                                                {row.location || "No location"}
                                                             </div>
-                                                        ) : (
-                                                            <div className="h-8 w-8 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center"><Search className="h-4 w-4" /></div>
+
+                                                            {/* Mobile */}
+                                                            {row.mobile && (
+                                                                <div className="text-xs font-mono text-gray-500 mt-1">
+                                                                    {row.mobile}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Divider */}
+                                                    <div className="h-px bg-white/5" />
+
+                                                    {/* Birds Section */}
+                                                    <div className="flex items-center justify-between">
+
+                                                        <div>
+                                                            <div className="text-2xl font-extrabold text-white tracking-tight">
+                                                                {row.doc}
+                                                            </div>
+                                                            <div className="text-[11px] uppercase tracking-wider text-gray-500">
+                                                                birds
+                                                            </div>
+                                                        </div>
+
+                                                        {row.birdType && (
+                                                            <div className="text-xs text-gray-400 font-medium text-right">
+                                                                {row.birdType}
+                                                            </div>
                                                         )}
                                                     </div>
 
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                                            <div>
-                                                                <h4 className="font-semibold text-foreground truncate">{row.cleanName}</h4>
-                                                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-0.5">
-                                                                    {row.matchedName && row.matchedName !== row.cleanName && (
-                                                                        <span className="flex items-center text-emerald-600 font-medium">
-                                                                            <User className="h-3 w-3 mr-1" />
-                                                                            Matched: {row.matchedName}
-                                                                        </span>
-                                                                    )}
-                                                                    {row.location && <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">{row.location}</Badge>}
-                                                                    {row.mobile && <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">{row.mobile}</Badge>}
-                                                                </div>
-                                                            </div>
+                                                    {/* Actions */}
+                                                    <div className="flex flex-row items-center gap-2 pt-2 w-full">
 
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1">
-                                                                    <Badge className="h-6 bg-primary text-primary-foreground hover:bg-primary">{row.doc} birds</Badge>
-                                                                    {row.birdType && <span className="text-xs font-medium text-muted-foreground">{row.birdType}</span>}
-                                                                </div>
-
-                                                                {!row.matchedFarmerId && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="h-7 text-xs"
-                                                                        onClick={() => handleCreateFarmer(row)}
-                                                                        disabled={loadingRowIds.has(row.id)}
-                                                                    >
-                                                                        {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
-                                                                        Create
-                                                                    </Button>
+                                                        {!row.matchedFarmerId ? (
+                                                            <Button
+                                                                className="flex-1 h-11 rounded-2xl font-bold text-xs
+          bg-white text-black hover:bg-gray-100
+          shadow-[0_0_25px_-8px_rgba(255,255,255,0.3)]
+          transition-all active:scale-95 min-w-0"
+                                                                onClick={() => handleCreateFarmer(row)}
+                                                                disabled={loadingRowIds.has(row.id)}
+                                                            >
+                                                                {loadingRowIds.has(row.id) ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin mr-2 shrink-0" />
+                                                                ) : (
+                                                                    <Plus className="h-4 w-4 mr-2 shrink-0" />
                                                                 )}
-
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDismiss(row.id)}>
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </Button>
+                                                                <span className="truncate">CREATE</span>
+                                                            </Button>
+                                                        ) : (
+                                                            <div className="flex-1 h-11 flex items-center justify-center
+          rounded-2xl text-xs font-bold
+          text-emerald-400 bg-emerald-500/10
+          border border-emerald-500/30 min-w-0">
+                                                                <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
+                                                                <span className="truncate">READY</span>
                                                             </div>
-                                                        </div>
+                                                        )}
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-11 w-11 rounded-2xl shrink-0
+        text-gray-500 hover:text-red-400
+        hover:bg-red-500/10"
+                                                            onClick={() => handleDismiss(row.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
+
                                                 </div>
                                             </div>
+
                                         ))}
                                     </div>
                                 </ScrollArea>
