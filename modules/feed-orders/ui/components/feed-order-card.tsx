@@ -22,6 +22,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { copyToClipboard } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -221,14 +223,18 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                                 <AlertDialogDescription className="text-sm space-y-4">
                                                     <div className="text-muted-foreground">Are you sure you want to confirm this delivery? This will increase the main stock.</div>
 
-                                                    <div className="space-y-2">
-                                                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Driver Name (Optional)</label>
-                                                        <input
-                                                            type="text"
+                                                    <div className="space-y-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <Truck className="h-4 w-4 text-primary" />
+                                                            <Label className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+                                                                Driver Name (Optional)
+                                                            </Label>
+                                                        </div>
+                                                        <Input
                                                             value={driverName}
                                                             onChange={(e) => setDriverName(e.target.value)}
                                                             placeholder="Enter driver name..."
-                                                            className="flex h-10 w-full rounded-xl border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            className="h-11 rounded-xl bg-background border-primary/20 focus:border-primary transition-all text-base placeholder:text-muted-foreground/50 shadow-sm"
                                                         />
                                                     </div>
 

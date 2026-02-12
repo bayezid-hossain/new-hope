@@ -11,12 +11,13 @@ import {
     DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Pencil, Plus, Search, Sparkles, Trash2, User, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Pencil, Plus, Search, Sparkles, Trash2, Truck, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -1077,13 +1078,18 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     </Button>
                                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end items-center">
                                         {step === "REVIEW" && (
-                                            <div className="flex items-center gap-2 mr-0 sm:mr-2 w-full sm:w-auto">
-                                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <div className="space-y-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/10">
+                                                <div className="flex items-center gap-2">
+                                                    <Truck className="h-4 w-4 text-primary" />
+                                                    <Label className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+                                                        Driver Name (Optional)
+                                                    </Label>
+                                                </div>
                                                 <Input
-                                                    placeholder="Driver Name (Optional)"
-                                                    className="h-8 w-full sm:w-40 text-xs bg-background"
                                                     value={driverName}
                                                     onChange={(e) => setDriverName(e.target.value)}
+                                                    placeholder="Enter driver name..."
+                                                    className="h-11 rounded-xl bg-background border-primary/20 focus:border-primary transition-all text-base placeholder:text-muted-foreground/50 shadow-sm"
                                                 />
                                             </div>
                                         )}
