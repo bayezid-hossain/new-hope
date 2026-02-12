@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, LayoutDashboard, Package, ShoppingBag, StarIcon, UserCog, UsersIcon, Wheat, WheatIcon } from "lucide-react";
+import { BarChart3, Bird, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, LayoutDashboard, Package, ShoppingBag, StarIcon, UserCog, UsersIcon, Wheat, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -62,6 +62,12 @@ const firstSection = [
     icon: Package,
     label: "Feed Orders",
     href: "/feed-orders",
+    isPro: true,
+  },
+  {
+    icon: Bird,
+    label: "DOC Orders",
+    href: "/doc-orders",
     isPro: true,
   },
 ];

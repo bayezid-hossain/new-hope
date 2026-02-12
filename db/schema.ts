@@ -521,3 +521,58 @@ export const feedOrderItemRelations = relations(feedOrderItems, ({ one }) => ({
   order: one(feedOrders, { fields: [feedOrderItems.feedOrderId], references: [feedOrders.id] }),
   farmer: one(farmer, { fields: [feedOrderItems.farmerId], references: [farmer.id] }),
 }));
+
+// =========================================================
+// 8. DOC ORDERS
+// =========================================================
+
+export const docOrderStatusEnum = pgEnum("doc_order_status", ["PENDING", "CONFIRMED"]);
+
+export const birdTypes = pgTable("bird_types", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull().unique(), // e.g., "Ross A", "EP A"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const docOrders = pgTable("doc_orders", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").notNull().references(() => user.id),
+
+  orderDate: timestamp("order_date").notNull(),
+  status: docOrderStatusEnum("status").notNull().default("PENDING"),
+
+  // Optional metadata if needed, like "Branch Name" could be stored or just used for message generation.
+  // The user requested "Branch Name" for the message. We might not strictly need to store it if it's transient, 
+  // but better to store it if they want to edit it later.
+  branchName: text("branch_name"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_doc_order_org").on(t.orgId),
+  index("idx_doc_order_officer").on(t.officerId),
+]);
+
+export const docOrderItems = pgTable("doc_order_items", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  docOrderId: text("doc_order_id").notNull().references(() => docOrders.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  birdType: text("bird_type").notNull(), // Stored as string, picked from birdTypes
+  docCount: integer("doc_count").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_doc_order_item_order").on(t.docOrderId),
+]);
+
+export const docOrderRelations = relations(docOrders, ({ many, one }) => ({
+  items: many(docOrderItems),
+  organization: one(organization, { fields: [docOrders.orgId], references: [organization.id] }),
+  officer: one(user, { fields: [docOrders.officerId], references: [user.id] }),
+}));
+
+export const docOrderItemRelations = relations(docOrderItems, ({ one }) => ({
+  order: one(docOrders, { fields: [docOrderItems.docOrderId], references: [docOrders.id] }),
+  farmer: one(farmer, { fields: [docOrderItems.farmerId], references: [farmer.id] }),
+}));

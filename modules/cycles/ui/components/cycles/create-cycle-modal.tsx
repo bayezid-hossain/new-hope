@@ -24,13 +24,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -98,6 +105,18 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
   const farmers = useMemo(() => {
     return farmersData?.items || [];
   }, [farmersData]);
+
+  // Bird Types Query
+  const { data: birdTypes } = useQuery(
+    trpc.officer.docOrders.getBirdTypes.queryOptions()
+  );
+
+  // Set default bird type when available
+  useEffect(() => {
+    if (birdTypes?.length && !form.getValues("birdType")) {
+      form.setValue("birdType", birdTypes[birdTypes.length - 1].name);
+    }
+  }, [birdTypes, form]);
 
 
 
@@ -276,12 +295,20 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Bird Type (Optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="e.g. Broiler, Sonali, Layer"
-                    {...field}
-                  />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bird type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {birdTypes?.map((bt) => (
+                      <SelectItem key={bt.id} value={bt.name}>
+                        {bt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

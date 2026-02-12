@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -22,49 +23,51 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { copyToClipboard } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle, ChevronDown, ChevronUp, Copy, MoreHorizontal, Pencil, Trash2, Truck } from "lucide-react";
+import { CalendarIcon, CheckCircle, ChevronDown, ChevronUp, Copy, MoreHorizontal, Pencil, Trash2, Truck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface FeedOrderCardProps {
+interface DocOrderCardProps {
     order: {
         id: string;
         orderDate: Date | string;
-        deliveryDate: Date | string;
         status: "PENDING" | "CONFIRMED";
+        branchName?: string | null;
         items: {
+            id: string;
             farmerId: string;
-            feedType: string;
-            quantity: number;
+            birdType: string;
+            docCount: number;
             farmer: {
                 name: string;
                 location: string | null;
                 mobile: string | null;
-                mainStock: number;
             };
         }[];
     };
     onEdit?: (order: any) => void;
 }
 
-export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
+export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [driverName, setDriverName] = useState("");
+
+    // State for confirmation dialog
+    const [cycleDates, setCycleDates] = useState<Record<string, Date>>({});
+
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
     const deleteMutation = useMutation(
-        trpc.officer.feedOrders.delete.mutationOptions({
+        trpc.officer.docOrders.delete.mutationOptions({
             onSuccess: () => {
-                toast.success("Feed order deleted");
-                queryClient.invalidateQueries(trpc.officer.feedOrders.list.pathFilter());
+                toast.success("DOC order deleted");
+                queryClient.invalidateQueries(trpc.officer.docOrders.list.pathFilter());
             },
             onError: (err) => {
                 toast.error(`Failed to delete: ${err.message}`);
@@ -73,14 +76,13 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
     );
 
     const confirmMutation = useMutation(
-        trpc.officer.feedOrders.confirm.mutationOptions({
-            onSuccess: () => {
-                toast.success("Delivery confirmed! Stocks updated.");
-                queryClient.invalidateQueries(trpc.officer.feedOrders.list.pathFilter());
-                // Also invalidate farmers to reflect new stock
+        trpc.officer.docOrders.confirm.mutationOptions({
+            onSuccess: (data) => {
+                toast.success(`Confirmed! ${data.createdCycles} cycles created.`);
+                queryClient.invalidateQueries(trpc.officer.docOrders.list.pathFilter());
+                // Invalidate cycles & farmers too
+                queryClient.invalidateQueries(trpc.officer.cycles.listActive.pathFilter());
                 queryClient.invalidateQueries(trpc.officer.farmers.listWithStock.pathFilter());
-                queryClient.invalidateQueries(trpc.officer.farmers.getMany.pathFilter());
-                setDriverName("");
             },
             onError: (err) => {
                 toast.error(`Confirmation failed: ${err.message}`);
@@ -89,54 +91,54 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
     );
 
     const generateCopyText = () => {
-        const orderDateStr = format(new Date(order.orderDate), "dd/MM/yyyy");
-        const deliveryDateStr = format(new Date(order.deliveryDate), "dd/MM/yyyy");
+        const orderDateStr = format(new Date(order.orderDate), "dd MMMM yy");
 
-        let text = `Dear sir,\nFeed order date: ${orderDateStr}\nFeed delivery  date: ${deliveryDateStr}\n\n`;
-
-        // Group items by farmer to handle multiple feed types per farmer if needed
-        // The data structure is flat items, so let's group them first
-        const farmerMap = new Map<string, typeof order.items>();
-
-        order.items.forEach(item => {
-            if (!farmerMap.has(item.farmerId)) {
-                farmerMap.set(item.farmerId, []);
-            }
-            farmerMap.get(item.farmerId)?.push(item);
-        });
+        // Header
+        let text = `Dear sir/ Boss, \n`;
+        if (order.branchName) {
+            text += `Doc order under ${order.branchName}\n`;
+        }
+        text += `Date: ${orderDateStr}\n\n`;
 
         let farmCounter = 1;
         const totalByType: Record<string, number> = {};
         let grandTotal = 0;
 
-        farmerMap.forEach((items, farmerId) => {
-            const farmer = items[0].farmer;
-            const activeItems = items.filter(i => i.quantity > 0);
-            if (activeItems.length === 0) return;
+        order.items.forEach(item => {
+            text += `Farm no: ${farmCounter.toString().padStart(2, '0')}\n`;
+            // "Contact farm doc" - hardcoded in user example? No, usually title. 
+            // User example: "Contact farm doc" then "Quantity...". 
+            // Or "Farm name: ...". 
+            // Let's stick to the requested format:
+            /*
+             Farm no: 01
+             [Farmer Name]
+             Location: [Location]
+             Mobile: [Mobile]
+             Quantity: [Qty] pcs
+             [Bird Type]
+            */
 
-            text += `Farm No ${farmCounter.toString().padStart(2, '0')}\n`;
-            text += `${farmer.name}\n`; // User example shows name directly, sometimes "Farmer: Name"
-            if (farmer.location) text += `Location: ${farmer.location}\n`;
-            if (farmer.mobile) text += `Phone: ${farmer.mobile}\n`;
+            text += `${item.farmer.name}\n`;
+            if (item.farmer.location) text += `Location: ${item.farmer.location}\n`;
+            if (item.farmer.mobile) text += `Mobile: ${item.farmer.mobile}\n`;
 
-            activeItems.forEach(item => {
-                text += `${item.feedType}: ${item.quantity} Bags\n`;
+            text += `Quantity: ${item.docCount} pcs\n`;
+            text += `${item.birdType}\n\n`;
 
-                // Totals
-                totalByType[item.feedType] = (totalByType[item.feedType] || 0) + item.quantity;
-                grandTotal += item.quantity;
-            });
-
-            text += `\n`;
+            // Totals
+            totalByType[item.birdType] = (totalByType[item.birdType] || 0) + item.docCount;
+            grandTotal += item.docCount;
             farmCounter++;
         });
 
         text += `Total:\n`;
         Object.entries(totalByType).forEach(([type, qty]) => {
-            text += `${type}: ${qty} Bags\n`;
+            text += `${qty} pcs (${type})\n`;
         });
 
-        text += `\nGrand Total: ${grandTotal} Bags`; // Keeping user's typo "Tota" or maybe valid? formatting matching request exactly just in case, but let's fix to Total if logic suggests, but user request had "Grand Tota:". I will use "Grand Total" to be safe, or stick to request? Request: "Grand Tota: 160 Bags". I'll use "Grand Total".
+        // If multiple types, maybe allow grand total? User example shows breakdown.
+        // If there's only one type, the breakdown effectively shows the total.
 
         return text;
     };
@@ -147,9 +149,22 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
         toast.success("Order copied to clipboard!");
     };
 
-    const totalBags = order.items.reduce((sum, item) => sum + item.quantity, 0);
-
+    const totalDocs = order.items.reduce((sum, item) => sum + item.docCount, 0);
     const isConfirmed = order.status === "CONFIRMED";
+
+    const handleConfirm = () => {
+        // Convert dates to ISO strings for mutation
+        const payloadDates: Record<string, string> = {};
+        order.items.forEach(item => {
+            const date = cycleDates[item.id] || new Date(order.orderDate);
+            payloadDates[item.id] = date.toISOString();
+        });
+
+        confirmMutation.mutate({
+            id: order.id,
+            cycleDates: payloadDates
+        });
+    };
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -168,10 +183,10 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                             </div>
                             <div className="flex flex-col gap-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Delivery Date</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Order Date</span>
                                     <Badge variant="secondary" className={`h-5 px-1.5 text-[10px] font-bold border-none transition-colors ${isConfirmed ? "bg-emerald-500/10 text-emerald-700" : "bg-primary/20 text-primary"
                                         }`}>
-                                        {totalBags} Bags
+                                        {totalDocs} Birds
                                     </Badge>
                                     <Badge
                                         variant={isConfirmed ? "default" : "secondary"}
@@ -185,11 +200,13 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                 </div>
                                 <CardTitle className={`text-xl font-black tracking-tight leading-none transition-colors ${isConfirmed ? "text-emerald-950 dark:text-emerald-50" : "text-foreground"
                                     }`}>
-                                    {format(new Date(order.deliveryDate), "dd MMM, yyyy")}
+                                    {format(new Date(order.orderDate), "dd MMM, yyyy")}
                                 </CardTitle>
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                                    <span>Ordered: {format(new Date(order.orderDate), "dd/MM/yyyy")}</span>
-                                </div>
+                                {order.branchName && (
+                                    <div className="text-xs text-muted-foreground font-medium">
+                                        Branch: {order.branchName}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -217,50 +234,54 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                                 Confirm
                                             </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent className="rounded-2xl border-none shadow-2xl max-w-sm sm:max-w-md">
+                                        <AlertDialogContent className="rounded-2xl border-none shadow-2xl max-w-2xl">
                                             <AlertDialogHeader>
-                                                <AlertDialogTitle className="text-xl font-bold">Confirm Delivery</AlertDialogTitle>
+                                                <AlertDialogTitle className="text-xl font-bold">Confirm Cycles</AlertDialogTitle>
                                                 <AlertDialogDescription asChild>
                                                     <div className="text-sm space-y-4">
-                                                        <div className="text-muted-foreground">Are you sure you want to confirm this delivery? This will increase the main stock.</div>
-
-                                                        <div className="space-y-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/10">
-                                                            <div className="flex items-center gap-2">
-                                                                <Truck className="h-4 w-4 text-primary" />
-                                                                <Label className="text-sm font-bold uppercase tracking-wider text-foreground/80">
-                                                                    Driver Name (Optional)
-                                                                </Label>
-                                                            </div>
-                                                            <Input
-                                                                value={driverName}
-                                                                onChange={(e) => setDriverName(e.target.value)}
-                                                                placeholder="Enter driver name..."
-                                                                className="h-11 rounded-xl bg-background border-primary/20 focus:border-primary transition-all text-base placeholder:text-muted-foreground/50 shadow-sm"
-                                                            />
+                                                        <div className="text-muted-foreground">
+                                                            This will create {order.items.length} new cycle(s). Please verify the start date for each cycle.
                                                         </div>
 
-                                                        <div className="bg-muted/50 rounded-xl p-3 space-y-3 border border-muted-foreground/10 max-h-[200px] overflow-y-auto">
-                                                            {Array.from(order.items.reduce((acc, item) => {
-                                                                const existing = acc.get(item.farmerId) || { name: item.farmer.name, current: item.farmer.mainStock || 0, qty: 0 };
-                                                                acc.set(item.farmerId, { ...existing, qty: existing.qty + item.quantity });
-                                                                return acc;
-                                                            }, new Map<string, { name: string, current: number, qty: number }>()).values()).map((f, i) => (
-                                                                <div key={i} className="flex flex-col gap-1.5 border-b border-muted-foreground/10 last:border-0 pb-2 last:pb-0">
-                                                                    <div className="font-bold text-foreground text-start text-xs flex justify-between">
-                                                                        <span>{f.name}</span>
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 text-[10px] font-semibold 
-                 bg-emerald-500/5 text-emerald-600 border-emerald-500/20"
-                                                                        >
-                                                                            <span className="font-bold">
-                                                                                +{f.qty} New Bags
-                                                                            </span>
+                                                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                                            {order.items.map((item, idx) => (
+                                                                <div key={item.id} className="p-3 rounded-xl bg-muted/50 border border-muted-foreground/10 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                                                                    <div>
+                                                                        <div className="font-bold">{item.farmer.name}</div>
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {item.docCount} {item.birdType}
+                                                                        </div>
+                                                                    </div>
 
-                                                                            <span className="text-[9px] text-muted-foreground">
-                                                                                {f.current} → {f.current + f.qty}
-                                                                            </span>
-                                                                        </Badge>
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Cycle Start Date</span>
+                                                                        <Popover>
+                                                                            <PopoverTrigger asChild>
+                                                                                <Button
+                                                                                    variant={"outline"}
+                                                                                    size="sm"
+                                                                                    className={cn(
+                                                                                        "w-[180px] justify-start text-left font-normal bg-background",
+                                                                                        !cycleDates[item.id] && !order.orderDate && "text-muted-foreground"
+                                                                                    )}
+                                                                                >
+                                                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                                                    {cycleDates[item.id] ? format(cycleDates[item.id], "PPP") : format(new Date(order.orderDate), "PPP")}
+                                                                                </Button>
+                                                                            </PopoverTrigger>
+                                                                            <PopoverContent className="w-auto p-0" align="end">
+                                                                                <Calendar
+                                                                                    mode="single"
+                                                                                    selected={cycleDates[item.id] || new Date(order.orderDate)}
+                                                                                    onSelect={(date) => {
+                                                                                        if (date) {
+                                                                                            setCycleDates(prev => ({ ...prev, [item.id]: date }));
+                                                                                        }
+                                                                                    }}
+                                                                                    initialFocus
+                                                                                />
+                                                                            </PopoverContent>
+                                                                        </Popover>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -271,10 +292,10 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                             <AlertDialogFooter className="gap-2">
                                                 <AlertDialogCancel className="rounded-xl border-muted">Cancel</AlertDialogCancel>
                                                 <AlertDialogAction
-                                                    onClick={() => confirmMutation.mutate({ id: order.id, driverName })}
+                                                    onClick={handleConfirm}
                                                     className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-6"
                                                 >
-                                                    {confirmMutation.isPending ? "Confirming..." : "Confirm Delivery"}
+                                                    {confirmMutation.isPending ? "Confirming..." : "Confirm & Create Cycles"}
                                                 </AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
@@ -310,12 +331,11 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                {/* Mobile Menu Trigger (Visible on small screens) */}
+                                {/* Mobile Menu Trigger */}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="sm" className="h-9 rounded-lg hover:bg-muted font-bold sm:hidden flex items-center justify-center gap-2 border border-input col-span-2">
                                             <MoreHorizontal className="h-4 w-4" />
-
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-[90vw] rounded-xl p-1 border-muted">
@@ -344,9 +364,9 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                                     <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle className="text-xl font-bold">Delete Feed Order?</AlertDialogTitle>
+                                            <AlertDialogTitle className="text-xl font-bold">Delete DOC Order?</AlertDialogTitle>
                                             <AlertDialogDescription className="text-sm">
-                                                This will permanently delete this feed order. This action cannot be undone.
+                                                This will permanently delete this order. This action cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter className="gap-2">

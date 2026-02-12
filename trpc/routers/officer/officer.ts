@@ -4,6 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
+import { docOrdersRouter } from "./doc-orders";
 import { officerFarmersRouter } from "./farmers";
 import { feedOrdersRouter } from "./feed-orders";
 import { performanceReportsRouter } from "./performance-reports";
@@ -15,6 +16,7 @@ export const officerRouter = createTRPCRouter({
     cycles: officerCyclesRouter,
     farmers: officerFarmersRouter,
     feedOrders: feedOrdersRouter,
+    docOrders: docOrdersRouter,
     stock: officerStockRouter,
     sales: officerSalesRouter,
     reports: officerReportsRouter,
