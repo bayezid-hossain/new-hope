@@ -259,82 +259,64 @@ export const aiRouter = createTRPCRouter({
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
             // Sanitize Input Here
-            const cleanText = sanitizeOrderInput(input.text);
-            console.log(cleanText)
+            const baseCleanText = sanitizeOrderInput(input.text);
+
+            // Metadata Extraction Strategy:
+            // 1. Save original sanitized text.
+            // 2. Remove Mobile and Location lines to create `aiInputText`.
+            // 3. Send `aiInputText` to AI.
+            // 4. In `mappedData`, find name in original text, then scan forward for metadata.
+
+            const mobileRegex = /(?:\+?88)?01[3-9]\d{8}/;
+            const locationRegex = /(?:Loc(?:ation)?|Address)\s*[:.-]?\s*(.*)$/im;
+
+            // Create AI Input by removing metadata lines
+            const aiInputLines = baseCleanText.split("\n").filter(line => {
+                const isMobile = mobileRegex.test(line);
+                const isLocation = locationRegex.test(line);
+                return !isMobile && !isLocation;
+            });
+            const aiInputText = aiInputLines.join("\n");
+
+            console.log(`[AI Optimization] Original Len: ${baseCleanText.length} -> AI Input Len: ${aiInputText.length}`);
+
             const systemPrompt = `
-You extract structured poultry order data from raw text.
-
-TASK:
-Return STRICT JSON only. No explanation.
-
-OBJECTIVE:
-Extract:
-- order_date (from header, if present)
-- Every farmer order block
-
-RULES:
-
-1. Date:
-- Look at top header.
-- Example: "Date: 11 February 26"
-- Convert to ISO format YYYY-MM-DD.
-- If missing, return null.
-
-2. Farmer Name:
-- Use the actual farmer name.
-- If prefixed with numbers (e.g. "3014 Bismillah"), KEEP the number.
-- if '.' is following the number, remove it.
-- Ignore lines like:
-  - "Farm No: 01"
-  - "Farm 02"
-  - Any standalone farm numbering
-- The real name is usually the line after "Farm No".
-
-3. Quantity:
-- "Quantity", "pcs", or number near bird type = DOC count.
-- Must be number.
-- Required.
-
-4. Bird Type:
-- Examples: Ross A, EP A
-- If missing, return null.
-
-5. Location:
-- Extract if present.
-- Otherwise null.
-
-6. Mobile:
-- Extract full number.
-- Keep +880 or leading 0.
-- Otherwise null.
-
-RESPONSE FORMAT:
-
-{
-  "order_date": "YYYY-MM-DD" | null,
-  "orders": [
-    {
-      "original_name": "string",
-      "doc": number,
-      "bird_type": "string|null",
-      "location": "string|null",
-      "mobile": "string|null"
-    }
-  ]
-}
-
-IMPORTANT:
-- Extract ALL orders.
-- Do not merge separate orders.
-- Do not remove numeric prefixes from names.
-- Output valid JSON only.
-`;
+            You are an intelligent data extraction and matching engine for Poultry Cycle Orders.
+            
+            Goal: Extract farmer names, QUANTITY (DOC), BIRD TYPE (e.g. Ross A, EP A), and the DATE of the order from the header.
+            
+            GLOBAL CONTEXT:
+            - The text likely starts with a Header containing a Date (e.g. "Date: 11 February 26"). Extract this date and apply it to all rows.
+            - Structure is often:
+              "04. Name of Farmer" (EXTRACT "Name of Farmer", REMOVE "04.")
+              "Quantity..."
+              
+            CRITICAL INSTRUCTIONS:
+            1. Extract the "Date" from the top of the text if present. Return it as "order_date" (ISO string or standard format).
+            2. Extract EVERY farmer block.
+            3. "Ross A", "EP A" etc are Bird Types/Strains.
+            4. "pcs" or "Quantity" refers to DOC (Day Old Chicks) count.
+            5. **IMPORTANT**: If the name starts with a serial number like "01.", "02.", REMOVE IT. If it is a Farmer ID like "3014" (no dot), KEEP IT.
+            6. If a line says "Farm No 1", "Farm 02", etc., DO NOT use this as the name. Look for the actual Name on the next line or nearby.
+            7. Location/Mobile: **IGNORE**. Do not return location or mobile.
+            8. Return a valid STRICT JSON Object.
+            
+            Format: 
+            { 
+              "order_date": "YYYY-MM-DD" | null,
+              "orders": [{ 
+                "original_name": "string", 
+                "doc": number, 
+                "bird_type": "string|null"
+              }] 
+            }
+            `;
 
             try {
                 // Use the fallback mechanism which enforces json_object mode
                 const aiResponse = await callAiWithFallback(groq, [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: cleanText }
+                    { role: "user", content: aiInputText }
                 ]);
 
                 // Robust JSON Parsing
@@ -357,8 +339,65 @@ IMPORTANT:
                 else if (Array.isArray(parsed)) data = parsed;
                 else return { orderDate, items: [] };
 
+                let lastSearchIndex = 0;
+                const originalLines = baseCleanText.split("\n");
+
                 const mappedData = data.map((item: any) => {
-                    const originalName = item.original_name || item.name || "Unknown";
+                    const rawName = item.original_name || item.name || "Unknown";
+                    // Fallback cleanup: Remove serial numbers like "01.", "05." but keep IDs like "3014" (no dot)
+                    const originalName = rawName.replace(/^\d+\.\s*/, "").trim();
+
+                    // --- Metadata Rehydration ---
+                    let extractedMobile = null;
+                    let extractedLocation = null;
+
+                    // Find where this name appears in the original text (starting from last found index)
+                    // We use a loose check or normalizeName to find the line
+                    let matchedLineIndex = -1;
+
+                    const normalizedTarget = normalizeName(originalName);
+
+                    for (let i = lastSearchIndex; i < originalLines.length; i++) {
+                        const line = originalLines[i];
+                        if (normalizeName(line).includes(normalizedTarget) && normalizedTarget.length > 3) { // >3 to avoid matching "Ali" in "Alim" maybe?
+                            matchedLineIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (matchedLineIndex !== -1) {
+                        lastSearchIndex = matchedLineIndex + 1; // Start searching next item after this line
+
+                        // Scan forward for Metadata until we hit a likely name (not perfect but heuristic) 
+                        // OR until a reasonable limit (e.g. 10 lines)
+                        // Actually, we just scan for Mobile/Loc regexes.
+                        // We stop if we find a line that likely belongs to the NEXT item? 
+                        // The user said "do not modify anything else", so we assume interleaved.
+                        // We'll scan until we find a mobile or location.
+
+                        for (let k = matchedLineIndex + 1; k < Math.min(matchedLineIndex + 8, originalLines.length); k++) {
+                            const subLine = originalLines[k].trim();
+                            if (!subLine) continue;
+
+                            // Check Mobile
+                            const mobileMatch = subLine.match(mobileRegex);
+                            if (mobileMatch && !extractedMobile) {
+                                // Clean up mobile (remove non-digits or keep as is? User said "Keep the data")
+                                extractedMobile = mobileMatch[0];
+                            }
+
+                            // Check Location
+                            const locMatch = subLine.match(locationRegex);
+                            if (locMatch && !extractedLocation) {
+                                // If regex captured group 1
+                                extractedLocation = locMatch[1] || subLine.replace(/Loc(?:ation)?\s*[:.-]?/i, "").trim();
+                            }
+                        }
+                    } else {
+                        // Fallback: If not found sequentially, maybe reset search or just skip
+                        // console.warn("Could not find line for rehydration:", originalName);
+                    }
+
 
                     // Match Logic using Fuse.js
                     let matchedId = null;
@@ -400,13 +439,13 @@ IMPORTANT:
                     return {
                         name: originalName,
                         doc: Number(item.doc || item.quantity || item.amount) || 0,
-                        birdType: item.bird_type || item.strain || null,
+                        birdType: item.birdType || item.bird_type || item.strain || null,
                         matchedId,
                         matchedName,
                         confidence,
                         suggestions,
-                        location: item.location || null,
-                        mobile: item.mobile || null
+                        location: extractedLocation || item.location || null, // Prioritize extracted
+                        mobile: extractedMobile || item.mobile || null
                     };
                 });
 
@@ -495,7 +534,7 @@ IMPORTANT:
             const allRecentLogs = await ctx.db.select()
                 .from(cycleLogs)
                 .where(and(
-                    sql`${cycleLogs.cycleId} IN ${cycleIds}`,
+                    sql`${cycleLogs.cycleId} IN ${cycleIds} `,
                     eq(cycleLogs.type, "MORTALITY"),
                     gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
                 ))
@@ -519,7 +558,7 @@ IMPORTANT:
                     riskFlags.push({
                         farmer: cycle.farmerName,
                         type: "HIGH_MORTALITY",
-                        detail: `Lost ${recentMortalitySum} birds (${(mortalityRate3Days * 100).toFixed(2)}%) in last 3 days.`
+                        detail: `Lost ${recentMortalitySum} birds(${(mortalityRate3Days * 100).toFixed(2)}%) in last 3 days.`
                     });
                 } else if (mortalityRate3Days > 0.005) {
                     riskFlags.push({
