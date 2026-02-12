@@ -124,7 +124,7 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
             if (item.farmer.mobile) text += `Mobile: ${item.farmer.mobile}\n`;
 
             text += `Quantity: ${item.docCount} pcs\n`;
-            text += `${item.birdType}\n\n`;
+            text += `Bird Type: ${item.birdType}\n\n`;
 
             // Totals
             totalByType[item.birdType] = (totalByType[item.birdType] || 0) + item.docCount;
