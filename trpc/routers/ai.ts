@@ -99,6 +99,45 @@ const sanitizeInput = (text: string) => {
     return cleanText;
 };
 
+const sanitizeOrderInput = (text: string) => {
+    const lines = text.split("\n");
+    const cleanedLines: string[] = [];
+
+    // Stop processing if we hit "Total:"
+    const stopRegex = /^Total\s*:/i;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (stopRegex.test(trimmed)) {
+            break;
+        }
+
+        // Filter Rules
+        // 1. Remove "Dear sir/ Boss" etc.
+        if (/^(dear\s+)?(sir|boss|madam)/i.test(trimmed)) continue;
+
+        // 2. Remove "Doc order under..."
+        if (/^doc\s+order\s+under/i.test(trimmed)) continue;
+
+        // 3. Remove "Contact/Contract farm doc"
+        if (/^(contact|contract)\s+farm\s+doc/i.test(trimmed)) continue;
+
+        // 4. Remove "Farm no: 01" but KEEP "04. Name"
+        // "Farm no:..." pattern removal
+        if (/^farm\s+no\s*:/i.test(trimmed)) continue;
+
+        cleanedLines.push(line);
+    }
+
+    const result = cleanedLines.join("\n").trim();
+    // Debug Log
+    console.log(`[AI Sanitization] Input length: ${text.length} -> Output length: ${result.length}`);
+    // console.log(result); 
+
+    return result;
+};
+
 export const aiRouter = createTRPCRouter({
     extractFarmers: proProcedure
         .input(z.object({
@@ -214,6 +253,9 @@ export const aiRouter = createTRPCRouter({
         .mutation(async ({ input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+            // Sanitize Input Here
+            const cleanText = sanitizeOrderInput(input.text);
+            console.log(cleanText)
             const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
 
             const systemPrompt = `
@@ -259,7 +301,7 @@ export const aiRouter = createTRPCRouter({
                 // Use the fallback mechanism which enforces json_object mode
                 const aiResponse = await callAiWithFallback(groq, [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: input.text }
+                    { role: "user", content: cleanText }
                 ]);
 
                 // Robust JSON Parsing
