@@ -293,7 +293,7 @@ export const aiRouter = createTRPCRouter({
               
             CRITICAL INSTRUCTIONS:
             1. Extract the "Date" from the top of the text if present. Return it as "order_date" (ISO string or standard format).
-            2. Extract EVERY farmer block.
+            2. Extract EVERY farmer block sequentially.
             3. "Ross A", "EP A" etc are Bird Types/Strains.
             4. "pcs" or "Quantity" refers to DOC (Day Old Chicks) count.
             5. **IMPORTANT**: If the name starts with a serial number like "01.", "02.", REMOVE IT. If it is a Farmer ID like "3014" (no dot), KEEP IT.
