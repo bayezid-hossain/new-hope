@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { OrgCyclesList } from "@/modules/admin/components/org-cycles-list";
+import { CreateDocOrderModal } from "@/modules/doc-orders/ui/components/create-doc-order-modal";
 import { Bird, History, PlusIcon, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { BulkCycleImportModal } from "../components/cycles/bulk-cycle-import-modal";
@@ -15,6 +16,7 @@ const CyclesContent = () => {
     const { orgId } = useCurrentOrg();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isBulkOpen, setIsBulkOpen] = useState(false);
+    const [isDocOpen, setIsDocOpen] = useState(false);
     const trpc = useTRPC();
 
     const { data: activeCount } = useQuery(trpc.officer.cycles.listActive.queryOptions({
@@ -56,6 +58,14 @@ const CyclesContent = () => {
                             <Sparkles className="mr-1.5 h-3.5 w-3.5 xs:mr-2 xs:h-4 xs:w-4 text-purple-500" />
                             Bulk Import
                         </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDocOpen(true)}
+                            className="h-9 px-3 text-xs xs:h-10 xs:px-4 xs:text-sm border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 shadow-sm transition-all w-full xs:w-auto"
+                        >
+                            <Bird className="mr-1.5 h-3.5 w-3.5 xs:mr-2 xs:h-4 xs:w-4 text-blue-500" />
+                            Order DOC
+                        </Button>
                     </div>
                 </div>
                 <TabsList className="bg-muted p-1 h-9 xs:h-11">
@@ -88,6 +98,7 @@ const CyclesContent = () => {
 
             <CreateCycleModal open={isCreateOpen} onOpenChange={setIsCreateOpen} onlyMine={true} />
             <BulkCycleImportModal open={isBulkOpen} onOpenChange={setIsBulkOpen} orgId={orgId} />
+            <CreateDocOrderModal open={isDocOpen} onOpenChange={setIsDocOpen} orgId={orgId} />
         </div>
     );
 };

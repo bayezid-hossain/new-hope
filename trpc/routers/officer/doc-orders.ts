@@ -14,7 +14,8 @@ export const docOrdersRouter = createTRPCRouter({
             items: z.array(z.object({
                 farmerId: z.string(),
                 birdType: z.string(),
-                docCount: z.number().int().positive()
+                docCount: z.number().int().positive(),
+                isContract: z.boolean().default(false)
             })).min(1)
         }))
         .mutation(async ({ ctx, input }) => {
@@ -63,7 +64,8 @@ export const docOrdersRouter = createTRPCRouter({
                 docOrderId: order.id,
                 farmerId: item.farmerId,
                 birdType: item.birdType,
-                docCount: item.docCount
+                docCount: item.docCount,
+                isContract: item.isContract
             }));
 
             if (itemsToInsert.length > 0) {
@@ -139,7 +141,8 @@ export const docOrdersRouter = createTRPCRouter({
             items: z.array(z.object({
                 farmerId: z.string(),
                 birdType: z.string(),
-                docCount: z.number().int().positive()
+                docCount: z.number().int().positive(),
+                isContract: z.boolean().default(false)
             })).min(1)
         }))
         .mutation(async ({ ctx, input }) => {
@@ -168,7 +171,8 @@ export const docOrdersRouter = createTRPCRouter({
                     docOrderId: input.id,
                     farmerId: item.farmerId,
                     birdType: item.birdType,
-                    docCount: item.docCount
+                    docCount: item.docCount,
+                    isContract: item.isContract
                 }));
 
                 if (itemsToInsert.length > 0) {

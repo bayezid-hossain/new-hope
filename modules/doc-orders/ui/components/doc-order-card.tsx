@@ -43,6 +43,7 @@ interface DocOrderCardProps {
             farmerId: string;
             birdType: string;
             docCount: number;
+            isContract: boolean;
             farmer: {
                 name: string;
                 location: string | null;
@@ -106,25 +107,15 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
 
         order.items.forEach(item => {
             text += `Farm no: ${farmCounter.toString().padStart(2, '0')}\n`;
-            // "Contact farm doc" - hardcoded in user example? No, usually title. 
-            // User example: "Contact farm doc" then "Quantity...". 
-            // Or "Farm name: ...". 
-            // Let's stick to the requested format:
-            /*
-             Farm no: 01
-             [Farmer Name]
-             Location: [Location]
-             Mobile: [Mobile]
-             Quantity: [Qty] pcs
-             [Bird Type]
-            */
-
-            text += `${item.farmer.name}\n`;
+            if (item.isContract) {
+                text += `Contact farm DOC \n`;
+            }
+            text += `Farm name: ${item.farmer.name}\n`;
             if (item.farmer.location) text += `Location: ${item.farmer.location}\n`;
             if (item.farmer.mobile) text += `Mobile: ${item.farmer.mobile}\n`;
 
             text += `Quantity: ${item.docCount} pcs\n`;
-            text += `Bird Type: ${item.birdType}\n\n`;
+            text += `${item.birdType}\n\n`;
 
             // Totals
             totalByType[item.birdType] = (totalByType[item.birdType] || 0) + item.docCount;
