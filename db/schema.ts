@@ -114,7 +114,7 @@ export const twoFactor = pgTable("two_factor", {
 export const organization = pgTable("organization", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  feedPricePerBag: decimal("feed_price_per_bag").default("2500"), // Default until changed
+  feedPricePerBag: decimal("feed_price_per_bag").default("3220"), // Default until changed
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
