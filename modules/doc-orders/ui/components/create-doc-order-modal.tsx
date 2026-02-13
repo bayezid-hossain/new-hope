@@ -3,6 +3,7 @@
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Command,
     CommandGroup,
@@ -39,6 +40,7 @@ interface DocBatch {
     id: string; // for key
     birdType: string;
     docCount: number;
+    isContract: boolean;
 }
 
 interface DocItem {
@@ -122,6 +124,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                             id: item.id || generateId(),
                             birdType: item.birdType,
                             docCount: item.docCount,
+                            isContract: (item as any).isContract || false,
                         });
                     } else {
                         acc.push({
@@ -134,6 +137,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                                 id: item.id || generateId(),
                                 birdType: item.birdType,
                                 docCount: item.docCount,
+                                isContract: (item as any).isContract || false,
                             }]
                         });
                     }
@@ -222,6 +226,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                         id: generateId(),
                         birdType: defaultBirdType,
                         docCount: 0,
+                        isContract: false,
                     }]
                 }
             ]);
@@ -247,6 +252,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                     id: generateId(),
                     birdType: defaultBirdType,
                     docCount: 0,
+                    isContract: false,
                 }]
             };
         }));
@@ -295,6 +301,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
             farmerId: string;
             birdType: string;
             docCount: number;
+            isContract: boolean;
         }> = [];
 
         selectedItems.forEach(item => {
@@ -307,7 +314,8 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                 payloadItems.push({
                     farmerId: item.farmerId,
                     birdType: batch.birdType,
-                    docCount: batch.docCount
+                    docCount: batch.docCount,
+                    isContract: batch.isContract
                 });
             });
         });
@@ -351,9 +359,12 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                 if (!batch.birdType || batch.docCount <= 0) return;
 
                 text += `Farm no: ${farmCounter.toString().padStart(2, '0')}\n`;
-                text += `${item.farmerName || 'Unknown Farmer'}\n`;
+                if (batch.isContract) {
+                    text += `Contact farm doc \n`;
+                }
+                text += `farm name: ${item.farmerName || 'Unknown Farmer'}\n`;
                 if (item.location) text += `Location: ${item.location}\n`;
-                if (item.mobile) text += `Mobile: ${item.mobile}\n`;
+                if (item.mobile) text += `mobile: ${item.mobile}\n`;
 
                 text += `Quantity: ${batch.docCount || 0} pcs\n`;
                 text += `${batch.birdType || 'Unknown Type'}\n\n`;
@@ -444,7 +455,11 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                                 </span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            align="start"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
                             <Command>
                                 <CommandInput placeholder="Search farmers..." value={searchQuery} onValueChange={setSearchQuery} />
                                 <CommandList>
@@ -512,57 +527,76 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
 
                             <div className="space-y-3">
                                 {item.batches.map((batch, batchIndex) => (
-                                    <div key={batch.id} className="flex flex-col sm:flex-row gap-3 items-end p-2 rounded-lg bg-muted/30">
-                                        <div className="flex-1 w-full sm:w-auto">
-                                            <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Bird Type</span>
-                                            <Select
-                                                value={batch.birdType}
-                                                onValueChange={(val) => {
-                                                    if (val === "create_new") {
-                                                        setPendingBirdTypePath({ itemId: item.id, batchIndex });
-                                                        setIsCreatingBirdType(true);
-                                                    } else {
-                                                        handleUpdateBatch(item.id, batchIndex, 'birdType', val);
-                                                    }
-                                                }}
-                                            >
-                                                <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Select type" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {birdTypes?.map((bt) => (
-                                                        <SelectItem key={bt.id} value={bt.name} className="text-xs">
-                                                            {bt.name}
+                                    <div key={batch.id} className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-3">
+                                        <div className="flex flex-col sm:flex-row gap-3 items-end">
+                                            <div className="flex-1 w-full sm:w-auto">
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Bird Type</span>
+                                                <Select
+                                                    value={batch.birdType}
+                                                    onValueChange={(val) => {
+                                                        if (val === "create_new") {
+                                                            setPendingBirdTypePath({ itemId: item.id, batchIndex });
+                                                            setIsCreatingBirdType(true);
+                                                        } else {
+                                                            handleUpdateBatch(item.id, batchIndex, 'birdType', val);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-8 text-xs">
+                                                        <SelectValue placeholder="Select type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {birdTypes?.map((bt) => (
+                                                            <SelectItem key={bt.id} value={bt.name} className="text-xs">
+                                                                {bt.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                        <SelectItem value="create_new" className="font-medium text-primary text-xs">
+                                                            + Create New Type
                                                         </SelectItem>
-                                                    ))}
-                                                    <SelectItem value="create_new" className="font-medium text-primary text-xs">
-                                                        + Create New Type
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="w-full sm:w-32">
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Qty (pcs)</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    className="h-8 text-xs"
+                                                    value={batch.docCount || ""}
+                                                    onChange={(e) => handleUpdateBatch(item.id, batchIndex, 'docCount', parseInt(e.target.value) || 0)}
+                                                />
+                                            </div>
+
                                         </div>
 
-                                        <div className="w-full sm:w-32">
-                                            <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Qty (pcs)</span>
-                                            <Input
-                                                type="number"
-                                                placeholder="0"
-                                                className="h-8 text-xs"
-                                                value={batch.docCount || ""}
-                                                onChange={(e) => handleUpdateBatch(item.id, batchIndex, 'docCount', parseInt(e.target.value) || 0)}
-                                            />
-                                        </div>
+                                        <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id={`isContract-${batch.id}`}
+                                                    checked={batch.isContract}
+                                                    onCheckedChange={(checked) => handleUpdateBatch(item.id, batchIndex, 'isContract', !!checked)}
+                                                />
+                                                <label
+                                                    htmlFor={`isContract-${batch.id}`}
+                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                >
+                                                    Contract farm DOC
+                                                </label>
+                                            </div>
 
-                                        {item.batches.length > 1 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                                                onClick={() => handleRemoveBatch(item.id, batchIndex)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        )}
+                                            {item.batches.length > 1 && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                                                    onClick={() => handleRemoveBatch(item.id, batchIndex)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                                 <Button

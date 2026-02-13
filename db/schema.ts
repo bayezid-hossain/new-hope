@@ -561,6 +561,7 @@ export const docOrderItems = pgTable("doc_order_items", {
 
   birdType: text("bird_type").notNull(), // Stored as string, picked from birdTypes
   docCount: integer("doc_count").notNull(),
+  isContract: boolean("is_contract").default(false).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [

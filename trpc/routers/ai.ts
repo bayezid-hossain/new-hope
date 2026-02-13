@@ -207,7 +207,7 @@ export function matchFarmer(
         ignoreLocation: true,
         includeScore: true,
         findAllMatches: true,
-        minMatchCharLength: 2,
+        minMatchCharLength: 4,
     });
 
     const suggestions = fuse
@@ -239,39 +239,36 @@ export const aiRouter = createTRPCRouter({
         .mutation(async ({ input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-            // Sanitize Input Text when needed
-            // const cleanText = sanitizeInput(input.text);
-            const cleanText = input.text
-            const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
-            // console.log(cleanText)
+            const baseCleanText = input.text;
+            const candidates = input.candidates.map(c => ({ id: c.id, name: c.name }));
+
+            // Metadata Regex
+            const mobileRegex = /(?:\+?88)?01[3-9]\d{8}/;
+            const locationRegex = /(?:Loc(?:ation)?|Address)\s*[:.-]?\s*(.*)$/im;
+
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
-            Goal: Extract farmer names, their TOTAL feed bag count, and optionally their LOCATION and MOBILE NUMBER.
-            Match against CANDIDATE LIST:
-            ${candidatesList}
+            Goal: Extract farmer names and their TOTAL feed bag count.
             
             IMPORTANT: If a farmer appears multiple times in the text, SUM their amounts into a single entry with the TOTAL.
             CRITICAL: You must extract EVERY SINGLE farmer mentioned in the text. DO NOT stop after a few. DO NOT summarize. Process the entire text.
-            For MOBILE NUMBER: Preserve the country code (e.g., +880...) if present.
             If there are 50 farmers, return 50 entries.
             Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
-            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [], "location": "string|null", "mobile": "string|null" }] }
+            Format: { "farmers": [{ "original_name": "string", "amount": number }] }
             `;
 
             try {
                 // Use the fallback mechanism which enforces json_object mode
                 const aiResponse = await callAiWithFallback(groq, [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: cleanText }
+                    { role: "user", content: baseCleanText }
                 ]);
 
                 // Robust JSON Parsing
                 let parsed: any = {};
                 try {
-                    // 1. Try direct parse
                     parsed = JSON.parse(aiResponse || "{}");
                 } catch (e) {
-                    // 2. Try extracting JSON from code blocks or curly braces
                     const jsonMatch = (aiResponse || "").match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         try {
@@ -290,31 +287,83 @@ export const aiRouter = createTRPCRouter({
                 else if (Array.isArray(parsed)) data = parsed;
                 else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
                 else return [];
-                //conosle.log("Extracted Data:", data);
-                const mappedData = data.map((item: any) => ({
-                    name: item.original_name || item.name || "Unknown",
-                    amount: Number(item.amount) || 0,
-                    matchedId: item.matched_id || null,
-                    confidence: item.confidence || "LOW",
-                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : [],
-                    location: item.location || null,
-                    mobile: item.mobile || null
-                }));
+
+                let lastSearchIndex = 0;
+                const originalLines = baseCleanText.split("\n");
+
+                const mappedData = data.map((item: any) => {
+                    const originalName = (item.original_name || item.name || "Unknown").trim();
+
+                    // --- Metadata Rehydration ---
+                    let extractedMobile = null;
+                    let extractedLocation = null;
+
+                    // Find where this name appears in the original text (starting from last found index)
+                    let matchedLineIndex = -1;
+                    const normalizedTarget = normalizeName(originalName);
+
+                    for (let i = lastSearchIndex; i < originalLines.length; i++) {
+                        const line = originalLines[i];
+                        if (normalizeName(line).includes(normalizedTarget) && normalizedTarget.length > 3) {
+                            matchedLineIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (matchedLineIndex !== -1) {
+                        lastSearchIndex = matchedLineIndex + 1; // Start searching next item after this line
+
+                        // Scan forward for Metadata
+                        for (let k = matchedLineIndex + 1; k < Math.min(matchedLineIndex + 8, originalLines.length); k++) {
+                            const subLine = originalLines[k].trim();
+                            if (!subLine) continue;
+
+                            // Check Mobile
+                            const mobileMatch = subLine.match(mobileRegex);
+                            if (mobileMatch && !extractedMobile) {
+                                extractedMobile = mobileMatch[0];
+                            }
+
+                            // Check Location
+                            const locMatch = subLine.match(locationRegex);
+                            if (locMatch && !extractedLocation) {
+                                extractedLocation = locMatch[1] || subLine.replace(/Loc(?:ation)?\s*[:.-]?/i, "").trim();
+                            }
+                        }
+                    }
+
+                    const { matchedId, matchedName, confidence, suggestions } = matchFarmer(originalName, candidates);
+
+                    return {
+                        name: originalName,
+                        amount: Number(item.amount) || 0,
+                        matchedId,
+                        matchedName,
+                        confidence,
+                        suggestions,
+                        location: extractedLocation || item.location || null,
+                        mobile: extractedMobile || item.mobile || null
+                    };
+                });
 
                 // Aggregation Logic: Merge duplicates based on matchedId or name
                 const aggregatedMap = new Map<string, typeof mappedData[0]>();
 
                 for (const item of mappedData) {
-                    // Use matchedId as primary key, fallback to name (normalized)
                     const key = item.matchedId ? `ID:${item.matchedId}` : `NAME:${item.name.toLowerCase().trim()}`;
 
                     if (aggregatedMap.has(key)) {
                         const existing = aggregatedMap.get(key)!;
                         existing.amount += item.amount;
+
+                        // Always try to fill in missing metadata
+                        existing.location = existing.location || item.location;
+                        existing.mobile = existing.mobile || item.mobile;
+
                         // Keep the one with higher confidence if merging
                         if (existing.confidence !== "HIGH" && item.confidence === "HIGH") {
                             existing.confidence = "HIGH";
-                            existing.matchedId = item.matchedId; // Update ID if better match found
+                            existing.matchedId = item.matchedId;
                             existing.suggestions = item.suggestions;
                         }
                     } else {
@@ -326,7 +375,6 @@ export const aiRouter = createTRPCRouter({
 
             } catch (e: any) {
                 console.error("AI Extract Failed:", e);
-                // Return empty instead of crashing to allow UI to handle it gracefully or show empty state
                 return [];
             }
         }),
