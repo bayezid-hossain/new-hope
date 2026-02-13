@@ -34,37 +34,40 @@ const CyclesContent = () => {
     return (
         <div className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto bg-background min-h-screen">
             <Tabs defaultValue="active" className="w-full">
-                <div className="flex flex-col items-start gap-4 mb-6 xs:justify-between xs:gap-0 xs:gap-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h1 className="text-xl xs:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                        <h1 className="text-xl xs:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             <Bird className="h-6 w-6 xs:h-8 xs:w-8 text-primary" />
                             Production Cycles
                         </h1>
                         <p className="text-muted-foreground text-xs xs:text-sm mt-1">Manage all your production cycles.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 w-full xs:w-auto xs:flex xs:items-center">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                         <Button
-                            onClick={() => setIsCreateOpen(true)}
-                            className="h-9 px-3 text-xs xs:h-10 xs:px-4 xs:text-sm shadow-sm w-full xs:w-auto"
-                        >
-                            <PlusIcon className="mr-1.5 h-3.5 w-3.5 xs:mr-2 xs:h-4 xs:w-4" />
-                            Start Cycle
-                        </Button>
-                        <Button
-                            variant="outline"
+                            variant="secondary"
                             onClick={() => setIsBulkOpen(true)}
-                            className="h-9 px-3 text-xs xs:h-10 xs:px-4 xs:text-sm border-purple-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 shadow-sm transition-all w-full xs:w-auto"
+                            className="border shadow-sm bg-card hover:bg-muted text-purple-600 dark:text-purple-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm flex-1 sm:flex-none"
                         >
-                            <Sparkles className="mr-1.5 h-3.5 w-3.5 xs:mr-2 xs:h-4 xs:w-4 text-purple-500" />
-                            Bulk Import
+                            <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Bulk Import</span>
+                            <span className="sm:hidden">Import</span>
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => setIsDocOpen(true)}
-                            className="h-9 px-3 text-xs xs:h-10 xs:px-4 xs:text-sm border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 shadow-sm transition-all w-full xs:w-auto"
+                            className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 shadow-sm transition-all flex-1 sm:flex-none"
                         >
-                            <Bird className="mr-1.5 h-3.5 w-3.5 xs:mr-2 xs:h-4 xs:w-4 text-blue-500" />
-                            Order DOC
+                            <Bird className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                            <span className="hidden sm:inline">Order DOC</span>
+                            <span className="sm:hidden">Order</span>
+                        </Button>
+                        <Button
+                            onClick={() => setIsCreateOpen(true)}
+                            className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm flex-1 sm:flex-none"
+                        >
+                            <PlusIcon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Start Cycle</span>
+                            <span className="sm:hidden">Start</span>
                         </Button>
                     </div>
                 </div>
