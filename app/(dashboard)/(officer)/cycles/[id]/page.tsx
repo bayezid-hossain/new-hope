@@ -56,6 +56,7 @@ interface NormalizedCycle {
     startDate: Date;
     endDate: Date | null;
     status: "active" | "archived";
+    birdType?: string | null;
 }
 
 interface ActiveCycle {
@@ -72,6 +73,7 @@ interface ActiveCycle {
     updatedAt: Date;
     status: string;
     farmer: { name: string; mainStock: number };
+    birdType?: string | null;
 }
 
 interface HistoryRecord {
@@ -88,6 +90,7 @@ interface HistoryRecord {
     endDate: Date;
     status: string;
     farmer?: { name: string; mainStock: number };
+    birdType?: string | null;
 }
 
 // --- Analysis Content Component ---
@@ -325,6 +328,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
             startDate: new Date(isActive ? (rawData as ActiveCycle).createdAt : (rawData as HistoryRecord).startDate),
             endDate: isActive ? null : new Date((rawData as HistoryRecord).endDate),
             status: isActive ? "active" : "archived",
+            birdType: rawData.birdType,
         };
 
         return {
@@ -367,6 +371,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 ) : (
                                     <Badge variant="outline" className="bg-muted text-muted-foreground border-border/50 gap-1.5 px-2.5">
                                         <Archive className="h-3 w-3" /> Archived Cycle
+                                    </Badge>
+                                )}
+                                {cycle.birdType && (
+                                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[10px] uppercase tracking-wider">
+                                        {cycle.birdType}
                                     </Badge>
                                 )}
                                 <span>•</span>

@@ -36,6 +36,7 @@ type CycleItem = {
     farmerMainStock: string | null;
     officerName: string | null;
     endDate: Date | null;
+    birdType?: string | null;
 };
 
 // Type for the paginated response from listActive/listPast
@@ -292,6 +293,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                 {cycle.birdsSold > 0 && (
                                                                     <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
                                                                 )}
+                                                                {cycle.birdType && (
+                                                                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[8px] h-3.5 px-1.5 uppercase tracking-wider w-fit">{cycle.birdType}</Badge>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         {cycle.mortality > 0 && (
@@ -387,6 +391,9 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                             <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
                                                             {cycle.birdsSold > 0 && (
                                                                 <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                            )}
+                                                            {cycle.birdType && (
+                                                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[8px] h-3.5 px-1.5 uppercase tracking-wider w-fit">{cycle.birdType}</Badge>
                                                             )}
                                                         </div>
                                                     </div>

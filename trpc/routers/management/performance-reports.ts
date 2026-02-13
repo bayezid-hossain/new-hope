@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { member, user } from "@/db/schema";
 import { PerformanceAnalyticsService } from "@/modules/reports/server/services/performance-analytics-service";
 import { createTRPCRouter, managementProcedure } from "@/trpc/init";
-import { and, eq, ne } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 export const managementPerformanceReportsRouter = createTRPCRouter({
@@ -22,8 +22,8 @@ export const managementPerformanceReportsRouter = createTRPCRouter({
 
     getOfficersInOrg: managementProcedure
         .query(async ({ ctx }) => {
-            // Get all officers in the current organization
-            const officers = await db
+            // Get all members in the current organization who can be "officers" (including managers/owners)
+            return await db
                 .select({
                     id: user.id,
                     name: user.name,
@@ -31,10 +31,7 @@ export const managementPerformanceReportsRouter = createTRPCRouter({
                 })
                 .from(member)
                 .innerJoin(user, eq(member.userId, user.id))
-                .where(and(
-                    eq(member.organizationId, ctx.membership?.organizationId ?? ""), ne(member.id, ctx.user.id)
-                ));
-
-            return officers;
+                .where(eq(member.organizationId, ctx.membership?.organizationId ?? ""))
+                .orderBy(asc(user.name));
         }),
 });
