@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { cycleHistory, cycles, farmer, saleEvents, saleMetrics, saleReports } from "@/db/schema";
-import { and, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
 
 /**
  * Performance Analytics Service
@@ -202,6 +202,8 @@ export class PerformanceAnalyticsService {
             .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
             .where(and(
                 eq(farmer.officerId, officerId),
+                ne(farmer.status, "deleted"),
+                ne(cycles.status, "deleted"),
                 gte(cycles.createdAt, startOfMonth),
                 lte(cycles.createdAt, endOfMonth)
             ));
@@ -213,6 +215,8 @@ export class PerformanceAnalyticsService {
             .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
             .where(and(
                 eq(farmer.officerId, officerId),
+                ne(farmer.status, "deleted"),
+                ne(cycleHistory.status, "deleted"),
                 gte(cycleHistory.startDate, startOfMonth),
                 lte(cycleHistory.startDate, endOfMonth)
             ));
@@ -226,190 +230,192 @@ export class PerformanceAnalyticsService {
     /**
      * Get sales metrics from sale events dated in the given month
      */
-    
 
-        /**
- * Get sales metrics from sale events dated in the given month
- * FCR & EPI calculated ONLY for ended cycles
- * Uses:
- *  - ALL weights from all sales
- *  - ONLY latest feed value
- */
-private static async getSalesMetricsForMonth(
-    officerId: string,
-    startOfMonth: Date,
-    endOfMonth: Date
-): Promise<Omit<MonthlyPerformance, 'month' | 'monthNumber' | 'chicksIn'>> {
 
-    const sales = await db
-        .select({
-            birds_sold: saleEvents.birdsSold,
-            total_weight: saleEvents.totalWeight,
-            price_per_kg: saleEvents.pricePerKg,
-            total_amount: saleEvents.totalAmount,
-            total_mortality: saleEvents.totalMortality,
-            house_birds: saleEvents.houseBirds,
-            feed_consumed: saleEvents.feedConsumed,
-            report_feed_consumed: saleReports.feedConsumed,
-            history_age: cycleHistory.age,
-            history_id: saleEvents.historyId,
-            sale_date: saleEvents.saleDate
-        })
-        .from(saleEvents)
-        .leftJoin(saleReports, eq(saleEvents.selectedReportId, saleReports.id))
-        .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
-        .leftJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
-        .where(and(
-            eq(farmer.officerId, officerId),
-            gte(saleEvents.saleDate, startOfMonth),
-            lte(saleEvents.saleDate, endOfMonth)
-        ));
+    /**
+* Get sales metrics from sale events dated in the given month
+* FCR & EPI calculated ONLY for ended cycles
+* Uses:
+*  - ALL weights from all sales
+*  - ONLY latest feed value
+*/
+    private static async getSalesMetricsForMonth(
+        officerId: string,
+        startOfMonth: Date,
+        endOfMonth: Date
+    ): Promise<Omit<MonthlyPerformance, 'month' | 'monthNumber' | 'chicksIn'>> {
 
-    if (sales.length === 0) {
+        const sales = await db
+            .select({
+                birds_sold: saleEvents.birdsSold,
+                total_weight: saleEvents.totalWeight,
+                price_per_kg: saleEvents.pricePerKg,
+                total_amount: saleEvents.totalAmount,
+                total_mortality: saleEvents.totalMortality,
+                house_birds: saleEvents.houseBirds,
+                feed_consumed: saleEvents.feedConsumed,
+                report_feed_consumed: saleReports.feedConsumed,
+                history_age: cycleHistory.age,
+                history_id: saleEvents.historyId,
+                sale_date: saleEvents.saleDate
+            })
+            .from(saleEvents)
+            .leftJoin(saleReports, eq(saleEvents.selectedReportId, saleReports.id))
+            .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
+            .leftJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+            .where(and(
+                eq(farmer.officerId, officerId),
+                ne(farmer.status, "deleted"),
+                ne(cycleHistory.status, "deleted"),
+                gte(saleEvents.saleDate, startOfMonth),
+                lte(saleEvents.saleDate, endOfMonth)
+            ));
+
+        if (sales.length === 0) {
+            return {
+                chicksSold: 0,
+                averageAge: 0,
+                totalBirdWeight: 0,
+                feedConsumption: 0,
+                survivalRate: 0,
+                epi: 0,
+                fcr: 0,
+                averagePrice: 0,
+                totalRevenue: 0,
+            };
+        }
+
+        // ===============================
+        // STEP 1: Group by ended cycle
+        // ===============================
+        const cycleMap = new Map<string, {
+            sales: typeof sales,
+            latestSale: any
+        }>();
+
+        for (const sale of sales) {
+            if (!sale.history_id) continue; // Only ended cycles
+
+            const key = sale.history_id;
+
+            if (!cycleMap.has(key)) {
+                cycleMap.set(key, {
+                    sales: [],
+                    latestSale: sale
+                });
+            }
+
+            const cycle = cycleMap.get(key)!;
+            cycle.sales.push(sale);
+
+            // Track latest sale
+            if (new Date(sale.sale_date) > new Date(cycle.latestSale.sale_date)) {
+                cycle.latestSale = sale;
+            }
+        }
+
+        // ===============================
+        // STEP 2: Calculate per cycle
+        // ===============================
+        let totalBirdsSold = 0;
+        let totalWeight = 0;
+        let totalAmount = 0;
+        let totalAge = 0;
+        let totalFeedBags = 0;
+
+        let fcrs: number[] = [];
+        let epis: number[] = [];
+        let survivalRates: number[] = [];
+
+        for (const cycle of cycleMap.values()) {
+
+            // ALL weights from all sales
+            const cycleTotalWeight = cycle.sales.reduce(
+                (sum, s) => sum + (parseFloat(s.total_weight as any) || 0),
+                0
+            );
+
+            const cycleTotalBirds = cycle.sales.reduce(
+                (sum, s) => sum + (Number(s.birds_sold) || 0),
+                0
+            );
+
+            const cycleTotalAmount = cycle.sales.reduce(
+                (sum, s) => sum + (parseFloat(s.total_amount as any) || 0),
+                0
+            );
+
+            const latest = cycle.latestSale;
+
+            // ONLY latest feed value
+            const feedBags = countFeedBags(
+                latest.report_feed_consumed || latest.feed_consumed
+            );
+
+            const age = Number(latest.history_age) || 0;
+            const houseBirds = Number(latest.house_birds) || 0;
+            const mortality = Number(latest.total_mortality) || 0;
+            const price = parseFloat(latest.price_per_kg as any) || 0;
+
+            totalBirdsSold += cycleTotalBirds;
+            totalWeight += cycleTotalWeight;
+            totalAmount += cycleTotalAmount;
+
+            totalAge += age;
+            totalFeedBags += feedBags;
+
+            // Survival Rate
+            let survivalRate = 0;
+            if (houseBirds > 0) {
+                survivalRate =
+                    ((houseBirds - mortality) / houseBirds) * 100;
+                survivalRates.push(survivalRate);
+            }
+
+            // FCR
+            if (cycleTotalWeight > 0 && feedBags > 0) {
+                const fcr = calculateFCR(feedBags, cycleTotalWeight);
+                fcrs.push(fcr);
+
+                // Average Weight = TOTAL weight / TOTAL birds
+                if (cycleTotalBirds > 0 && age > 0) {
+                    const avgWeight = cycleTotalWeight / cycleTotalBirds;
+
+                    const epi = calculateEPI(
+                        survivalRate,
+                        avgWeight,
+                        fcr,
+                        age
+                    );
+
+                    epis.push(epi);
+                }
+            }
+        }
+
+        const numCycles = cycleMap.size;
+
         return {
-            chicksSold: 0,
-            averageAge: 0,
-            totalBirdWeight: 0,
-            feedConsumption: 0,
-            survivalRate: 0,
-            epi: 0,
-            fcr: 0,
-            averagePrice: 0,
-            totalRevenue: 0,
+            chicksSold: totalBirdsSold,
+            averageAge: numCycles > 0 ? totalAge / numCycles : 0,
+            totalBirdWeight: totalWeight,
+            feedConsumption: totalFeedBags,
+            survivalRate: survivalRates.length > 0
+                ? survivalRates.reduce((a, b) => a + b, 0) / survivalRates.length
+                : 0,
+            epi: epis.length > 0
+                ? epis.reduce((a, b) => a + b, 0) / epis.length
+                : 0,
+            fcr: fcrs.length > 0
+                ? fcrs.reduce((a, b) => a + b, 0) / fcrs.length
+                : 0,
+            averagePrice: totalWeight > 0
+                ? totalAmount / totalWeight
+                : 0,
+            totalRevenue: totalAmount,
         };
     }
 
-    // ===============================
-    // STEP 1: Group by ended cycle
-    // ===============================
-    const cycleMap = new Map<string, {
-        sales: typeof sales,
-        latestSale: any
-    }>();
-
-    for (const sale of sales) {
-        if (!sale.history_id) continue; // Only ended cycles
-
-        const key = sale.history_id;
-
-        if (!cycleMap.has(key)) {
-            cycleMap.set(key, {
-                sales: [],
-                latestSale: sale
-            });
-        }
-
-        const cycle = cycleMap.get(key)!;
-        cycle.sales.push(sale);
-
-        // Track latest sale
-        if (new Date(sale.sale_date) > new Date(cycle.latestSale.sale_date)) {
-            cycle.latestSale = sale;
-        }
-    }
-
-    // ===============================
-    // STEP 2: Calculate per cycle
-    // ===============================
-    let totalBirdsSold = 0;
-    let totalWeight = 0;
-    let totalAmount = 0;
-    let totalAge = 0;
-    let totalFeedBags = 0;
-
-    let fcrs: number[] = [];
-    let epis: number[] = [];
-    let survivalRates: number[] = [];
-
-    for (const cycle of cycleMap.values()) {
-
-        // ALL weights from all sales
-        const cycleTotalWeight = cycle.sales.reduce(
-            (sum, s) => sum + (parseFloat(s.total_weight as any) || 0),
-            0
-        );
-
-        const cycleTotalBirds = cycle.sales.reduce(
-            (sum, s) => sum + (Number(s.birds_sold) || 0),
-            0
-        );
-
-        const cycleTotalAmount = cycle.sales.reduce(
-            (sum, s) => sum + (parseFloat(s.total_amount as any) || 0),
-            0
-        );
-
-        const latest = cycle.latestSale;
-
-        // ONLY latest feed value
-        const feedBags = countFeedBags(
-            latest.report_feed_consumed || latest.feed_consumed
-        );
-
-        const age = Number(latest.history_age) || 0;
-        const houseBirds = Number(latest.house_birds) || 0;
-        const mortality = Number(latest.total_mortality) || 0;
-        const price = parseFloat(latest.price_per_kg as any) || 0;
-
-        totalBirdsSold += cycleTotalBirds;
-        totalWeight += cycleTotalWeight;
-        totalAmount += cycleTotalAmount;
-
-        totalAge += age;
-        totalFeedBags += feedBags;
-
-        // Survival Rate
-        let survivalRate = 0;
-        if (houseBirds > 0) {
-            survivalRate =
-                ((houseBirds - mortality) / houseBirds) * 100;
-            survivalRates.push(survivalRate);
-        }
-
-        // FCR
-        if (cycleTotalWeight > 0 && feedBags > 0) {
-            const fcr = calculateFCR(feedBags, cycleTotalWeight);
-            fcrs.push(fcr);
-
-            // Average Weight = TOTAL weight / TOTAL birds
-            if (cycleTotalBirds > 0 && age > 0) {
-                const avgWeight = cycleTotalWeight / cycleTotalBirds;
-
-                const epi = calculateEPI(
-                    survivalRate,
-                    avgWeight,
-                    fcr,
-                    age
-                );
-
-                epis.push(epi);
-            }
-        }
-    }
-
-    const numCycles = cycleMap.size;
-
-    return {
-        chicksSold: totalBirdsSold,
-        averageAge: numCycles > 0 ? totalAge / numCycles : 0,
-        totalBirdWeight: totalWeight,
-        feedConsumption: totalFeedBags,
-        survivalRate: survivalRates.length > 0
-            ? survivalRates.reduce((a, b) => a + b, 0) / survivalRates.length
-            : 0,
-        epi: epis.length > 0
-            ? epis.reduce((a, b) => a + b, 0) / epis.length
-            : 0,
-        fcr: fcrs.length > 0
-            ? fcrs.reduce((a, b) => a + b, 0) / fcrs.length
-            : 0,
-        averagePrice: totalWeight > 0
-    ? totalAmount / totalWeight
-    : 0,
-        totalRevenue: totalAmount,
-    };
-}
-            
     /**
      * Get monthly production record for an officer
      * Returns per-farmer breakdown of cycles ended in the given month
@@ -441,6 +447,8 @@ private static async getSalesMetricsForMonth(
             .innerJoin(saleMetrics, eq(saleMetrics.historyId, cycleHistory.id))
             .where(and(
                 eq(farmer.officerId, officerId),
+                ne(farmer.status, "deleted"),
+                ne(cycleHistory.status, "deleted"),
                 gte(cycleHistory.endDate, startOfMonth),
                 lte(cycleHistory.endDate, endOfMonth)
             ));

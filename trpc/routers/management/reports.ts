@@ -1,6 +1,6 @@
 
 import { cycleHistory, cycles, farmer, saleEvents, stockLogs } from "@/db/schema";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure, managementProProcedure } from "../../init";
 
@@ -15,7 +15,7 @@ export const managementReportsRouter = createTRPCRouter({
             const { orgId, startDate, endDate } = input;
 
             // 1. Get relevant farmers first (optional but good for strict org scoping)
-            const farmersQuery = await ctx.db.select({ id: farmer.id, name: farmer.name }).from(farmer).where(eq(farmer.organizationId, orgId));
+            const farmersQuery = await ctx.db.select({ id: farmer.id, name: farmer.name }).from(farmer).where(and(eq(farmer.organizationId, orgId), eq(farmer.status, "active")));
             const farmerMap = new Map(farmersQuery.map(f => [f.id, f.name]));
             const farmerIds = farmersQuery.map(f => f.id);
 
@@ -172,7 +172,9 @@ export const managementReportsRouter = createTRPCRouter({
                 .from(saleEvents)
                 .leftJoin(sql`cycles`, eq(saleEvents.cycleId, sql`cycles.id`))
                 .leftJoin(sql`cycle_history`, eq(saleEvents.historyId, sql`cycle_history.id`))
-                .where(whereClause)
+                // Only include sales where the farmer is active
+                .innerJoin(farmer, or(eq(sql`cycles.farmer_id`, farmer.id), eq(sql`cycle_history.farmer_id`, farmer.id)))
+                .where(and(whereClause, eq(farmer.status, "active")))
                 .orderBy(desc(saleEvents.saleDate));
 
             // Filtering for specific Farmer ID
@@ -242,6 +244,7 @@ export const managementReportsRouter = createTRPCRouter({
 
             const whereClause = and(
                 eq(farmer.organizationId, orgId), // Filter logs via farmer's org
+                eq(farmer.status, "active"),
                 farmerId ? eq(stockLogs.farmerId, farmerId) : undefined,
                 startDate ? gte(stockLogs.createdAt, startDate) : undefined,
                 endDate ? lte(stockLogs.createdAt, endDate) : undefined,
@@ -309,6 +312,8 @@ export const managementReportsRouter = createTRPCRouter({
                 .where(and(
                     eq(farmer.organizationId, orgId),
                     eq(farmer.officerId, officerId),
+                    ne(farmer.status, "deleted"),
+                    ne(cycles.status, "deleted"),
                     gte(cycles.createdAt, startDate),
                     lte(cycles.createdAt, endDate)
                 ));
@@ -327,6 +332,8 @@ export const managementReportsRouter = createTRPCRouter({
                 .where(and(
                     eq(farmer.organizationId, orgId),
                     eq(farmer.officerId, officerId),
+                    ne(farmer.status, "deleted"),
+                    ne(cycleHistory.status, "deleted"),
                     gte(cycleHistory.startDate, startDate),
                     lte(cycleHistory.startDate, endDate)
                 ));

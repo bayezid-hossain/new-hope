@@ -1,6 +1,6 @@
 
 import { cycleHistory, cycles, farmer } from "@/db/schema";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../../init";
 
@@ -37,6 +37,8 @@ export const officerReportsRouter = createTRPCRouter({
                 .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
                 .where(and(
                     eq(farmer.officerId, ctx.user.id),
+                    ne(farmer.status, "deleted"),
+                    ne(cycles.status, "deleted"),
                     gte(cycles.createdAt, startDate),
                     lte(cycles.createdAt, endDate)
                 ));
@@ -54,6 +56,8 @@ export const officerReportsRouter = createTRPCRouter({
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
                 .where(and(
                     eq(farmer.officerId, ctx.user.id),
+                    ne(farmer.status, "deleted"),
+                    ne(cycleHistory.status, "deleted"),
                     gte(cycleHistory.startDate, startDate), // History has explicit start_date
                     lte(cycleHistory.startDate, endDate)
                 ));
