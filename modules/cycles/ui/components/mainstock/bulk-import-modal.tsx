@@ -793,7 +793,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                         {/* AI Suggestions Mobile */}
                                                         {row.suggestions && row.suggestions.length > 0 && (
                                                             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
-                                                                <span className="text-[10px] text-muted-foreground font-medium py-0.5">Match:</span>
+                                                                <span className="text-[10px] text-muted-foreground font-medium py-0.5">Did you mean:</span>
                                                                 {row.suggestions.map(s => (
                                                                     <Badge
                                                                         key={s.id}
