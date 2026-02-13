@@ -30,7 +30,7 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
     const trpc = useTRPC();
     const queryClient = useQueryClient();
     const router = useRouter();
-    const { orgId } = useCurrentOrg();
+    const { orgId, canEdit } = useCurrentOrg();
 
     const mutation = useMutation(
         trpc.officer.cycles.reopenCycle.mutationOptions({
@@ -67,7 +67,7 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
 
     return (
         <>
-            {controlledOpen === undefined && (
+            {controlledOpen === undefined && canEdit && (
                 trigger ? (
                     <div onClick={() => setOpen(true)}>{trigger}</div>
                 ) : (
@@ -104,7 +104,7 @@ export const ReopenCycleModal = ({ historyId, farmerId, cycleName, trigger, open
                         <Button
                             className="bg-primary text-white"
                             onClick={() => mutation.mutate({ historyId })}
-                            disabled={mutation.isPending}
+                            disabled={mutation.isPending || !canEdit}
                         >
                             {mutation.isPending ? "Reopening..." : "Confirm Reopen"}
                         </Button>

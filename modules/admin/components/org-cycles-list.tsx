@@ -23,6 +23,7 @@ type CycleItem = {
     farmerId: string;
     organizationId: string | null;
     doc: number;
+    birdsSold: number;
     age: number;
     intake: string | number | null;
     mortality: number;
@@ -30,6 +31,8 @@ type CycleItem = {
     createdAt: Date;
     updatedAt: Date;
     farmerName: string;
+    farmerLocation?: string | null;
+    farmerMobile?: string | null;
     farmerMainStock: string | null;
     officerName: string | null;
     endDate: Date | null;
@@ -47,7 +50,7 @@ type CyclesQueryResult = {
 const StatusBadge = ({ status }: { status: CycleItem["status"] }) => {
     switch (status) {
         case "active":
-            return <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Active</Badge>;
+            return null;
         case "deleted":
             return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/10 shadow-none font-bold text-[9px] uppercase tracking-wider">Deleted</Badge>;
         default:
@@ -88,7 +91,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
     officerId?: string;
 }) => {
     const trpc = useTRPC();
-    const [viewMode, setViewMode] = useState<"group" | "list">("group");
+    const [viewMode, setViewMode] = useState<"group" | "list">("list");
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
     const [page, setPage] = useState(1);
@@ -134,7 +137,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
         if (useOfficerRouter) {
             return trpc.officer.cycles.listPast.queryOptions(historyInput as any);
         }
-        return (isAdmin ? trpc.admin.cycles.listPast : trpc.management.cycles.listPast).queryOptions(historyInput as any);
+
+        if (isAdmin) {
+            return trpc.admin.cycles.listPast.queryOptions(historyInput as any);
+        }
+        return trpc.management.cycles.listPast.queryOptions(historyInput as any);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,7 +180,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 pb-4 pt-4 px-4 sm:px-6">
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 pb-4 pt-4 px-2 sm:px-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-center max-w-7xl mx-auto w-full">
                     <div className="relative flex-1 w-full max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -184,28 +191,28 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center bg-muted p-1 rounded-xl w-fit gap-x-2">
-                        <Button
-                            onClick={() => setViewMode("group")}
-                            variant={viewMode === "group" ? "default" : "outline"}
-                            size="sm"
-                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
-                        >
-                            <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
-                        </Button>
+                    <div className="flex items-center justify-between bg-muted p-1 rounded-xl w-full gap-x-2">
                         <Button
                             onClick={() => setViewMode("list")}
                             variant={viewMode === "list" ? "default" : "outline"}
                             size="sm"
-                            className="h-8 px-2 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
+                            className="h-8 px-2 flex-1 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
                         >
                             <TableIcon className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Detailed
+                        </Button>
+                        <Button
+                            onClick={() => setViewMode("group")}
+                            variant={viewMode === "group" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 px-2 flex-1 text-[10px] xs:h-9 xs:px-3 xs:text-xs sm:h-10 sm:px-4 sm:text-sm shadow-sm transition-all"
+                        >
+                            <LayoutGrid className="mr-1.5 h-3 w-3 xs:h-3.5 xs:w-3.5 sm:mr-2 sm:h-4 sm:w-4" /> Group
                         </Button>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 sm:p-6 max-w-7xl min-h-[500px] mx-auto w-full">
+            <div className="flex-1 overflow-auto p-1 sm:p-6 max-w-7xl min-h-[500px] mx-auto w-full">
                 {isPending ? (
                     <div className="flex flex-col items-center justify-center p-20 gap-3">
                         <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
@@ -260,8 +267,32 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <div className="col-span-3">
                                                     <div className="flex flex-col gap-1.5">
                                                         <div className="flex items-center gap-4">
-                                                            <MetricRow icon={Bird} value={cycle.doc.toLocaleString()} label="birds" />
-                                                            <StatusBadge status={cycle.status} />
+                                                            <div className="flex flex-col">
+                                                                {cycle.status === "active" ? (
+                                                                    <>
+                                                                        <MetricRow
+                                                                            icon={Bird}
+                                                                            value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                            label="initial"
+                                                                            valueColor="text-foreground"
+                                                                        />
+                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">live: {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <MetricRow
+                                                                        icon={Bird}
+                                                                        value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                        label="initial"
+                                                                        valueColor="text-muted-foreground"
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <StatusBadge status={cycle.status} />
+                                                                {cycle.birdsSold > 0 && (
+                                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         {cycle.mortality > 0 && (
                                                             <div className="flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/10 w-fit px-2 py-0.5 rounded-full border border-destructive/20">
@@ -277,7 +308,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 <div className="col-span-2">
                                                     <div className="text-[11px] font-medium text-muted-foreground/70 flex items-center gap-2">
                                                         <div className="w-1 h-1 rounded-full bg-border" />
-                                                        {format(new Date(cycle.createdAt), "MMM d, yyyy")}
+                                                        {format(new Date(cycle.createdAt), "dd/MM/yyyy")}
                                                     </div>
                                                 </div>
                                                 <GroupRowActions cycle={cycle} prefix={prefix} isAdmin={isAdmin} isManagement={isManagement} orgId={orgId} />
@@ -343,8 +374,21 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-4">
-                                                        <MetricRow icon={Bird} value={cycle.doc.toLocaleString()} label="birds" />
-                                                        <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
+                                                        <div className="flex flex-col">
+                                                            <MetricRow
+                                                                icon={Bird}
+                                                                value={(Number(cycle.doc || 0)).toLocaleString()}
+                                                                label="initial"
+                                                                valueColor="text-foreground"
+                                                            />
+                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">live {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
+                                                            {cycle.birdsSold > 0 && (
+                                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     {cycle.mortality > 0 && (
                                                         <div className="flex items-center gap-1.5 text-[9px] text-destructive font-bold bg-destructive/10 w-fit px-1.5 py-0.5 rounded-full border border-destructive/20">
@@ -355,7 +399,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right text-[11px] font-medium text-muted-foreground/60">
-                                                {format(new Date(cycle.createdAt), "MMM d, y") === format(new Date(), "MMM d, y") ? "Today" : format(new Date(cycle.createdAt), "MMM d, y")}
+                                                {format(new Date(cycle.createdAt), "dd/MM/yyyy") === format(new Date(), "dd/MM/yyyy") ? "Today" : format(new Date(cycle.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center justify-end gap-1 transition-opacity">

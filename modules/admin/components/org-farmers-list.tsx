@@ -3,16 +3,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { RestoreFarmerModal } from "@/modules/farmers/ui/components/restore-farmer-modal";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, Loader2, RotateCcw, Search, Trash2, Wheat, Wrench } from "lucide-react";
+import { Activity, AlertCircle, Loader2, RotateCcw, Search, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -28,13 +29,13 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
     const trpc = useTRPC();
     const [search, setSearch] = useState("");
     const [debouncedSearch] = useDebounce(search, 300);
-    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
+    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string; location?: string | null; mobile?: string | null } | null>(null);
     const [archivingFarmer, setArchivingFarmer] = useState<{ id: string; name: string } | null>(null);
     const [restoringFarmer, setRestoringFarmer] = useState<{ id: string; name: string } | null>(null);
     const [status, setStatus] = useState<"active" | "deleted">("active");
 
-    const handleEdit = useCallback((id: string, name: string) => {
-        setEditingFarmer({ id, name });
+    const handleEdit = useCallback((id: string, name: string, location?: string | null, mobile?: string | null) => {
+        setEditingFarmer({ id, name, location, mobile });
     }, []);
 
     const handleArchive = useCallback((id: string, name: string) => {
@@ -143,11 +144,28 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                         <Link href={getFarmerLink(farmer.id)} className="font-bold text-foreground hover:text-primary hover:underline transition-colors">
                                                             {farmer.name}
                                                         </Link>
+                                                        {(!farmer.location || !farmer.mobile) && (
+                                                            <div onClick={(e) => e.stopPropagation()}>
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <button
+                                                                            title="Missing location or mobile"
+                                                                            className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
+                                                                        >
+                                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent side="top" align="center" className="w-auto p-2 text-xs font-medium shadow-lg z-50">
+                                                                        Missing location or mobile
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                            </div>
+                                                        )}
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-6 w-6 text-muted-foreground/30 hover:text-foreground transition-all"
-                                                            onClick={() => handleEdit(farmer.id, farmer.name)}
+                                                            onClick={() => handleEdit(farmer.id, farmer.name, farmer.location, farmer.mobile)}
                                                         >
                                                             <Wrench className="h-3 w-3" />
                                                         </Button>
@@ -224,7 +242,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                                 </TableCell>
 
                                                 <TableCell className="text-muted-foreground/60 text-[11px] font-medium">
-                                                    {format(new Date(status === "active" ? farmer.createdAt : farmer.deletedAt || farmer.updatedAt), "MMM d, yyyy")}
+                                                    {format(new Date(status === "active" ? farmer.createdAt : farmer.deletedAt || farmer.updatedAt), "dd/MM/yyyy")}
                                                 </TableCell>
                                                 <TableCell className="px-6 text-right">
                                                     <div className="flex justify-end gap-2">
@@ -270,7 +288,7 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                                     key={farmer.id}
                                     farmer={farmer}
                                     prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? '/management' : '')}
-                                    onEdit={() => handleEdit(farmer.id, farmer.name)}
+                                    onEdit={() => handleEdit(farmer.id, farmer.name, farmer.location, farmer.mobile)}
                                     onDelete={status === "active" ? (() => handleArchive(farmer.id, farmer.name)) : undefined}
                                     actions={
                                         status === "deleted" ? (
@@ -292,9 +310,11 @@ export const OrgFarmersList = ({ orgId, isManagement, isAdmin }: OrgFarmersListP
                 )}
             </div>
 
-            <EditFarmerNameModal
+            <EditFarmerProfileModal
                 farmerId={editingFarmer?.id || ""}
                 currentName={editingFarmer?.name || ""}
+                currentLocation={editingFarmer?.location}
+                currentMobile={editingFarmer?.mobile}
                 open={!!editingFarmer}
                 onOpenChange={(open) => !open && setEditingFarmer(null)}
             />

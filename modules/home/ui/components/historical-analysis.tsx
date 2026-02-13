@@ -38,7 +38,7 @@ export const HistoricalAnalysis = ({ variant = "officer" }: { variant?: "officer
                 mortality: number;
                 farmerId: string;
                 farmerName: string;
-                finalIntake: number | null;
+                intake: number | null;
                 // Add other necessary fields if used, but these are the ones causing errors
             }[];
             total: number;
@@ -90,7 +90,7 @@ export const HistoricalAnalysis = ({ variant = "officer" }: { variant?: "officer
             totalMortality: 0,
             cyclesCount: 0
         };
-        existing.totalIntake += (cycle.finalIntake || 0);
+        existing.totalIntake += (cycle.intake || 0);
         existing.totalDoc += cycle.doc;
         existing.totalMortality += cycle.mortality;
         existing.cyclesCount += 1;

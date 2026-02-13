@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     Table,
     TableBody,
@@ -13,12 +14,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
+    AlertCircle,
     ArrowRight,
     Bird,
     Loader2,
@@ -44,7 +46,7 @@ export const FarmersListView = () => {
     // If you don't have a debounce hook, just pass searchTerm directly for now.
     const debouncedSearch = searchTerm;
 
-    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string } | null>(null);
+    const [editingFarmer, setEditingFarmer] = useState<{ id: string; name: string; location?: string | null; mobile?: string | null } | null>(null);
 
     const { data, isLoading } = useQuery(
         trpc.management.farmers.getMany.queryOptions({
@@ -120,11 +122,28 @@ export const FarmersListView = () => {
                                             <TableCell className="px-4 py-3 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <div className="font-bold text-foreground">{farmer.name}</div>
+                                                    {(!farmer.location || !farmer.mobile) && (
+                                                        <div onClick={(e) => e.stopPropagation()}>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <button
+                                                                        title="Missing location or mobile"
+                                                                        className="text-destructive cursor-help outline-none p-0.5 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
+                                                                    >
+                                                                        <AlertCircle className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent side="top" align="center" className="w-auto p-2 text-xs font-medium shadow-lg z-50">
+                                                                    Missing location or mobile
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-6 w-6 text-muted-foreground/40 hover:text-muted-foreground transition-all"
-                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name })}
+                                                        onClick={() => setEditingFarmer({ id: farmer.id, name: farmer.name, location: farmer.location, mobile: farmer.mobile })}
                                                     >
                                                         <Wrench className="h-3 w-3" />
                                                     </Button>
@@ -160,7 +179,7 @@ export const FarmersListView = () => {
 
                                             {/* Joined Date */}
                                             <TableCell className="text-right text-muted-foreground font-medium text-[10px] sm:text-[11px] px-4 py-3">
-                                                {format(new Date(farmer.createdAt), "MMM d, yyyy")}
+                                                {format(new Date(farmer.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
 
                                             {/* Action: Link to History View */}
@@ -209,9 +228,11 @@ export const FarmersListView = () => {
             </Card>
 
             {editingFarmer && (
-                <EditFarmerNameModal
+                <EditFarmerProfileModal
                     farmerId={editingFarmer.id}
                     currentName={editingFarmer.name}
+                    currentLocation={editingFarmer.location}
+                    currentMobile={editingFarmer.mobile}
                     open={!!editingFarmer}
                     onOpenChange={(open) => !open && setEditingFarmer(null)}
                 />

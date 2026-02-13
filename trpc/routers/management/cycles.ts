@@ -2,13 +2,7 @@ import { cycleHistory, cycleLogs, cycles, farmer, member, user } from "@/db/sche
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
-
-const managementProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-    // Logic to verify user is manager/owner of org or global admin
-    // For now, passing through as the procedures check membership individually
-    return next();
-});
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 const cycleSearchSchema = z.object({
     search: z.string().optional(),
@@ -59,6 +53,8 @@ export const managementCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 cycle: cycles,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
                 officerName: users.name
             })
@@ -83,6 +79,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerId: d.cycle.farmerId,
                     organizationId: d.cycle.organizationId || null,
                     doc: d.cycle.doc,
+                    birdsSold: d.cycle.birdsSold,
                     age: d.cycle.age,
                     intake: d.cycle.intake,
                     mortality: d.cycle.mortality,
@@ -90,8 +87,11 @@ export const managementCyclesRouter = createTRPCRouter({
                     createdAt: d.cycle.createdAt,
                     updatedAt: d.cycle.updatedAt,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
+                    birdType: d.cycle.birdType,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -153,11 +153,12 @@ export const managementCyclesRouter = createTRPCRouter({
                         startDate: activeCycle.createdAt,
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
+                        birdType: activeCycle.birdType,
                     },
                     logs,
                     history: combinedHistory,
 
-                    farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name, organizationId: activeCycle.farmer.organizationId }
+                    farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name, organizationId: activeCycle.farmer.organizationId, location: activeCycle.farmer.location, mobile: activeCycle.farmer.mobile }
                 };
             }
 
@@ -207,14 +208,16 @@ export const managementCyclesRouter = createTRPCRouter({
                 type: 'history' as const,
                 data: {
                     ...historyRecord,
+                    birdsSold: historyRecord.birdsSold,
                     name: historyRecord.cycleName,
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
+                    birdType: historyRecord.birdType,
                 },
                 logs,
                 history: combinedHistory,
-                farmerContext: { id: historyRecord.farmer.id, mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name, organizationId: historyRecord.farmer.organizationId }
+                farmerContext: { id: historyRecord.farmer.id, mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name, organizationId: historyRecord.farmer.organizationId, location: historyRecord.farmer.location, mobile: historyRecord.farmer.mobile }
             };
         }),
 
@@ -250,6 +253,8 @@ export const managementCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 history: cycleHistory,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
                 officerName: users.name
             })
@@ -274,6 +279,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerId: d.history.farmerId,
                     organizationId: d.history.organizationId || null,
                     doc: d.history.doc,
+                    birdsSold: d.history.birdsSold,
                     age: d.history.age,
                     intake: d.history.finalIntake,
                     mortality: d.history.mortality,
@@ -281,8 +287,11 @@ export const managementCyclesRouter = createTRPCRouter({
                     createdAt: d.history.startDate,
                     updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
+                    birdType: d.history.birdType,
                     endDate: d.history.endDate
                 })),
                 total: total.count,

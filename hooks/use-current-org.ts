@@ -17,7 +17,14 @@ export function useCurrentOrg() {
     ...query.data,
     orgId: query.data?.orgId,
     role: query.data?.role,
+    isPro: query.data?.isPro ?? false,
     isLoading: query.isPending,
     isAuthenticated: query.data?.status === "ACTIVE",
+    activeMode: query.data?.activeMode,
+    accessLevel: query.data?.accessLevel,
+    canEdit:
+      query.data?.role === "OWNER" ||
+      query.data?.role === "OFFICER" ||
+      (query.data?.role === "MANAGER" && (query.data?.activeMode === "OFFICER" || query.data?.accessLevel === "EDIT")),
   };
 }

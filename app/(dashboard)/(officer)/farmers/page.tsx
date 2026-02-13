@@ -5,6 +5,7 @@ import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -19,11 +20,12 @@ import { BulkImportModal } from "@/modules/cycles/ui/components/mainstock/bulk-i
 import { CreateFarmerModal } from "@/modules/cycles/ui/components/mainstock/create-farmer-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 import { MobileFarmerCard } from "@/modules/farmers/ui/components/mobile-farmer-card";
+import { CreateFeedOrderModal } from "@/modules/feed-orders/ui/components/create-feed-order-modal";
 import { useTRPC } from "@/trpc/client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Bird, Plus, RefreshCcw, Search, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Bird, Plus, Search, ShoppingCart, Sparkles, Trash2, Wheat, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -54,6 +56,7 @@ export default function MainStockPage() {
 
   const [createModal, setCreateModal] = useState(false);
   const [bulkImportModal, setBulkImportModal] = useState(false);
+  const [createFeedOrderModal, setCreateFeedOrderModal] = useState(false);
 
   const [transferModal, setTransferModal] = useState<{
     open: boolean;
@@ -63,11 +66,11 @@ export default function MainStockPage() {
     data: null
   });
 
-  const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string } | null>(null);
+  const [editingFarmer, setEditingFarmer] = useState<{ id: string, name: string, location?: string | null, mobile?: string | null } | null>(null);
   const [archivingFarmer, setArchivingFarmer] = useState<{ id: string, name: string } | null>(null);
 
-  const handleEdit = useCallback((id: string, name: string) => {
-    setEditingFarmer({ id, name });
+  const handleEdit = useCallback((id: string, name: string, location?: string | null, mobile?: string | null) => {
+    setEditingFarmer({ id, name, location, mobile });
   }, []);
 
   const handleDelete = useCallback((id: string, name: string) => {
@@ -106,20 +109,15 @@ export default function MainStockPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            title="Sync Data"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
-          </Button>
+
           <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
           </Button>
-          <Button className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
-            <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
+          <Button variant="outline" className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateFeedOrderModal(true)}>
+            <ShoppingCart className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Feed Order</span><span className="sm:hidden">Order</span>
+          </Button>
+          <Button className="gap-0 h-8 p-0 has-[svg]:px-1 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
+            <Plus className=" sm:mr-2 h-1.5 w-1.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Register Farmer</span><span className="sm:hidden">Register</span>
           </Button>
         </div>
       </div>
@@ -163,17 +161,34 @@ export default function MainStockPage() {
                           <Link href={`/farmers/${row.id}`} className="font-medium hover:underline hover:text-primary transition-colors">
                             {row.name}
                           </Link>
+                          {(!row.location || !row.mobile) && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    title="Missing location or mobile"
+                                    className="text-destructive cursor-help outline-none p-1 hover:bg-destructive/10 rounded-full transition-colors flex items-center justify-center"
+                                  >
+                                    <AlertCircle className="h-5 w-5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="top" align="center" className="w-auto p-2 text-xs font-medium shadow-lg z-50">
+                                  Missing location or mobile
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                            className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleEdit(row.id, row.name);
+                              handleEdit(row.id, row.name, row.location, row.mobile);
                             }}
                           >
-                            <Wrench className="h-3 w-3" />
+                            <Wrench className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -233,12 +248,12 @@ export default function MainStockPage() {
                             <Wheat className="h-4 w-4 mr-2" /> Restock
                           </Button>
                           <Button
-                            size="sm"
+                            size="default"
                             variant="ghost"
                             className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                             onClick={() => handleDelete(row.id, row.name)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </TableCell>
@@ -255,7 +270,7 @@ export default function MainStockPage() {
               <MobileFarmerCard
                 key={row.id}
                 farmer={row}
-                onEdit={() => handleEdit(row.id, row.name)}
+                onEdit={() => handleEdit(row.id, row.name, row.location, row.mobile)}
                 onDelete={() => handleDelete(row.id, row.name)}
                 actions={
                   <div className="grid grid-cols-2 gap-2">
@@ -319,6 +334,12 @@ export default function MainStockPage() {
         orgId={orgId}
       />
 
+      <CreateFeedOrderModal
+        open={createFeedOrderModal}
+        onOpenChange={setCreateFeedOrderModal}
+        orgId={orgId}
+      />
+
       {transferModal.open && (
         <TransferStockModal
           open={transferModal.open}
@@ -330,9 +351,11 @@ export default function MainStockPage() {
         />
       )}
 
-      <EditFarmerNameModal
+      <EditFarmerProfileModal
         farmerId={editingFarmer?.id || ""}
         currentName={editingFarmer?.name || ""}
+        currentLocation={editingFarmer?.location}
+        currentMobile={editingFarmer?.mobile}
         open={!!editingFarmer}
         onOpenChange={(open) => !open && setEditingFarmer(null)}
       />

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { member, notification } from "@/db/schema";
 import { and, eq, or } from "drizzle-orm";
 
-export type NotificationType = "INFO" | "WARNING" | "CRITICAL" | "SUCCESS" | "UPDATE";
+export type NotificationType = "INFO" | "WARNING" | "CRITICAL" | "SUCCESS" | "UPDATE" | "SALES";
 
 interface SendNotificationParams {
     userId: string;
@@ -12,6 +12,8 @@ interface SendNotificationParams {
     details?: string;
     type: NotificationType;
     link?: string;
+    adminLink?: string;
+    managementLink?: string;
     metadata?: any;
 }
 
@@ -49,6 +51,7 @@ export class NotificationService {
 
     /**
      * Send a notification to all Admins and Managers of an organization
+     * with role-specific dynamic links
      */
     static async sendToOrgManagers({
         organizationId,
@@ -57,12 +60,19 @@ export class NotificationService {
         details,
         type,
         link,
+        adminLink,
+        managementLink,
         metadata
     }: Omit<SendNotificationParams, "userId">) {
         try {
+            const { user: userTable } = await import("@/db/schema");
+
             // 1. Find all eligible members (OWNER or MANAGER)
             const eligibleMembers = await db
-                .select({ userId: member.userId })
+                .select({
+                    userId: member.userId,
+                    role: member.role
+                })
                 .from(member)
                 .where(
                     and(
@@ -75,38 +85,48 @@ export class NotificationService {
                 );
 
             // 2. Find all global Admins
-            const { user } = await import("@/db/schema");
             const globalAdmins = await db
-                .select({ userId: user.id })
-                .from(user)
-                .where(eq(user.globalRole, "ADMIN"));
+                .select({
+                    userId: userTable.id,
+                    globalRole: userTable.globalRole
+                })
+                .from(userTable)
+                .where(eq(userTable.globalRole, "ADMIN"));
 
-            // 3. Combine and Deduplicate
-            const recipientIds = new Set([
-                ...eligibleMembers.map(m => m.userId),
-                ...globalAdmins.map(a => a.userId)
-            ]);
+            // 3. Create list of recipients with their "best" link
+            const recipients = new Map<string, string | undefined>();
 
-            if (recipientIds.size === 0) return 0;
+            // Global Admins get adminLink (or link as fallback)
+            globalAdmins.forEach(a => {
+                recipients.set(a.userId, adminLink || link);
+            });
 
-            const userIds = Array.from(recipientIds);
+            // Managers get managementLink (or link as fallback)
+            // Note: If they are also Global Admins, the adminLink preference from above sticks 
+            // OR we can decide preference. Usually Admin view is more powerful.
+            eligibleMembers.forEach(m => {
+                if (!recipients.has(m.userId)) {
+                    recipients.set(m.userId, managementLink || link);
+                }
+            });
 
-            // 2. Batch insert notifications
-            // Note: Postgres supports multiple values in one insert, but Drizzle might want array of objects
-            const values = userIds.map((userId) => ({
+            if (recipients.size === 0) return 0;
+
+            // 4. Batch insert notifications
+            const values = Array.from(recipients.entries()).map(([userId, userLink]) => ({
                 userId,
                 organizationId,
                 title,
                 message,
                 details,
                 type,
-                link,
+                link: userLink,
                 metadata: metadata ? JSON.stringify(metadata) : undefined,
             }));
 
             await db.insert(notification).values(values);
 
-            return userIds.length;
+            return recipients.size;
         } catch (error) {
             console.error("Failed to broadcast notification:", error);
             return 0;

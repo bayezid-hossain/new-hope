@@ -4,13 +4,23 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
+import { docOrdersRouter } from "./doc-orders";
 import { officerFarmersRouter } from "./farmers";
+import { feedOrdersRouter } from "./feed-orders";
+import { performanceReportsRouter } from "./performance-reports";
+import { officerReportsRouter } from "./reports";
+import { officerSalesRouter } from "./sales";
 import { officerStockRouter } from "./stock";
 
 export const officerRouter = createTRPCRouter({
     cycles: officerCyclesRouter,
     farmers: officerFarmersRouter,
+    feedOrders: feedOrdersRouter,
+    docOrders: docOrdersRouter,
     stock: officerStockRouter,
+    sales: officerSalesRouter,
+    reports: officerReportsRouter,
+    performanceReports: performanceReportsRouter,
 
     getDashboardStats: protectedProcedure
         .input(z.object({ orgId: z.string() }))
@@ -50,12 +60,14 @@ export const officerRouter = createTRPCRouter({
             if (farmerIds.length === 0) {
                 return {
                     totalBirds: 0,
+                    totalBirdsSold: 0,
                     totalFeedStock: 0,
                     activeConsumption: 0,
                     availableStock: 0,
                     lowStockCount: 0,
                     avgMortality: "0",
-                    activeCyclesCount: 0
+                    activeCyclesCount: 0,
+                    totalFarmers: 0
                 };
             }
 
@@ -66,6 +78,7 @@ export const officerRouter = createTRPCRouter({
                 doc: cycles.doc,
                 mortality: cycles.mortality,
                 intake: cycles.intake,
+                birdsSold: cycles.birdsSold,
             })
                 .from(cycles)
                 .where(and(
@@ -75,7 +88,8 @@ export const officerRouter = createTRPCRouter({
                 ));
 
             const totalActiveConsumption = activeCycles.reduce((sum, c) => sum + (c.intake || 0), 0);
-            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0);
+            const totalBirdsSold = activeCycles.reduce((sum, c) => sum + (c.birdsSold || 0), 0);
+            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality - (c.birdsSold || 0)), 0);
             const totalDoc = activeCycles.reduce((sum, c) => sum + c.doc, 0);
             const totalMortality = activeCycles.reduce((sum, c) => sum + c.mortality, 0);
 
@@ -99,12 +113,14 @@ export const officerRouter = createTRPCRouter({
 
             return {
                 totalBirds,
+                totalBirdsSold,
                 totalFeedStock: totalMainStock,
                 activeConsumption: totalActiveConsumption,
                 availableStock: totalMainStock - totalActiveConsumption,
                 lowStockCount,
                 avgMortality,
-                activeCyclesCount: activeCycles.length
+                activeCyclesCount: activeCycles.length,
+                totalFarmers: activeFarmers.length
             };
         }),
     getMyRequestStatus: protectedProcedure

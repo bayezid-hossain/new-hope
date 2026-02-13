@@ -17,15 +17,17 @@ import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Pencil, Power, RotateCcw, Skull, Trash2, Wrench } from "lucide-react";
+import { Activity, ArrowUpDown, CalendarDays, Eye, MoreHorizontal, Pencil, Power, RotateCcw, ShoppingCart, Skull, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddMortalityModal } from "../cycles/add-mortality-modal";
 import { CorrectMortalityModal } from "../cycles/correct-mortality-modal";
+import { EditAgeModal } from "../cycles/edit-age-modal";
 import { EditDocModal } from "../cycles/edit-doc-modal";
 import { EndCycleModal } from "../cycles/end-cycle-modal";
 import { ReopenCycleModal } from "../cycles/reopen-cycle-modal";
+import { SellModal } from "../cycles/sell-modal";
 
 interface ColumnsFactoryOptions {
     prefix?: string; // e.g. "/admin" or "/management"
@@ -35,12 +37,16 @@ interface ColumnsFactoryOptions {
 
 // --- Actions Component ---
 export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string }) => {
+    const { isPro, canEdit } = useCurrentOrg();
     const [showEndCycle, setShowEndCycle] = useState(false);
     const [showAddMortality, setShowAddMortality] = useState(false);
+    const [showEditAge, setShowEditAge] = useState(false);
     const [showEditDoc, setShowEditDoc] = useState(false);
     const [showCorrectMortality, setShowCorrectMortality] = useState(false);
+    const [showSellModal, setShowSellModal] = useState(false);
 
     if (cycle.status === "history") return null;
+    if (!canEdit) return null;
 
     return (
         <>
@@ -55,17 +61,48 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
 
+                    <DropdownMenuItem
+                        onClick={() => {
+                            if (isPro) setShowSellModal(true);
+                            else toast.error("Sales tracking is a Pro feature");
+                        }}
+                        disabled={!isPro}
+                        title={!isPro ? "Upgrade to Pro to track sales" : ""}
+                        className={!isPro ? "opacity-50 cursor-not-allowed" : "text-primary focus:text-primary"}
+                    >
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        {isPro ? "Sell" : "Sell (Pro)"}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
                     <DropdownMenuItem onClick={() => setShowAddMortality(true)}>
                         <Skull className="mr-2 h-4 w-4" />
                         Add Mortality
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => setShowEditDoc(true)}>
+                    <DropdownMenuItem
+                        onClick={() => setShowEditDoc(true)}
+                        disabled={cycle.birdsSold > 0}
+                        title={cycle.birdsSold > 0 ? "Cannot edit initial birds after sales have started" : ""}
+                    >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Initial Birds (DOC)
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => setShowCorrectMortality(true)}>
+                    <DropdownMenuItem
+                        onClick={() => setShowEditAge(true)}
+                        disabled={cycle.birdsSold > 0}
+                        title={cycle.birdsSold > 0 ? "Cannot edit age after sales have started" : ""}
+                    >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        Edit Age
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                        onClick={() => setShowCorrectMortality(true)}
+                        title={cycle.birdsSold > 0 ? "Cannot correct mortality after sales have started, you can update it in the next sale report or end the cycle" : ""}
+                    >
                         <Wrench className="mr-2 h-4 w-4" />
                         Correct Total Mortality
                     </DropdownMenuItem>
@@ -82,6 +119,23 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            <SellModal
+                cycleId={cycle.id}
+                farmerId={cycle.farmerId}
+                cycleName={cycle.name}
+                farmerName={cycle.farmerName || ""}
+                farmerLocation={cycle.farmerLocation}
+                farmerMobile={cycle.farmerMobile}
+                cycleAge={cycle.age || 0}
+                doc={cycle.doc}
+                mortality={cycle.mortality || 0}
+                birdsSold={cycle.birdsSold || 0}
+                intake={cycle.intake || 0}
+                open={showSellModal}
+                onOpenChange={setShowSellModal}
+                startDate={cycle.createdAt}
+            />
+
             <AddMortalityModal
                 cycleId={cycle.id}
                 farmerName={cycle.name}
@@ -91,8 +145,17 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
 
             <EndCycleModal
                 cycleId={cycle.id}
-                farmerName={cycle.name}
+                farmerId={cycle.farmerId}
+                cycleName={cycle.name}
+                farmerName={cycle.farmerName || cycle.name}
+                farmerLocation={cycle.farmerLocation}
+                farmerMobile={cycle.farmerMobile}
+                age={cycle.age}
                 intake={parseFloat(String(cycle.intake || 0))}
+                doc={cycle.doc}
+                mortality={cycle.mortality || 0}
+                birdsSold={cycle.birdsSold || 0}
+                startDate={cycle.createdAt}
                 open={showEndCycle}
                 prefix={prefix}
                 onOpenChange={setShowEndCycle}
@@ -103,6 +166,13 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 currentDoc={parseInt(String(cycle.doc || 0))}
                 open={showEditDoc}
                 onOpenChange={setShowEditDoc}
+            />
+
+            <EditAgeModal
+                cycleId={cycle.id}
+                currentAge={cycle.age}
+                open={showEditAge}
+                onOpenChange={setShowEditAge}
             />
 
             <CorrectMortalityModal
@@ -120,7 +190,7 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
     const [showReopenModal, setShowReopenModal] = useState(false);
     const trpc = useTRPC();
     const queryClient = useQueryClient();
-    const { orgId } = useCurrentOrg();
+    const { orgId, canEdit } = useCurrentOrg();
 
     const isAdmin = prefix?.includes("/admin");
 
@@ -132,18 +202,18 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
                 const baseOptions = { orgId: orgId! };
                 // Invalidate across ALL routers to ensure all views update
                 await Promise.all([
-                    queryClient.invalidateQueries(trpc.admin.cycles.listPast.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.officer.cycles.listPast.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.management.cycles.listPast.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.admin.cycles.listPast.pathFilter()),
+                    queryClient.invalidateQueries(trpc.officer.cycles.listPast.pathFilter()),
+                    queryClient.invalidateQueries(trpc.management.cycles.listPast.pathFilter()),
 
                     // Also invalidate active lists just in case
-                    queryClient.invalidateQueries(trpc.admin.cycles.listActive.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.officer.cycles.listActive.queryOptions(baseOptions)),
-                    queryClient.invalidateQueries(trpc.management.cycles.listActive.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.admin.cycles.listActive.pathFilter()),
+                    queryClient.invalidateQueries(trpc.officer.cycles.listActive.pathFilter()),
+                    queryClient.invalidateQueries(trpc.management.cycles.listActive.pathFilter()),
 
                     // Invalidate detailed farmer views
                     queryClient.invalidateQueries(trpc.management.farmers.getManagementHub.queryOptions({ farmerId: history.farmerId, orgId: orgId! })),
-                    queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.queryOptions(baseOptions)),
+                    queryClient.invalidateQueries(trpc.management.farmers.getOrgFarmers.pathFilter()),
                     queryClient.invalidateQueries(trpc.management.farmers.getHistory.queryOptions({ farmerId: history.farmerId, orgId: orgId! })),
                 ]);
                 setShowDeleteModal(false);
@@ -153,6 +223,8 @@ export const HistoryActionsCell = ({ history, prefix }: { history: FarmerHistory
             }
         })
     );
+
+    if (!canEdit) return null;
 
 
     // If status is active, show indicator (shouldn't happen in history table usually but duplicate logic from original)
@@ -271,10 +343,19 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
         },
         {
             accessorKey: "doc",
-            header: "DOC",
+            header: "Birds (Initial/Live)",
             cell: ({ row }) => {
-                const amount = parseInt(row.getValue("doc"));
-                return <div className="text-xs sm:text-sm text-muted-foreground">{amount.toLocaleString()}</div>;
+                const doc = parseInt(String(row.original.doc || 0));
+                const mortality = parseInt(String(row.original.mortality || 0));
+                const birdsSold = parseInt(String(row.original.birdsSold || 0));
+                const liveBirds = Math.max(0, doc - mortality - birdsSold);
+
+                return (
+                    <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-bold text-foreground">{doc.toLocaleString()}</span>
+                        <span className="text-[10px] text-muted-foreground">Live: {liveBirds.toLocaleString()}</span>
+                    </div>
+                );
             },
         },
         {
@@ -373,12 +454,28 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
         },
         {
             accessorKey: "doc",
-            header: "DOC",
+            header: "Birds (Initial/Sold)",
             cell: ({ row }) => {
-                const amount = parseInt(row.getValue("doc"));
+                const doc = parseInt(String(row.original.doc || 0));
+                const sold = parseInt(String(row.original.birdsSold || 0));
+                const mortality = parseInt(String(row.original.mortality || 0));
+                const remaining = Math.max(0, doc - mortality - sold);
+
                 return (
-                    <div className="bg-muted text-muted-foreground w-fit rounded-md px-1.5 py-0.5 font-mono text-[10px] sm:text-xs font-medium">
-                        {amount.toLocaleString()}
+                    <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs sm:text-sm font-bold text-foreground">{doc.toLocaleString()} Initial</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 opacity-80">
+                            <span className="bg-primary/10 text-primary w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
+                                {sold.toLocaleString()} Sold
+                            </span>
+                            {remaining > 0 && row.original.status !== 'archived' && (
+                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
+                                    {remaining.toLocaleString()} Live
+                                </span>
+                            )}
+                        </div>
                     </div>
                 );
             },

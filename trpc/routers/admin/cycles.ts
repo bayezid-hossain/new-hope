@@ -61,6 +61,8 @@ export const adminCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 cycle: cycles,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
                 officerName: users.name
             })
@@ -85,6 +87,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerId: d.cycle.farmerId,
                     organizationId: d.cycle.organizationId || null,
                     doc: d.cycle.doc,
+                    birdsSold: d.cycle.birdsSold,
                     age: d.cycle.age,
                     intake: d.cycle.intake,
                     mortality: d.cycle.mortality,
@@ -92,6 +95,8 @@ export const adminCyclesRouter = createTRPCRouter({
                     createdAt: d.cycle.createdAt,
                     updatedAt: d.cycle.updatedAt,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
                     endDate: null as Date | null
@@ -151,7 +156,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     logs,
                     history: combinedHistory,
 
-                    farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name, organizationId: activeCycle.farmer.organizationId }
+                    farmerContext: { id: activeCycle.farmer.id, mainStock: activeCycle.farmer.mainStock, name: activeCycle.farmer.name, organizationId: activeCycle.farmer.organizationId, location: activeCycle.farmer.location, mobile: activeCycle.farmer.mobile }
                 };
             }
 
@@ -193,6 +198,7 @@ export const adminCyclesRouter = createTRPCRouter({
                 type: 'history' as const,
                 data: {
                     ...historyRecord,
+                    birdsSold: historyRecord.birdsSold,
                     name: historyRecord.cycleName,
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
@@ -200,7 +206,7 @@ export const adminCyclesRouter = createTRPCRouter({
                 },
                 logs,
                 history: combinedHistory,
-                farmerContext: { id: historyRecord.farmer.id, mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name, organizationId: historyRecord.farmer.organizationId }
+                farmerContext: { id: historyRecord.farmer.id, mainStock: historyRecord.farmer.mainStock, name: historyRecord.farmer.name, organizationId: historyRecord.farmer.organizationId, location: historyRecord.farmer.location, mobile: historyRecord.farmer.mobile }
             };
         }),
 
@@ -227,6 +233,8 @@ export const adminCyclesRouter = createTRPCRouter({
             const data = await ctx.db.select({
                 history: cycleHistory,
                 farmerName: farmer.name,
+                farmerLocation: farmer.location,
+                farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
                 officerName: users.name
             })
@@ -251,6 +259,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerId: d.history.farmerId,
                     organizationId: d.history.organizationId || null,
                     doc: d.history.doc,
+                    birdsSold: d.history.birdsSold,
                     age: d.history.age,
                     intake: d.history.finalIntake,
                     mortality: d.history.mortality,
@@ -258,6 +267,8 @@ export const adminCyclesRouter = createTRPCRouter({
                     createdAt: d.history.startDate,
                     updatedAt: d.history.endDate || d.history.startDate,
                     farmerName: d.farmerName,
+                    farmerLocation: d.farmerLocation,
+                    farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
                     endDate: d.history.endDate

@@ -2,10 +2,10 @@ import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user 
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, orgProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementFarmersRouter = createTRPCRouter({
-    getMany: orgProcedure
+    getMany: managementProcedure
         .input(z.object({
             search: z.string().optional(),
             page: z.number().default(1),
@@ -72,7 +72,7 @@ export const managementFarmersRouter = createTRPCRouter({
             };
         }),
 
-    getOrgFarmers: orgProcedure
+    getOrgFarmers: managementProcedure
         .input(z.object({
             search: z.string().optional(),
             status: z.enum(["active", "deleted", "all"]).default("active"),
@@ -119,7 +119,7 @@ export const managementFarmersRouter = createTRPCRouter({
             }));
         }),
 
-    getDetails: orgProcedure
+    getDetails: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             const data = await ctx.db.query.farmer.findFirst({
@@ -141,7 +141,7 @@ export const managementFarmersRouter = createTRPCRouter({
             return data;
         }),
 
-    getCycles: orgProcedure
+    getCycles: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
@@ -164,7 +164,7 @@ export const managementFarmersRouter = createTRPCRouter({
             return { items: data.map(d => ({ ...d.cycle, farmerName: d.farmerName })) };
         }),
 
-    getHistory: orgProcedure
+    getHistory: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
@@ -198,7 +198,7 @@ export const managementFarmersRouter = createTRPCRouter({
             };
         }),
 
-    getStockLogs: orgProcedure
+    getStockLogs: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Fetch farmer to check Org access
@@ -215,7 +215,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
-    getManagementHub: orgProcedure
+    getManagementHub: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             const farmerData = await ctx.db.query.farmer.findFirst({
@@ -260,12 +260,20 @@ export const managementFarmersRouter = createTRPCRouter({
             };
         }),
 
-    restore: orgProcedure
+    restore: managementProcedure
         .input(z.object({
             farmerId: z.string(),
             newName: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to restore farmers."
+                });
+            }
+
             const archivedFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
             });
@@ -335,9 +343,17 @@ export const managementFarmersRouter = createTRPCRouter({
             });
         }),
 
-    delete: orgProcedure
+    delete: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to delete farmers."
+                });
+            }
+
             const archivedFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.organizationId, input.orgId))
             });
@@ -393,13 +409,21 @@ export const managementFarmersRouter = createTRPCRouter({
             return deleted;
         }),
     // Update Security Money
-    updateSecurityMoney: orgProcedure
+    updateSecurityMoney: managementProcedure
         .input(z.object({
             id: z.string(),
             amount: z.number().min(0, "Amount must be positive"),
             reason: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to update security money."
+                });
+            }
+
             const oldFarmer = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.id), eq(farmer.organizationId, input.orgId))
             });
@@ -457,7 +481,7 @@ export const managementFarmersRouter = createTRPCRouter({
         }),
 
     // Get Security Money History
-    getSecurityMoneyHistory: orgProcedure
+    getSecurityMoneyHistory: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
             // Check access first

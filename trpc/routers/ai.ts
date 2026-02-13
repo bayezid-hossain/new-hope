@@ -2,6 +2,7 @@
 import { cycleLogs, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
+import Fuse from "fuse.js";
 import Groq from "groq-sdk";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../init";
@@ -99,6 +100,49 @@ const sanitizeInput = (text: string) => {
     return cleanText;
 };
 
+const sanitizeOrderInput = (text: string) => {
+    const lines = text.split("\n");
+    const cleanedLines: string[] = [];
+
+    // Stop processing if we hit "Total:"
+    const stopRegex = /^Total\s*:/i;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (stopRegex.test(trimmed)) {
+            break;
+        }
+
+        // Filter Rules
+        // 1. Remove "Dear sir/ Boss" etc.
+        if (/^(dear\s+)?(sir|boss|madam)/i.test(trimmed)) continue;
+
+        // 2. Remove "Doc order under..."
+        if (/^doc\s+order\s+under/i.test(trimmed)) continue;
+
+        // 3. Remove "Contact/Contract farm doc"
+        if (/^(contact|contract)\s+farm\s+doc/i.test(trimmed)) continue;
+
+        // 4. Remove "Farm no: 01" but KEEP "04. Name"
+        // "Farm no:..." pattern removal
+        if (/^farm\s+no\s*:/i.test(trimmed)) continue;
+
+        cleanedLines.push(line);
+    }
+
+    const result = cleanedLines.join("\n").trim();
+    // Debug Log
+    console.log(`[AI Sanitization] Input length: ${text.length} -> Output length: ${result.length}`);
+    // console.log(result); 
+
+    return result;
+};
+
+const normalizeName = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, ' ').trim();
+};
+
 export const aiRouter = createTRPCRouter({
     extractFarmers: proProcedure
         .input(z.object({
@@ -111,21 +155,23 @@ export const aiRouter = createTRPCRouter({
         .mutation(async ({ input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-            // Sanitize Input Text
-            const cleanText = sanitizeInput(input.text);
+            // Sanitize Input Text when needed
+            // const cleanText = sanitizeInput(input.text);
+            const cleanText = input.text
             const candidatesList = input.candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
             // console.log(cleanText)
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
-            Goal: Extract farmer names and their TOTAL feed bag count.
+            Goal: Extract farmer names, their TOTAL feed bag count, and optionally their LOCATION and MOBILE NUMBER.
             Match against CANDIDATE LIST:
             ${candidatesList}
             
             IMPORTANT: If a farmer appears multiple times in the text, SUM their amounts into a single entry with the TOTAL.
             CRITICAL: You must extract EVERY SINGLE farmer mentioned in the text. DO NOT stop after a few. DO NOT summarize. Process the entire text.
+            For MOBILE NUMBER: Preserve the country code (e.g., +880...) if present.
             If there are 50 farmers, return 50 entries.
             Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
-            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [] }] }
+            Format: { "farmers": [{ "original_name": "string", "amount": number, "matched_id": "string|null", "confidence": "HIGH"|"MEDIUM"|"LOW", "suggestions": [], "location": "string|null", "mobile": "string|null" }] }
             `;
 
             try {
@@ -166,7 +212,9 @@ export const aiRouter = createTRPCRouter({
                     amount: Number(item.amount) || 0,
                     matchedId: item.matched_id || null,
                     confidence: item.confidence || "LOW",
-                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : []
+                    suggestions: Array.isArray(item.suggestions) ? item.suggestions : [],
+                    location: item.location || null,
+                    mobile: item.mobile || null
                 }));
 
                 // Aggregation Logic: Merge duplicates based on matchedId or name
@@ -196,6 +244,269 @@ export const aiRouter = createTRPCRouter({
                 console.error("AI Extract Failed:", e);
                 // Return empty instead of crashing to allow UI to handle it gracefully or show empty state
                 return [];
+            }
+        }),
+
+    extractCycleOrders: proProcedure
+        .input(z.object({
+            text: z.string(),
+            candidates: z.array(z.object({
+                id: z.string(),
+                name: z.string()
+            })).default([])
+        }))
+        .mutation(async ({ input }) => {
+            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+            // Sanitize Input Here
+            const baseCleanText = sanitizeOrderInput(input.text);
+
+            // Metadata Extraction Strategy:
+            // 1. Save original sanitized text.
+            // 2. Remove Mobile and Location lines to create `aiInputText`.
+            // 3. Send `aiInputText` to AI.
+            // 4. In `mappedData`, find name in original text, then scan forward for metadata.
+
+            const mobileRegex = /(?:\+?88)?01[3-9]\d{8}/;
+            const locationRegex = /(?:Loc(?:ation)?|Address)\s*[:.-]?\s*(.*)$/im;
+
+            // Create AI Input by removing metadata lines
+            const aiInputLines = baseCleanText.split("\n").filter(line => {
+                const isMobile = mobileRegex.test(line);
+                const isLocation = locationRegex.test(line);
+                return !isMobile && !isLocation;
+            });
+            const aiInputText = aiInputLines.join("\n");
+
+            console.log(`[AI Optimization] Original Len: ${baseCleanText.length} -> AI Input Len: ${aiInputText.length}`);
+
+            const systemPrompt = `
+You extract poultry order data from raw text.
+
+Return STRICT JSON only. No explanation.
+
+TASK:
+Extract:
+- order_date
+- farmer name
+- doc (quantity)
+- bird_type
+
+DATE RULE:
+- Extract from header like: "Date: 11 February 26"
+- Convert to YYYY-MM-DD.
+- If missing → null.
+
+NAME RULES (VERY STRICT):
+
+1. If a line matches this pattern at the START:
+   ^[0-9]{1,2}\.\s
+   (Example: "04. Mohammad Suhel Rana")
+   → REMOVE the numeric prefix including dot.
+   → Keep the remaining name.
+
+2. If a number appears WITHOUT a dot
+   Example: "3014 Bismillah sanitary and poultry"
+   → KEEP the number.
+   → It is part of the name.
+
+3. Lines starting with:
+   "Farm no"
+   "Farm No"
+   "Farm no:"
+   "Farm No:"
+   → IGNORE completely.
+   These are NOT farmer names.
+
+4. If a block contains:
+   "Farm name:"
+   → The text after ":" is the farmer name.
+
+5. If a block contains:
+   "Farmer:"
+   → The text after ":" is the farmer name.
+
+QUANTITY RULE:
+- Extract number near "Quantity" or "pcs".
+- Must be numeric.
+- Required.
+
+BIRD TYPE RULE:
+- Examples: Ross A, EP A, EP. A
+- Normalize:
+  - Remove extra dots
+  - Trim spaces
+- If missing → null.
+
+IGNORE:
+- Location
+- Mobile
+- Total summary section
+
+IMPORTANT:
+- Extract ALL farmer blocks.
+- Do not merge blocks.
+- Do not drop numeric prefixes unless rule #1 matches exactly.
+
+FORMAT:
+
+{
+  "order_date": "YYYY-MM-DD" | null,
+  "orders": [
+    {
+      "original_name": "string",
+      "doc": number,
+      "bird_type": "string|null"
+    }
+  ]
+}
+`;
+
+            try {
+                // Use the fallback mechanism which enforces json_object mode
+                const aiResponse = await callAiWithFallback(groq, [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: aiInputText }
+                ]);
+
+                // Robust JSON Parsing
+                let parsed: any = {};
+                try {
+                    parsed = JSON.parse(aiResponse || "{}");
+                } catch (e) {
+                    const jsonMatch = (aiResponse || "").match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        parsed = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error("No JSON object found in AI response");
+                    }
+                }
+
+                const orderDate = parsed.order_date || null;
+                let data = [];
+                if (parsed.orders && Array.isArray(parsed.orders)) data = parsed.orders;
+                else if (parsed.data && Array.isArray(parsed.data)) data = parsed.data;
+                else if (Array.isArray(parsed)) data = parsed;
+                else return { orderDate, items: [] };
+
+                let lastSearchIndex = 0;
+                const originalLines = baseCleanText.split("\n");
+
+                const mappedData = data.map((item: any) => {
+                    const rawName = item.original_name || item.name || "Unknown";
+                    // Fallback cleanup: Remove serial numbers like "01.", "05." but keep IDs like "3014" (no dot)
+                    const originalName = rawName.replace(/^\d+\.\s*/, "").trim();
+
+                    // --- Metadata Rehydration ---
+                    let extractedMobile = null;
+                    let extractedLocation = null;
+
+                    // Find where this name appears in the original text (starting from last found index)
+                    // We use a loose check or normalizeName to find the line
+                    let matchedLineIndex = -1;
+
+                    const normalizedTarget = normalizeName(originalName);
+
+                    for (let i = lastSearchIndex; i < originalLines.length; i++) {
+                        const line = originalLines[i];
+                        if (normalizeName(line).includes(normalizedTarget) && normalizedTarget.length > 3) { // >3 to avoid matching "Ali" in "Alim" maybe?
+                            matchedLineIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (matchedLineIndex !== -1) {
+                        lastSearchIndex = matchedLineIndex + 1; // Start searching next item after this line
+
+                        // Scan forward for Metadata until we hit a likely name (not perfect but heuristic) 
+                        // OR until a reasonable limit (e.g. 10 lines)
+                        // Actually, we just scan for Mobile/Loc regexes.
+                        // We stop if we find a line that likely belongs to the NEXT item? 
+                        // The user said "do not modify anything else", so we assume interleaved.
+                        // We'll scan until we find a mobile or location.
+
+                        for (let k = matchedLineIndex + 1; k < Math.min(matchedLineIndex + 8, originalLines.length); k++) {
+                            const subLine = originalLines[k].trim();
+                            if (!subLine) continue;
+
+                            // Check Mobile
+                            const mobileMatch = subLine.match(mobileRegex);
+                            if (mobileMatch && !extractedMobile) {
+                                // Clean up mobile (remove non-digits or keep as is? User said "Keep the data")
+                                extractedMobile = mobileMatch[0];
+                            }
+
+                            // Check Location
+                            const locMatch = subLine.match(locationRegex);
+                            if (locMatch && !extractedLocation) {
+                                // If regex captured group 1
+                                extractedLocation = locMatch[1] || subLine.replace(/Loc(?:ation)?\s*[:.-]?/i, "").trim();
+                            }
+                        }
+                    } else {
+                        // Fallback: If not found sequentially, maybe reset search or just skip
+                        // console.warn("Could not find line for rehydration:", originalName);
+                    }
+
+
+                    // Match Logic using Fuse.js
+                    let matchedId = null;
+                    let matchedName = null;
+                    let confidence: "HIGH" | "MEDIUM" | "LOW" = "LOW";
+                    let suggestions: { id: string, name: string }[] = [];
+
+                    // 1. Exact Match (Case Insensitive + Whitespace Normalized)
+                    const normalizedOriginal = normalizeName(originalName);
+
+                    const exactMatch = input.candidates.find(c => normalizeName(c.name) === normalizedOriginal);
+
+                    if (exactMatch) {
+                        matchedId = exactMatch.id;
+                        matchedName = exactMatch.name;
+                        confidence = "HIGH";
+                    } else {
+                        // 2. Fuzzy Match
+                        const fuse = new Fuse(input.candidates, {
+                            keys: ["name"],
+                            threshold: 0.4, // Adjust sensitivity
+                            includeScore: true
+                        });
+
+                        const results = fuse.search(originalName);
+                        if (results.length > 0) {
+                            const bestMatch = results[0];
+                            // If score is very good (< 0.1), consider it High/Medium confidence
+                            if (bestMatch.score! < 0.2) {
+                                matchedId = bestMatch.item.id;
+                                matchedName = bestMatch.item.name;
+                                confidence = "MEDIUM"; // Fuzzy is rarely explicitly "HIGH" without user confirm, but let's say Medium.
+                            }
+
+                            suggestions = results.slice(0, 3).map(r => ({ id: r.item.id, name: r.item.name }));
+                        }
+                    }
+
+                    return {
+                        name: originalName,
+                        doc: Number(item.doc || item.quantity || item.amount) || 0,
+                        birdType: item.birdType || item.bird_type || item.strain || null,
+                        matchedId,
+                        matchedName,
+                        confidence,
+                        suggestions,
+                        location: extractedLocation || item.location || null, // Prioritize extracted
+                        mobile: extractedMobile || item.mobile || null
+                    };
+                });
+
+                return {
+                    orderDate,
+                    items: mappedData
+                };
+
+            } catch (e: any) {
+                console.error("AI Extract Cycle Orders Failed:", e);
+                return { orderDate: null, items: [] };
             }
         }),
 
@@ -273,7 +584,7 @@ export const aiRouter = createTRPCRouter({
             const allRecentLogs = await ctx.db.select()
                 .from(cycleLogs)
                 .where(and(
-                    sql`${cycleLogs.cycleId} IN ${cycleIds}`,
+                    sql`${cycleLogs.cycleId} IN ${cycleIds} `,
                     eq(cycleLogs.type, "MORTALITY"),
                     gt(cycleLogs.createdAt, sql`NOW() - INTERVAL '3 DAYS'`)
                 ))
@@ -297,7 +608,7 @@ export const aiRouter = createTRPCRouter({
                     riskFlags.push({
                         farmer: cycle.farmerName,
                         type: "HIGH_MORTALITY",
-                        detail: `Lost ${recentMortalitySum} birds (${(mortalityRate3Days * 100).toFixed(2)}%) in last 3 days.`
+                        detail: `Lost ${recentMortalitySum} birds(${(mortalityRate3Days * 100).toFixed(2)}%) in last 3 days.`
                     });
                 } else if (mortalityRate3Days > 0.005) {
                     riskFlags.push({

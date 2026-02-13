@@ -5,6 +5,7 @@ import LoadingState from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { MembersList } from "@/modules/admin/components/members-list";
 import { ProductionTree } from "@/modules/admin/components/production-tree";
@@ -27,6 +28,7 @@ import { ErrorBoundary } from "react-error-boundary";
 // --- Active Operations Component for Management ---
 const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const trpc = useTRPC();
+    const { canEdit } = useCurrentOrg();
 
     // Fetch ALL Active Cycles in the Org
     const { data, isLoading } = useQuery(
@@ -44,7 +46,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const cycles = data.items;
 
     // --- Derived Metrics ---
-    const totalBirds = cycles.reduce((acc, f) => acc + ((f.doc) - f.mortality), 0);
+    const totalBirds = cycles.reduce((acc, f) => acc + (f.doc - f.mortality - (f.birdsSold || 0)), 0);
 
     // Calculate Total Feed Stock (Sum of UNIQUE Farmers' mainStock)
     const uniqueFarmers = new Map();
@@ -62,7 +64,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const totalAvailableStock = totalMainStock - totalActiveConsumption;
 
     const avgMortality = cycles.length
-        ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + (f.doc), 0) * 100).toFixed(2)
+        ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + f.doc, 0) * 100).toFixed(2)
         : "0";
 
     // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
@@ -107,7 +109,7 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
         };
 
         existing.totalIntake += cycle.intake;
-        existing.totalDoc += cycle.doc;
+        existing.totalDoc += (cycle.doc - (cycle.birdsSold || 0)); // Effective birds for efficiency
         existing.totalMortality += cycle.mortality;
         existing.activeCyclesCount += 1;
 
@@ -138,23 +140,26 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
             bags: f.totalIntake
         }));
 
+    const totalBirdsSold = cycles.reduce((acc, f) => acc + (f.birdsSold || 0), 0);
 
     return (
         <div className="space-y-6 pt-2">
             {/* 1. Top Row KPIs */}
             <KpiCards
                 totalBirds={totalBirds}
+                totalBirdsSold={totalBirdsSold}
                 totalFeedStock={totalMainStock}
                 activeConsumption={totalActiveConsumption}
                 availableStock={totalAvailableStock}
                 lowStockCount={lowStockCycles.length}
                 avgMortality={avgMortality}
                 activeCyclesCount={cycles.length}
+                totalFarmers={uniqueFarmers.size}
             />
 
             {/* 2. Urgent Actions & Performance */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <UrgentActions lowStockCycles={lowStockCycles} />
+                <UrgentActions lowStockCycles={lowStockCycles} canEdit={canEdit ?? false} />
                 <PerformanceInsights topPerformers={topPerformers} />
             </div>
 

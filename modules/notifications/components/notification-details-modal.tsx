@@ -62,7 +62,7 @@ export const NotificationDetailsModal = ({ id, open, onOpenChange }: Notificatio
             open={open}
             onOpenChange={onOpenChange}
             title={notification?.title || "Notification Details"}
-            description={notification ? format(new Date(notification.createdAt), "PPP p") : ""}
+            description={notification ? format(new Date(notification.createdAt), "dd/MM/yyyy p") : ""}
         >
             {isLoading ? (
                 <div className="h-40 flex items-center justify-center">Loading...</div>

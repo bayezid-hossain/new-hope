@@ -23,7 +23,7 @@ import { UrgentActions } from "../components/urgent-actions";
 
 
 // --- Active Operations Component ---
-const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: string }) => {
+const OperationsContent = ({ orgId, officerId, canEdit }: { orgId: string; officerId: string; canEdit: boolean }) => {
   const trpc = useTRPC();
 
   // Fetch Dashboard Stats
@@ -128,17 +128,19 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
       {/* 1. Top Row KPIs */}
       <KpiCards
         totalBirds={stats.totalBirds}
+        totalBirdsSold={stats.totalBirdsSold}
         totalFeedStock={stats.totalFeedStock}
         activeConsumption={stats.activeConsumption}
         availableStock={stats.availableStock}
         lowStockCount={stats.lowStockCount}
         avgMortality={stats.avgMortality}
         activeCyclesCount={stats.activeCyclesCount}
+        totalFarmers={stats.totalFarmers}
       />
 
       {/* 2. Urgent Actions & Performance */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <UrgentActions lowStockCycles={lowStockCycles} />
+        <UrgentActions lowStockCycles={lowStockCycles} canEdit={canEdit} />
         <PerformanceInsights topPerformers={topPerformers} />
       </div>
 
@@ -153,7 +155,7 @@ const OperationsContent = ({ orgId, officerId }: { orgId: string; officerId: str
 
 // --- Main Page Component ---
 export const HomeView = ({ userId }: { userId?: string }) => {
-  const { orgId, isLoading } = useCurrentOrg();
+  const { orgId, isLoading, canEdit } = useCurrentOrg();
 
   if (isLoading) {
     return <LoadingState title="Loading Organization" description="Please wait..." />
@@ -205,7 +207,7 @@ export const HomeView = ({ userId }: { userId?: string }) => {
           <TabsContent value="operations" className="space-y-4">
             <ErrorBoundary fallback={<ErrorState title="Error" description="Failed to load operations data" />}>
               <Suspense fallback={<LoadingState title="Loading Operations" description="Gathering active metrics..." />}>
-                {userId ? <OperationsContent orgId={orgId} officerId={userId} /> : <ErrorState title="User Error" description="User ID missing" />}
+                {userId ? <OperationsContent orgId={orgId} officerId={userId} canEdit={canEdit} /> : <ErrorState title="User Error" description="User ID missing" />}
               </Suspense>
             </ErrorBoundary>
           </TabsContent>

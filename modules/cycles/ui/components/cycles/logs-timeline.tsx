@@ -2,10 +2,9 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Activity, FileText, Filter, Search, Settings, Skull, Wheat, Wrench, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Activity, FileText, Settings, ShoppingCart, Skull, Wheat, Wrench } from "lucide-react";
+import { useState } from "react";
 import { RevertMortalityModal } from "./revert-mortality-modal";
 
 // --- Types ---
@@ -18,6 +17,7 @@ export interface TimelineLog {
     createdAt: string | Date;
     note?: string | null;
     cycleId?: string | null;
+    isReverted?: boolean;
 }
 
 // --- Log Item Component ---
@@ -30,7 +30,11 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
     const normalizedType = log.type.toUpperCase();
 
-    if (normalizedType === "FEED" || normalizedType === "STOCK_IN" || normalizedType === "TRANSFER_IN") {
+    if (log.isReverted) {
+        icon = <Settings className="h-4 w-4" />;
+        colorClass = "bg-gray-400";
+        title = "Reverted Log";
+    } else if (normalizedType === "FEED" || normalizedType === "STOCK_IN" || normalizedType === "TRANSFER_IN") {
         icon = <Wheat className="h-4 w-4" />;
         colorClass = "bg-amber-500";
         title = normalizedType === "TRANSFER_IN" ? "Transferred In" : "Added Feed";
@@ -42,7 +46,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         icon = <Wrench className="h-4 w-4" />;
         colorClass = "bg-orange-500";
         title = "Correction";
-    } else if (normalizedType === "SYSTEM" || normalizedType === "NOTE") {
+    } else if (normalizedType === "SYSTEM" || (normalizedType === "NOTE" && !isConsumption)) {
         icon = <Settings className="h-4 w-4" />;
         colorClass = "bg-purple-500";
         const note = log.note?.toLowerCase() || "";
@@ -55,13 +59,17 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
         icon = <Activity className="h-4 w-4" />;
         colorClass = "bg-blue-500";
         title = normalizedType === "TRANSFER_OUT" ? "Transferred Out" : (isConsumption ? "Daily Consumption" : "Stock Deduction");
+    } else if (normalizedType === "SALES") {
+        icon = <ShoppingCart className="h-4 w-4" />;
+        colorClass = "bg-emerald-500";
+        title = "Sale Recorded";
     }
 
     // State for Edit Modal
     const [showEditModal, setShowEditModal] = useState(false);
 
     return (
-        <div className="flex gap-4 group">
+        <div className={`flex gap-4 group ${log.isReverted ? "opacity-50 grayscale" : ""}`}>
             <div className="flex flex-col items-center">
                 <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-background z-10", colorClass)}>
                     {icon}
@@ -71,10 +79,13 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
             <div className="pb-8 space-y-1.5 flex-1">
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">{title}</span>
+                    <span className="font-semibold text-sm text-foreground flex items-center gap-2">
+                        {title}
+                        {log.isReverted && <Badge variant="outline" className="text-[10px] h-4 px-1">Reverted</Badge>}
+                    </span>
                     <div className="flex items-center gap-2">
                         {/* Edit Action for Mortality */}
-                        {isActive && normalizedType === "MORTALITY" && (
+                        {isActive && normalizedType === "MORTALITY" && !log.isReverted && (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -98,7 +109,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
                     ) : (
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-mono font-normal">
-                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(2)} {normalizedType === "MORTALITY" || log.note?.includes("DOC Correction") ? "Birds" : "Bags"}
+                                {(log.valueChange ?? 0) >= 0 ? "+" : ""}{(log.valueChange ?? 0).toFixed(normalizedType === "MORTALITY" || normalizedType === "SALES" ? 0 : 2)} {normalizedType === "MORTALITY" || log.note?.includes("DOC Correction") || normalizedType === "SALES" ? "Birds" : "Bags"}
                             </Badge>
                             {log.note && (
                                 <span className="text-muted-foreground text-xs">
@@ -116,7 +127,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
             </div>
 
             {/* Revert Action for Mortality */}
-            {isActive && normalizedType === "MORTALITY" && (log.valueChange ?? 0) > 0 && (
+            {isActive && normalizedType === "MORTALITY" && (log.valueChange ?? 0) > 0 && !log.isReverted && (
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center">
                     <RevertMortalityModal logId={log.id} amount={log.valueChange} note={log.note} />
                 </div>
@@ -128,143 +139,24 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
 
 // --- Main Component ---
 export const LogsTimeline = ({ logs, height, isActive }: { logs: TimelineLog[], height?: string, isActive?: boolean }) => {
-    const [filter, setFilter] = useState<"ALL" | "FEED" | "MORTALITY" | "SYSTEM">("ALL");
-    const [searchQuery, setSearchQuery] = useState("");
-    const [dateQuery, setDateQuery] = useState("");
-
-    // Filter Logic
-    const filteredLogs = useMemo(() => {
-        if (!logs) return [];
-
-        return logs.filter((log) => {
-            const normalizedType = log.type.toUpperCase();
-            // 1. Category Filter
-            if (filter === "MORTALITY" && normalizedType !== "MORTALITY") return false;
-            if (filter === "SYSTEM" && !["NOTE", "STOCK_OUT", "TRANSFER_OUT", "CONSUMPTION", "CORRECTION", "SYSTEM"].includes(normalizedType)) return false;
-
-            // 2. Text Search (Case insensitive on Note or Type)
-            if (searchQuery) {
-                const lowerQuery = searchQuery.toLowerCase();
-                const noteMatch = log.note?.toLowerCase().includes(lowerQuery);
-                const typeMatch = log.type.toLowerCase().includes(lowerQuery);
-                const dateMatch = `${new Date(log.createdAt).toLocaleDateString()} • ${new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    .toLowerCase().includes(lowerQuery);
-                if (!noteMatch && !typeMatch && !dateMatch) return false;
-            }
-
-            // 3. Date Filter (Matches specific YYYY-MM-DD)
-            if (dateQuery) {
-                const logDate = new Date(log.createdAt).toISOString().split('T')[0];
-                if (logDate !== dateQuery) return false;
-            }
-
-            return true;
-        });
-    }, [logs, filter, searchQuery, dateQuery]);
-
-    const clearAllFilters = () => {
-        setFilter("ALL");
-        setSearchQuery("");
-        setDateQuery("");
-    };
-
-    const hasActiveFilters = filter !== "ALL" || searchQuery || dateQuery;
-
     if (!logs || logs.length === 0) {
         return <div className="text-muted-foreground text-sm py-8 text-center border border-dashed rounded-lg bg-muted/30 border-border/50">No activity recorded yet.</div>;
     }
 
     return (
         <div className="space-y-4">
-
-            {/* CONTROLS HEADER */}
-            <div className="flex flex-col gap-3 pb-4 border-b border-border/50">
-
-                {/* Row 1: Search and Date Inputs */}
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search logs..."
-                            className="pl-9 h-9 text-sm"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    <div className="relative w-[150px] md:w-[180px]">
-                        <Input
-                            type="date"
-                            className="h-9 text-sm"
-                            value={dateQuery}
-                            onChange={(e) => setDateQuery(e.target.value)}
-                        />
-                    </div>
-                    {hasActiveFilters && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 text-muted-foreground hover:text-red-600"
-                            onClick={clearAllFilters}
-                            title="Clear filters"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-
-                {/* Row 2: Category Pills */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <Filter className="h-3 w-3 text-muted-foreground mr-1 shrink-0" />
-                    <Button
-                        variant={filter === "ALL" ? "default" : "outline"}
-                        size="sm"
-                        className="h-7 text-xs rounded-full px-3"
-                        onClick={() => setFilter("ALL")}
-                    >
-                        All
-                    </Button>
-                    <Button
-                        variant={filter === "MORTALITY" ? "default" : "outline"}
-                        size="sm"
-                        className={`h-7 text-xs rounded-full px-3 ${filter === "MORTALITY" ? "bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800" : "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"}`}
-                        onClick={() => setFilter("MORTALITY")}
-                    >
-                        Mortality
-                    </Button>
-                    <Button
-                        variant={filter === "SYSTEM" ? "default" : "outline"}
-                        size="sm"
-                        className={`h-7 text-xs rounded-full px-3 ${filter === "SYSTEM" ? "bg-muted-foreground dark:bg-muted hover:bg-muted-foreground/90 dark:hover:bg-muted/80" : "text-muted-foreground border-border hover:bg-muted/50"}`}
-                        onClick={() => setFilter("SYSTEM")}
-                    >
-                        System
-                    </Button>
-                </div>
-            </div>
-
             {/* SCROLLABLE LIST */}
             <div className={cn("overflow-y-auto pr-3 pl-1 scrollbar-thin h-auto", height)}>
-                {filteredLogs.length > 0 ? (
-                    <div className="pt-2">
-                        {filteredLogs.map((log, index) => (
-                            <LogItem
-                                key={log.id}
-                                log={log}
-                                isLast={index === filteredLogs.length - 1}
-                                isActive={isActive}
-                            />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg bg-muted/20">
-                        <Search className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm font-medium">No results found.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters</p>
-                        <Button variant="link" size="sm" onClick={clearAllFilters} className="mt-2">
-                            Clear all filters
-                        </Button>
-                    </div>
-                )}
+                <div className="pt-2">
+                    {logs.map((log, index) => (
+                        <LogItem
+                            key={log.id}
+                            log={log}
+                            isLast={index === logs.length - 1}
+                            isActive={isActive}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );

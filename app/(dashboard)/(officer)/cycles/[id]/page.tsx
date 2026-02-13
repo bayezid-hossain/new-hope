@@ -29,6 +29,7 @@ import {
     History,
     Lightbulb,
     Scale,
+    ShoppingCart,
     TrendingUp,
     Wheat,
     Wrench
@@ -48,6 +49,7 @@ interface NormalizedCycle {
     id: string;
     name: string;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     intake: number;
@@ -62,6 +64,7 @@ interface ActiveCycle {
     farmerId: string;
     organizationId: string;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     intake: number;
@@ -77,6 +80,7 @@ interface HistoryRecord {
     farmerId: string;
     organizationId: string | null;
     doc: number;
+    birdsSold: number;
     mortality: number;
     age: number;
     finalIntake: number;
@@ -293,7 +297,8 @@ const OtherCyclesTabContent = ({ history, cycleId, farmerName, isMobile }: { his
     </div>
 );
 
-import { EditFarmerNameModal } from "@/modules/farmers/ui/components/edit-farmer-name-modal";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
+import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
 
 const CycleDetailsContent = ({ id }: { id: string }) => {
     const trpc = useTRPC();
@@ -313,6 +318,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
             id: rawData.id,
             name: (rawData as any).farmer?.name || (isActive ? (rawData as ActiveCycle).name : (rawData as HistoryRecord).cycleName),
             doc: rawData.doc || 0,
+            birdsSold: rawData.birdsSold || 0,
             mortality: rawData.mortality || 0,
             age: rawData.age || 0,
             intake: isActive ? ((rawData as ActiveCycle).intake || 0) : ((rawData as HistoryRecord).finalIntake || 0),
@@ -334,9 +340,10 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
 
     const { cycle, logs, history, farmerContext } = normalized;
 
-    const liveBirds = Math.max(0, cycle.doc - cycle.mortality);
+    const liveBirds = Math.max(0, cycle.doc - cycle.mortality - cycle.birdsSold);
+    const totalSurvivors = Math.max(0, cycle.doc - cycle.mortality);
     const survivalRate = cycle.doc > 0
-        ? ((liveBirds / cycle.doc) * 100).toFixed(2)
+        ? ((totalSurvivors / cycle.doc) * 100).toFixed(2)
         : "0.00";
 
     const isActive = cycle.status === "active";
@@ -400,6 +407,8 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         ...cycle,
                                         farmerName: farmerContext.name,
                                         farmerId: farmerContext.id,
+                                        farmerLocation: farmerContext.location,
+                                        farmerMobile: farmerContext.mobile,
                                         organizationId: farmerContext.organizationId,
                                         status: "active",
                                         // Ensure mandatory fields for Farmer type
@@ -409,8 +418,9 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         // Ensure all required fields from Farmer type are present or mocked safely
                                         age: cycle.age,
                                         doc: cycle.doc,
+                                        birdsSold: cycle.birdsSold,
                                         mortality: cycle.mortality,
-                                        intake: cycle.intake.toString()
+                                        intake: cycle.intake
                                     } as unknown as Farmer}
                                 />
                             ) : (
@@ -418,6 +428,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                     history={{
                                         ...cycle,
                                         cycleName: cycle.name,
+                                        birdsSold: cycle.birdsSold,
                                         finalIntake: cycle.intake,
                                         farmerId: farmerContext.id,
                                         organizationId: farmerContext.organizationId,
@@ -431,9 +442,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                 </div>
             </div>
 
-            <EditFarmerNameModal
+            <EditFarmerProfileModal
                 farmerId={farmerContext.id}
                 currentName={farmerContext.name}
+                currentLocation={farmerContext.location}
+                currentMobile={farmerContext.mobile}
                 open={showEditFarmerModal}
                 onOpenChange={setShowEditFarmerModal}
             />
@@ -454,11 +467,23 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             </div>
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">
-                                <span className="text-xs sm:text-sm text-muted-foreground">Live Birds</span>
+                                <span className="text-xs sm:text-sm text-muted-foreground pt-1.5 self-start">Birds Status</span>
                                 <div className="text-right">
-                                    <div className="font-bold text-sm sm:text-base text-foreground">{liveBirds.toLocaleString()}</div>
-                                    <div className="text-[10px] sm:text-xs text-muted-foreground">Initial DOC: {cycle.doc}</div>
+                                    {cycle.birdsSold > 0 && (
+                                        <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mb-0.5">
+                                            {cycle.birdsSold.toLocaleString()} Sold
+                                        </div>
+                                    )}
+                                    <div className="font-bold text-lg sm:text-xl text-foreground -mb-1">{liveBirds.toLocaleString()}</div>
+                                    <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-tight font-medium opacity-70">
+                                        of {cycle.doc.toLocaleString()} DOC
+                                    </div>
                                 </div>
+                            </div>
+                            <Separator className="bg-border/50" />
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Birds Sold</span>
+                                <span className="font-medium text-sm sm:text-base text-foreground">{cycle.birdsSold} birds</span>
                             </div>
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">
@@ -495,8 +520,9 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                     {/* Desktop View: Tabs */}
                     <div className="hidden sm:block">
                         <Tabs defaultValue="logs" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/50 p-1 rounded-xl border border-border/50">
+                            <TabsList className="grid w-full grid-cols-4 h-11 bg-muted/50 p-1 rounded-xl border border-border/50">
                                 <TabsTrigger value="logs" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Logs</TabsTrigger>
+                                <TabsTrigger value="sales" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Sales</TabsTrigger>
                                 <TabsTrigger value="history" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Other Cycles</TabsTrigger>
                                 <TabsTrigger value="analysis" className="text-sm data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all font-bold">Analysis</TabsTrigger>
                             </TabsList>
@@ -505,6 +531,14 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 <Card className="shadow-sm border-border/50 bg-card">
                                     <CardContent className="pt-6">
                                         <LogsTabContent isActive={isActive} logs={logs} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="sales" className="mt-6">
+                                <Card className="shadow-sm border-border/50 bg-card">
+                                    <CardContent className="pt-6">
+                                        <SalesHistoryCard cycleId={isActive ? cycle.id : undefined} historyId={!isActive ? cycle.id : undefined} />
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -535,6 +569,18 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
                                     <LogsTabContent isActive={isActive} logs={logs} isMobile />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                                <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                                        <span className="font-semibold tracking-tight">Sales History</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-4">
+                                    <SalesHistoryCard cycleId={isActive ? cycle.id : undefined} historyId={!isActive ? cycle.id : undefined} isMobile />
                                 </AccordionContent>
                             </AccordionItem>
 

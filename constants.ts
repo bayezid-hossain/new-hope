@@ -20,12 +20,18 @@ export const CUMULATIVE_FEED_SCHEDULE: Record<number, number> = {
   16: 736, 17: 816, 18: 900, 19: 988, 20: 1080,
   21: 1176, 22: 1276, 23: 1380, 24: 1488, 25: 1600,
   26: 1716, 27: 1836, 28: 1960, 29: 2088, 30: 2220,
-  31: 2360, 32: 2510, 33: 2675, 34: 2850
+  31: 2356, 32: 2496, 33: 2640, 34: 2788,
+  35: 2864, 36: 2944, 37: 3028, 38: 3116, 39: 3208, 40: 3304
 };
 
-// Helper to safely get cumulative feed, defaulting to max known if age > 34
+// Helper to safely get cumulative feed, defaulting to max known if age > 40
 export const getCumulativeFeedForDay = (day: number): number => {
   if (day <= 0) return 0;
-  if (day > 34) return CUMULATIVE_FEED_SCHEDULE[34]; // Cap at max or extrapolate logic here
+  if (day > 40) return CUMULATIVE_FEED_SCHEDULE[40]; // Cap at max or extrapolate logic here
   return CUMULATIVE_FEED_SCHEDULE[day] || 0;
 };
+
+// Profit Calculation Constants
+export const FEED_PRICE_PER_BAG = 3220;
+export const DOC_PRICE_PER_BIRD = 41.5;
+export const BASE_SELLING_PRICE = 141;

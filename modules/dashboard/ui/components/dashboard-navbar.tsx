@@ -12,7 +12,7 @@ const DashboardNavbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-20 flex px-4 h-16 items-center bg-background/80 backdrop-blur-md border-b border-border/50 gap-x-2 shrink-0">
+      <nav className="sticky top-0 z-50 flex px-4 h-16 items-center bg-background/80 backdrop-blur-md border-b border-border/50 gap-x-2 shrink-0">
         <Button
           className="size-9 bg-transparent hover:bg-muted/50 border-border/50 transition-all rounded-xl"
           variant={"outline"}

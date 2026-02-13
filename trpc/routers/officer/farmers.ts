@@ -181,7 +181,9 @@ export const officerFarmersRouter = createTRPCRouter({
         .input(z.object({
             name: z.string().min(2).max(100),
             orgId: z.string(),
-            initialStock: z.number().min(0).max(1000, "Initial stock cannot exceed 1000 bags")
+            initialStock: z.number().min(0).max(1000, "Initial stock cannot exceed 1000 bags"),
+            location: z.string().max(200).optional().nullable(),
+            mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().nullable()
         }))
         .mutation(async ({ ctx, input }) => {
             // SECURITY CHECK: Verify user is a member of the organization
@@ -224,6 +226,8 @@ export const officerFarmersRouter = createTRPCRouter({
                     organizationId: input.orgId,
                     officerId: ctx.user.id,
                     mainStock: input.initialStock,
+                    location: input.location,
+                    mobile: input.mobile
                 }).returning();
 
                 if (input.initialStock > 0) {
@@ -256,11 +260,13 @@ export const officerFarmersRouter = createTRPCRouter({
             });
         }),
 
-    updateName: protectedProcedure
+    updateProfile: protectedProcedure
         .input(z.object({
             id: z.string(),
             name: z.string().min(2).max(100),
-            orgId: z.string()
+            orgId: z.string(),
+            location: z.string().max(200).optional().nullable(),
+            mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().nullable()
         }))
         .mutation(async ({ ctx, input }) => {
             // Fetch farmer first to check status
@@ -276,55 +282,62 @@ export const officerFarmersRouter = createTRPCRouter({
                 });
             }
 
-            const existing = await ctx.db.query.farmer.findFirst({
-                where: and(
-                    eq(farmer.organizationId, input.orgId),
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
-                    ilike(farmer.name, input.name.toUpperCase()),
-                    ne(farmer.id, input.id) // Exclude self
-                )
-            });
-
-            if (existing) {
-                throw new TRPCError({
-                    code: "CONFLICT",
-                    message: `A farmer named "${input.name}" is already registered.`
+            // Check for duplicate name (only if name changed)
+            if (currentFarmer.name !== input.name.toUpperCase()) {
+                const existing = await ctx.db.query.farmer.findFirst({
+                    where: and(
+                        eq(farmer.organizationId, input.orgId),
+                        eq(farmer.officerId, ctx.user.id),
+                        eq(farmer.status, "active"),
+                        ilike(farmer.name, input.name.toUpperCase()),
+                        ne(farmer.id, input.id) // Exclude self
+                    )
                 });
+
+                if (existing) {
+                    throw new TRPCError({
+                        code: "CONFLICT",
+                        message: `A farmer named "${input.name}" is already registered.`
+                    });
+                }
             }
 
             const [updated] = await ctx.db.update(farmer)
                 .set({
                     name: input.name.toUpperCase(),
+                    location: input.location ?? null,
+                    mobile: input.mobile ?? null,
                     updatedAt: new Date()
                 })
                 .where(eq(farmer.id, input.id))
                 .returning();
-
-            // NOTIFICATION: Farmer Renamed
+            // console.log(input)
+            // NOTIFICATION: Farmer Profile Updated
             if (updated) {
                 try {
                     const { NotificationService } = await import("@/modules/notifications/server/notification-service");
                     await NotificationService.sendToOrgManagers({
                         organizationId: input.orgId,
-                        title: "Farmer Renamed",
-                        message: `Officer ${ctx.user.name} renamed a farmer. New name: ${updated.name}`,
+                        title: "Farmer Profile Updated",
+                        message: `Officer ${ctx.user.name} updated farmer "${updated.name}"`,
                         type: "INFO",
                         link: `/management/farmers/${updated.id}`
                     });
                 } catch (e) {
-                    console.error("Failed to send farmer renamed notification", e);
+                    console.error("Failed to send farmer profile update notification", e);
                 }
             }
-
-            return [updated];
+            // console.log(updated)
+            return updated;
         }),
 
     createBulk: protectedProcedure
         .input(z.object({
             farmers: z.array(z.object({
                 name: z.string().min(2).max(100),
-                initialStock: z.number().min(0).default(0)
+                initialStock: z.number().min(0).default(0),
+                location: z.string().max(200).optional().nullable(),
+                mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().nullable()
             })),
             orgId: z.string()
         }))
@@ -363,6 +376,8 @@ export const officerFarmersRouter = createTRPCRouter({
                     organizationId: orgId,
                     officerId: ctx.user.id,
                     mainStock: f.initialStock,
+                    location: f.location,
+                    mobile: f.mobile
                 }))).returning();
 
                 results.push(...createdFarmers);

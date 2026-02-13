@@ -45,6 +45,7 @@ export const authRouter = createTRPCRouter({
         organizationId: input.orgId,
         role: input.role,
         status: "PENDING",
+        accessLevel: input.role === "OFFICER" ? "EDIT" : "VIEW",
       }).returning();
 
       return newMember;
@@ -61,14 +62,25 @@ export const authRouter = createTRPCRouter({
       }
     });
 
-    if (!membership) return { status: "NO_ORG" as const, orgId: null, role: null };
+    if (!membership) return {
+      status: "NO_ORG" as const,
+      orgId: null,
+      role: null,
+      isPro: ctx.user.isPro,
+      proExpiresAt: ctx.user.proExpiresAt,
+      activeMode: undefined,
+      accessLevel: undefined
+    };
 
     return {
       status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
       orgName: membership.organization.name,
       orgId: membership.organizationId,
       role: membership.role,
-      activeMode: membership.activeMode
+      activeMode: membership.activeMode,
+      accessLevel: membership.accessLevel,
+      isPro: ctx.user.isPro,
+      proExpiresAt: ctx.user.proExpiresAt
     };
   }),
 

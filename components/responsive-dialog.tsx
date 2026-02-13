@@ -39,14 +39,14 @@ const ResponsiveDialog = ({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange} >
-        <DrawerContent>
+        <DrawerContent className={className}>
           <DrawerHeader>
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription>
               {description}
             </DrawerDescription>
           </DrawerHeader>
-          <div className="p-4">{children}</div>
+          <div className="p-4 flex-1 flex flex-col min-h-0">{children}</div>
         </DrawerContent>
       </Drawer>
     );

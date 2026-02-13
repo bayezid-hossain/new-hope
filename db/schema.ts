@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar
 } from "drizzle-orm/pg-core";
@@ -25,7 +26,7 @@ export const globalRoleEnum = pgEnum("global_role", ["ADMIN", "USER"]);
 export const orgRoleEnum = pgEnum("org_role", ["OWNER", "MANAGER", "OFFICER"]);
 
 export const memberStatusEnum = pgEnum("member_status", ["PENDING", "ACTIVE", "REJECTED", "INACTIVE"]);
-export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM"]);
+export const logTypeEnum = pgEnum("log_type", ["FEED", "MORTALITY", "NOTE", "CORRECTION", "SYSTEM", "SALES"]);
 
 
 // =========================================================
@@ -113,8 +114,10 @@ export const twoFactor = pgTable("two_factor", {
 export const organization = pgTable("organization", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
+  feedPricePerBag: decimal("feed_price_per_bag").default("2500"), // Default until changed
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -127,6 +130,9 @@ export const member = pgTable("member", {
   role: orgRoleEnum("role").notNull().default("OFFICER"),
   status: memberStatusEnum("status").notNull().default("PENDING"),
   activeMode: text("active_mode").$type<"MANAGEMENT" | "OFFICER">().notNull().default("OFFICER"),
+
+  // Access Level for Managers (VIEW or EDIT)
+  accessLevel: text("access_level").$type<"VIEW" | "EDIT">().notNull().default("VIEW"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -145,6 +151,8 @@ export const member = pgTable("member", {
 export const farmer = pgTable("farmer", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
+  location: text("location"), // Optional - farm location/address
+  mobile: text("mobile"),     // Optional - farmer's mobile number
 
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   mainStock: real("main_stock").notNull(),
@@ -190,10 +198,12 @@ export const cycles = pgTable("cycles", {
 
   // Data
   doc: integer("doc").notNull(), // Day Old Chicks count
+  birdsSold: integer("birds_sold").notNull().default(0),
   intake: real("intake").notNull().default(0),
   mortality: integer("mortality").notNull().default(0),
   age: integer("age").notNull().default(0),
   status: text("status").notNull().default("active"),
+  birdType: text("bird_type"),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -212,6 +222,7 @@ export const cycleHistory = pgTable("cycle_history", {
 
   // Snapshot of final stats
   doc: integer("doc").notNull(),
+  birdsSold: integer("birds_sold").notNull().default(0),
   finalIntake: real("final_intake").notNull(),
   mortality: integer("mortality").notNull(),
   age: integer("age").notNull(),
@@ -219,6 +230,7 @@ export const cycleHistory = pgTable("cycle_history", {
   status: text("status").notNull().default("archived"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").defaultNow().notNull(),
+  birdType: text("bird_type"),
 }, (t) => [
   index("idx_history_org_id").on(t.organizationId),
   index("idx_history_farmer_id").on(t.farmerId),
@@ -243,6 +255,7 @@ export const cycleLogs = pgTable("cycle_logs", {
   note: text("note"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  isReverted: boolean("is_reverted").default(false).notNull(),
 }, (t) => [
   index("idx_logs_cycle_id").on(t.cycleId),
   index("idx_logs_history_id").on(t.historyId),
@@ -256,11 +269,125 @@ export const stockLogs = pgTable("stock_logs", {
   amount: decimal("amount").notNull(), // Positive for Add, Negative for Deduct
   type: varchar("type", { length: 50 }).notNull(), // "RESTOCK", "CYCLE_CLOSE", "CORRECTION", "INITIAL"
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
+  driverName: text("driver_name"), // Added for bulk imports
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => [
   index("idx_stock_logs_farmer_id").on(t.farmerId),
 ]);
+
+// =========================================================
+// 4b. SALES TRACKING
+// =========================================================
+
+// Sale Events - Records actual sale transactions
+export const saleEvents = pgTable("sale_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }),
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+
+  // Location (farmer name from DB via cycle→farmer relation)
+  location: text("location").notNull(),
+  party: text("party"), // Buyer/party name
+
+  // Sale Data
+  saleDate: timestamp("sale_date").notNull().defaultNow(),
+  houseBirds: integer("house_birds").notNull(), // Birds at start of cycle
+  birdsSold: integer("birds_sold").notNull(),
+  totalMortality: integer("total_mortality").notNull(),
+
+  totalWeight: decimal("total_weight").notNull(), // kg
+  avgWeight: decimal("avg_weight").notNull(), // kg per bird
+  pricePerKg: decimal("price_per_kg").notNull(),
+  totalAmount: decimal("total_amount").notNull(),
+
+  // Payment
+  cashReceived: decimal("cash_received").default("0"),
+  depositReceived: decimal("deposit_received").default("0"),
+
+  // Dynamic feed arrays as JSON: [{type: "B1", bags: 15}, {type: "B2", bags: 38}]
+  feedConsumed: text("feed_consumed").notNull(),
+  feedStock: text("feed_stock").notNull(),
+
+  medicineCost: decimal("medicine_cost").default("0"),
+  selectedReportId: text("selected_report_id"),
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_events_cycle_id").on(t.cycleId),
+  index("idx_sale_events_history_id").on(t.historyId),
+]);
+
+// Sale Reports - Multiple reports per event for adjustments
+export const saleReports = pgTable("sale_reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  saleEventId: text("sale_event_id").notNull().references(() => saleEvents.id, { onDelete: "cascade" }),
+
+  birdsSold: integer("birds_sold").notNull(),
+  totalMortality: integer("total_mortality").default(0),
+  totalWeight: decimal("total_weight").notNull(),
+  pricePerKg: decimal("price_per_kg").notNull(),
+  totalAmount: decimal("total_amount").notNull(),
+  avgWeight: decimal("avg_weight").notNull(),
+  // Financial Adjustments
+  cashReceived: decimal("cash_received").default("0"),
+  depositReceived: decimal("deposit_received").default("0"),
+  medicineCost: decimal("medicine_cost").default("0"),
+
+  adjustmentNote: text("adjustment_note"),
+  feedConsumed: text("feed_consumed"), // JSON stringified array
+  feedStock: text("feed_stock"),       // JSON stringified array
+
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_reports_event_id").on(t.saleEventId),
+]);
+
+// 4c. PERFORMANCE METRICS (AGGREGATED)
+// =========================================================
+
+export const saleMetrics = pgTable("sale_metrics", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
+  // Link to cycle (not individual sales)
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "set null" }),
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+  // ONE of these must be set - metrics belong to a cycle, active or archived
+
+  // Calculated Production Metrics (for the ENTIRE cycle, all sales combined)
+  fcr: decimal("fcr", { precision: 10, scale: 2 }).notNull(),
+  epi: decimal("epi", { precision: 10, scale: 2 }).notNull(),
+  survivalRate: decimal("survival_rate", { precision: 5, scale: 2 }).notNull(),
+  averageWeight: decimal("average_weight", { precision: 10, scale: 3 }).notNull(), // kg per bird
+
+  // Total birds (all sales combined)
+  totalBirdsSold: integer("total_birds_sold").notNull(),
+  totalDoc: integer("total_doc").notNull(),
+  totalMortality: integer("total_mortality").notNull(),
+  averageAge: decimal("average_age", { precision: 5, scale: 2 }).notNull(),
+
+  // Financial Metrics (entire cycle)
+  docCost: decimal("doc_cost").notNull(), // DOC × DOC_PRICE_PER_BIRD
+  feedCost: decimal("feed_cost").notNull(), // total feed × FEED_PRICE_PER_BAG
+  medicineCost: decimal("medicine_cost").notNull(),
+  totalRevenue: decimal("total_revenue").notNull(),
+  netProfit: decimal("net_profit").notNull(), // revenue - all costs
+
+  // Metadata (audit trail - what prices were used)
+  feedPriceUsed: decimal("feed_price_used").notNull().default("3220"),
+  docPriceUsed: decimal("doc_price_used").notNull().default("41.5"),
+  calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
+  lastRecalculatedAt: timestamp("last_recalculated_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_sale_metrics_cycle").on(t.cycleId),
+  index("idx_sale_metrics_history").on(t.historyId),
+  // Only ONE metrics row per cycle
+  unique("unique_cycle_metrics").on(t.cycleId),
+  unique("unique_history_metrics").on(t.historyId),
+]);
+
+
 // =========================================================
 // 5. RELATIONS
 // =========================================================
@@ -289,11 +416,13 @@ export const farmerRelations = relations(farmer, ({ one, many }) => ({
 export const cycleRelations = relations(cycles, ({ one, many }) => ({
   farmer: one(farmer, { fields: [cycles.farmerId], references: [farmer.id] }),
   logs: many(cycleLogs),
+  saleEvents: many(saleEvents),
 }));
 
 export const historyRelations = relations(cycleHistory, ({ one, many }) => ({
   farmer: one(farmer, { fields: [cycleHistory.farmerId], references: [farmer.id] }),
   logs: many(cycleLogs),
+  saleEvents: many(saleEvents),
 }));
 
 export const logRelations = relations(cycleLogs, ({ one }) => ({
@@ -307,11 +436,25 @@ export const securityLogRelations = relations(farmerSecurityMoneyLogs, ({ one })
   editor: one(user, { fields: [farmerSecurityMoneyLogs.changedBy], references: [user.id] }),
 }));
 
+export const saleEventRelations = relations(saleEvents, ({ one, many }) => ({
+  cycle: one(cycles, { fields: [saleEvents.cycleId], references: [cycles.id] }),
+  history: one(cycleHistory, { fields: [saleEvents.historyId], references: [cycleHistory.id] }),
+  createdByUser: one(user, { fields: [saleEvents.createdBy], references: [user.id] }),
+  reports: many(saleReports),
+  selectedReport: one(saleReports, { fields: [saleEvents.selectedReportId], references: [saleReports.id] }),
+}));
+
+export const saleReportRelations = relations(saleReports, ({ one }) => ({
+  saleEvent: one(saleEvents, { fields: [saleReports.saleEventId], references: [saleEvents.id] }),
+  createdByUser: one(user, { fields: [saleReports.createdBy], references: [user.id] }),
+}));
+
 // =========================================================
 // 6. NOTIFICATIONS
 // =========================================================
 
-export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["INFO", "WARNING", "CRITICAL", "SUCCESS", "UPDATE", "SALES"]);
+export const feedOrderStatusEnum = pgEnum("feed_order_status", ["PENDING", "CONFIRMED"]);
 
 export const notification = pgTable("notification", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -333,3 +476,104 @@ export const notification = pgTable("notification", {
   index("idx_notification_org").on(t.organizationId),
   index("idx_notification_created").on(t.createdAt),
 ]);
+
+// =========================================================
+// 7. FEED ORDERS
+// =========================================================
+
+export const feedOrders = pgTable("feed_orders", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").notNull().references(() => user.id),
+
+  orderDate: timestamp("order_date").notNull(),
+  deliveryDate: timestamp("delivery_date").notNull(),
+  status: feedOrderStatusEnum("status").notNull().default("PENDING"),
+  driverName: text("driver_name"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_feed_order_org").on(t.orgId),
+  index("idx_feed_order_officer").on(t.officerId),
+]);
+
+export const feedOrderItems = pgTable("feed_order_items", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  feedOrderId: text("feed_order_id").notNull().references(() => feedOrders.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  // e.g. "B1", "B2"
+  feedType: text("feed_type").notNull(),
+  // e.g. 10, 20
+  quantity: integer("quantity").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_feed_order_item_order").on(t.feedOrderId),
+]);
+
+export const feedOrderRelations = relations(feedOrders, ({ many, one }) => ({
+  items: many(feedOrderItems),
+  organization: one(organization, { fields: [feedOrders.orgId], references: [organization.id] }),
+  officer: one(user, { fields: [feedOrders.officerId], references: [user.id] }),
+}));
+
+export const feedOrderItemRelations = relations(feedOrderItems, ({ one }) => ({
+  order: one(feedOrders, { fields: [feedOrderItems.feedOrderId], references: [feedOrders.id] }),
+  farmer: one(farmer, { fields: [feedOrderItems.farmerId], references: [farmer.id] }),
+}));
+
+// =========================================================
+// 8. DOC ORDERS
+// =========================================================
+
+export const docOrderStatusEnum = pgEnum("doc_order_status", ["PENDING", "CONFIRMED"]);
+
+export const birdTypes = pgTable("bird_types", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull().unique(), // e.g., "Ross A", "EP A"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const docOrders = pgTable("doc_orders", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").notNull().references(() => user.id),
+
+  orderDate: timestamp("order_date").notNull(),
+  status: docOrderStatusEnum("status").notNull().default("PENDING"),
+
+  // Optional metadata if needed, like "Branch Name" could be stored or just used for message generation.
+  // The user requested "Branch Name" for the message. We might not strictly need to store it if it's transient, 
+  // but better to store it if they want to edit it later.
+  branchName: text("branch_name"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_doc_order_org").on(t.orgId),
+  index("idx_doc_order_officer").on(t.officerId),
+]);
+
+export const docOrderItems = pgTable("doc_order_items", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  docOrderId: text("doc_order_id").notNull().references(() => docOrders.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  birdType: text("bird_type").notNull(), // Stored as string, picked from birdTypes
+  docCount: integer("doc_count").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_doc_order_item_order").on(t.docOrderId),
+]);
+
+export const docOrderRelations = relations(docOrders, ({ many, one }) => ({
+  items: many(docOrderItems),
+  organization: one(organization, { fields: [docOrders.orgId], references: [organization.id] }),
+  officer: one(user, { fields: [docOrders.officerId], references: [user.id] }),
+}));
+
+export const docOrderItemRelations = relations(docOrderItems, ({ one }) => ({
+  order: one(docOrders, { fields: [docOrderItems.docOrderId], references: [docOrders.id] }),
+  farmer: one(farmer, { fields: [docOrderItems.farmerId], references: [farmer.id] }),
+}));

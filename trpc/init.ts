@@ -109,6 +109,19 @@ export const orgProcedure = protectedProcedure
       });
     }
 
+    // STRICT MODE CHECK: If a manager is in OFFICER mode, treat them as an officer
+    // This affects procedures that use orgProcedure for management tasks
+    if (
+      membership &&
+      membership.activeMode === "OFFICER" &&
+      (membership.role === "OWNER" || membership.role === "MANAGER") &&
+      ctx.user.globalRole !== "ADMIN"
+    ) {
+      // NOTE: We allow the procedure to continue, but the 'managementProcedure' 
+      // check below will block it if it's explicitly a management-only task.
+      // However, for generic org items, we letting them through as an 'officer'.
+    }
+
     return next({
       ctx: {
         ...ctx,
@@ -116,3 +129,55 @@ export const orgProcedure = protectedProcedure
       },
     });
   });
+
+/**
+ * Management Procedure
+ * Strictly requires MANAGEMENT mode and OWNER/MANAGER role
+ */
+export const managementProcedure = orgProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.globalRole === "ADMIN") return next({ ctx });
+
+  if (ctx.membership?.activeMode !== "MANAGEMENT") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You must be in Management Mode to access this feature",
+    });
+  }
+
+  if (ctx.membership.role !== "OWNER" && ctx.membership.role !== "MANAGER") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Only Managers and Owners can access this feature",
+    });
+  }
+
+  return next({ ctx });
+});
+/**
+ * Management Pro Procedure
+ * Combines management logic (activeMode, role) and pro gating
+ */
+export const managementProProcedure = managementProcedure.use(async ({ ctx, next }) => {
+  // Admins always have access
+  if (ctx.user.globalRole === "ADMIN") {
+    return next({ ctx });
+  }
+
+  // Check if Pro is enabled
+  if (!ctx.user.isPro) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This is a Pro feature. Please request access."
+    });
+  }
+
+  // Check if subscription has expired
+  if (ctx.user.proExpiresAt && ctx.user.proExpiresAt < new Date()) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Your Pro subscription has expired. Please renew to continue using Pro features."
+    });
+  }
+
+  return next({ ctx });
+});

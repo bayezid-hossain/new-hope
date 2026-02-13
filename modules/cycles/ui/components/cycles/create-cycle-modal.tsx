@@ -24,13 +24,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -41,6 +48,7 @@ const createCycleSchema = z.object({
   farmerName: z.string().min(1, "Farmer name is required"), // Display only
   doc: z.coerce.number().min(1, "Must have at least 1 bird"),
   age: z.coerce.number().min(0).default(1).optional(),
+  birdType: z.string().max(50, "Max 50 characters").optional(),
 });
 
 type FormValues = z.infer<typeof createCycleSchema>;
@@ -66,7 +74,7 @@ interface CreateCycleModalProps {
 }
 
 export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: CreateCycleModalProps) => {
-  const { orgId } = useCurrentOrg();
+  const { orgId, canEdit } = useCurrentOrg();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -79,6 +87,7 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
       farmerName: preSelectedFarmer?.name || "",
       doc: 0,
       age: 1,
+      birdType: "",
     },
   });
 
@@ -96,6 +105,18 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
   const farmers = useMemo(() => {
     return farmersData?.items || [];
   }, [farmersData]);
+
+  // Bird Types Query
+  const { data: birdTypes } = useQuery(
+    trpc.officer.docOrders.getBirdTypes.queryOptions()
+  );
+
+  // Set default bird type when available
+  useEffect(() => {
+    if (birdTypes?.length && !form.getValues("birdType")) {
+      form.setValue("birdType", birdTypes[birdTypes.length - 1].name);
+    }
+  }, [birdTypes, form]);
 
 
 
@@ -134,7 +155,9 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
       orgId: orgId.toString()!,
       farmerId: values.farmerId,
       doc: values.doc,
-      age: values.age, name: values.farmerName
+      age: values.age,
+      name: values.farmerName,
+      birdType: values.birdType || undefined
     });
   };
 
@@ -175,10 +198,13 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
                     <Command>
                       <CommandInput placeholder="Search farmer..." />
-                      <CommandList>
+                      <CommandList className="max-h-[300px] overflow-y-auto">
                         {isFetching ? (
                           <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -263,10 +289,32 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
             />
           </div>
 
-          {/* --- 3. Input Feed --- */}
+          <FormField
+            control={form.control}
+            name="birdType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bird Type (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bird type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {birdTypes?.map((bt) => (
+                      <SelectItem key={bt.id} value={bt.name}>
+                        {bt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-
-          <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+          <Button type="submit" className="w-full" disabled={createMutation.isPending || !canEdit}>
             {createMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -276,6 +324,11 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
               "Start Cycle"
             )}
           </Button>
+          {!canEdit && (
+            <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+              View Only: You cannot start new cycles.
+            </p>
+          )}
         </form>
       </Form>
     </ResponsiveDialog>

@@ -29,7 +29,7 @@ export default function RootLayout({
           <body
             className={`${inter.className} antialiased`}
           >
-            <NextTopLoader showSpinner={false} color="#1c1917" />
+            <NextTopLoader showSpinner={false} color="var(--primary)" height={3} />
             <ThemeProvider
               attribute="class"
               defaultTheme="system"

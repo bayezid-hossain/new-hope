@@ -35,7 +35,7 @@ export default function ManagementCyclesPage() {
             <div className="flex-1 space-y-6 overflow-y-auto bg-background min-h-screen pb-10">
                 {/* Premium Sticky Header */}
                 <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border/50 shadow-sm">
-                    <div className="max-w-7xl mx-auto p-4 md:p-8 py-6">
+                    <div className="max-w-7xl mx-auto p-0 sm:p-2 md:p-8 py-6">
                         <div className="flex items-center gap-4">
                             <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm ring-1 ring-primary/20">
                                 <Bird className="h-5 w-5 md:h-6 md:w-6" />
@@ -52,31 +52,31 @@ export default function ManagementCyclesPage() {
                     </div>
                 </div>
 
-                <div className="max-w-7xl mx-auto px-4 md:px-8">
+                <div className="max-w-7xl mx-auto px-1 sm:px-4 md:px-8">
                     <Tabs defaultValue="active" className="w-full space-y-6">
-                        <TabsList className="inline-flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 text-muted-foreground border border-border/50 backdrop-blur-sm">
-                            <TabsTrigger value="active" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
+                        <TabsList className="flex h-auto sm:h-11 items-center justify-center rounded-xl bg-muted/50 p-1 text-muted-foreground border border-border/50 backdrop-blur-sm w-full">
+                            <TabsTrigger value="active" className="flex-1 rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter sm:tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center justify-center gap-1 sm:gap-2">
                                 Active
                                 {activeCount?.total !== undefined && (
-                                    <span className="bg-violet-500/10 text-violet-500 dark:text-violet-400 px-1.5 py-0.5 rounded-full text-[9px] font-bold min-w-[20px] text-center">
+                                    <span className="bg-violet-500/10 text-violet-500 dark:text-violet-400 px-1 sm:px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold min-w-[16px] sm:min-w-[20px] text-center">
                                         {activeCount.total}
                                     </span>
                                 )}
                             </TabsTrigger>
-                            <TabsTrigger value="past" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
-                                <History className="h-3.5 w-3.5" />
+                            <TabsTrigger value="past" className="flex-1 rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter sm:tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center justify-center gap-1 sm:gap-2">
+                                <History className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                 History
                                 {pastCount?.total !== undefined && (
-                                    <span className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full text-[9px] font-bold min-w-[20px] text-center">
+                                    <span className="bg-muted text-muted-foreground px-1 sm:px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold min-w-[16px] sm:min-w-[20px] text-center">
                                         {pastCount.total}
                                     </span>
                                 )}
                             </TabsTrigger>
-                            <TabsTrigger value="deleted" className="rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
-                                <Trash2 className="h-3.5 w-3.5" />
+                            <TabsTrigger value="deleted" className="flex-1 rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter sm:tracking-widest transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center justify-center gap-1 sm:gap-2">
+                                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                 Deleted
                                 {deletedCount?.total !== undefined && (
-                                    <span className="bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full text-[9px] font-bold min-w-[20px] text-center">
+                                    <span className="bg-destructive/10 text-destructive px-1 sm:px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold min-w-[16px] sm:min-w-[20px] text-center">
                                         {deletedCount.total}
                                     </span>
                                 )}

@@ -27,6 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Farmer } from "@/modules/cycles/types";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { AddFeedModal } from "@/modules/cycles/ui/components/mainstock/add-feed-modal";
 import { TransferStockModal } from "@/modules/cycles/ui/components/mainstock/transfer-stock-modal";
@@ -34,6 +35,8 @@ import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-far
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
@@ -57,13 +60,14 @@ import {
     RotateCcw,
     Scale,
     Search,
+    ShoppingCart,
     Trash2,
     User,
     Wheat
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const ActiveCyclesSection = ({ isLoading, data }: { isLoading: boolean, data: any }) => {
@@ -195,83 +199,142 @@ export default function ManagementFarmerDetailsPage() {
         enabled: !!orgId
     });
 
-    if (isMembershipPending || isHubLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
-    if (!hubData) return <div className="p-8 text-center text-muted-foreground">Farmer not found or access denied.</div>;
+    const [isSticky, setIsSticky] = useState(false);
+    const sentinelRef = useRef<HTMLDivElement>(null);
 
-    const { farmer: farmerData, activeCycles, history, stockLogs } = hubData;
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsSticky(!entry.isIntersecting);
+            },
+            { threshold: [0], rootMargin: "-64px 0px 0px 0px" }
+        );
+
+        if (sentinelRef.current) {
+            observer.observe(sentinelRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
+    const farmerData = hubData?.farmer;
+    const activeCycles = hubData?.activeCycles || { items: [] };
+    const history = hubData?.history || { items: [] };
+    const stockLogs = hubData?.stockLogs || [];
 
     return (
-        <div className="w-full space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto bg-background min-h-screen">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-card border border-border/50">
-                        <ChevronLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex flex-col gap-1">
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{farmerData.name}</h1>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                            <span>Officer:</span>
-                            <Link
-                                href={`/management/officers/${farmerData.officerId}`}
-                                className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline underline-offset-4 transition-all"
-                            >
-                                <User className="h-3.5 w-3.5" />
-                                {farmerData.officerName}
-                            </Link>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
-                            {farmerData.status === "deleted" ? (
-                                <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
-                            ) : activeCycles.items && activeCycles.items.length > 0 ? (
-                                <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
-                            ) : (
-                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+        <div className="w-full space-y-6 p-1 sm:p-4 md:p-8 pt-2 max-w-7xl mx-auto bg-background min-h-screen">
+            <div ref={sentinelRef} className="h-4 w-full pointer-events-none" />
+
+            <div className={cn(
+                "flex flex-col transition-[padding,background-color,border-color,box-shadow,margin] duration-200 ease-in-out will-change-[padding,background-color,box-shadow]",
+                isSticky
+                    ? "sticky top-16 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 py-2.5 -mx-4 px-4 border-b border-border shadow-sm"
+                    : "relative py-0 mb-4"
+            )}>
+                <div className="flex flex-col gap-1 w-full">
+                    <div className="flex items-center gap-3 w-full justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {!isSticky && (
+                                <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm bg-card border border-border/50 shrink-0">
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
                             )}
+                            <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                <h1 className={cn(
+                                    "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
+                                    isSticky ? "text-xl md:text-2xl" : "text-2xl md:text-3xl"
+                                )}>
+                                    {isHubLoading ? <Skeleton className="h-8 w-48" /> : (farmerData?.name || "N/A")}
+                                </h1>
+                                {isHubLoading ? (
+                                    <div className="space-y-2 mt-1">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-4 w-24" />
+                                    </div>
+                                ) : farmerData && (
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                                            <span>Officer:</span>
+                                            <Link
+                                                href={`/management/officers/${farmerData.officerId}`}
+                                                className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline underline-offset-4 transition-all"
+                                            >
+                                                <User className="h-3.5 w-3.5" />
+                                                {farmerData.officerName}
+                                            </Link>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Management View</Badge>
+                                            {farmerData.status === "deleted" ? (
+                                                <Badge variant="destructive" className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
+                                            ) : activeCycles.items && activeCycles.items.length > 0 ? (
+                                                <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size={isSticky ? "icon" : "default"}
+                                        className={cn(
+                                            "gap-2 shadow-sm font-bold transition-[width,height,padding,background-color] duration-200 ease-in-out bg-muted/50 hover:bg-muted border-border/40",
+                                            isSticky ? "rounded-full h-8 w-8" : "px-4"
+                                        )}
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-[200px]">
+                                    <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {farmerData?.status === "deleted" ? (
+                                        <DropdownMenuItem
+                                            onClick={() => setShowRestoreModal(true)}
+                                            className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
+                                        >
+                                            <RotateCcw className="h-4 w-4" />
+                                            Restore Profile
+                                        </DropdownMenuItem>
+                                    ) : (
+                                        <>
+                                            <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
+                                                <Wheat className="h-4 w-4 text-amber-500" />
+                                                Restock
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
+                                                <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                                                Transfer Stock
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => setShowArchiveDialog(true)}
+                                                className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Delete Profile
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-2 order-first md:order-last">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button className="gap-2 shadow-sm font-bold">
-                                <MoreVertical className="h-4 w-4" />
-                                Actions
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[200px]">
-                            <DropdownMenuLabel>Farmer Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {farmerData.status === "deleted" ? (
-                                <DropdownMenuItem
-                                    onClick={() => setShowRestoreModal(true)}
-                                    className="gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
-                                >
-                                    <RotateCcw className="h-4 w-4" />
-                                    Restore Profile
-                                </DropdownMenuItem>
-                            ) : (
-                                <>
-                                    <DropdownMenuItem onClick={() => setShowRestockModal(true)} className="gap-2 cursor-pointer font-medium">
-                                        <Wheat className="h-4 w-4 text-amber-500" />
-                                        Restock
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setShowTransferModal(true)} className="gap-2 cursor-pointer font-medium">
-                                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                                        Transfer Stock
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => setShowArchiveDialog(true)}
-                                        className="gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 font-medium"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete Profile
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+
+                    <div className={cn(
+                        "text-sm text-muted-foreground italic transition-[max-height,opacity,margin] duration-200 ease-in-out overflow-hidden will-change-[max-height,opacity]",
+                        isSticky ? "max-h-0 opacity-0 mt-0" : "max-h-12 opacity-100 mt-1"
+                    )}>
+                        Farmer History & Details • Production & Stock Management
+                    </div>
                 </div>
             </div>
 
@@ -290,7 +353,7 @@ export default function ManagementFarmerDetailsPage() {
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-3xl font-bold text-foreground">
                                             <span className="text-lg text-muted-foreground font-normal mr-1">TK.</span>
-                                            {parseFloat(farmerData.securityMoney || "0").toLocaleString()}
+                                            {isHubLoading ? <Skeleton className="h-8 w-24 inline-block align-middle" /> : parseFloat(farmerData?.securityMoney || "0").toLocaleString()}
                                         </span>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">Refundable upon account closure</p>
@@ -324,72 +387,86 @@ export default function ManagementFarmerDetailsPage() {
                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock Overview</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {(() => {
-                                const activeCyclesList = (activeCycles?.items || []) as any[];
-                                const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
-                                const activeBirds = activeCyclesList.reduce((acc: number, c: any) => acc + ((c.doc || 0) - (c.mortality || 0)), 0);
-                                const remaining = farmerData.mainStock - activeConsumption;
-                                const isLow = remaining < 3;
+                            {isHubLoading ? (
+                                <div className="space-y-4">
+                                    <Skeleton className="h-10 w-32" />
+                                    <Skeleton className="h-4 w-full rounded-full" />
+                                    <div className="space-y-2 pt-2 border-t border-border">
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-full" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {(() => {
+                                        const activeCyclesList = (activeCycles?.items || []) as any[];
+                                        const activeConsumption = activeCyclesList.reduce((acc: number, c: any) => acc + (c.intake || 0), 0);
+                                        const activeBirds = activeCyclesList.reduce((acc: number, c: any) => acc + ((c.doc || 0) - (c.mortality || 0)), 0);
+                                        const remaining = (farmerData?.mainStock || 0) - activeConsumption;
+                                        const isLow = remaining < 3;
 
-                                if (farmerData.status === "deleted") {
-                                    return (
-                                        <div className="space-y-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-muted-foreground">
-                                                        --
-                                                    </span>
-                                                    <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                        if (farmerData?.status === "deleted") {
+                                            return (
+                                                <div className="space-y-4">
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="text-4xl font-black text-muted-foreground">
+                                                                --
+                                                            </span>
+                                                            <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground font-medium">Profile archived - no active cycles permitted.</p>
+                                                    </div>
+                                                    <div className="pt-4 border-t border-border">
+                                                        <div className="flex justify-between items-center text-xs">
+                                                            <span className="text-muted-foreground font-medium uppercase tracking-tighter">Archived Balance</span>
+                                                            <span className="font-bold text-muted-foreground">{(farmerData?.mainStock || 0).toFixed(2)} b</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground font-medium">Profile archived - no active cycles permitted.</p>
-                                            </div>
-                                            <div className="pt-4 border-t border-border">
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-muted-foreground font-medium uppercase tracking-tighter">Archived Balance</span>
-                                                    <span className="font-bold text-muted-foreground">{farmerData.mainStock.toFixed(2)} b</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                }
+                                            );
+                                        }
 
-                                return (
-                                    <>
-                                        <div className="space-y-1">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`text-4xl font-bold ${isLow ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>
-                                                    {remaining.toFixed(2)}
-                                                </span>
-                                                <span className="text-muted-foreground font-medium text-sm">bags left</span>
-                                            </div>
-                                            {isLow && (
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold uppercase tracking-wide">
-                                                    Urgent Restock Needed
+                                        return (
+                                            <>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className={`text-4xl font-black tracking-tighter transition-colors ${isLow ? 'text-red-500' : 'text-foreground'}`}>
+                                                            {remaining.toFixed(2)}
+                                                        </span>
+                                                        <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Remaining Bags</span>
+                                                    </div>
+                                                    {isLow && (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold uppercase tracking-wide">
+                                                            Urgent Restock Needed
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
 
-                                        <div className="space-y-3 pt-2 border-t border-border">
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Total Active Birds</span>
-                                                <span className="font-semibold text-foreground">{activeBirds.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Active Consumption</span>
-                                                <span className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
-                                                <span className="font-semibold text-foreground">{farmerData.mainStock.toFixed(2)}</span>
-                                            </div>
-                                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
-                                                <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
-                                                <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${Math.min((activeConsumption / (farmerData.mainStock || 1)) * 100, 100)}%` }} />
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
+                                                <div className="space-y-3 pt-2 border-t border-border">
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Total Active Birds</span>
+                                                        <span className="font-semibold text-foreground">{activeBirds.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Active Consumption</span>
+                                                        <span className="font-semibold text-amber-500">+{activeConsumption.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-muted-foreground">Total Provisioned (Ledger)</span>
+                                                        <span className="font-semibold text-foreground">{(farmerData?.mainStock || 0).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
+                                                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min((remaining / ((farmerData?.mainStock || 0) || 1)) * 100, 100)}%` }} />
+                                                        <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${Math.min((activeConsumption / ((farmerData?.mainStock || 0) || 1)) * 100, 100)}%` }} />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -407,6 +484,10 @@ export default function ManagementFarmerDetailsPage() {
                                     <Archive className="h-4 w-4" />
                                     History
                                 </TabsTrigger>
+                                <TabsTrigger value="sales" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Sales History
+                                </TabsTrigger>
                                 <TabsTrigger value="ledger" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary font-bold">
                                     <Scale className="h-4 w-4" />
                                     Ledger
@@ -421,8 +502,12 @@ export default function ManagementFarmerDetailsPage() {
                                 <ArchivedCyclesSection isLoading={false} isError={false} data={history} />
                             </TabsContent>
 
+                            <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
+                                <SalesHistoryCard farmerId={farmerId} />
+                            </TabsContent>
+
                             <TabsContent value="ledger" className="mt-0 focus-visible:outline-none">
-                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
+                                <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData?.mainStock || 0} />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -454,6 +539,18 @@ export default function ManagementFarmerDetailsPage() {
                                 </AccordionContent>
                             </AccordionItem>
 
+                            <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                                <AccordionTrigger className="hover:no-underline py-4 text-foreground border-none">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingCart className="h-5 w-5 text-blue-500" />
+                                        <span className="font-bold tracking-tight">Sales History</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-4">
+                                    <SalesHistoryCard farmerId={farmerId} isMobile />
+                                </AccordionContent>
+                            </AccordionItem>
+
                             <AccordionItem value="ledger" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
                                 <AccordionTrigger className="hover:no-underline py-4 text-foreground border-none">
                                     <div className="flex items-center gap-2">
@@ -462,7 +559,7 @@ export default function ManagementFarmerDetailsPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData.mainStock} />
+                                    <StockLedgerTable logs={stockLogs as any[] || []} mainStock={farmerData?.mainStock || 0} />
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
@@ -472,8 +569,8 @@ export default function ManagementFarmerDetailsPage() {
 
             <TransferStockModal
                 sourceFarmerId={farmerId}
-                sourceFarmerName={farmerData.name}
-                currentStock={farmerData.mainStock}
+                sourceFarmerName={farmerData?.name || "N/A"}
+                currentStock={farmerData?.mainStock || 0}
                 open={showTransferModal}
                 onOpenChange={setShowTransferModal}
             />
@@ -490,16 +587,16 @@ export default function ManagementFarmerDetailsPage() {
                 />
             </ResponsiveDialog>
             <FarmerNavigation
-                orgId={farmerData.organizationId}
+                orgId={farmerData?.organizationId || ""}
                 currentFarmerId={farmerId}
-                currentOfficerId={farmerData.officerId}
+                currentOfficerId={farmerData?.officerId || ""}
                 prefix="/management"
             />
 
             <ArchiveFarmerDialog
                 open={showArchiveDialog}
                 onOpenChange={setShowArchiveDialog}
-                farmerName={farmerData.name}
+                farmerName={farmerData?.name || "N/A"}
                 isPending={deleteMutation.isPending}
                 onConfirm={() => deleteMutation.mutate({ orgId: orgId as string, farmerId: farmerId })}
             />
@@ -508,30 +605,32 @@ export default function ManagementFarmerDetailsPage() {
                 open={showRestoreModal}
                 onOpenChange={setShowRestoreModal}
                 farmerId={farmerId}
-                archivedName={farmerData.name}
+                archivedName={farmerData?.name || "N/A"}
                 orgId={orgId as string}
             />
-            {orgId && (
-                <>
-                    <EditSecurityMoneyModal
-                        farmerId={farmerId}
-                        currentAmount={parseFloat(farmerData.securityMoney || "0")}
-                        open={showEditSecurityMoneyModal}
-                        onOpenChange={setShowEditSecurityMoneyModal}
-                        variant="management"
-                        orgId={orgId}
-                    />
-                    <SecurityMoneyHistoryModal
-                        farmerId={farmerId}
-                        farmerName={farmerData.name}
-                        open={showSecurityHistoryModal}
-                        onOpenChange={setShowSecurityHistoryModal}
-                        variant="management"
-                        orgId={orgId}
-                    />
-                </>
-            )}
-        </div>
+            {
+                orgId && (
+                    <>
+                        <EditSecurityMoneyModal
+                            farmerId={farmerId}
+                            currentAmount={parseFloat(farmerData?.securityMoney || "0")}
+                            open={showEditSecurityMoneyModal}
+                            onOpenChange={setShowEditSecurityMoneyModal}
+                            variant="management"
+                            orgId={orgId}
+                        />
+                        <SecurityMoneyHistoryModal
+                            farmerId={farmerId}
+                            farmerName={farmerData?.name || "N/A"}
+                            open={showSecurityHistoryModal}
+                            onOpenChange={setShowSecurityHistoryModal}
+                            variant="management"
+                            orgId={orgId}
+                        />
+                    </>
+                )
+            }
+        </div >
     );
 }
 

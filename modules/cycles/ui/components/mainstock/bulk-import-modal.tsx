@@ -11,13 +11,14 @@ import {
     DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Pencil, Plus, Search, Sparkles, Trash2, User, X } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Edit2, Loader2, Pencil, Plus, Search, Sparkles, Trash2, Truck, User, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface BulkImportModalProps {
@@ -25,6 +26,8 @@ interface BulkImportModalProps {
     onOpenChange: (open: boolean) => void;
     orgId: string;
 }
+
+const MOBILE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
 
 interface ParsedItem {
     id: string; // Internal ID for the row
@@ -37,12 +40,15 @@ interface ParsedItem {
     suggestions?: { id: string; name: string }[];
     isDuplicate?: boolean;
     stockAdded?: boolean;
+    location?: string | null;
+    mobile?: string | null;
 }
 
 export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalProps) {
     const [step, setStep] = useState<"INPUT" | "REVIEW">("INPUT");
     const [inputText, setInputText] = useState("");
     const [parsedData, setParsedData] = useState<ParsedItem[]>([]);
+    const [driverName, setDriverName] = useState(""); // Added
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
     const [showProGate, setShowProGate] = useState(false);
@@ -61,6 +67,39 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
         enabled: open
     });
 
+    // Re-run matching when farmers list updates (e.g. after a creation)
+    useEffect(() => {
+        if (!farmersList?.items) return;
+
+        setParsedData(prev => {
+            let hasChanges = false;
+            const updated = prev.map(p => {
+                // If already matched, keep it
+                if (p.matchedFarmerId) return p;
+
+                // Try to find a match in the updated list
+                const match = farmersList.items.find(f => f.name.toLowerCase().trim() === p.cleanName.toLowerCase().trim());
+
+                if (match) {
+                    hasChanges = true;
+                    return {
+                        ...p,
+                        matchedFarmerId: match.id,
+                        matchedName: match.name,
+                        confidence: "HIGH",
+                        stockAdded: false
+                    } as ParsedItem;
+                }
+                return p;
+            });
+
+            if (hasChanges) {
+                return calculateDuplicates(updated);
+            }
+            return prev;
+        });
+    }, [farmersList]);
+
     const bulkAddMutation = useMutation(trpc.officer.stock.bulkAddStock.mutationOptions({
         onSuccess: (data) => {
             toast.success(`Successfully added stock to ${data.count} farmers.`);
@@ -70,6 +109,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             setStep("INPUT");
             setInputText("");
             setParsedData([]);
+            setDriverName(""); // Added
         },
         onError: (err) => {
             toast.error(`Failed to import: ${err.message}`);
@@ -144,6 +184,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 name: item.cleanName,
                 initialStock: 0, // Updated: Create with 0 stock
                 orgId: orgId,
+                location: item.location,
+                mobile: item.mobile
             });
             toast.success(`Farmer "${item.cleanName}" created!`);
         } catch (error) {
@@ -192,6 +234,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 const totalAmount = item.amount;
                 const matchedId = item.matchedId;
                 const confidence = item.confidence || "LOW";
+                const location = item.location;
+                const mobile = item.mobile;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const suggestions = (item.suggestions || []) as { id: string; name: string }[];
 
@@ -225,7 +269,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                     matchedName: finalMatchedName,
                     confidence: finalMatchedId ? "HIGH" : "LOW",
                     suggestions: suggestions,
-                    isDuplicate: false // Initial value
+                    isDuplicate: false, // Initial value
+                    location: location,
+                    mobile: mobile
                 };
             });
 
@@ -295,11 +341,25 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                     matchedFarmerId: match?.id || null,
                     matchedName: match?.name || null,
                     confidence: "HIGH",
-                    suggestions: []
+                    suggestions: [],
+                    location: p.location,
+                    mobile: p.mobile
                 } as ParsedItem;
             });
             return calculateDuplicates(updatedItems);
         });
+    };
+
+    const handleLocationEdit = (id: string, newLocation: string) => {
+        setParsedData(prev => prev.map(p =>
+            p.id === id ? { ...p, location: newLocation } : p
+        ));
+    };
+
+    const handleMobileEdit = (id: string, newMobile: string) => {
+        setParsedData(prev => prev.map(p =>
+            p.id === id ? { ...p, mobile: newMobile } : p
+        ));
     };
 
     const handleAmountEdit = (id: string, newAmount: string) => {
@@ -325,15 +385,18 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
     };
 
     const handleSubmit = () => {
-        const payload = parsedData
-            .filter(p => p.matchedFarmerId && !p.stockAdded)
-            .map(p => ({
-                farmerId: p.matchedFarmerId!,
-                amount: p.amount,
-                note: `Bulk Import: ${p.matchedName || p.cleanName}`
-            }));
+        const payload = {
+            items: parsedData
+                .filter(p => p.matchedFarmerId && !p.stockAdded)
+                .map(p => ({
+                    farmerId: p.matchedFarmerId!,
+                    amount: p.amount,
+                    note: `Bulk Import: ${p.matchedName || p.cleanName}`
+                })),
+            driverName: driverName || undefined
+        };
 
-        if (payload.length === 0) {
+        if (payload.items.length === 0) {
             toast.error("No valid matches found to import.");
             return;
         }
@@ -371,6 +434,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             setStep("INPUT");
             setInputText("");
             setParsedData([]);
+            setDriverName(""); // Added
             setEditingId(null);
             setEditingAmountId(null);
             setLoadingRowIds(new Set());
@@ -401,7 +465,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             await createBulkMutation.mutateAsync({
                 farmers: uniqueMissing.map(item => ({
                     name: item.cleanName,
-                    initialStock: 0 // Create with 0 stock
+                    initialStock: 0, // Create with 0 stock
+                    location: item.location,
+                    mobile: item.mobile
                 })),
                 orgId: orgId
             });
@@ -418,7 +484,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             <DialogContent className="w-[95vw] h-[90vh] sm:max-w-4xl sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl">
                 {showProGate ? (
                     <div className="h-full w-full flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                        <div className="relative h-48 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="relative h-48 bg-slate-900 dark:bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
                             {/* Close Button for Pro Modal - Just goes back to input */}
                             <Button
                                 variant="ghost"
@@ -571,11 +637,179 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                     key={row.id}
                                                     className={`
                                                 group relative p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md
-                                                ${row.isDuplicate ? "bg-destructive/5 border-destructive/20" :
-                                                            !row.matchedFarmerId ? "bg-amber-500/5 border-amber-500/10" : "bg-card border-border/50 hover:border-primary/50"}
+                                                ${row.isDuplicate ? "bg-destructive/5 dark:bg-destructive/10 border-destructive/20" :
+                                                            !row.matchedFarmerId ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10" : "bg-card border-border/50 hover:border-primary/50"}
                                             `}
                                                 >
-                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                                    {/* Mobile Card Layout */}
+                                                    <div className="flex flex-col gap-3 sm:hidden">
+                                                        <div className="flex justify-between items-start gap-3">
+                                                            {/* Status Icon */}
+                                                            <div className="shrink-0 pt-1">
+                                                                {row.isDuplicate ? (
+                                                                    <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+                                                                        <AlertTriangle className="h-4 w-4" />
+                                                                    </div>
+                                                                ) : row.matchedFarmerId ? (
+                                                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary relative">
+                                                                        <Check className="h-4 w-4" />
+                                                                        {row.confidence === "HIGH" && (
+                                                                            <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 shadow-sm border border-border/50">
+                                                                                <Sparkles className="h-2 w-2 text-amber-500" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-500">
+                                                                        <Search className="h-4 w-4" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Main Content */}
+                                                            <div className="flex-1 min-w-0">
+                                                                {editingId === row.id ? (
+                                                                    <div className="flex flex-col gap-2 w-full">
+                                                                        <Input
+                                                                            value={row.cleanName}
+                                                                            onChange={(e) => handleNameEdit(row.id, e.target.value)}
+                                                                            placeholder="Farmer Name"
+                                                                            className="h-8 w-full text-sm"
+                                                                            autoFocus
+                                                                        />
+                                                                        <div className="flex gap-2">
+                                                                            <Input
+                                                                                value={row.location || ""}
+                                                                                onChange={(e) => handleLocationEdit(row.id, e.target.value)}
+                                                                                placeholder="Location"
+                                                                                className="h-8 w-1/2 text-xs"
+                                                                            />
+                                                                            <Input
+                                                                                value={row.mobile || ""}
+                                                                                onChange={(e) => handleMobileEdit(row.id, e.target.value)}
+                                                                                placeholder="Mobile"
+                                                                                className={`h-8 w-1/2 text-xs ${row.mobile && !MOBILE_REGEX.test(row.mobile) ? "border-destructive text-destructive focus-visible:ring-destructive" : ""}`}
+                                                                                title={row.mobile && !MOBILE_REGEX.test(row.mobile) ? "Invalid mobile number" : ""}
+                                                                            />
+                                                                        </div>
+                                                                        <Button size="sm" variant="secondary" className="h-7 text-xs w-full" onClick={() => setEditingId(null)}>Done</Button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <h3 className="font-semibold text-foreground text-sm truncate" onClick={() => setEditingId(row.id)}>
+                                                                                {row.cleanName}
+                                                                            </h3>
+                                                                            <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2" onClick={() => setEditingId(row.id)}>
+                                                                                <Edit2 className="h-3 w-3 text-muted-foreground" />
+                                                                            </Button>
+                                                                        </div>
+
+                                                                        <div className="flex flex-wrap gap-1 mb-1">
+                                                                            <span className="text-[10px] text-muted-foreground px-1 bg-muted rounded border border-border/50">
+                                                                                raw: "{row.rawName}"
+                                                                            </span>
+                                                                            {row.isDuplicate && <Badge variant="destructive" className="h-4 text-[9px] px-1">Duplicate</Badge>}
+                                                                        </div>
+
+                                                                        {(row.location || row.mobile) && (
+                                                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                                                {row.location && <Badge variant="outline" className="h-5 text-[10px] px-1.5 max-w-[120px] truncate bg-background" title={row.location}>{row.location}</Badge>}
+                                                                                {row.mobile && <Badge variant="outline" className="h-5 text-[10px] px-1.5 bg-background">{row.mobile}</Badge>}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Status & Actions Box */}
+                                                        <div className="bg-muted/30 rounded-lg p-2 flex items-center justify-between gap-2 border border-border/50">
+                                                            <div className="flex-1 min-w-0">
+                                                                {row.matchedFarmerId ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                                            <User className="h-3 w-3" />
+                                                                        </div>
+                                                                        <div className="truncate">
+                                                                            <p className="text-xs font-semibold text-foreground truncate">{row.matchedName}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs text-amber-600 dark:text-amber-500 font-medium">No Match</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                {/* Amount Edit */}
+                                                                {editingAmountId === row.id && !row.stockAdded ? (
+                                                                    <Input
+                                                                        type="number"
+                                                                        className="h-7 w-16 bg-background border-primary/20 focus-visible:ring-primary p-1 text-right text-xs"
+                                                                        value={row.amount}
+                                                                        onChange={(e) => handleAmountEdit(row.id, e.target.value)}
+                                                                        onBlur={() => setEditingAmountId(null)}
+                                                                        autoFocus
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex items-center gap-1 cursor-pointer" onClick={() => !row.stockAdded && setEditingAmountId(row.id)}>
+                                                                        {row.stockAdded ? (
+                                                                            <Badge className="bg-primary text-primary-foreground border-0 h-6 px-1.5 text-[10px]">
+                                                                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                                                {row.amount}
+                                                                            </Badge>
+                                                                        ) : (
+                                                                            <Badge className={`${row.matchedFarmerId ? "bg-primary/20 text-primary" : "bg-card border-border text-foreground"} border-0 h-6 px-1.5 text-[10px]`}>
+                                                                                +{row.amount} Bags
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {!row.matchedFarmerId && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="default"
+                                                                        className="h-7 px-2 text-xs bg-blue-600 text-white"
+                                                                        onClick={() => handleCreateClick(row)}
+                                                                        disabled={loadingRowIds.has(row.id) || isCreatingAll}
+                                                                    >
+                                                                        {loadingRowIds.has(row.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                                                                        Create
+                                                                    </Button>
+                                                                )}
+
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
+                                                                    onClick={() => handleDismiss(row.id)}
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* AI Suggestions Mobile */}
+                                                        {row.suggestions && row.suggestions.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+                                                                <span className="text-[10px] text-muted-foreground font-medium py-0.5">Match:</span>
+                                                                {row.suggestions.map(s => (
+                                                                    <Badge
+                                                                        key={s.id}
+                                                                        variant="secondary"
+                                                                        className="cursor-pointer bg-background/50 hover:bg-primary/20 hover:text-primary transition-colors border border-border/50 h-5 text-[10px] px-1.5"
+                                                                        onClick={() => handleSuggestionClick(row.id, s)}
+                                                                    >
+                                                                        {s.name}
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Desktop Row Layout (Existing) */}
+                                                    <div className="hidden sm:flex sm:flex-row items-center gap-4">
                                                         {/* Top Row (Mobile): User Info */}
                                                         <div className="flex items-center gap-4 w-full sm:w-auto">
                                                             {/* Icon Status */}
@@ -607,17 +841,39 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                         Extracted: "{row.rawName}"
                                                                     </span>
                                                                     {row.isDuplicate && <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Duplicate</Badge>}
+                                                                    {(row.location || row.mobile) && (
+                                                                        <div className="flex gap-1">
+                                                                            {row.location && <Badge variant="outline" className="h-5 text-[10px] px-1.5 max-w-[80px] truncate" title={row.location}>{row.location}</Badge>}
+                                                                            {row.mobile && <Badge variant="outline" className="h-5 text-[10px] px-1.5">{row.mobile}</Badge>}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
 
                                                                 {editingId === row.id ? (
-                                                                    <div className="flex items-center gap-2">
+                                                                    <div className="flex flex-col gap-2 w-full">
                                                                         <Input
                                                                             value={row.cleanName}
                                                                             onChange={(e) => handleNameEdit(row.id, e.target.value)}
-                                                                            onBlur={() => setEditingId(null)}
+                                                                            placeholder="Farmer Name"
+                                                                            className="h-8 w-full"
                                                                             autoFocus
-                                                                            className="h-8 max-w-[200px]"
                                                                         />
+                                                                        <div className="flex gap-2">
+                                                                            <Input
+                                                                                value={row.location || ""}
+                                                                                onChange={(e) => handleLocationEdit(row.id, e.target.value)}
+                                                                                placeholder="Location"
+                                                                                className="h-8 w-1/2 text-xs"
+                                                                            />
+                                                                            <Input
+                                                                                value={row.mobile || ""}
+                                                                                onChange={(e) => handleMobileEdit(row.id, e.target.value)}
+                                                                                placeholder="Mobile"
+                                                                                className={`h-8 w-1/2 text-xs ${row.mobile && !MOBILE_REGEX.test(row.mobile) ? "border-destructive text-destructive focus-visible:ring-destructive" : ""}`}
+                                                                                title={row.mobile && !MOBILE_REGEX.test(row.mobile) ? "Invalid mobile number" : ""}
+                                                                            />
+                                                                        </div>
+                                                                        <Button size="sm" variant="secondary" className="h-6 text-xs w-full" onClick={() => setEditingId(null)}>Done</Button>
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center gap-2">
@@ -708,7 +964,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                                                 <Button
                                                                                     size="sm"
                                                                                     variant="default"
-                                                                                    className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                                                                    className="h-8 bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 shadow-sm"
                                                                                     onClick={() => handleCreateClick(row)}
                                                                                     disabled={loadingRowIds.has(row.id) || isCreatingAll}
                                                                                 >
@@ -791,9 +1047,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             parseText();
                                         }}
                                         disabled={!inputText || isLoadingFarmers || extractFarmersMutation.isPending}
-                                        className={`text-white shadow-md transition-all hover:shadow-lg w-full sm:w-auto ${!isPro
-                                            ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
-                                            : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
+                                        className={`transition-all hover:shadow-lg w-full sm:w-auto font-bold border-0 ${!isPro
+                                            ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100"
+                                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
                                             }`}
                                         size="lg"
                                     >
@@ -804,7 +1060,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             </>
                                         ) : !isPro ? (
                                             <>
-                                                <Sparkles className="mr-2 h-4 w-4 text-amber-300" />
+                                                <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
                                                 <span className="hidden sm:inline">Analyze with AI</span><span className="sm:hidden">Analyze</span> <Badge className="ml-2 bg-amber-400 text-amber-950 text-[10px] items-center px-1 h-4">PRO</Badge>
                                             </>
                                         ) : (
@@ -820,7 +1076,23 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                     <Button variant="ghost" onClick={() => setStep("INPUT")} className="text-muted-foreground hover:text-foreground w-full sm:w-auto">
                                         Back to Input
                                     </Button>
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end items-center">
+                                        {step === "REVIEW" && (
+                                            <div className="space-y-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/10">
+                                                <div className="flex items-center gap-2">
+                                                    <Truck className="h-4 w-4 text-primary" />
+                                                    <Label className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+                                                        Driver Name (Optional)
+                                                    </Label>
+                                                </div>
+                                                <Input
+                                                    value={driverName}
+                                                    onChange={(e) => setDriverName(e.target.value)}
+                                                    placeholder="Enter driver name..."
+                                                    className="h-11 rounded-xl bg-background border-primary/20 focus:border-primary transition-all text-base placeholder:text-muted-foreground/50 shadow-sm"
+                                                />
+                                            </div>
+                                        )}
                                         {parsedData.some(p => !p.matchedFarmerId) && (
                                             <Button
                                                 variant="outline"

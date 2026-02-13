@@ -2,11 +2,31 @@ import { cycleHistory, cycles, farmer, member } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, orgProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementOfficersRouter = createTRPCRouter({
-    getDetails: orgProcedure
-        .input(z.object({ userId: z.string() })) // orgId inherited from orgProcedure input
+    getAll: managementProcedure
+        .query(async ({ ctx, input }) => {
+            const officers = await ctx.db.query.member.findMany({
+                where: and(
+                    eq(member.organizationId, input.orgId),
+                    inArray(member.role, ["OFFICER", "MANAGER", "OWNER"]), // Owners/Managers can also be officers
+                    eq(member.status, "ACTIVE")
+                ),
+                with: {
+                    user: true
+                }
+            });
+
+            return officers.map(o => ({
+                id: o.userId, // Use userId as the identifier for filtering
+                name: o.user.name,
+                role: o.role
+            }));
+        }),
+
+    getDetails: managementProcedure
+        .input(z.object({ userId: z.string() })) // orgId inherited from managementProcedure input
         .query(async ({ ctx, input }) => {
             // 1. Get the member info
             const membership = await ctx.db.query.member.findFirst({
@@ -134,7 +154,7 @@ export const managementOfficersRouter = createTRPCRouter({
             };
         }),
 
-    getProductionTree: orgProcedure
+    getProductionTree: managementProcedure
         .query(async ({ ctx, input }) => {
             // 1. Get all members active in the organization
             const members = await ctx.db.query.member.findMany({

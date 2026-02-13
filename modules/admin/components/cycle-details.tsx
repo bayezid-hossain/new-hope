@@ -1,5 +1,11 @@
 "use client";
 
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +15,7 @@ import { useCurrentOrg } from "@/hooks/use-current-org";
 import { Farmer, FarmerHistory } from "@/modules/cycles/types";
 import { LogsTimeline } from "@/modules/cycles/ui/components/cycles/logs-timeline";
 import { MobileCycleCard } from "@/modules/cycles/ui/components/cycles/mobile-cycle-card";
+import { SalesHistoryCard } from "@/modules/cycles/ui/components/cycles/sales-history-card";
 import { DataTable } from "@/modules/cycles/ui/components/data-table";
 import { ActionsCell, getHistoryColumns, HistoryActionsCell } from "@/modules/cycles/ui/components/shared/columns-factory";
 import { useTRPC } from "@/trpc/client";
@@ -25,13 +32,14 @@ import {
     Lightbulb,
     Loader2,
     Scale,
+    ShoppingCart,
     Trash2,
     TrendingUp,
     UsersIcon
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 // --- Sub-components replicating standard detail page logic ---
 
@@ -58,7 +66,7 @@ const AnalysisContent = ({
     const age = cycle.age || 0;
     const avgDailyIntake = age > 0 ? (intake / age) : 0;
 
-    const liveBirds = Math.max(0, doc - mortality);
+    const liveBirds = Math.max(0, doc - mortality - (cycle.birdsSold || 0));
     const currentFeedPerBird = liveBirds > 0 ? (intake / liveBirds) : 0;
 
     const historicalAvgFeedPerBird = history.length > 0
@@ -154,7 +162,7 @@ const AnalysisContent = ({
                             <CardContent className="space-y-4">
                                 <div className="flex items-center justify-between py-2 border-b border-border/50">
                                     <span className="text-muted-foreground text-sm">Start Date</span>
-                                    <span className="font-bold text-foreground">{format(new Date(cycle.createdAt), "dd MMM, yyyy")}</span>
+                                    <span className="font-bold text-foreground">{format(new Date(cycle.createdAt), "dd/MM/yyyy")}</span>
                                 </div>
                                 <div className="flex items-center justify-between py-2 border-b border-border/50">
                                     <span className="text-muted-foreground text-sm">Initial Stock (DOC)</span>
@@ -201,15 +209,17 @@ const AnalysisContent = ({
     );
 };
 
-const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId, orgId }: { history: any[], isAdmin?: boolean, isManagement?: boolean, currentId?: string, orgId?: string }) => {
+const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId, orgId, isMobile }: { history: any[], isAdmin?: boolean, isManagement?: boolean, currentId?: string, orgId?: string, isMobile?: boolean }) => {
     const prefix = isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? "/management" : "");
     return (
-        <Card className="border-none shadow-sm bg-card overflow-hidden">
-            <CardHeader className="border-b border-border/50 pb-4">
-                <CardTitle className="text-lg font-bold text-foreground">Other Farmer Cycles</CardTitle>
-            </CardHeader>
+        <Card className={`${isMobile ? "border-none shadow-none bg-transparent" : "border-none shadow-sm bg-card"} overflow-hidden`}>
+            {!isMobile && (
+                <CardHeader className="border-b border-border/50 pb-4">
+                    <CardTitle className="text-lg font-bold text-foreground">Other Farmer Cycles</CardTitle>
+                </CardHeader>
+            )}
             <CardContent className="p-0">
-                <div className="p-4">
+                <div className={isMobile ? "p-0" : "p-4"}>
                     {history && history.length > 0 ? (
                         <>
                             <div className="hidden md:block">
@@ -232,7 +242,7 @@ const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId, orgI
                     )}
                 </div>
                 {/* Navigation Aid: Nearby Farmers */}
-                {!currentId && (
+                {!currentId && !isMobile && (
                     <div className="mt-8 pt-8 border-t border-dashed border-border">
                         <h4 className="text-sm font-semibold text-muted-foreground mb-4 px-1 uppercase tracking-wider">Quick Navigation</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -250,6 +260,21 @@ const OtherCyclesTabContent = ({ history, isAdmin, isManagement, currentId, orgI
     );
 };
 
+const LogsTabContent = ({ logs, isMobile }: { logs: any[]; isMobile?: boolean }) => (
+    <div className={isMobile ? "space-y-0" : "space-y-6"}>
+        {!isMobile && (
+            <CardHeader className="px-0 pt-0 pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                    <History className="h-5 w-5 text-muted-foreground" /> Activity Logs
+                </CardTitle>
+            </CardHeader>
+        )}
+        <div className={isMobile ? "" : "p-6 pt-0"}>
+            <LogsTimeline logs={logs as any[]} height={isMobile ? "350px" : "500px"} />
+        </div>
+    </div>
+);
+
 interface CycleDetailsProps {
     cycleId: string;
     isAdmin?: boolean;
@@ -259,14 +284,25 @@ interface CycleDetailsProps {
 export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsProps) => {
     const trpc = useTRPC();
     const router = useRouter();
-    const { orgId } = useCurrentOrg()
+    const { orgId, canEdit } = useCurrentOrg()
+    const searchParams = useSearchParams();
     const [showReopenModal, setShowReopenModal] = useState(false);
+    const initialTab = searchParams.get("tab") || "timeline";
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Sync state if URL changes (optional but good for back/forward)
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab && (tab === "timeline" || tab === "sales" || tab === "others" || tab === "analytics")) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     const { data: response, isLoading } = useQuery(
         isAdmin
             ? trpc.admin.cycles.getDetails.queryOptions({ id: cycleId })
             : isManagement
-                ? trpc.management.cycles.getDetails.queryOptions({ id: cycleId })
+                ? trpc.management.cycles.getDetails.queryOptions({ id: cycleId, orgId: orgId ?? "" })
                 : trpc.officer.cycles.getDetails.queryOptions({ id: cycleId })
     );
 
@@ -281,7 +317,9 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             intake: type === 'active' ? (cycle as any).intake : (cycle as any).finalIntake,
             createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
-            status: type === 'active' ? 'active' : (cycle as any).status
+            birdsSold: (cycle as any).birdsSold || 0,
+            status: type === 'active' ? 'active' : (cycle as any).status,
+            birdType: (cycle as any).birdType,
         };
     }, [response]);
 
@@ -329,51 +367,58 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                                     <Archive className="h-3 w-3 mr-1" /> Archived
                                 </Badge>
                             )}
+                            {normalizedCycle.birdType && (
+                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[10px] uppercase tracking-wider">
+                                    {normalizedCycle.birdType}
+                                </Badge>
+                            )}
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto ml-auto">
                     {/* Unified Actions Dropdown */}
-                    <div className="bg-card border border-border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
-                        {normalizedCycle.status === "active" ? (
-                            <ActionsCell
-                                prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
-                                cycle={{
-                                    ...normalizedCycle,
-                                    id: cycleId,
-                                    farmerId: (response.data as any).farmerId, // or derive
-                                    organizationId: (response.data as any).organizationId,
-                                    status: "active",
-                                    officerName: null,
-                                    createdAt: new Date(normalizedCycle.createdAt),
-                                    updatedAt: new Date(),
-                                    intake: normalizedCycle.intake.toString()
-                                } as unknown as Farmer}
-                            />
-                        ) : (
-                            <HistoryActionsCell
-                                prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
-                                history={{
-                                    id: cycleId,
-                                    cycleName: normalizedCycle.name,
-                                    farmerName: normalizedCycle.farmerName,
-                                    finalIntake: normalizedCycle.intake,
-                                    doc: normalizedCycle.doc,
-                                    mortality: normalizedCycle.mortality,
-                                    age: normalizedCycle.age,
-                                    status: "history",
-                                    startDate: new Date(normalizedCycle.createdAt),
-                                    endDate: new Date(), // Mock end date or fetch it
-                                    farmerId: (response.data as any).farmerId,
-                                    organizationId: (response.data as any).organizationId,
-                                } as unknown as FarmerHistory}
-                            />
-                        )}
-                    </div>
+                    {canEdit && (
+                        <div className="bg-card border border-border rounded-md shadow-sm h-8 w-8 flex items-center justify-center ml-2">
+                            {normalizedCycle.status === "active" ? (
+                                <ActionsCell
+                                    prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
+                                    cycle={{
+                                        ...normalizedCycle,
+                                        id: cycleId,
+                                        farmerId: (response.data as any).farmerId, // or derive
+                                        organizationId: (response.data as any).organizationId,
+                                        status: "active",
+                                        officerName: null,
+                                        createdAt: new Date(normalizedCycle.createdAt),
+                                        updatedAt: new Date(),
+                                        intake: normalizedCycle.intake.toString()
+                                    } as unknown as Farmer}
+                                />
+                            ) : (
+                                <HistoryActionsCell
+                                    prefix={isAdmin ? `/admin/organizations/${orgId}` : (isManagement ? `/management` : undefined)}
+                                    history={{
+                                        id: cycleId,
+                                        cycleName: normalizedCycle.name,
+                                        farmerName: normalizedCycle.farmerName,
+                                        finalIntake: normalizedCycle.intake,
+                                        doc: normalizedCycle.doc,
+                                        mortality: normalizedCycle.mortality,
+                                        age: normalizedCycle.age,
+                                        status: "history",
+                                        startDate: new Date(normalizedCycle.createdAt),
+                                        endDate: new Date(), // Mock end date or fetch it
+                                        farmerId: (response.data as any).farmerId,
+                                        organizationId: (response.data as any).organizationId,
+                                    } as unknown as FarmerHistory}
+                                />
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
                 <Card className="border-border/10 shadow-sm bg-card">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Age</CardTitle>
@@ -387,12 +432,26 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                 </Card>
                 <Card className="border-border/10 shadow-sm bg-card">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Chicks (DOC)</CardTitle>
+                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Live Birds</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-3xl font-bold text-primary">{(normalizedCycle.doc - normalizedCycle.mortality - normalizedCycle.birdsSold).toLocaleString()}</span>
+                                <Bird className="h-4 w-4 text-muted-foreground/30" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">of {normalizedCycle.doc.toLocaleString()} DOC</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-border/10 shadow-sm bg-card">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sold</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.doc.toLocaleString()}</span>
-                            <Bird className="h-4 w-4 text-muted-foreground/30" />
+                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.birdsSold.toLocaleString()}</span>
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground/30" />
                         </div>
                     </CardContent>
                 </Card>
@@ -415,56 +474,136 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-primary">{normalizedCycle.intake.toFixed(2)}</span>
-                            <span className="text-muted-foreground text-xs font-medium">bags consumed</span>
+                            <span className="text-3xl font-bold text-amber-500">{normalizedCycle.intake.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-xs font-medium">bags</span>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <Tabs defaultValue="timeline" className="space-y-6">
-                <TabsList className="bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto inline-flex overflow-x-auto max-w-full">
-                    <TabsTrigger value="timeline" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
-                        <History className="h-4 w-4" /> Timeline
-                    </TabsTrigger>
-                    <TabsTrigger value="others" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
-                        <Archive className="h-4 w-4" /> Other Cycles
-                    </TabsTrigger>
-                    <TabsTrigger value="analytics" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
-                        <TrendingUp className="h-4 w-4" /> Analytics
-                    </TabsTrigger>
-                </TabsList>
+            <div className="hidden md:block">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                    <TabsList className="bg-muted/50 border border-border/50 shadow-sm p-1 rounded-xl h-auto inline-flex overflow-x-auto max-w-full">
+                        <TabsTrigger value="timeline" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
+                            <History className="h-4 w-4" /> Timeline
+                        </TabsTrigger>
+                        <TabsTrigger value="sales" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
+                            <ShoppingCart className="h-4 w-4" /> Sales
+                        </TabsTrigger>
+                        <TabsTrigger value="others" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
+                            <Archive className="h-4 w-4" /> Other Cycles
+                        </TabsTrigger>
+                        <TabsTrigger value="analytics" className="flex items-center gap-2 py-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm font-bold whitespace-nowrap transition-all">
+                            <TrendingUp className="h-4 w-4" /> Analytics
+                        </TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value="timeline" className="mt-0 focus-visible:outline-none">
-                    <Card className="border-none shadow-sm bg-card overflow-hidden">
-                        <CardHeader className="border-b border-border/50 pb-4">
-                            <CardTitle className="text-lg font-bold text-foreground">Activity Logs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="p-6">
-                                <LogsTimeline logs={logs as any[]} height="500px" />
+                    <TabsContent value="timeline" className="mt-0 focus-visible:outline-none">
+                        <Card className="border-none shadow-sm bg-card overflow-hidden">
+                            <CardContent className="p-0">
+                                <LogsTabContent logs={logs as any[]} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="sales" className="mt-0 focus-visible:outline-none">
+                        <SalesHistoryCard
+                            cycleId={normalizedCycle.status === 'active' ? cycleId : undefined}
+                            historyId={normalizedCycle.status !== 'active' ? cycleId : undefined}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
+                        <AnalysisContent
+                            cycle={normalizedCycle}
+                            history={history.filter((h: any) => h.id !== cycleId)}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="others" className="mt-0 focus-visible:outline-none">
+                        <OtherCyclesTabContent
+                            history={history}
+                            isAdmin={isAdmin}
+                            isManagement={isManagement}
+                            currentId={cycleId}
+                            orgId={orgId ?? ""}
+                        />
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            {/* Mobile View: Accordion */}
+            <div className="block md:hidden">
+                <Accordion
+                    type="single"
+                    collapsible
+                    value={activeTab}
+                    onValueChange={(val) => val && setActiveTab(val)}
+                    className="space-y-4"
+                >
+                    <AccordionItem value="timeline" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                        <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                            <div className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-semibold tracking-tight">Activity Logs</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 pb-4">
+                            <LogsTabContent logs={logs as any[]} isMobile />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
-                    <AnalysisContent
-                        cycle={normalizedCycle}
-                        history={history.filter((h: any) => h.id !== cycleId)}
-                    />
-                </TabsContent>
+                    <AccordionItem value="sales" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                        <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                            <div className="flex items-center gap-2">
+                                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-semibold tracking-tight">Sales History</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 pb-4">
+                            <SalesHistoryCard
+                                cycleId={normalizedCycle.status === 'active' ? cycleId : undefined}
+                                historyId={normalizedCycle.status !== 'active' ? cycleId : undefined}
+                                isMobile
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                <TabsContent value="others" className="mt-0 focus-visible:outline-none">
-                    <OtherCyclesTabContent
-                        history={history}
-                        isAdmin={isAdmin}
-                        isManagement={isManagement}
-                        currentId={cycleId}
-                        orgId={orgId ?? ""}
-                    />
-                </TabsContent>
-            </Tabs>
+                    <AccordionItem value="others" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-1 border-border/50">
+                        <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                            <div className="flex items-center gap-2">
+                                <Archive className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-semibold tracking-tight">Other Cycles</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 pb-4">
+                            <OtherCyclesTabContent
+                                history={history}
+                                isAdmin={isAdmin}
+                                isManagement={isManagement}
+                                currentId={cycleId}
+                                orgId={orgId ?? ""}
+                                isMobile
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="analytics" className="border rounded-2xl bg-card shadow-sm overflow-hidden px-4 py-2 border-border/50">
+                        <AccordionTrigger className="hover:no-underline py-4 text-foreground">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-semibold tracking-tight">Analysis Insights</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 pb-4">
+                            <AnalysisContent
+                                cycle={normalizedCycle}
+                                history={history.filter((h: any) => h.id !== cycleId)}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </div>
 
         </div>
     );

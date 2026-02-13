@@ -1,0 +1,502 @@
+import { db } from "@/db";
+import { cycleHistory, cycles, farmer, saleEvents, saleMetrics, saleReports } from "@/db/schema";
+import { and, eq, gte, lte, or, sql } from "drizzle-orm";
+
+/**
+ * Performance Analytics Service
+ * 
+ * Provides monthly performance report generation for officers.
+ * Aggregates data from cycles (for DOC placement) and sale events
+ * (for sales metrics, FCR, EPI, etc.)
+ */
+
+export interface MonthlyPerformance {
+    month: string;
+    monthNumber: number;
+    chicksIn: number;
+    chicksSold: number;
+    averageAge: number;
+    totalBirdWeight: number; // in kg
+    feedConsumption: number; // in bags
+    survivalRate: number; // percentage
+    epi: number;
+    fcr: number;
+    averagePrice: number; // per kg
+    totalRevenue: number;
+}
+
+export interface PerformanceSummary {
+    year: number;
+    officerId: string;
+    monthlyData: MonthlyPerformance[];
+    totalChicksIn: number;
+    totalChicksSold: number;
+    averageSurvivalRate: number;
+    averageFCR: number;
+    averageEPI: number;
+    totalRevenue: number;
+}
+
+export interface FarmerProductionRecord {
+    farmerId: string;
+    farmerName: string;
+    doc: number;
+    survivalRate: number;
+    averageWeight: number;
+    fcr: number;
+    epi: number;
+    age: number;
+    profit: number;
+}
+
+/**
+ * Calculate FCR for a single sale event
+ * FCR = Total Feed (kg) / Total Live Weight (kg)
+ */
+const calculateFCR = (feedBags: number, totalWeightKg: number): number => {
+    if (totalWeightKg <= 0) return 0;
+    const feedKg = feedBags * 50; // 50kg per bag
+    return feedKg / totalWeightKg;
+};
+
+/**
+ * Calculate EPI (Efficiency Production Index) for a sale event
+ * EPI = (Survival % × Avg Weight kg) / (FCR × Age) × 100
+ */
+const calculateEPI = (
+    survivalRate: number,
+    avgWeightKg: number,
+    fcr: number,
+    age: number
+): number => {
+    if (fcr <= 0 || age <= 0) return 0;
+    return (survivalRate * avgWeightKg) / (fcr * age) * 100;
+};
+
+/**
+ * Parse feed JSON to count total bags
+ */
+const countFeedBags = (feedJson: string | null | undefined): number => {
+    if (!feedJson) return 0;
+    try {
+        const items = JSON.parse(feedJson) as { bags: number }[];
+        if (!Array.isArray(items)) return 0;
+        return items.reduce((sum, item) => sum + (Number(item.bags) || 0), 0);
+    } catch {
+        return 0;
+    }
+};
+
+/**
+ * Get the feed consumed from a sale event
+ * Uses the selected report's feed data if available, otherwise falls back to event data
+ */
+const getFeedFromSaleEvent = (
+    event: any,
+    selectedReport: any
+): number => {
+    if (selectedReport?.feedConsumed) {
+        return countFeedBags(selectedReport.feedConsumed);
+    }
+    return countFeedBags(event.feedConsumed);
+};
+
+export class PerformanceAnalyticsService {
+    /**
+     * Generate annual performance report for an officer
+     * @param officerId - ID of the officer
+     * @param year - Year to generate report for (e.g., 2024)
+     */
+    static async getAnnualPerformance(
+        officerId: string,
+        year: number
+    ): Promise<PerformanceSummary> {
+        const monthlyData: MonthlyPerformance[] = [];
+
+        // Generate data for each month (0-11)
+        for (let month = 0; month < 12; month++) {
+            const monthData = await this.getMonthlyPerformance(officerId, year, month);
+            monthlyData.push(monthData);
+        }
+
+        // Calculate totals and averages
+        const totalChicksIn = monthlyData.reduce((sum, m) => sum + m.chicksIn, 0);
+        const totalChicksSold = monthlyData.reduce((sum, m) => sum + m.chicksSold, 0);
+
+        // Calculate weighted averages (only from months with data)
+        const monthsWithData = monthlyData.filter(m => m.chicksSold > 0);
+        const averageSurvivalRate = monthsWithData.length > 0
+            ? monthsWithData.reduce((sum, m) => sum + m.survivalRate, 0) / monthsWithData.length
+            : 0;
+        const averageFCR = monthsWithData.length > 0
+            ? monthsWithData.reduce((sum, m) => sum + m.fcr, 0) / monthsWithData.length
+            : 0;
+        const averageEPI = monthsWithData.length > 0
+            ? monthsWithData.reduce((sum, m) => sum + m.epi, 0) / monthsWithData.length
+            : 0;
+
+        const totalRevenue = monthlyData.reduce(
+            (sum, m) => sum + m.totalRevenue,
+            0
+        );
+
+        return {
+            year,
+            officerId,
+            monthlyData,
+            totalChicksIn,
+            totalChicksSold,
+            averageSurvivalRate,
+            averageFCR,
+            averageEPI,
+            totalRevenue,
+        };
+    }
+
+    /**
+     * Generate performance data for a specific month
+     * @param officerId - ID of the officer
+     * @param year - Year (e.g., 2024)
+     * @param month - Month (0-11, where 0 = January)
+     */
+    static async getMonthlyPerformance(
+        officerId: string,
+        year: number,
+        month: number
+    ): Promise<MonthlyPerformance> {
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        // Date range for the month
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+        // 1. CHICKS IN: Get DOC from cycles STARTED in this month
+        const chicksIn = await this.getChicksInForMonth(officerId, startOfMonth, endOfMonth);
+
+        // 2. ALL OTHER METRICS: Get from sale events dated in this month
+        const salesMetrics = await this.getSalesMetricsForMonth(officerId, startOfMonth, endOfMonth);
+
+        return {
+            month: monthNames[month],
+            monthNumber: month,
+            chicksIn,
+            ...salesMetrics,
+        };
+    }
+
+    /**
+   * Get total DOC placement (Chicks IN) for cycles started in the given month
+   */
+    private static async getChicksInForMonth(
+        officerId: string,
+        startOfMonth: Date,
+        endOfMonth: Date
+    ): Promise<number> {
+        // Query active cycles
+        const currentCyclesResult = await db
+            .select({ count: sql<number>`SUM(${cycles.doc})` })
+            .from(cycles)
+            .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+            .where(and(
+                eq(farmer.officerId, officerId),
+                gte(cycles.createdAt, startOfMonth),
+                lte(cycles.createdAt, endOfMonth)
+            ));
+
+        // Query archived cycles
+        const pastCyclesResult = await db
+            .select({ count: sql<number>`SUM(${cycleHistory.doc})` })
+            .from(cycleHistory)
+            .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+            .where(and(
+                eq(farmer.officerId, officerId),
+                gte(cycleHistory.startDate, startOfMonth),
+                lte(cycleHistory.startDate, endOfMonth)
+            ));
+
+        const activeCount = Number(currentCyclesResult[0]?.count || 0);
+        const pastCount = Number(pastCyclesResult[0]?.count || 0);
+
+        return activeCount + pastCount;
+    }
+
+    /**
+     * Get sales metrics from sale events dated in the given month
+     */
+    
+
+        /**
+ * Get sales metrics from sale events dated in the given month
+ * FCR & EPI calculated ONLY for ended cycles
+ * Uses:
+ *  - ALL weights from all sales
+ *  - ONLY latest feed value
+ */
+private static async getSalesMetricsForMonth(
+    officerId: string,
+    startOfMonth: Date,
+    endOfMonth: Date
+): Promise<Omit<MonthlyPerformance, 'month' | 'monthNumber' | 'chicksIn'>> {
+
+    const sales = await db
+        .select({
+            birds_sold: saleEvents.birdsSold,
+            total_weight: saleEvents.totalWeight,
+            price_per_kg: saleEvents.pricePerKg,
+            total_amount: saleEvents.totalAmount,
+            total_mortality: saleEvents.totalMortality,
+            house_birds: saleEvents.houseBirds,
+            feed_consumed: saleEvents.feedConsumed,
+            report_feed_consumed: saleReports.feedConsumed,
+            history_age: cycleHistory.age,
+            history_id: saleEvents.historyId,
+            sale_date: saleEvents.saleDate
+        })
+        .from(saleEvents)
+        .leftJoin(saleReports, eq(saleEvents.selectedReportId, saleReports.id))
+        .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
+        .leftJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+        .where(and(
+            eq(farmer.officerId, officerId),
+            gte(saleEvents.saleDate, startOfMonth),
+            lte(saleEvents.saleDate, endOfMonth)
+        ));
+
+    if (sales.length === 0) {
+        return {
+            chicksSold: 0,
+            averageAge: 0,
+            totalBirdWeight: 0,
+            feedConsumption: 0,
+            survivalRate: 0,
+            epi: 0,
+            fcr: 0,
+            averagePrice: 0,
+            totalRevenue: 0,
+        };
+    }
+
+    // ===============================
+    // STEP 1: Group by ended cycle
+    // ===============================
+    const cycleMap = new Map<string, {
+        sales: typeof sales,
+        latestSale: any
+    }>();
+
+    for (const sale of sales) {
+        if (!sale.history_id) continue; // Only ended cycles
+
+        const key = sale.history_id;
+
+        if (!cycleMap.has(key)) {
+            cycleMap.set(key, {
+                sales: [],
+                latestSale: sale
+            });
+        }
+
+        const cycle = cycleMap.get(key)!;
+        cycle.sales.push(sale);
+
+        // Track latest sale
+        if (new Date(sale.sale_date) > new Date(cycle.latestSale.sale_date)) {
+            cycle.latestSale = sale;
+        }
+    }
+
+    // ===============================
+    // STEP 2: Calculate per cycle
+    // ===============================
+    let totalBirdsSold = 0;
+    let totalWeight = 0;
+    let totalAmount = 0;
+    let totalAge = 0;
+    let totalFeedBags = 0;
+
+    let fcrs: number[] = [];
+    let epis: number[] = [];
+    let survivalRates: number[] = [];
+
+    for (const cycle of cycleMap.values()) {
+
+        // ALL weights from all sales
+        const cycleTotalWeight = cycle.sales.reduce(
+            (sum, s) => sum + (parseFloat(s.total_weight as any) || 0),
+            0
+        );
+
+        const cycleTotalBirds = cycle.sales.reduce(
+            (sum, s) => sum + (Number(s.birds_sold) || 0),
+            0
+        );
+
+        const cycleTotalAmount = cycle.sales.reduce(
+            (sum, s) => sum + (parseFloat(s.total_amount as any) || 0),
+            0
+        );
+
+        const latest = cycle.latestSale;
+
+        // ONLY latest feed value
+        const feedBags = countFeedBags(
+            latest.report_feed_consumed || latest.feed_consumed
+        );
+
+        const age = Number(latest.history_age) || 0;
+        const houseBirds = Number(latest.house_birds) || 0;
+        const mortality = Number(latest.total_mortality) || 0;
+        const price = parseFloat(latest.price_per_kg as any) || 0;
+
+        totalBirdsSold += cycleTotalBirds;
+        totalWeight += cycleTotalWeight;
+        totalAmount += cycleTotalAmount;
+
+        totalAge += age;
+        totalFeedBags += feedBags;
+
+        // Survival Rate
+        let survivalRate = 0;
+        if (houseBirds > 0) {
+            survivalRate =
+                ((houseBirds - mortality) / houseBirds) * 100;
+            survivalRates.push(survivalRate);
+        }
+
+        // FCR
+        if (cycleTotalWeight > 0 && feedBags > 0) {
+            const fcr = calculateFCR(feedBags, cycleTotalWeight);
+            fcrs.push(fcr);
+
+            // Average Weight = TOTAL weight / TOTAL birds
+            if (cycleTotalBirds > 0 && age > 0) {
+                const avgWeight = cycleTotalWeight / cycleTotalBirds;
+
+                const epi = calculateEPI(
+                    survivalRate,
+                    avgWeight,
+                    fcr,
+                    age
+                );
+
+                epis.push(epi);
+            }
+        }
+    }
+
+    const numCycles = cycleMap.size;
+
+    return {
+        chicksSold: totalBirdsSold,
+        averageAge: numCycles > 0 ? totalAge / numCycles : 0,
+        totalBirdWeight: totalWeight,
+        feedConsumption: totalFeedBags,
+        survivalRate: survivalRates.length > 0
+            ? survivalRates.reduce((a, b) => a + b, 0) / survivalRates.length
+            : 0,
+        epi: epis.length > 0
+            ? epis.reduce((a, b) => a + b, 0) / epis.length
+            : 0,
+        fcr: fcrs.length > 0
+            ? fcrs.reduce((a, b) => a + b, 0) / fcrs.length
+            : 0,
+        averagePrice: totalWeight > 0
+    ? totalAmount / totalWeight
+    : 0,
+        totalRevenue: totalAmount,
+    };
+}
+            
+    /**
+     * Get monthly production record for an officer
+     * Returns per-farmer breakdown of cycles ended in the given month
+     */
+    static async getMonthlyProductionRecord(
+        officerId: string,
+        year: number,
+        month: number
+    ): Promise<FarmerProductionRecord[]> {
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+        // Find all cycles that had their FINAL sale in this month
+        // A cycle's final sale is when it was ended (moved to history)
+        const endedCycles = await db
+            .select({
+                farmerId: farmer.id,
+                farmerName: farmer.name,
+                fcr: saleMetrics.fcr,
+                epi: saleMetrics.epi,
+                survivalRate: saleMetrics.survivalRate,
+                averageWeight: saleMetrics.averageWeight,
+                averageAge: saleMetrics.averageAge,
+                totalDoc: saleMetrics.totalDoc,
+                netProfit: saleMetrics.netProfit,
+            })
+            .from(cycleHistory)
+            .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+            .innerJoin(saleMetrics, eq(saleMetrics.historyId, cycleHistory.id))
+            .where(and(
+                eq(farmer.officerId, officerId),
+                gte(cycleHistory.endDate, startOfMonth),
+                lte(cycleHistory.endDate, endOfMonth)
+            ));
+
+        // Group by farmer (in case they have multiple cycles ended this month)
+        const farmerMap = new Map<string, {
+            farmerId: string;
+            farmerName: string;
+            doc: number;
+            profit: number;
+            survivalRate: number;
+            averageWeight: number;
+            fcr: number;
+            epi: number;
+            age: number;
+            _cycleCount: number;
+        }>();
+
+        for (const cycle of endedCycles) {
+            const existing = farmerMap.get(cycle.farmerId) || {
+                farmerId: cycle.farmerId,
+                farmerName: cycle.farmerName,
+                doc: 0,
+                survivalRate: 0,
+                averageWeight: 0,
+                fcr: 0,
+                epi: 0,
+                age: 0,
+                profit: 0,
+                _cycleCount: 0,
+            };
+
+            // Sum DOC and profit, average the rest
+            existing.doc += Number(cycle.totalDoc);
+            existing.profit += Number(cycle.netProfit);
+            existing.survivalRate += Number(cycle.survivalRate);
+            existing.averageWeight += Number(cycle.averageWeight);
+            existing.fcr += Number(cycle.fcr);
+            existing.epi += Number(cycle.epi);
+            existing.age += Number(cycle.averageAge);
+            existing._cycleCount++;
+
+            farmerMap.set(cycle.farmerId, existing);
+        }
+
+        // Finalize averages
+        return Array.from(farmerMap.values()).map(f => ({
+            farmerId: f.farmerId,
+            farmerName: f.farmerName,
+            doc: f.doc,
+            survivalRate: f._cycleCount > 0 ? f.survivalRate / f._cycleCount : 0,
+            averageWeight: f._cycleCount > 0 ? f.averageWeight / f._cycleCount : 0,
+            fcr: f._cycleCount > 0 ? f.fcr / f._cycleCount : 0,
+            epi: f._cycleCount > 0 ? f.epi / f._cycleCount : 0,
+            age: f._cycleCount > 0 ? f.age / f._cycleCount : 0,
+            profit: f.profit,
+        })).sort((a, b) => a.farmerName.localeCompare(b.farmerName));
+    }
+}

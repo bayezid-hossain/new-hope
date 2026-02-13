@@ -158,7 +158,10 @@ export function TransferStockModal({
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 ">
+                                    <PopoverContent
+                                        className="w-[--radix-popover-trigger-width] p-0 "
+                                        onOpenAutoFocus={(e) => e.preventDefault()}
+                                    >
                                         <Command>
                                             <CommandInput placeholder="Search farmer..." />
                                             <CommandList>

@@ -24,6 +24,8 @@ import { z } from "zod";
 const createFarmerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   initialStock: z.coerce.number().min(0).default(0).optional(),
+  location: z.string().max(200).optional(),
+  mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().or(z.literal(""))
 });
 
 // 2. Explicitly define the type
@@ -45,6 +47,8 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
     defaultValues: {
       name: "",
       initialStock: 0,
+      location: "",
+      mobile: ""
     },
   });
 
@@ -76,6 +80,8 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
       name: values.name,
       initialStock: values.initialStock ?? 0,
       orgId: orgId,
+      location: values.location || null,
+      mobile: values.mobile || null,
     });
   };
 
@@ -99,6 +105,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
                   <Input
                     placeholder="e.g. John Doe"
                     {...field}
+                    value={field.value ?? ""}
                     autoComplete="off"
                   />
                 </FormControl>
@@ -106,6 +113,47 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
               </FormItem>
             )}
           />
+
+          {/* Mobile Field */}
+          <FormField
+            control={form.control}
+            name="mobile"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mobile Number</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g. 01712345678"
+                    {...field}
+                    value={field.value ?? ""}
+                    autoComplete="off"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Location Field */}
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location / Address</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g. Village, Union"
+                    {...field}
+                    value={field.value ?? ""}
+                    autoComplete="off"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           {/* Initial Stock Field */}
           <FormField
@@ -120,6 +168,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
                     step="0.1"
                     placeholder="0"
                     {...field}
+                    value={field.value ?? 0}
                   />
                 </FormControl>
                 <FormDescription>
