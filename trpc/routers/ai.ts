@@ -139,9 +139,93 @@ const sanitizeOrderInput = (text: string) => {
     return result;
 };
 
-const normalizeName = (name: string) => {
-    return name.toLowerCase().replace(/\s+/g, ' ').trim();
+export type Candidate = {
+    id: string;
+    name: string;
 };
+
+export type MatchResult = {
+    matchedId: string | null;
+    matchedName: string | null;
+    confidence: "HIGH" | null;
+    suggestions: {
+        id: string;
+        name: string;
+        score: number;
+    }[];
+};
+
+/**
+ * Normalize names for strict comparison
+ */
+function normalizeName(name: string): string {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/[^\w\s]/g, "");
+}
+
+/**
+ * Smart Farmer Matcher
+ *
+ * RULES:
+ * - Exact normalized match → AUTO MATCH
+ * - Anything else → Suggestions only
+ * - Even 1 character difference → NOT auto match
+ */
+export function matchFarmer(
+    inputName: string,
+    candidates: Candidate[]
+): MatchResult {
+    const normalizedInput = normalizeName(inputName);
+
+    let matchedId: string | null = null;
+    let matchedName: string | null = null;
+    let confidence: "HIGH" | null = null;
+
+    // -------------------------
+    // 1️⃣ STRICT EXACT MATCH ONLY
+    // -------------------------
+    const exactMatch = candidates.find(
+        (c) => normalizeName(c.name) === normalizedInput
+    );
+
+    if (exactMatch) {
+        matchedId = exactMatch.id;
+        matchedName = exactMatch.name;
+        confidence = "HIGH";
+    }
+
+    // -------------------------
+    // 2️⃣ ALWAYS GENERATE SUGGESTIONS
+    // -------------------------
+    const fuse = new Fuse(candidates, {
+        keys: ["name"],
+        threshold: 0.6, // Very lenient for suggestions
+        distance: 100,
+        ignoreLocation: true,
+        includeScore: true,
+        findAllMatches: true,
+        minMatchCharLength: 2,
+    });
+
+    const suggestions = fuse
+        .search(inputName)
+        .slice(0, 5)
+        .map((r) => ({
+            id: r.item.id,
+            name: r.item.name,
+            score: r.score ?? 0,
+        }));
+
+    return {
+        matchedId,
+        matchedName,
+        confidence,
+        suggestions,
+    };
+}
 
 export const aiRouter = createTRPCRouter({
     extractFarmers: proProcedure
@@ -250,13 +334,25 @@ export const aiRouter = createTRPCRouter({
     extractCycleOrders: proProcedure
         .input(z.object({
             text: z.string(),
-            candidates: z.array(z.object({
-                id: z.string(),
-                name: z.string()
-            })).default([])
+            orgId: z.string()
         }))
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
             const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+            // Fetch Candidates (Farmers belonging to the current officer in this org)
+            const dbCandidates = await ctx.db.select({
+                id: farmer.id,
+                name: farmer.name,
+            })
+                .from(farmer)
+                .where(and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active")
+                ));
+
+            const candidates = dbCandidates.map(f => ({ id: f.id, name: f.name }));
+            const candidatesList = candidates.map(c => `- ${c.name} (ID: ${c.id})`).join("\n");
 
             // Sanitize Input Here
             const baseCleanText = sanitizeOrderInput(input.text);
@@ -449,42 +545,7 @@ FORMAT:
                     }
 
 
-                    // Match Logic using Fuse.js
-                    let matchedId = null;
-                    let matchedName = null;
-                    let confidence: "HIGH" | "MEDIUM" | "LOW" = "LOW";
-                    let suggestions: { id: string, name: string }[] = [];
-
-                    // 1. Exact Match (Case Insensitive + Whitespace Normalized)
-                    const normalizedOriginal = normalizeName(originalName);
-
-                    const exactMatch = input.candidates.find(c => normalizeName(c.name) === normalizedOriginal);
-
-                    if (exactMatch) {
-                        matchedId = exactMatch.id;
-                        matchedName = exactMatch.name;
-                        confidence = "HIGH";
-                    } else {
-                        // 2. Fuzzy Match
-                        const fuse = new Fuse(input.candidates, {
-                            keys: ["name"],
-                            threshold: 0.4, // Adjust sensitivity
-                            includeScore: true
-                        });
-
-                        const results = fuse.search(originalName);
-                        if (results.length > 0) {
-                            const bestMatch = results[0];
-                            // If score is very good (< 0.1), consider it High/Medium confidence
-                            if (bestMatch.score! < 0.2) {
-                                matchedId = bestMatch.item.id;
-                                matchedName = bestMatch.item.name;
-                                confidence = "MEDIUM"; // Fuzzy is rarely explicitly "HIGH" without user confirm, but let's say Medium.
-                            }
-
-                            suggestions = results.slice(0, 3).map(r => ({ id: r.item.id, name: r.item.name }));
-                        }
-                    }
+                    const { matchedId, matchedName, confidence, suggestions } = matchFarmer(originalName, candidates);
 
                     return {
                         name: originalName,

@@ -15,7 +15,7 @@ import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { AlertTriangle, Check, CheckCircle2, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface BulkCycleImportModalProps {
@@ -48,49 +48,12 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
     const [inputText, setInputText] = useState("");
     const [parsedData, setParsedData] = useState<ParsedItem[]>([]);
     const [orderDate, setOrderDate] = useState<Date | null>(null);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingDocId, setEditingDocId] = useState<string | null>(null);
     const [showProGate, setShowProGate] = useState(false);
     const [loadingRowIds, setLoadingRowIds] = useState<Set<string>>(new Set());
 
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    // Fetch ALL farmers for matching
-    const { data: farmersList } = useQuery({
-        ...trpc.officer.farmers.listWithStock.queryOptions({
-            orgId,
-            page: 1,
-            pageSize: 1000
-        }),
-        enabled: open
-    });
-
-    // Re-run matching when farmers list updates
-    useEffect(() => {
-        if (!farmersList?.items) return;
-
-        setParsedData(prev => {
-            const updated = prev.map(p => {
-                if (p.matchedFarmerId) return p;
-
-                const normalize = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ');
-
-                const match = farmersList.items.find(f => normalize(f.name) === normalize(p.cleanName));
-
-                if (match) {
-                    return {
-                        ...p,
-                        matchedFarmerId: match.id,
-                        matchedName: match.name,
-                        confidence: "HIGH",
-                    } as ParsedItem;
-                }
-                return p;
-            });
-            return calculateDuplicates(updated);
-        });
-    }, [farmersList]);
 
     const extractOrdersMutation = useMutation(trpc.ai.extractCycleOrders.mutationOptions({
         onError: (err) => toast.error(`AI Extraction Failed: ${err.message}`)
@@ -134,14 +97,10 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
     // --- Actions ---
 
     const parseText = async () => {
-        if (!farmersList?.items || !inputText.trim()) return;
-
         try {
-            const candidates = farmersList.items.map(f => ({ id: f.id, name: f.name }));
-
             const result = await extractOrdersMutation.mutateAsync({
                 text: inputText,
-                candidates: candidates
+                orgId: orgId
             });
 
             if (result.orderDate) {
@@ -153,21 +112,14 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
             // Map to local structure
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const rows: ParsedItem[] = result.items.map((item: any, index: number) => {
-                const matched = farmersList.items.find(f => f.id === item.matchedId);
-                // Strict Name Match Override
-                const exactMatch = farmersList.items.find(f => f.name.toLowerCase() === item.name.toLowerCase());
-
-                const finalMatchedId = exactMatch ? exactMatch.id : (matched ? matched.id : null);
-                const finalMatchedName = exactMatch ? exactMatch.name : (matched ? matched.name : null);
-
                 return {
                     id: `row-${index}`,
                     cleanName: item.name,
                     doc: item.doc,
                     birdType: item.birdType,
-                    matchedFarmerId: finalMatchedId,
-                    matchedName: finalMatchedName,
-                    confidence: finalMatchedId ? "HIGH" : "LOW",
+                    matchedFarmerId: item.matchedId,
+                    matchedName: item.matchedName,
+                    confidence: item.confidence,
                     suggestions: item.suggestions || [],
                     isDuplicate: false,
                     location: item.location,
