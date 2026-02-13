@@ -489,6 +489,7 @@ export const feedOrders = pgTable("feed_orders", {
   orderDate: timestamp("order_date").notNull(),
   deliveryDate: timestamp("delivery_date").notNull(),
   status: feedOrderStatusEnum("status").notNull().default("PENDING"),
+  driverName: text("driver_name"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [

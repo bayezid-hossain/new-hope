@@ -273,6 +273,24 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
     };
 
     const handleSubmit = () => {
+        // Date Validation
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        const fortyDaysAgo = new Date();
+        fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+        fortyDaysAgo.setHours(0, 0, 0, 0);
+
+        if (orderDate > today) {
+            toast.error("Future dates are not allowed");
+            return;
+        }
+
+        if (orderDate < fortyDaysAgo) {
+            toast.error("Dates older than 40 days are not allowed");
+            return;
+        }
+
         const payloadItems: Array<{
             farmerId: string;
             birdType: string;

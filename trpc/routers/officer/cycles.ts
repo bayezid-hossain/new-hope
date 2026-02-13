@@ -303,28 +303,29 @@ export const officerCyclesRouter = createTRPCRouter({
                     let createdAt = new Date();
 
                     if (item.startDate) {
-                        // If explicit start date provided (from header date), use it
                         createdAt = new Date(item.startDate);
-
-                        // Re-calculate age if needed? 
-                        // Implementation Plan said: "return age = differenceInDays(today, extractedDate)"
-                        // If the input has `age`, we trust it OR we trust startDate.
-                        // Let's assume startDate is the source of truth for when the cycle started. 
-                        // If age is also passed, it might be redundant or conflicting.
-                        // BUT, typically `age` is "age at intake".
-                        // If `startDate` is "Intake Date", then `createdAt` = `startDate`. 
-                        // And `age` (at intake) usually 0 or 1.
-
-                        // Use Case: "Date: 11 Feb". Today is 13 Feb.
-                        // Start Date = 11 Feb. CreatedAt = 11 Feb.
-                        // Age (today) would be 2 days. 
-                        // But `cycles` table stores `age` as INITIAL age. 
-                        // So we assume initial age is 0 (DOC) unless specified.
                     } else if (item.age > 0) {
-                        // Backdate based on age if no start date
                         const d = new Date();
                         d.setDate(d.getDate() - item.age);
                         createdAt = d;
+                    }
+
+                    // DATE VALIDATION: Max 40 days old, no future dates
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999); // Allow until end of today
+
+                    const fortyDaysAgo = new Date();
+                    fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+                    fortyDaysAgo.setHours(0, 0, 0, 0);
+
+                    if (createdAt > today) {
+                        errors.push({ farmerId: item.farmerId, error: "Future dates are not allowed" });
+                        continue;
+                    }
+
+                    if (createdAt < fortyDaysAgo) {
+                        errors.push({ farmerId: item.farmerId, error: "Dates older than 40 days are not allowed" });
+                        continue;
                     }
 
                     const [newCycle] = await ctx.db.insert(cycles).values({

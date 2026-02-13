@@ -36,6 +36,22 @@ export const docOrdersRouter = createTRPCRouter({
                 }
             }
 
+            // DATE VALIDATION: Max 40 days old, no future dates
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+
+            const fortyDaysAgo = new Date();
+            fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+            fortyDaysAgo.setHours(0, 0, 0, 0);
+
+            if (input.orderDate > today) {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Future dates are not allowed" });
+            }
+
+            if (input.orderDate < fortyDaysAgo) {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Dates older than 40 days are not allowed" });
+            }
+
             const [order] = await ctx.db.insert(docOrders).values({
                 orgId: input.orgId,
                 officerId: ctx.user.id,
@@ -221,6 +237,22 @@ export const docOrdersRouter = createTRPCRouter({
                 for (const item of order.items) {
                     const cycleDateStr = input.cycleDates[item.id];
                     const cycleDate = cycleDateStr ? new Date(cycleDateStr) : order.orderDate;
+
+                    // DATE VALIDATION: Max 40 days old, no future dates
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999);
+
+                    const fortyDaysAgo = new Date();
+                    fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+                    fortyDaysAgo.setHours(0, 0, 0, 0);
+
+                    if (cycleDate > today) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Future date not allowed for farmer ${item.farmer.name}` });
+                    }
+
+                    if (cycleDate < fortyDaysAgo) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Date older than 40 days not allowed for farmer ${item.farmer.name}` });
+                    }
 
                     // Create Cycle
                     const [newCycle] = await tx.insert(cycles).values({

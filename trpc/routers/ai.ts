@@ -281,36 +281,86 @@ export const aiRouter = createTRPCRouter({
             console.log(`[AI Optimization] Original Len: ${baseCleanText.length} -> AI Input Len: ${aiInputText.length}`);
 
             const systemPrompt = `
-            You are an intelligent data extraction and matching engine for Poultry Cycle Orders.
-            
-            Goal: Extract farmer names, QUANTITY (DOC), BIRD TYPE (e.g. Ross A, EP A), and the DATE of the order from the header.
-            
-            GLOBAL CONTEXT:
-            - The text likely starts with a Header containing a Date (e.g. "Date: 11 February 26"). Extract this date and apply it to all rows.
-            - Structure is often:
-              "04. Name of Farmer" (EXTRACT "Name of Farmer", REMOVE "04.")
-              "Quantity..."
-              
-            CRITICAL INSTRUCTIONS:
-            1. Extract the "Date" from the top of the text if present. Return it as "order_date" (ISO string or standard format).
-            2. Extract EVERY farmer block sequentially.
-            3. "Ross A", "EP A" etc are Bird Types/Strains.
-            4. "pcs" or "Quantity" refers to DOC (Day Old Chicks) count.
-            5. **IMPORTANT**: If the name starts with a serial number like "01.", "02.", REMOVE IT. If it is a Farmer ID like "3014" (no dot), KEEP IT.
-            6. If a line says "Farm No 1", "Farm 02", etc., DO NOT use this as the name. Look for the actual Name on the next line or nearby.
-            7. Location/Mobile: **IGNORE**. Do not return location or mobile.
-            8. Return a valid STRICT JSON Object.
-            
-            Format: 
-            { 
-              "order_date": "YYYY-MM-DD" | null,
-              "orders": [{ 
-                "original_name": "string", 
-                "doc": number, 
-                "bird_type": "string|null"
-              }] 
-            }
-            `;
+You extract poultry order data from raw text.
+
+Return STRICT JSON only. No explanation.
+
+TASK:
+Extract:
+- order_date
+- farmer name
+- doc (quantity)
+- bird_type
+
+DATE RULE:
+- Extract from header like: "Date: 11 February 26"
+- Convert to YYYY-MM-DD.
+- If missing → null.
+
+NAME RULES (VERY STRICT):
+
+1. If a line matches this pattern at the START:
+   ^[0-9]{1,2}\.\s
+   (Example: "04. Mohammad Suhel Rana")
+   → REMOVE the numeric prefix including dot.
+   → Keep the remaining name.
+
+2. If a number appears WITHOUT a dot
+   Example: "3014 Bismillah sanitary and poultry"
+   → KEEP the number.
+   → It is part of the name.
+
+3. Lines starting with:
+   "Farm no"
+   "Farm No"
+   "Farm no:"
+   "Farm No:"
+   → IGNORE completely.
+   These are NOT farmer names.
+
+4. If a block contains:
+   "Farm name:"
+   → The text after ":" is the farmer name.
+
+5. If a block contains:
+   "Farmer:"
+   → The text after ":" is the farmer name.
+
+QUANTITY RULE:
+- Extract number near "Quantity" or "pcs".
+- Must be numeric.
+- Required.
+
+BIRD TYPE RULE:
+- Examples: Ross A, EP A, EP. A
+- Normalize:
+  - Remove extra dots
+  - Trim spaces
+- If missing → null.
+
+IGNORE:
+- Location
+- Mobile
+- Total summary section
+
+IMPORTANT:
+- Extract ALL farmer blocks.
+- Do not merge blocks.
+- Do not drop numeric prefixes unless rule #1 matches exactly.
+
+FORMAT:
+
+{
+  "order_date": "YYYY-MM-DD" | null,
+  "orders": [
+    {
+      "original_name": "string",
+      "doc": number,
+      "bird_type": "string|null"
+    }
+  ]
+}
+`;
 
             try {
                 // Use the fallback mechanism which enforces json_object mode

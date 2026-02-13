@@ -261,7 +261,8 @@ export const feedOrdersRouter = createTRPCRouter({
                 // Mark order as confirmed
                 await tx.update(feedOrders)
                     .set({
-                        status: "CONFIRMED"
+                        status: "CONFIRMED",
+                        driverName: input.driverName || null
                     })
                     .where(eq(feedOrders.id, input.id));
 

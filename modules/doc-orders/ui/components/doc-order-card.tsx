@@ -96,7 +96,7 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
         // Header
         let text = `Dear sir/ Boss, \n`;
         if (order.branchName) {
-            text += `Doc order under ${order.branchName}\n`;
+            text += `Doc order under ${order.branchName} branch\n`;
         }
         text += `Date: ${orderDateStr}\n\n`;
 
@@ -153,12 +153,31 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
     const isConfirmed = order.status === "CONFIRMED";
 
     const handleConfirm = () => {
+        // Date Validation
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        const fortyDaysAgo = new Date();
+        fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+        fortyDaysAgo.setHours(0, 0, 0, 0);
+
         // Convert dates to ISO strings for mutation
         const payloadDates: Record<string, string> = {};
-        order.items.forEach(item => {
+        for (const item of order.items) {
             const date = cycleDates[item.id] || new Date(order.orderDate);
+
+            if (date > today) {
+                toast.error(`Future date for farmer ${item.farmer.name} is not allowed`);
+                return;
+            }
+
+            if (date < fortyDaysAgo) {
+                toast.error(`Date for farmer ${item.farmer.name} is older than 40 days`);
+                return;
+            }
+
             payloadDates[item.id] = date.toISOString();
-        });
+        }
 
         confirmMutation.mutate({
             id: order.id,

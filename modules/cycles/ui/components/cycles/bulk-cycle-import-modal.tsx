@@ -192,9 +192,29 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
     const handleSubmit = () => {
         const validItems = parsedData.filter(p => p.matchedFarmerId && !p.isDuplicate && p.doc > 0);
 
-        if (validItems.length === 0) {
-            toast.error("No valid cycles to import.");
+        if (parsedData.length === 0) {
+            toast.error("Please parse some valid text first");
             return;
+        }
+
+        // DATE VALIDATION: Max 40 days old, no future dates
+        if (orderDate) {
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+
+            const fortyDaysAgo = new Date();
+            fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
+            fortyDaysAgo.setHours(0, 0, 0, 0);
+
+            if (orderDate > today) {
+                toast.error("Future dates are not allowed");
+                return;
+            }
+
+            if (orderDate < fortyDaysAgo) {
+                toast.error("Dates older than 40 days are not allowed");
+                return;
+            }
         }
 
         const payload = validItems.map(p => {

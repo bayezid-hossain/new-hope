@@ -49,6 +49,7 @@ interface FeedOrderCardProps {
                 mainStock: number;
             };
         }[];
+        driverName?: string | null;
     };
     onEdit?: (order: any) => void;
 }
@@ -187,8 +188,16 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
                                     }`}>
                                     {format(new Date(order.deliveryDate), "dd MMM, yyyy")}
                                 </CardTitle>
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                                    <span>Ordered: {format(new Date(order.orderDate), "dd/MM/yyyy")}</span>
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                                        <span>Ordered: {format(new Date(order.orderDate), "dd/MM/yyyy")}</span>
+                                    </div>
+                                    {isConfirmed && order.driverName && (
+                                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-bold bg-emerald-500/10 w-fit px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                                            <Truck className="h-3 w-3" />
+                                            <span>Driver: {order.driverName}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
