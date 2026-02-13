@@ -99,6 +99,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
+                    birdType: d.cycle.birdType,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -152,6 +153,7 @@ export const adminCyclesRouter = createTRPCRouter({
                         startDate: activeCycle.createdAt,
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
+                        birdType: activeCycle.birdType,
                     },
                     logs,
                     history: combinedHistory,
@@ -203,6 +205,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
+                    birdType: historyRecord.birdType,
                 },
                 logs,
                 history: combinedHistory,
@@ -271,6 +274,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
+                    birdType: d.history.birdType,
                     endDate: d.history.endDate
                 })),
                 total: total.count,
