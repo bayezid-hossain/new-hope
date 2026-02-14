@@ -165,7 +165,7 @@ const calculateTotalBags = (items: { type: string; bags: number }[]): number => 
 };
 
 // Generates report text based on the SELECTED VERSION - STRICT TEMPLATE
-const generateReportText = (sale: SaleEvent, report: SaleReport | null): string => {
+const generateReportText = (sale: SaleEvent, report: SaleReport | null, isLatest: boolean): string => {
     const birdsSold = report ? report.birdsSold : sale.birdsSold;
     const totalWeight = report ? report.totalWeight : sale.totalWeight;
     const displayAvgWeight = report ? report.avgWeight : sale.avgWeight;
@@ -173,7 +173,7 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
     // Calculate cumulative average weight if this is the final sale
     const cumulativeWeight = sale.cycleContext?.totalWeight || 0;
     const cumulativeBirdsSold = sale.cycleContext?.cumulativeBirdsSold || 0;
-    const isLatest = sale.isLatestInCycle || false;
+    // const isLatest = sale.isLatestInCycle || false; // REMOVED: Passed as argument
 
     const avgWeight = (isLatest && cumulativeWeight > 0 && cumulativeBirdsSold > 0)
         ? (cumulativeWeight / cumulativeBirdsSold).toFixed(2)
@@ -197,7 +197,7 @@ const generateReportText = (sale: SaleEvent, report: SaleReport | null): string 
     const fcr = sale.cycleContext?.fcr || 0;
     const epi = sale.cycleContext?.epi || 0;
     const isEnded = sale.cycleContext?.isEnded || false;
-
+    // console.log(`Latest: ${isLatest}, Ended: ${isEnded}`)
     return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
@@ -205,11 +205,11 @@ Location: ${sale.location}
 House bird : ${sale.houseBirds}pcs
 Total Sold : ${birdsSold}pcs
 Total Mortality: ${totalMortality} pcs
-${!isEnded ? `\n Remaining Birds: ${sale.houseBirds - totalMortality -birdsSold} pcs`:""}
+${(!isEnded || !isLatest) ? `\nRemaining Birds: ${sale.houseBirds - totalMortality - birdsSold} pcs` : ""}
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
-${isEnded ? `
+${isEnded && isLatest ? `
 FCR: ${fcr}
 EPI: ${epi}
 ` : ""}
@@ -225,7 +225,7 @@ Stock:
 ${stockBreakdown}
 
 Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
-${!isEnded ? "\n--- Sale not complete ---" : ""}`;
+${!isEnded || !isLatest ? "\n--- Sale not complete ---" : ""}`;
 };
 
 export const SaleEventCard = ({
@@ -259,7 +259,7 @@ export const SaleEventCard = ({
 
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(generateReportText(sale, activeReport));
+            await navigator.clipboard.writeText(generateReportText(sale, activeReport, isLatest || false));
             setCopied(true);
             toast.success("Report copied to clipboard!");
             setTimeout(() => setCopied(false), 2000);
@@ -744,7 +744,7 @@ const SaleDetailsContent = ({
 
                     <div className="space-y-4 px-1">
                         {/* FCR/EPI Display - ALWAYS available if ended, but more prominent if latest */}
-                        {sale.cycleContext?.isEnded && (
+                        {isLatest && sale.cycleContext?.isEnded && (
                             <div className="flex gap-2">
                                 <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg p-2.5 border border-blue-100 dark:border-blue-900/40">
                                     <div className="flex items-center justify-between mb-0.5">
@@ -978,7 +978,7 @@ const DesktopSaleRow = ({
 
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(generateReportText(sale, activeReport));
+            await navigator.clipboard.writeText(generateReportText(sale, activeReport, isLatest || false));
             toast.success("Report copied!");
         } catch {
             toast.error("Failed to copy");

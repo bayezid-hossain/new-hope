@@ -54,10 +54,6 @@ const formSchema = z.object({
     medicineCost: z.number().min(0),
 });
 
-// ... (rest of the file until the render function)
-
-
-
 type FormValues = z.infer<typeof formSchema>;
 
 interface SellModalProps {
@@ -278,6 +274,35 @@ export const SellModal = ({
     );
 
     const mainStock = farmer?.mainStock || 0;
+
+    const handleFeedAdjustment = (index: number, newBags: number) => {
+        if (!lastSale) return;
+
+        const currentType = (form.getValues(`feedConsumed.${index}.type`) || "").toUpperCase().trim();
+        if (!currentType) return;
+
+        const baselineConsumed = (lastSale.feedConsumed || []) as { type: string; bags: number }[];
+        const baselineStock = (lastSale.feedStock || []) as { type: string; bags: number }[];
+
+        // Find baseline consumption for this type
+        const baseline = baselineConsumed.find(b => (b.type || "").toUpperCase().trim() === currentType);
+        const baselineBags = Number(baseline?.bags || 0);
+        const consumedDelta = newBags - baselineBags;
+
+        const currentStock = [...form.getValues("feedStock")];
+        const stockIndex = currentStock.findIndex(s => (s.type || "").toUpperCase().trim() === currentType);
+
+        if (stockIndex > -1) {
+            const bStock = baselineStock.find(bs => (bs.type || "").toUpperCase().trim() === currentType);
+            const baselineStockBags = Number(bStock?.bags || 0);
+            const newStockBags = Math.max(0, baselineStockBags - consumedDelta);
+
+            if (Number(currentStock[stockIndex].bags) !== newStockBags) {
+                currentStock[stockIndex] = { ...currentStock[stockIndex], bags: newStockBags };
+                form.setValue("feedStock", currentStock, { shouldValidate: true, shouldDirty: true });
+            }
+        }
+    };
 
     // Calculate total bags needed: Sum of feed consumed + Sum of remaining feed stock
     const totalBagsNeeded = form.watch("feedConsumed").reduce((acc, item) => acc + (item.bags || 0), 0) +
@@ -676,7 +701,9 @@ export const SellModal = ({
                                                             value={field.value || ""}
                                                             onChange={(e) => {
                                                                 const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                                field.onChange(val || 0);
+                                                                const bags = val || 0;
+                                                                field.onChange(bags);
+                                                                handleFeedAdjustment(index, bags);
                                                             }}
                                                         />
                                                     </FormControl>
