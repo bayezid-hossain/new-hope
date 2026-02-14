@@ -827,10 +827,17 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             }
 
+            const seenGroups = new Set<string>();
+
             return events.map((e) => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
                 const groupKey = e.cycleId || e.historyId || "unknown";
+
+                // Determine if this is the latest sale for this group
+                // (Since events are sorted DESC, the first one encountered is the latest)
+                const isLatestInGroup = !seenGroups.has(groupKey);
+                seenGroups.add(groupKey);
 
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
@@ -904,14 +911,14 @@ export const officerSalesRouter = createTRPCRouter({
                 const mortality = latestMortality || (latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0));
 
                 // Calculate FCR/EPI using version-specific data
-
+                // Only calculate if this is the LATEST sale in the group (User Request)
                 const { fcr, epi } = calculateMetrics(
                     doc,
                     latestMortality,     // 🔥 SELECTED VERSION
                     cumulativeWeight,    // 🔥 SUM OF SELECTED WEIGHTS
                     feedConsumed,        // 🔥 RECALCULATED FEED
                     age,
-                    isEnded
+                    isLatestInGroup && isEnded      // Replaced isEnded
                 );
                 // Profit calculation (backend-only)
                 const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;

@@ -178,6 +178,41 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         }
     }, [wBirdsSold, wMortality, saleEvent.houseBirds, form]);
 
+    const handleFeedAdjustment = (index: number, newBags: number) => {
+        const currentType = (form.getValues(`feedConsumed.${index}.type`) || "").toUpperCase().trim();
+        if (!currentType) return;
+
+        // Baseline is either latestReport or saleEvent
+        const baselineConsumedRaw = latestReport && latestReport.feedConsumed
+            ? JSON.parse(latestReport.feedConsumed)
+            : saleEvent.feedConsumed;
+
+        const baselineStockRaw = latestReport && latestReport.feedStock
+            ? JSON.parse(latestReport.feedStock)
+            : saleEvent.feedStock;
+
+        const baselineConsumed = ensureB1B2(baselineConsumedRaw || []);
+        const baselineStock = ensureB1B2(baselineStockRaw || []);
+
+        const baseline = baselineConsumed.find(b => (b.type || "").toUpperCase().trim() === currentType);
+        const baselineBags = Number(baseline?.bags || 0);
+        const consumedDelta = newBags - baselineBags;
+
+        const currentStock = [...form.getValues("feedStock")];
+        const stockIndex = currentStock.findIndex(s => (s.type || "").toUpperCase().trim() === currentType);
+
+        if (stockIndex > -1) {
+            const bStock = baselineStock.find(bs => (bs.type || "").toUpperCase().trim() === currentType);
+            const baselineStockBags = Number(bStock?.bags || 0);
+            const newStockBags = Math.max(0, baselineStockBags - consumedDelta);
+
+            if (Number(currentStock[stockIndex].bags) !== newStockBags) {
+                currentStock[stockIndex] = { ...currentStock[stockIndex], bags: newStockBags };
+                form.setValue("feedStock", currentStock, { shouldValidate: true, shouldDirty: true });
+            }
+        }
+    };
+
     // Reset form when modal opens with new data
     useEffect(() => {
         if (isOpen) {
@@ -586,7 +621,9 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                                         value={field.value || ""}
                                                         onChange={(e) => {
                                                             const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                            field.onChange(val || 0);
+                                                            const bags = val || 0;
+                                                            field.onChange(bags);
+                                                            handleFeedAdjustment(index, bags);
                                                         }}
                                                     />
                                                 </FormControl>
