@@ -1,4 +1,3 @@
-"use client";
 
 import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
@@ -26,14 +25,16 @@ import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, Banknote, Bird, Box, Calendar as CalendarIcon, Plus, ShoppingCart, Truck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Banknote, Bird, Box, Calendar as CalendarIcon, Check, Plus, ShoppingCart, Truck } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AddFeedModal } from "../mainstock/add-feed-modal";
+import { SaleDetailsContent } from "./sale-details-content";
 import { FarmerInfoHeader, FeedFieldArray, SaleMetricsBar } from "./sale-form-sections";
+
 
 const formSchema = z.object({
     saleDate: z.string().min(1, "Sale date is required"),
@@ -127,9 +128,16 @@ export const SellModal = ({
 
     const lastSale = previousSales?.[0];
 
+    const [step, setStep] = useState<"form" | "preview">("form");
+    const [previewData, setPreviewData] = useState<any>(null);
+    const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
+    const [showProfitModal, setShowProfitModal] = useState(false);
+
     // Reset form with new defaults when modal opens or key props change
     useEffect(() => {
         if (open) {
+            setStep("form");
+            setPreviewData(null);
             const currentRemainingBirds = doc - mortality - birdsSold;
 
             // Auto-fill feed from previous sale if available, otherwise use default
@@ -210,6 +218,47 @@ export const SellModal = ({
             onError: (error) => toast.error(error.message),
         })
     );
+
+
+    const previewMutation = useMutation(
+        trpc.officer.sales.previewSale.mutationOptions({
+            onSuccess: (data) => {
+                setPreviewData(data);
+                setStep("preview");
+            },
+            onError: (error) => toast.error(`Preview failed: ${error.message}`),
+        })
+    );
+
+    const handlePreview = async () => {
+        const isValid = await form.trigger();
+        if (isValid) {
+            const values = form.getValues();
+            const now = new Date();
+            const saleDateWithTime = new Date(values.saleDate);
+            saleDateWithTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+            previewMutation.mutate({
+                cycleId,
+                saleDate: saleDateWithTime,
+                location: values.location,
+                party: values.party,
+                houseBirds: doc,
+                birdsSold: values.birdsSold,
+                mortalityChange: values.mortalityChange,
+                totalMortality: mortality + values.mortalityChange,
+                totalWeight: values.totalWeight,
+                pricePerKg: values.pricePerKg,
+                cashReceived: values.cashReceived,
+                depositReceived: values.depositReceived,
+                feedConsumed: values.feedConsumed,
+                feedStock: values.feedStock,
+                medicineCost: values.medicineCost,
+                farmerMobile: values.farmerMobile ?? "",
+            });
+        }
+    };
+
 
     const onSubmit = (values: FormValues) => {
         const now = new Date();
@@ -317,391 +366,448 @@ export const SellModal = ({
                 onOpenChange={onOpenChange}
                 persistent={true}
             >
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">
-                        {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
-                        <div className="space-y-4">
-                            <FarmerInfoHeader
-                                farmerName={farmerName}
-                                farmerLocation={farmerLocation}
-                                farmerMobile={farmerMobile}
-                                cycleAge={cycleAge}
-                                colorScheme="blue"
+                {step === "preview" && previewData ? (
+                    <div className="flex flex-col h-full sm:h-[80vh]">
+                        <div className="flex-1 overflow-y-auto px-1 pb-6">
+                            <div className="mb-4 bg-muted/50 p-3 rounded-lg border text-sm text-center text-muted-foreground">
+                                Please review the sale details below. <br />
+                                <strong>This is just a preview.</strong> Click confirm to save.
+                            </div>
+                            <SaleDetailsContent
+                                sale={previewData}
+                                isLatest={true}
+                                displayBirdsSold={previewData.birdsSold}
+                                displayTotalWeight={(previewData.totalWeight || 0).toFixed(2)}
+                                displayAvgWeight={previewData.avgWeight}
+                                displayPricePerKg={(previewData.pricePerKg || 0).toFixed(2)}
+                                displayTotalAmount={previewData.totalAmount}
+                                displayMortality={previewData.mortalityChange}
+                                setShowFcrEpiModal={setShowFcrEpiModal}
+                                setShowProfitModal={setShowProfitModal}
+                                showFcrEpiModal={showFcrEpiModal}
+                                showProfitModal={showProfitModal}
                             />
+                        </div>
+                        <div className="pt-4 mt-auto border-t flex gap-3 bg-background z-10">
+                            <Button variant="outline" onClick={() => setStep("form")} className="flex-1">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Back to Edit
+                            </Button>
+                            <Button
+                                onClick={form.handleSubmit(onSubmit)}
+                                className="flex-1"
+                                disabled={mutation.isPending}
+                            >
+                                <Check className="h-4 w-4 mr-2" />
+                                {mutation.isPending ? "Confirming..." : "Confirm & Save"}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <Form {...form}>
+                        <form onSubmit={(e) => e.preventDefault()} className="space-y-6 h-full sm:h-[80vh] overflow-y-auto pr-1 pb-6">
 
-                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                <Truck className="h-4 w-4" /> Sale Details
-                            </div>
+                            {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
+                            <div className="space-y-4">
+                                <FarmerInfoHeader
+                                    farmerName={farmerName}
+                                    farmerLocation={farmerLocation}
+                                    farmerMobile={farmerMobile}
+                                    cycleAge={cycleAge}
+                                    colorScheme="blue"
+                                />
 
-                            {/* Date and Mobile Row */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <FormField
-                                    control={form.control}
-                                    name="saleDate"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Sale Date</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full pl-3 text-left font-normal",
-                                                                !field.value && "text-muted-foreground"
-                                                            )}
-                                                        >
-                                                            {field.value ? (
-                                                                format(new Date(field.value), "dd/MM/yyyy")
-                                                            ) : (
-                                                                <span>Pick a date</span>
-                                                            )}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value ? new Date(field.value) : undefined}
-                                                        onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                                                        disabled={(date) => {
-                                                            const s = startDate ? new Date(startDate) : null;
-                                                            if (s) {
-                                                                s.setHours(0, 0, 0, 0);
-                                                                return date < s || date > new Date();
-                                                            }
-                                                            return date > new Date();
-                                                        }}
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="farmerMobile"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Mobile (Optional)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. 01XXXXXXXXX" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-                            {/* Location and Party Input */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <FormField
-                                    control={form.control}
-                                    name="location"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Sale Location</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. Bhaluka" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="party"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Party Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. Habib Party" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-                            {/* Sale Details */}
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="text-sm p-2 bg-muted rounded-md flex flex-col justify-center">
-                                    <div className="text-muted-foreground text-xs">House Birds</div>
-                                    <div className="font-mono font-bold text-lg">{birdsInHouse.toLocaleString()}</div>
+                                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                    <Truck className="h-4 w-4" /> Sale Details
                                 </div>
-                                <FormField
-                                    control={form.control}
-                                    name="birdsSold"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Birds Sold</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    max={birdsInHouse - mortalityChange}
-                                                    value={field.value || ""}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                        field.onChange(val || 0);
-                                                    }}
-                                                    onBlur={field.onBlur}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="mortalityChange"
-                                    render={({ field }) => {
-                                        const currentTotal = mortality + (field.value || 0);
-                                        return (
-                                            <FormItem>
-                                                <FormLabel>Total Mortality To Date</FormLabel>
-                                                <FormControl>
-                                                    <div className="space-y-1">
-                                                        <Input
-                                                            type="number"
-                                                            min={0} // Allow going down to 0
-                                                            // max={birdsInHouse + mortality} // Technically, we can't exceed DOC. But let's leave it open or max={doc}
-                                                            placeholder={`Current: ${mortality}`}
-                                                            value={currentTotal || ""}
-                                                            onChange={(e) => {
-                                                                const newTotal = e.target.value === "" ? mortality : e.target.valueAsNumber;
-                                                                if (isNaN(newTotal)) return;
-                                                                // Allow negative delta
-                                                                const delta = newTotal - mortality;
-                                                                field.onChange(delta);
-                                                            }}
-                                                            onBlur={field.onBlur}
-                                                        />
-                                                        {field.value !== 0 && (
-                                                            <p className={`text-[11px] font-medium flex items-center gap-1 ${field.value > 0 ? "text-muted-foreground" : "text-amber-600"}`}>
-                                                                {field.value > 0 ? (
-                                                                    <>
-                                                                        <span className="text-red-500 font-bold">+{field.value}</span> new deaths added
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="font-bold">{field.value}</span> correction (restoring birds)
-                                                                    </>
+
+                                {/* Date and Mobile Row */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="saleDate"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-col">
+                                                <FormLabel>Sale Date</FormLabel>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <FormControl>
+                                                            <Button
+                                                                variant={"outline"}
+                                                                className={cn(
+                                                                    "w-full pl-3 text-left font-normal",
+                                                                    !field.value && "text-muted-foreground"
                                                                 )}
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                                            >
+                                                                {field.value ? (
+                                                                    format(new Date(field.value), "dd/MM/yyyy")
+                                                                ) : (
+                                                                    <span>Pick a date</span>
+                                                                )}
+                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={field.value ? new Date(field.value) : undefined}
+                                                            onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                                                            disabled={(date) => {
+                                                                const s = startDate ? new Date(startDate) : null;
+                                                                if (s) {
+                                                                    s.setHours(0, 0, 0, 0);
+                                                                    return date < s || date > new Date();
+                                                                }
+                                                                return date > new Date();
+                                                            }}
+                                                            initialFocus
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="farmerMobile"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Mobile (Optional)</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="e.g. 01XXXXXXXXX" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
-                                        );
-                                    }}
-                                />
-                            </div>
+                                        )}
+                                    />
+                                </div>
 
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm flex items-center gap-3">
-                                <Bird className="h-5 w-5 text-blue-500" />
-                                <div>
-                                    <div className="font-semibold text-blue-700 dark:text-blue-300">Remaining Birds</div>
-                                    <div className="text-xs text-blue-600/80 dark:text-blue-400">After this sale: {remainingBirdsAfterTransaction}</div>
+                                {/* Location and Party Input */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="location"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Sale Location</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="e.g. Bhaluka" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="party"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Party Name</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="e.g. Habib Party" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                {/* Sale Details */}
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="text-sm p-2 bg-muted rounded-md flex flex-col justify-center">
+                                        <div className="text-muted-foreground text-xs">House Birds</div>
+                                        <div className="font-mono font-bold text-lg">{birdsInHouse.toLocaleString()}</div>
+                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="birdsSold"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Birds Sold</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        max={birdsInHouse - mortalityChange}
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
+                                                        onBlur={field.onBlur}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="mortalityChange"
+                                        render={({ field }) => {
+                                            const currentTotal = mortality + (field.value || 0);
+                                            return (
+                                                <FormItem>
+                                                    <FormLabel>Total Mortality To Date</FormLabel>
+                                                    <FormControl>
+                                                        <div className="space-y-1">
+                                                            <Input
+                                                                type="number"
+                                                                min={0} // Allow going down to 0
+                                                                // max={birdsInHouse + mortality} // Technically, we can't exceed DOC. But let's leave it open or max={doc}
+                                                                placeholder={`Current: ${mortality}`}
+                                                                value={currentTotal || ""}
+                                                                onChange={(e) => {
+                                                                    const newTotal = e.target.value === "" ? mortality : e.target.valueAsNumber;
+                                                                    if (isNaN(newTotal)) return;
+                                                                    // Allow negative delta
+                                                                    const delta = newTotal - mortality;
+                                                                    field.onChange(delta);
+                                                                }}
+                                                                onBlur={field.onBlur}
+                                                            />
+                                                            {field.value !== 0 && (
+                                                                <p className={`text-[11px] font-medium flex items-center gap-1 ${field.value > 0 ? "text-muted-foreground" : "text-amber-600"}`}>
+                                                                    {field.value > 0 ? (
+                                                                        <>
+                                                                            <span className="text-red-500 font-bold">+{field.value}</span> new deaths added
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className="font-bold">{field.value}</span> correction (restoring birds)
+                                                                        </>
+                                                                    )}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            );
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm flex items-center gap-3">
+                                    <Bird className="h-5 w-5 text-blue-500" />
+                                    <div>
+                                        <div className="font-semibold text-blue-700 dark:text-blue-300">Remaining Birds</div>
+                                        <div className="text-xs text-blue-600/80 dark:text-blue-400">After this sale: {remainingBirdsAfterTransaction}</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <Separator />
+                            <Separator />
 
-                        {/* SECTION 2: FINANCIALS */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                <Banknote className="h-4 w-4" /> Finance
-                            </div>
-
-                            {/* Weight & Price */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <FormField
-                                    control={form.control}
-                                    name="totalWeight"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Total Weight (kg)</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={field.value || ""}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                        field.onChange(val || 0);
-                                                    }}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="pricePerKg"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Price/kg (৳)</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={field.value || ""}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                        field.onChange(val || 0);
-                                                    }}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-                            {/* Calculated Values */}
-                            <SaleMetricsBar avgWeight={avgWeight} totalAmount={totalAmount} />
-
-                            {/* Payment */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <FormField
-                                    control={form.control}
-                                    name="depositReceived"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Deposit (৳)</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    value={field.value || ""}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                        field.onChange(val || 0);
-                                                    }}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="cashReceived"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Cash (৳)</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    value={field.value || ""}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                        field.onChange(val || 0);
-                                                    }}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-
-                        </div>
-
-                        <Separator />
-
-                        {/* SECTION 3: INVENTORY */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                <Box className="h-4 w-4" /> Inventory
-                            </div>
-
-                            {/* Feed Consumed - Dynamic Array */}
-                            <div className="space-y-2">
+                            {/* SECTION 2: FINANCIALS */}
+                            <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                    <Box className="h-4 w-4" />
-                                    {remainingBirdsAfterTransaction === 0 ? (
-                                        <span className="text-red-500 font-bold animate-pulse">
-                                            FINAL Total Cycle Consumption (Last Sale)
-                                        </span>
-                                    ) : (
-                                        "Feed Consumed"
-                                    )}
+                                    <Banknote className="h-4 w-4" /> Finance
                                 </div>
 
-                                {remainingBirdsAfterTransaction === 0 && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-md border border-red-100 dark:border-red-800 mb-2">
-                                        <strong>Cycle Closing Warning:</strong> This is the last sale. Please enter the
-                                        <strong> TOTAL feed consumed for the ENTIRE cycle</strong> below.
-                                        This exact amount will be deducted from your stock, overriding previous calculations.
+                                {/* Weight & Price */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="totalWeight"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Total Weight (kg)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="pricePerKg"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Price/kg (৳)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                {/* Calculated Values */}
+                                <SaleMetricsBar avgWeight={avgWeight} totalAmount={totalAmount} />
+
+                                {/* Payment */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="depositReceived"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Deposit (৳)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="cashReceived"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Cash (৳)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        value={field.value || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
+                                                            field.onChange(val || 0);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+
+                            </div>
+
+                            <Separator />
+
+                            {/* SECTION 3: INVENTORY */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                    <Box className="h-4 w-4" /> Inventory
+                                </div>
+
+                                {/* Feed Consumed - Dynamic Array */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                        <Box className="h-4 w-4" />
+                                        {remainingBirdsAfterTransaction === 0 ? (
+                                            <span className="text-red-500 font-bold animate-pulse">
+                                                FINAL Total Cycle Consumption (Last Sale)
+                                            </span>
+                                        ) : (
+                                            "Feed Consumed"
+                                        )}
                                     </div>
 
+                                    {remainingBirdsAfterTransaction === 0 && (
+                                        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-md border border-red-100 dark:border-red-800 mb-2">
+                                            <strong>Cycle Closing Warning:</strong> This is the last sale. Please enter the
+                                            <strong> TOTAL feed consumed for the ENTIRE cycle</strong> below.
+                                            This exact amount will be deducted from your stock, overriding previous calculations.
+                                        </div>
+
+                                    )}
+
+                                    <FeedFieldArray
+                                        control={form.control}
+                                        fieldArray={feedConsumedArray}
+                                        namePrefix="feedConsumed"
+                                        label="Feed Types & Bags"
+                                        description="Document remaining sacks returned from the shed."
+                                        onBagsChange={handleFeedAdjustment}
+                                    />
+                                </div>
+
+                                {/* Feed Stock - Dynamic Array */}
+                                <div className="space-y-2 pt-4 border-t">
+                                    <FeedFieldArray
+                                        control={form.control}
+                                        fieldArray={feedStockArray}
+                                        namePrefix="feedStock"
+                                        label="Remaining Feed Stock"
+                                        description="Inventory left in main stock for this cycle."
+                                        showRemoveOnSingle
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Submit */}
+                            <div className="pt-2 space-y-3">
+                                {isStockInsufficient && (
+                                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
+                                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-semibold">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            Insufficient Stock
+                                        </div>
+                                        <p className="text-xs text-amber-600 dark:text-amber-500">
+                                            You are trying to use {totalBagsNeeded} bags, but the main stock only has {mainStock} bags.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full text-amber-700 border-amber-200 hover:bg-amber-100 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/40"
+                                            onClick={() => setShowRestockModal(true)}
+                                        >
+                                            <Plus className="h-3 w-3 mr-1" /> Restock Now
+                                        </Button>
+                                    </div>
                                 )}
 
-                                <FeedFieldArray
-                                    control={form.control}
-                                    fieldArray={feedConsumedArray}
-                                    namePrefix="feedConsumed"
-                                    label="Feed Types & Bags"
-                                    description="Document remaining sacks returned from the shed."
-                                    onBagsChange={handleFeedAdjustment}
-                                />
-                            </div>
+                                <div className="flex gap-2">
 
-                            {/* Feed Stock - Dynamic Array */}
-                            <div className="space-y-2 pt-4 border-t">
-                                <FeedFieldArray
-                                    control={form.control}
-                                    fieldArray={feedStockArray}
-                                    namePrefix="feedStock"
-                                    label="Remaining Feed Stock"
-                                    description="Inventory left in main stock for this cycle."
-                                    showRemoveOnSingle
-                                />
-                            </div>
-                        </div>
-
-                        {/* Submit */}
-                        <div className="pt-2 space-y-3">
-                            {isStockInsufficient && (
-                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
-                                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-semibold">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        Insufficient Stock
-                                    </div>
-                                    <p className="text-xs text-amber-600 dark:text-amber-500">
-                                        You are trying to use {totalBagsNeeded} bags, but the main stock only has {mainStock} bags.
-                                    </p>
                                     <Button
                                         type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full text-amber-700 border-amber-200 hover:bg-amber-100 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/40"
-                                        onClick={() => setShowRestockModal(true)}
+                                        className="flex-1"
+                                        onClick={remainingBirdsAfterTransaction === 0 ? handlePreview : form.handleSubmit(onSubmit)}
+                                        disabled={(remainingBirdsAfterTransaction === 0 ? previewMutation.isPending : mutation.isPending) || !canEdit || isStockInsufficient}
                                     >
-                                        <Plus className="h-3 w-3 mr-1" /> Restock Now
+                                        {remainingBirdsAfterTransaction === 0 ? (
+                                            <>
+                                                <ShoppingCart className="h-4 w-4 mr-2" />
+                                                {previewMutation.isPending ? "Calculating..." : "Preview & Close Cycle"}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check className="h-4 w-4 mr-2" />
+                                                {mutation.isPending ? "Confirming..." : "Confirm & Save"}
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
-                            )}
-
-                            <Button type="submit" className="w-full" size="lg" disabled={mutation.isPending || !canEdit || isStockInsufficient}>
-                                <ShoppingCart className="h-4 w-4 mr-2" />
-                                {mutation.isPending ? "Recording Sale..." : "Record Sale"}
-                            </Button>
-                            {!canEdit && (
-                                <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
-                                    View Only: You cannot record sales.
-                                </p>
-                            )}
-                        </div>
-                    </form>
-                </Form>
+                                {!canEdit && (
+                                    <p className="text-xs text-destructive text-center pt-2 font-medium bg-destructive/10 p-2 rounded-lg">
+                                        View Only: You cannot record sales.
+                                    </p>
+                                )}
+                            </div>
+                        </form>
+                    </Form>
+                )}
             </ResponsiveDialog>
 
             <AddFeedModal
@@ -712,3 +818,4 @@ export const SellModal = ({
         </>
     );
 };
+

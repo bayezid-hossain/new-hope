@@ -71,6 +71,7 @@ export default function SalesPage() {
                         showLoadMore={true}
                         onLoadMore={() => setLimit(l => l + 20)}
                         hideFarmerName={false}
+                        groupByFarmer={true}
                     />
                 </div>
             </div>

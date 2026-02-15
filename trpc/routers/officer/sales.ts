@@ -1,9 +1,9 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
-import { cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
 
 
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
@@ -435,7 +435,8 @@ export const officerSalesRouter = createTRPCRouter({
             return result;
         }),
 
-    // Generate additional report for a sale event
+
+
     generateReport: proProcedure
         .input(generateReportSchema)
         .mutation(async ({ ctx, input }) => {
@@ -663,6 +664,205 @@ export const officerSalesRouter = createTRPCRouter({
             return result.report;
         }),
 
+    // Preview a sale event to see potential metrics (FCR, EPI, Profit)
+    previewSale: proProcedure
+        .input(createSaleEventSchema.extend({
+            excludeSaleId: z.string().optional(),
+            historyId: z.string().optional().nullable()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            console.log("previewSale input:", input);
+
+            let cycleIdToUse = input.cycleId;
+            let historyIdToUse = input.historyId;
+
+            // Robustness: If we are editing an existing sale, trust the DB's link
+            if (input.excludeSaleId) {
+                const existingSale = await ctx.db.query.saleEvents.findFirst({
+                    where: eq(saleEvents.id, input.excludeSaleId),
+                    columns: { cycleId: true, historyId: true }
+                });
+
+                if (existingSale) {
+                    // Update our target IDs from the source of truth
+                    if (existingSale.cycleId) cycleIdToUse = existingSale.cycleId;
+                    if (existingSale.historyId) historyIdToUse = existingSale.historyId;
+                }
+            }
+
+            // Get cycle and verify ownership
+            let cycle: any = await ctx.db.query.cycles.findFirst({
+                where: eq(cycles.id, cycleIdToUse),
+                with: { farmer: { with: { organization: true } } },
+            });
+
+            // If not found in active cycles, check history
+            if (!cycle && historyIdToUse) {
+                const history = await ctx.db.query.cycleHistory.findFirst({
+                    where: eq(cycleHistory.id, historyIdToUse),
+                    with: { farmer: { with: { organization: true } } },
+                });
+                if (history) {
+                    // Map history to cycle-like object for consistent logic
+                    cycle = {
+                        ...history,
+                        // History stores final intake, use it as intake
+                        intake: history.finalIntake,
+                        // Map status for logic checks
+                        status: 'archived'
+                    };
+                }
+            }
+
+            if (!cycle) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found" });
+            }
+
+            if (!cycle.farmer || cycle.farmer.officerId !== ctx.user.id) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to sell from this cycle" });
+            }
+
+            // Fetch previous sales to calculate cumulative stats
+            const previousSales = await ctx.db.query.saleEvents.findMany({
+                where: historyIdToUse ? eq(saleEvents.historyId, historyIdToUse) : eq(saleEvents.cycleId, cycleIdToUse),
+                with: { selectedReport: true } // Need reports for accurate adjustments
+            });
+
+            // Aggregate data (Previous + Current Input)
+            let totalWeight = input.totalWeight;
+            let totalBirdsSold = input.birdsSold;
+            let totalRevenue = input.birdsSold > 0 ? (input.totalWeight * input.pricePerKg) : 0; // Actual amount
+            // For formula revenue calculation
+            let cumulativeAdjustment = 0;
+
+            // Process previous sales
+            for (const sale of previousSales) {
+                if (input.excludeSaleId && sale.id === input.excludeSaleId) continue;
+
+                const data = sale.selectedReport || sale;
+                const w = parseFloat(data.totalWeight);
+                const p = parseFloat(data.pricePerKg);
+                const s = data.birdsSold;
+
+                totalWeight += isNaN(w) ? 0 : w;
+                totalBirdsSold += s;
+                totalRevenue += parseFloat(data.totalAmount);
+
+                const diff = p - BASE_SELLING_PRICE;
+                if (diff > 0) cumulativeAdjustment += diff / 2;
+                else cumulativeAdjustment += diff;
+            }
+
+            // Add current sale adjustment
+            const currentDiff = input.pricePerKg - BASE_SELLING_PRICE;
+            if (currentDiff > 0) cumulativeAdjustment += currentDiff / 2;
+            else cumulativeAdjustment += currentDiff;
+
+
+            const newMortality = cycle.mortality + input.mortalityChange;
+            // Feed logic: 
+            // If ending cycle (sold all birds), input feed is FINAL total.
+            // If not ending, we use current estimate + input? 
+            // The constraint is: user enters feed consumed/stock.
+            // For preview, we can just sum up bags from input as "current sale feed".
+            // But for Total Cycle feed calculation (needed for FCR/Profit), we need the logic.
+
+            // Check if cycle would end
+            const totalBirdsAfterMortality = cycle.doc - newMortality;
+            const isEnded = totalBirdsSold >= totalBirdsAfterMortality;
+
+            let totalFeedBags = 0;
+            if (isEnded) {
+                // If ending, the input feed is the TOTAL cycle feed (as per our "manualTotalBags" logic in createSaleEvent)
+                // Wait, in createSaleEvent: "const currentIntake = input.feedConsumed.reduce..."
+                // "const manualTotalBags = currentIntake;"
+                // So if ending, the input.feedConsumed IS the total.
+                totalFeedBags = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
+            } else {
+                // If not ending, use cycle.intake (which is maintained by feed service)
+                // This is an estimation for running cycles.
+                totalFeedBags = (cycle.intake || 0);
+            }
+
+            // Calculate Metrics
+            const orgFeedPrice = Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG;
+            const feedCost = totalFeedBags * orgFeedPrice;
+
+            // EPI Calculation needs age
+            // formula: (survivalRate * avgWeight * 10) / FCR
+            // But usually EPI = (Survival % * (Weight/Age) * 100) / FCR? 
+            // Our service uses: (survivalRate * (avgWeight / age) * 100) / FCR ?
+            // Let's match SaleMetricsService logic implicitly or explicitly.
+            // Simplified here for preview:
+
+            const totalBirds = (cycle.doc || 0);
+            const birdsSoldTotal = totalBirdsSold;
+            const mortalityTotal = newMortality;
+            const currentHouseBirds = Math.max(0, totalBirds - mortalityTotal - birdsSoldTotal);
+            // Survival Rate for EPI is usually based on birds sold? Or total survival at end?
+            // If cycle is ending, survival = (birdsSold / doc) * 100 ?
+            // If running, survival = ((doc - mortality) / doc) * 100
+            const survivalRate = totalBirds > 0
+                ? ((totalBirds - mortalityTotal) / totalBirds) * 100
+                : 0;
+
+            const totalWt = totalWeight;
+            const avgWt = totalBirdsSold > 0 ? totalWt / totalBirdsSold : 0;
+            const fcr = (totalWt > 0 && totalFeedBags > 0) ? (totalFeedBags * 50) / totalWt : 0;
+
+            // EPI = (Survival Rate * Average Weight (kg) / Age (days) / FCR) * 100
+            // Standard Broiler EPI = (Survival % * Avg Weight kg / Age days / FCR) * 100
+            // Let's check typical formula. Commonly: (Survival * AvgWeight * 100) / (FCR * Age) ? or similar. 
+            // We'll use a standard decent approximation if we don't import the service.
+            // (Survival% * (AvgWeight / Age) * 100) / FCR? No that's huge.
+            // (Survival% * AvgWeight / FCR / Age) * 100
+
+            const docCost = cycle.doc * DOC_PRICE_PER_BIRD;
+
+            const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + cumulativeAdjustment);
+            const formulaRevenue = effectiveRate * totalWeight;
+            const formulaProfit = formulaRevenue - docCost - feedCost;
+
+            const avgWeight = totalBirdsSold > 0 ? totalWeight / totalBirdsSold : 0;
+
+            // FCR/EPI
+            // Age: use input date diff from start
+            const saleDateLocal = input.saleDate || new Date();
+            const cycleStartDate = new Date(cycle.startDate || cycle.createdAt);
+            const age = Math.max(1, Math.floor((saleDateLocal.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+            const epi = (fcr > 0 && age > 0) ? (survivalRate * avgWeight) / (fcr * age) * 100 : 0;
+
+            // Construct Preview Object
+            return {
+                ...input,
+                id: "preview-id",
+                cycleId: input.cycleId,
+                totalAmount: (input.totalWeight * input.pricePerKg).toFixed(2),
+                avgWeight: (input.birdsSold > 0 ? input.totalWeight / input.birdsSold : 0).toFixed(2),
+                totalMortality: newMortality,
+                // Match SaleEvent structure expected by UI
+                cycleContext: {
+                    isEnded,
+                    revenue: formulaRevenue,
+                    actualRevenue: totalRevenue,
+                    effectiveRate,
+                    netAdjustment: cumulativeAdjustment,
+                    fcr: parseFloat(fcr.toFixed(2)),
+                    epi: parseFloat(epi.toFixed(0)),
+                    mortality: newMortality,
+                    avgPrice: totalWeight > 0 ? totalRevenue / totalWeight : 0,
+                    feedConsumed: totalFeedBags,
+                    doc: cycle.doc,
+                    feedCost,
+                    docCost,
+                    profit: formulaProfit,
+                    totalWeight,
+                    cumulativeBirdsSold: totalBirdsSold,
+                    age
+                }
+            };
+        }),
+
     // Get sale events for a cycle or farmer
     getSaleEvents: proProcedure
         .input(z.object({
@@ -708,10 +908,10 @@ export const officerSalesRouter = createTRPCRouter({
                                         },
                                         createdByUser: { columns: { name: true } },
                                         cycle: {
-                                            with: { farmer: { columns: { name: true } } }
+                                            with: { farmer: { columns: { name: true, mobile: true } } }
                                         },
                                         history: {
-                                            with: { farmer: { columns: { name: true } } }
+                                            with: { farmer: { columns: { name: true, mobile: true } } }
                                         }
                                     }
                                 }
@@ -743,10 +943,10 @@ export const officerSalesRouter = createTRPCRouter({
                                         },
                                         createdByUser: { columns: { name: true } },
                                         cycle: {
-                                            with: { farmer: { columns: { name: true } } }
+                                            with: { farmer: true }
                                         },
                                         history: {
-                                            with: { farmer: { columns: { name: true } } }
+                                            with: { farmer: true }
                                         }
                                     }
                                 }
@@ -803,10 +1003,10 @@ export const officerSalesRouter = createTRPCRouter({
                             columns: { name: true },
                         },
                         cycle: {
-                            with: { farmer: { columns: { name: true } } }
+                            with: { farmer: true }
                         },
                         history: {
-                            with: { farmer: { columns: { name: true } } }
+                            with: { farmer: true }
                         }
                     },
                 });
@@ -932,6 +1132,9 @@ export const officerSalesRouter = createTRPCRouter({
                     feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
                     farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
+                    // Log to debug
+                    // console.log("Mapping event:", e.id, "Farmer:", e.cycle?.farmer, e.history?.farmer);
+                    farmerMobile: e.cycle?.farmer?.mobile || e.history?.farmer?.mobile || "",
                     cycleContext: {
                         doc,
                         mortality,
@@ -1178,6 +1381,7 @@ export const officerSalesRouter = createTRPCRouter({
                     feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
                     farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
+                    farmerMobile: e.cycle?.farmer?.mobile || e.history?.farmer?.mobile || "",
                     cycleContext: {
                         doc,
                         mortality,
@@ -1212,5 +1416,99 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Apply limit after filtering
             return formattedEvents.slice(0, input.limit);
+        }),
+
+    delete: proProcedure
+        .input(z.object({
+            saleEventId: z.string(),
+            historyId: z.string().optional().nullable() // Context
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const result = await ctx.db.transaction(async (tx) => {
+                // 1. Get the sale event to identify the cycle/history
+                const event = await tx.query.saleEvents.findFirst({
+                    where: eq(saleEvents.id, input.saleEventId)
+                });
+
+                if (!event) throw new TRPCError({ code: "NOT_FOUND", message: "Sale event not found" });
+
+                // Policy: We delete ALL sales for this cycle/history when any single one is deleted
+                const deleteCriteria = input.historyId
+                    ? eq(saleEvents.historyId, input.historyId)
+                    : eq(saleEvents.cycleId, event.cycleId!);
+
+                const allEventsInCycle = await tx.query.saleEvents.findMany({
+                    where: deleteCriteria
+                });
+
+                const allEventIds = allEventsInCycle.map(e => e.id);
+                if (allEventIds.length === 0) return { success: true };
+
+                // Calculate mortality to revert
+                // We identify mortality logs created during sales by the note pattern
+                const mortalityToRevert = await tx
+                    .select({ total: sql<number>`COALESCE(SUM(${cycleLogs.valueChange}), 0)` })
+                    .from(cycleLogs)
+                    .where(and(
+                        eq(cycleLogs.type, "MORTALITY"),
+                        input.historyId ? eq(cycleLogs.historyId, input.historyId) : eq(cycleLogs.cycleId, event.cycleId!),
+                        like(cycleLogs.note, "Sale Report Adjustment (Mortality change:%")
+                    ));
+
+                const mortalityCount = Number(mortalityToRevert[0]?.total || 0);
+
+                // 2. Delete all related records
+                // Reports have cascade on saleEventId, but we might want to manually clean up cycleLogs
+                await tx.delete(saleReports).where(inArray(saleReports.saleEventId, allEventIds));
+                await tx.delete(saleEvents).where(inArray(saleEvents.id, allEventIds));
+
+                // Clean up associated logs in cycleLogs
+                await tx.delete(cycleLogs).where(and(
+                    input.historyId ? eq(cycleLogs.historyId, input.historyId) : eq(cycleLogs.cycleId, event.cycleId!),
+                    or(
+                        eq(cycleLogs.type, "SALES"),
+                        and(
+                            eq(cycleLogs.type, "MORTALITY"),
+                            like(cycleLogs.note, "Sale Report Adjustment%")
+                        )
+                    )
+                ));
+
+                // 3. Update Cycle or History record stats
+                if (input.historyId) {
+                    await tx.update(cycleHistory)
+                        .set({
+                            birdsSold: 0,
+                            mortality: sql`${cycleHistory.mortality} - ${mortalityCount}`,
+                        })
+                        .where(eq(cycleHistory.id, input.historyId));
+                } else if (event.cycleId) {
+                    // Revert active cycle
+                    await tx.update(cycles)
+                        .set({
+                            birdsSold: 0,
+                            mortality: sql`${cycles.mortality} - ${mortalityCount}`,
+                            status: "active" // Ensure it's active if it was accidentally closed
+                        })
+                        .where(eq(cycles.id, event.cycleId));
+
+                    // Recalculate feed intake/stock for active cycle
+                    const [updatedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
+                    if (updatedCycle) {
+                        await updateCycleFeed(updatedCycle, ctx.user.id, true, tx, "Reverting sales - recalculated intake");
+                    }
+                }
+
+                // Recalculate metrics for this cycle/history to update Production Report
+                await SaleMetricsService.recalculateForCycle(
+                    event.cycleId || undefined,
+                    input.historyId || undefined,
+                    tx
+                );
+
+                return { success: true };
+            });
+
+            return result;
         }),
 });

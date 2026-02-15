@@ -17,6 +17,8 @@ import { DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import type { SaleEvent } from "@/modules/shared/types/sale";
+import { useTRPC } from "@/trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     Check,
@@ -25,7 +27,7 @@ import {
     CircleDashed,
     ClipboardCopy,
     MoreHorizontal,
-    Pencil,
+    Pencil
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -114,6 +116,9 @@ const DesktopSaleRow = ({
     // Modals state for details view
     const [showProfitModal, setShowProfitModal] = useState(false);
     const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
+
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
 
     const handleCopy = async () => {
         try {
@@ -223,7 +228,6 @@ const DesktopSaleRow = ({
                                 )}
                                 {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
                                     <>
-                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => setIsAdjustOpen(true)}>
                                             <Pencil className="h-4 w-4 mr-2" /> Adjust Sale
                                         </DropdownMenuItem>

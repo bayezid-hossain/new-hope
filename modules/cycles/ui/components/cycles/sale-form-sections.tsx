@@ -44,14 +44,14 @@ export const FarmerInfoHeader = ({
         <div className={`p-4 bg-gradient-to-r ${colors.bg} rounded-lg border ${colors.border}`}>
             <div className="text-center space-y-1">
                 <div className={`text-lg font-bold ${colors.name}`}>{farmerName}</div>
-                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-col items-center justify-center gap-1 text-sm text-muted-foreground mt-1">
                     {farmerLocation && (
                         <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" /> {farmerLocation}
                         </span>
                     )}
                     {farmerMobile && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-xs">
                             <Phone className="h-3 w-3" /> {farmerMobile}
                         </span>
                     )}

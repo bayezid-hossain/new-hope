@@ -51,7 +51,7 @@ export interface SaleEvent {
         intake: number;
         mortality: number;
         age: number;
-        farmer?: { name: string };
+        farmer?: { id: string; name: string };
     } | null;
     history?: {
         cycleName: string;
@@ -59,7 +59,7 @@ export interface SaleEvent {
         finalIntake: number;
         mortality: number;
         age: number;
-        farmer?: { name: string };
+        farmer?: { id: string; name: string };
     } | null;
     cycleContext?: {
         doc: number;

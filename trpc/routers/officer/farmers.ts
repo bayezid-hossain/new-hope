@@ -1,7 +1,7 @@
-import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, member, stockLogs } from "@/db/schema";
+import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, member, saleEvents, stockLogs } from "@/db/schema";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 // Helper function for benchmark calculations
@@ -302,18 +302,79 @@ export const officerFarmersRouter = createTRPCRouter({
                 }
             }
 
-            const [updated] = await ctx.db.update(farmer)
-                .set({
-                    name: input.name.toUpperCase(),
-                    location: input.location ?? null,
-                    mobile: input.mobile ?? null,
-                    updatedAt: new Date()
-                })
-                .where(eq(farmer.id, input.id))
-                .returning();
-            // console.log(input)
-            // NOTIFICATION: Farmer Profile Updated
-            if (updated) {
+            return await ctx.db.transaction(async (tx) => {
+                const oldName = currentFarmer.name;
+                const oldLocation = currentFarmer.location;
+                const newName = input.name.toUpperCase();
+                const newLocation = input.location ?? null;
+
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        name: newName,
+                        location: newLocation,
+                        mobile: input.mobile ?? null,
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.id))
+                    .returning();
+
+                if (!updated) return null;
+
+                // Cascade Name Changes
+                if (oldName !== newName) {
+                    // Update active cycles name if it matches old farmer name
+                    await tx.update(cycles)
+                        .set({ name: newName })
+                        .where(eq(cycles.farmerId, input.id));
+
+                    // Update archived cycles name if it matches old farmer name
+                    await tx.update(cycleHistory)
+                        .set({ cycleName: newName })
+                        .where(eq(cycleHistory.farmerId, input.id));
+
+                    // Update sale events location if it matches old farmer name
+                    // We target sale events linked to this farmer's cycles or history
+                    const farmerCycles = await tx.select({ id: cycles.id }).from(cycles).where(eq(cycles.farmerId, input.id));
+                    const farmerHistory = await tx.select({ id: cycleHistory.id }).from(cycleHistory).where(eq(cycleHistory.farmerId, input.id));
+
+                    const cycleIds = farmerCycles.map(c => c.id);
+                    const historyIds = farmerHistory.map(h => h.id);
+
+                    if (cycleIds.length > 0 || historyIds.length > 0) {
+                        await tx.update(saleEvents)
+                            .set({ location: newLocation ?? newName })
+                            .where(and(
+                                eq(saleEvents.location, oldLocation ?? oldName),
+                                or(
+                                    cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
+                                    historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
+                                )
+                            ));
+                    }
+                }
+
+                // Cascade Location Changes (for Sale Events specifically)
+                if ((oldLocation && oldLocation !== newLocation) || (oldLocation === null && newLocation !== null)) {
+                    const farmerCycles = await tx.select({ id: cycles.id }).from(cycles).where(eq(cycles.farmerId, input.id));
+                    const farmerHistory = await tx.select({ id: cycleHistory.id }).from(cycleHistory).where(eq(cycleHistory.farmerId, input.id));
+
+                    const cycleIds = farmerCycles.map(c => c.id);
+                    const historyIds = farmerHistory.map(h => h.id);
+
+                    if (cycleIds.length > 0 || historyIds.length > 0) {
+                        await tx.update(saleEvents)
+                            .set({ location: newLocation || newName }) // Fallback to name if location is cleared
+                            .where(and(
+                                eq(saleEvents.location, oldLocation ?? ""),
+                                or(
+                                    cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
+                                    historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
+                                )
+                            ));
+                    }
+                }
+
+                // NOTIFICATION: Farmer Profile Updated
                 try {
                     const { NotificationService } = await import("@/modules/notifications/server/notification-service");
                     await NotificationService.sendToOrgManagers({
@@ -326,9 +387,9 @@ export const officerFarmersRouter = createTRPCRouter({
                 } catch (e) {
                     console.error("Failed to send farmer profile update notification", e);
                 }
-            }
-            // console.log(updated)
-            return updated;
+
+                return updated;
+            });
         }),
 
     createBulk: protectedProcedure

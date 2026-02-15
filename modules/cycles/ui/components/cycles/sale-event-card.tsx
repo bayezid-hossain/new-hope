@@ -15,6 +15,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import type { SaleEvent } from "@/modules/shared/types/sale";
+import { useTRPC } from "@/trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     Check,
@@ -23,7 +25,7 @@ import {
     CircleDashed,
     ClipboardCopy,
     History,
-    Pencil,
+    Pencil
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -85,10 +87,14 @@ export const SaleEventCard = ({
     const [showProfitModal, setShowProfitModal] = useState(false);
     const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
 
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+
     return (
         <>
             <Card className="border-none shadow-none overflow-hidden gap-2 bg-transparent">
-                <CardHeader className="pb-1 px-2 sm:px-4 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
+                <CardHeader className="pb-1 px-2 sm:px-4 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors relative" onClick={() => setIsExpanded(!isExpanded)}>
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-1">
                             <CardTitle className="text-sm font-semibold flex items-center gap-2 py-2">

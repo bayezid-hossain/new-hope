@@ -6,18 +6,31 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+    Tooltip,
+    TooltipContent,
     TooltipProvider,
+    TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
 import { calculateTotalBags, formatFeedBreakdown } from "@/modules/shared/lib/format";
 import type { SaleEvent, SaleReport } from "@/modules/shared/types/sale";
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     CheckCircle2,
@@ -26,8 +39,11 @@ import {
     Lock,
     ShoppingCart,
     Sparkles,
+    Trash2,
+    User
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 // Re-export shared types for backward compatibility
 export type { SaleEvent, SaleReport } from "@/modules/shared/types/sale";
@@ -102,6 +118,23 @@ ${!isEnded || !isLatest ? "\n--- Sale not complete ---" : ""}`;
 // Main SalesHistoryCard
 // ---------------------------------------------------------------------------
 
+interface CycleGroup {
+    id: string;
+    name: string;
+    sales: SaleEvent[];
+    isEnded: boolean;
+    doc: number;
+    mortality: number;
+    age: number;
+    totalSold: number;
+}
+
+interface FarmerGroup {
+    id: string;
+    name: string;
+    cycles: CycleGroup[];
+}
+
 interface SalesHistoryCardProps {
     cycleId?: string | null;
     historyId?: string | null;
@@ -112,6 +145,7 @@ interface SalesHistoryCardProps {
     search?: string;
     showLoadMore?: boolean;
     onLoadMore?: () => void;
+    groupByFarmer?: boolean;
 }
 
 export const SalesHistoryCard = ({
@@ -125,9 +159,11 @@ export const SalesHistoryCard = ({
     showLoadMore = false,
     onLoadMore,
     hideFarmerName = false,
+    groupByFarmer = false,
 }: SalesHistoryCardProps & { hideFarmerName?: boolean }) => {
     const trpc = useTRPC();
-    const { isPro } = useCurrentOrg();
+    const { isPro, role, activeMode, canEdit } = useCurrentOrg();
+    const queryClient = useQueryClient();
 
     // Track selected report version for each sale event
     const [selectedReports, setSelectedReports] = useState<Record<string, string | null>>({});
@@ -179,6 +215,40 @@ export const SalesHistoryCard = ({
         trpc.officer.sales.setActiveVersion.mutationOptions({})
     );
 
+    const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState<CycleGroup | null>(null);
+
+    const deleteSaleMutation = useMutation(trpc.officer.sales.delete.mutationOptions({
+        onSuccess: () => {
+            toast.success("Sales records deleted successfully");
+            Promise.all([
+                queryClient.invalidateQueries(trpc.officer.sales.getSaleEvents.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.sales.getRecentSales.pathFilter()),
+                queryClient.invalidateQueries(trpc.management.reports.getSalesSummary.pathFilter()),
+                queryClient.invalidateQueries(trpc.management.reports.getSalesLedger.pathFilter()),
+                queryClient.invalidateQueries(trpc.admin.organizations.getSales.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.cycles.listActive.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.cycles.listPast.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.farmers.getDetails.pathFilter()),
+                queryClient.invalidateQueries(trpc.officer.stock.getHistory.pathFilter()),
+            ]);
+            setShowDeleteAlert(false);
+            setGroupToDelete(null);
+        },
+        onError: (err) => {
+            toast.error(err.message || "Failed to delete sales");
+        }
+    }));
+
+    const handleDeleteGroup = () => {
+        if (!groupToDelete || groupToDelete.sales.length === 0) return;
+        const firstSale = groupToDelete.sales[0];
+        deleteSaleMutation.mutate({
+            saleEventId: firstSale.id,
+            historyId: firstSale.historyId
+        });
+    };
+
     const handleVersionChange = async (saleId: string, reportId: string | null) => {
         if (!reportId) return;
 
@@ -204,7 +274,7 @@ export const SalesHistoryCard = ({
     // cycleContext is now fully computed by the backend — no frontend calculations needed
 
     const groupedSales = useMemo(() => {
-        const rawEvents = (salesEventsData || []) as any[];
+        const rawEvents = (salesEventsData || []) as SaleEvent[];
         if (rawEvents.length === 0) return [];
 
         const events: SaleEvent[] = rawEvents.map(e => ({
@@ -217,47 +287,80 @@ export const SalesHistoryCard = ({
             }))
         }));
 
+        // Helper to create cycle group
+        const createCycleGroup = (sale: SaleEvent): CycleGroup => {
+            const key = sale.cycleId || sale.historyId || "unknown";
+            const context = sale.cycleContext;
+            return {
+                id: key,
+                name: sale.cycleName || "Unknown Cycle",
+                sales: [sale],
+                isEnded: !!sale.historyId,
+                doc: context?.doc || 0,
+                mortality: context?.mortality || 0,
+                age: context?.age || 0,
+                totalSold: 0,
+            };
+        };
+
+        if (groupByFarmer) {
+            const farmers: Record<string, {
+                id: string;
+                name: string;
+                cycles: Record<string, CycleGroup>;
+            }> = {};
+
+            events.forEach(sale => {
+                const fId = sale.cycle?.farmer?.id || sale.history?.farmer?.id || "unknown";
+                const fName = sale.farmerName || "Unknown Farmer";
+
+                if (!farmers[fId]) {
+                    farmers[fId] = { id: fId, name: fName, cycles: {} };
+                }
+
+                const cKey = sale.cycleId || sale.historyId || "unknown";
+                if (!farmers[fId].cycles[cKey]) {
+                    farmers[fId].cycles[cKey] = createCycleGroup(sale);
+                } else {
+                    farmers[fId].cycles[cKey].sales.push(sale);
+                }
+            });
+
+            return (Object.values(farmers).map(f => ({
+                ...f,
+                cycles: Object.values(f.cycles).sort((a, b) => {
+                    const dateA = new Date(a.sales[0]?.saleDate || 0).getTime();
+                    const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
+                    return dateB - dateA;
+                })
+            })) as FarmerGroup[]).sort((a, b) => {
+                // Sort farmers by latest sale in any of their cycles
+                const latestA = a.cycles[0]?.sales[0]?.saleDate?.getTime() || 0;
+                const latestB = b.cycles[0]?.sales[0]?.saleDate?.getTime() || 0;
+                return latestB - latestA;
+            });
+        }
+
         if (!farmerId) return null;
 
-        const groups: Record<string, {
-            name: string;
-            sales: SaleEvent[];
-            isEnded: boolean;
-            doc: number;
-            mortality: number;
-            age: number;
-            totalSold: number;
-        }> = {};
+        const groups: Record<string, CycleGroup> = {};
 
         events.forEach(sale => {
             const key = sale.cycleId || sale.historyId || "unknown";
-
             if (!groups[key]) {
-                const context = sale.cycleContext;
-                groups[key] = {
-                    name: sale.cycleName || "Unknown Cycle",
-                    sales: [],
-                    isEnded: !!sale.historyId,
-                    doc: context?.doc || 0,
-                    mortality: context?.mortality || 0,
-                    age: context?.age || 0,
-                    totalSold: 0,
-                };
+                groups[key] = createCycleGroup(sale);
+            } else {
+                groups[key].sales.push(sale);
             }
-            groups[key].sales.push(sale);
         });
 
-        return Object.entries(groups)
-            .map(([key, group]) => ({
-                id: key,
-                ...group
-            }))
+        return (Object.values(groups) as CycleGroup[])
             .sort((a, b) => {
                 const dateA = new Date(a.sales[0]?.saleDate || 0).getTime();
                 const dateB = new Date(b.sales[0]?.saleDate || 0).getTime();
                 return dateB - dateA;
             });
-    }, [salesEventsData, farmerId]);
+    }, [salesEventsData, farmerId, groupByFarmer]);
 
     const salesEvents = recent ? (recentQuery.data as SaleEvent[]) : (eventsQuery.data as SaleEvent[]);
 
@@ -384,6 +487,72 @@ export const SalesHistoryCard = ({
         );
     };
 
+    const renderCycleAccordionItem = (group: CycleGroup) => {
+        const groupSales = group.sales;
+        const firstSaleContext = groupSales[0]?.cycleContext;
+
+        return (
+            <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
+                <AccordionTrigger className="hover:no-underline py-3 px-0">
+                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
+                        <div className="col-span-1">
+                            <div className="shrink-0 w-fit">
+                                {group.isEnded ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                ) : (
+                                    <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
+                                )}
+                            </div>
+                        </div>
+                        <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
+                            {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
+                        </div>
+                        <div className="col-span-2 sm:col-span-3 flex items-center gap-0.5 sm:gap-1 pl-1">
+                            <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">Age:</span>
+                            <span className="font-bold">{group.age}d</span>
+                        </div>
+                        <div className="col-span-3 flex items-center gap-0.5 sm:gap-1">
+                            <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
+                            <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
+                        </div>
+                        <div className="col-span-3 flex items-center justify-end gap-2">
+                            <div className="flex items-center gap-0.5 sm:gap-1">
+                                <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                    {firstSaleContext?.cumulativeBirdsSold?.toLocaleString() || group.totalSold.toLocaleString()}
+                                </span>
+                            </div>
+                            {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setGroupToDelete(group);
+                                                setShowDeleteAlert(true);
+                                            }}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-[10px]">Delete Sales History</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                        </div>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-4 space-y-4 px-0">
+                    {renderSalesFeed(group.sales)}
+                </AccordionContent>
+            </AccordionItem>
+        );
+    };
+
     return (
         <TooltipProvider>
             <div className={isMobile ? "space-y-3" : "space-y-4"}>
@@ -401,55 +570,64 @@ export const SalesHistoryCard = ({
                 )}
 
                 <div className="space-y-4 pr-1">
-                    {farmerId && groupedSales && Array.isArray(groupedSales) ? (
-                        <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [groupedSales[0].id] : []} className={cn("space-y-4 transition-opacity", isFetching && "opacity-60")}>
-                            {groupedSales.map((group) => {
-                                const groupSales = group.sales;
-                                const firstSaleContext = groupSales[0]?.cycleContext;
-
-                                return (
-                                    <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
-                                        <AccordionTrigger className="hover:no-underline py-3 px-0">
-                                            <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
-                                                <div className="col-span-1">
-                                                    <div className="shrink-0 w-fit">
-                                                        {group.isEnded ? (
-                                                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                                        ) : (
-                                                            <CircleDashed className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="col-span-3 sm:col-span-2 font-bold text-muted-foreground/80 uppercase tracking-tighter truncate">
-                                                    {group.sales.length} {group.sales.length > 1 ? "Sales" : "Sale"}
-                                                </div>
-                                                <div className="col-span-2 sm:col-span-3 flex items-center gap-0.5 sm:gap-1 pl-1">
-                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">Age:</span>
-                                                    <span className="font-bold">{group.age}d</span>
-                                                </div>
-                                                <div className="col-span-3 flex items-center gap-0.5 sm:gap-1">
-                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden sm:inline-block">DOC:</span>
-                                                    <span className="font-bold truncate">{group.doc.toLocaleString()}</span>
-                                                </div>
-                                                <div className="col-span-3 flex items-center justify-end gap-0.5 sm:gap-1">
-                                                    <span className="text-muted-foreground/40 text-[8px] uppercase font-bold hidden xs:inline-block">Sold:</span>
-                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {firstSaleContext?.cumulativeBirdsSold?.toLocaleString() || group.totalSold.toLocaleString()}
-                                                    </span>
-                                                </div>
+                    {groupByFarmer && groupedSales && Array.isArray(groupedSales) ? (
+                        <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [(groupedSales[0] as FarmerGroup).id] : []} className={cn("space-y-4 transition-opacity", isFetching && "opacity-60")}>
+                            {(groupedSales as FarmerGroup[]).map((farmerGroup) => (
+                                <AccordionItem value={farmerGroup.id} key={farmerGroup.id} className="border rounded-lg bg-card px-2 sm:px-4">
+                                    <AccordionTrigger className="hover:no-underline py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <User className="h-4 w-4 text-primary" />
                                             </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="pt-2 pb-4 space-y-4 px-0">
-                                            {renderSalesFeed(group.sales)}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                );
-                            })}
+                                            <div className="flex flex-col items-start">
+                                                <span className="font-semibold text-sm sm:text-base">{farmerGroup.name}</span>
+                                                <span className="text-xs text-muted-foreground">{farmerGroup.cycles.length} Cycles</span>
+                                            </div>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pt-0 pb-4">
+                                        <Accordion type="multiple" className="space-y-2">
+                                            {farmerGroup.cycles.map((cycleGroup) => renderCycleAccordionItem(cycleGroup))}
+                                        </Accordion>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    ) : farmerId && groupedSales && Array.isArray(groupedSales) ? (
+                        <Accordion type="multiple" defaultValue={groupedSales.length > 0 ? [(groupedSales[0] as CycleGroup).id] : []} className={cn("space-y-4 transition-opacity", isFetching && "opacity-60")}>
+                            {(groupedSales as CycleGroup[]).map((group) => renderCycleAccordionItem(group))}
                         </Accordion>
                     ) : (
                         renderSalesFeed(salesEventsData as SaleEvent[] || [])
                     )}
                 </div>
+
+                <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                {groupToDelete?.isEnded
+                                    ? "This action will delete ALL sales records associated with this closed cycle history. The cycle history itself will remain, but all revenue and sales data will be reset. This action cannot be undone."
+                                    : "This action will delete ALL sales for this active cycle and revert the bird count and mortality stats. This action cannot be undone."
+                                }
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={deleteSaleMutation.isPending}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleDeleteGroup();
+                                }}
+                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                disabled={deleteSaleMutation.isPending}
+                            >
+                                {deleteSaleMutation.isPending ? "Deleting..." : "Yes, Delete All Sales"}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </TooltipProvider>
     );
