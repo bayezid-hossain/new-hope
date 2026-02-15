@@ -287,10 +287,6 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
         fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
         fortyDaysAgo.setHours(0, 0, 0, 0);
 
-        if (orderDate > today) {
-            toast.error("Future dates are not allowed");
-            return;
-        }
 
         if (orderDate < fortyDaysAgo) {
             toast.error("Dates older than 40 days are not allowed");
@@ -362,9 +358,9 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                 if (batch.isContract) {
                     text += `Contact farm doc \n`;
                 }
-                text += `farm name: ${item.farmerName || 'Unknown Farmer'}\n`;
+                text += `Farm name: ${item.farmerName || 'Unknown Farmer'}\n`;
                 if (item.location) text += `Location: ${item.location}\n`;
-                if (item.mobile) text += `mobile: ${item.mobile}\n`;
+                if (item.mobile) text += `Mobile: ${item.mobile}\n`;
 
                 text += `Quantity: ${batch.docCount || 0} pcs\n`;
                 text += `${batch.birdType || 'Unknown Type'}\n\n`;
@@ -387,6 +383,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
         <ResponsiveDialog
             open={open}
             onOpenChange={onOpenChange}
+            persistent={true}
             title={initialData ? "Edit DOC Order" : "New DOC Order"}
             description="Create a new order for Day Old Chicks. Select farmers and specify quantities."
             className="max-w-3xl h-[85vh]"

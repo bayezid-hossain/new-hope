@@ -242,6 +242,7 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
     return (
         <ResponsiveDialog
             open={open}
+            persistent={true}
             onOpenChange={onOpenChange}
             title={initialData ? "Edit Feed Order" : "New Feed Order"}
             description={initialData ? "Update your feed order details." : "Create a feed order list to share with dealers."}

@@ -318,11 +318,6 @@ export const officerCyclesRouter = createTRPCRouter({
                     fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
                     fortyDaysAgo.setHours(0, 0, 0, 0);
 
-                    if (createdAt > today) {
-                        errors.push({ farmerId: item.farmerId, error: "Future dates are not allowed" });
-                        continue;
-                    }
-
                     if (createdAt < fortyDaysAgo) {
                         errors.push({ farmerId: item.farmerId, error: "Dates older than 40 days are not allowed" });
                         continue;

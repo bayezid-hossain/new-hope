@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   description: "A reminder app that helps you stay on top of your feeds.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

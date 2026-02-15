@@ -167,6 +167,7 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
       description="Select a farmer and assign birds (DOC) to start a new cycle."
       open={open}
       onOpenChange={onOpenChange}
+      persistent={true}
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">

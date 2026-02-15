@@ -315,6 +315,7 @@ export const SellModal = ({
                 description={`Sell birds from (${farmerName})`}
                 open={open}
                 onOpenChange={onOpenChange}
+                persistent={true}
             >
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">

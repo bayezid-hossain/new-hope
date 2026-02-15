@@ -94,9 +94,11 @@ export const SaleEventCard = ({
                             <CardTitle className="text-sm font-semibold flex items-center gap-2 py-2">
                                 <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 text-muted-foreground/50", isExpanded && "rotate-180")} />
                                 <span className="truncate">
-                                    {(indexInGroup !== undefined && totalInGroup !== undefined)
-                                        ? `Sale ${totalInGroup - indexInGroup}`
-                                        : (hideName ? "Sale Record" : (sale.farmerName || sale.cycleName || "Sale Record"))}
+                                    {(!hideName && sale.farmerName)
+                                        ? sale.farmerName
+                                        : (indexInGroup !== undefined && totalInGroup !== undefined)
+                                            ? `Sale ${totalInGroup - indexInGroup}`
+                                            : (hideName ? "Sale Record" : (sale.farmerName || sale.cycleName || "Sale Record"))}
                                 </span>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -114,7 +116,7 @@ export const SaleEventCard = ({
                                 </Tooltip>
                                 {sale.location && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background shrink-0">
-                                        {sale.location}{sale.party ? ` • ${sale.party}` : ""}
+                                        {sale.party ? ` • ${sale.party}` : ""}
                                     </Badge>
                                 )}
                             </CardTitle>

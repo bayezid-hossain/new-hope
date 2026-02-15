@@ -91,6 +91,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
       description="Create a farmer profile and assign initial stock."
       open={open}
       onOpenChange={onOpenChange}
+      persistent={true}
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

@@ -291,6 +291,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             description="Create a new version of this bill. Financials and Mortality will be updated accordingly."
             open={isOpen}
             onOpenChange={(open) => !open && onClose()}
+            persistent={true}
         >
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">
