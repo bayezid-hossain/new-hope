@@ -158,10 +158,7 @@ export function BulkCycleImportModal({ open, onOpenChange, orgId }: BulkCycleImp
             fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
             fortyDaysAgo.setHours(0, 0, 0, 0);
 
-            if (orderDate > today) {
-                toast.error("Future dates are not allowed");
-                return;
-            }
+
 
             if (orderDate < fortyDaysAgo) {
                 toast.error("Dates older than 40 days are not allowed");

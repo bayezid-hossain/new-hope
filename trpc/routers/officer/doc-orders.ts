@@ -45,9 +45,6 @@ export const docOrdersRouter = createTRPCRouter({
             fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
             fortyDaysAgo.setHours(0, 0, 0, 0);
 
-            if (input.orderDate > today) {
-                throw new TRPCError({ code: "BAD_REQUEST", message: "Future dates are not allowed" });
-            }
 
             if (input.orderDate < fortyDaysAgo) {
                 throw new TRPCError({ code: "BAD_REQUEST", message: "Dates older than 40 days are not allowed" });
@@ -249,10 +246,6 @@ export const docOrdersRouter = createTRPCRouter({
                     const fortyDaysAgo = new Date();
                     fortyDaysAgo.setDate(fortyDaysAgo.getDate() - 40);
                     fortyDaysAgo.setHours(0, 0, 0, 0);
-
-                    if (cycleDate > today) {
-                        throw new TRPCError({ code: "BAD_REQUEST", message: `Future date not allowed for farmer ${item.farmer.name}` });
-                    }
 
                     if (cycleDate < fortyDaysAgo) {
                         throw new TRPCError({ code: "BAD_REQUEST", message: `Date older than 40 days not allowed for farmer ${item.farmer.name}` });

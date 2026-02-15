@@ -247,13 +247,14 @@ export default function FarmerDetails() {
       )}>
         <div className="flex flex-col gap-1 w-full">
           <div className="flex items-center gap-3 w-full justify-between">
-            <h1 className={cn(
+            <div className="flex flex-col items-start gap-y-2 w-full"><h1 className={cn(
               "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
               isSticky ? "text-lg md:text-xl" : "text-xl md:text-2xl"
             )}>
               {farmerQuery.isLoading ? <Skeleton className="h-6 w-32 inline-block" /> : (farmerQuery.data?.name || "N/A")}
             </h1>
-
+              {farmerQuery.isLoading ? <Skeleton className="h-4 w-24 inline-block" /> : (<p className="text-sm text-muted-foreground">{farmerQuery.data?.location || "N/A"}</p>)}
+            </div>
             <div className="flex items-center gap-2 shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
