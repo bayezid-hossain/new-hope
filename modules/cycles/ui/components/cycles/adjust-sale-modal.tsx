@@ -13,20 +13,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { feedItemSchema } from "@/modules/shared/types/feed";
+import type { SaleReport } from "@/modules/shared/types/sale";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Banknote, Bird, Box, Calendar as CalendarIcon, FileText, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { Banknote, Bird, Box, FileText, ShoppingCart, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { type SaleReport } from "./sales-history-card";
-
-const feedItemSchema = z.object({
-    type: z.string().min(1, "Required"),
-    bags: z.number().min(0, "Must be 0 or greater"),
-});
+import { FarmerInfoHeader, FeedFieldArray, SaleMetricsBar } from "./sale-form-sections";
+import { ensureB1B2 } from "./sale-form-utils";
 
 const adjustSaleSchema = z.object({
     birdsSold: z.coerce.number().int().positive("Must be at least 1 bird"),
@@ -79,26 +77,7 @@ interface AdjustSaleModalProps {
     latestReport?: SaleReport | null;
 }
 
-// Helper to ensure B1 and B2 are present and at the top
-const ensureB1B2 = (items: { type: string; bags: number }[] = []) => {
-    const result = [...items];
-    if (!result.find(i => i.type.toUpperCase() === "B1")) {
-        result.push({ type: "B1", bags: 0 });
-    }
-    if (!result.find(i => i.type.toUpperCase() === "B2")) {
-        result.push({ type: "B2", bags: 0 });
-    }
-    // Sort to keep B1 and B2 at top
-    return result.sort((a, b) => {
-        const typeA = a.type.toUpperCase();
-        const typeB = b.type.toUpperCase();
-        if (typeA === "B1") return -1;
-        if (typeB === "B1") return 1;
-        if (typeA === "B2") return -1;
-        if (typeB === "B2") return 1;
-        return 0;
-    });
-};
+
 
 export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: AdjustSaleModalProps) => {
     const trpc = useTRPC();
@@ -317,30 +296,13 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">
                     {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
                     <div className="space-y-4">
-                        {/* Farmer Header */}
-                        <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg border border-orange-100 dark:border-orange-800">
-                            <div className="text-center space-y-1">
-                                <div className="text-lg font-bold text-orange-900 dark:text-orange-100">{farmerName}</div>
-                                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                                    {farmerLocation && (
-                                        <span className="flex items-center gap-1">
-                                            <MapPin className="h-3 w-3" /> {farmerLocation}
-                                        </span>
-                                    )}
-                                    {farmerMobile && (
-                                        <span className="flex items-center gap-1">
-                                            <Phone className="h-3 w-3" /> {farmerMobile}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="mt-3 flex items-center justify-center gap-4 text-sm">
-                                <div className="flex items-center gap-1 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full">
-                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                                    <span className="font-medium">Age: {cycleAge} days</span>
-                                </div>
-                            </div>
-                        </div>
+                        <FarmerInfoHeader
+                            farmerName={farmerName}
+                            farmerLocation={farmerLocation}
+                            farmerMobile={farmerMobile}
+                            cycleAge={cycleAge}
+                            colorScheme="orange"
+                        />
 
                         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                             <Truck className="h-4 w-4" /> Sale Details
@@ -491,16 +453,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                         </div>
 
                         {/* Calculated Values */}
-                        <div className="grid grid-cols-2 gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                            <div>
-                                <div className="text-xs text-muted-foreground">Avg Weight</div>
-                                <div className="font-mono font-bold text-lg">{avgWeight} kg</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-muted-foreground">Total Amount</div>
-                                <div className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400">৳{totalAmount}</div>
-                            </div>
-                        </div>
+                        <SaleMetricsBar avgWeight={avgWeight} totalAmount={totalAmount} />
 
                         {/* Payment */}
                         <div className="grid grid-cols-3 gap-3">
@@ -595,120 +548,24 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                 </div>
                             )}
 
-                            <FormLabel>Feed Types & Bags</FormLabel>
-                            {feedConsumedArray.fields.map((field, index) => (
-                                <div key={field.id} className="flex gap-2 items-end">
-                                    <FormField
-                                        control={form.control}
-                                        name={`feedConsumed.${index}.type` as const}
-                                        render={({ field }) => (
-                                            <FormItem className="flex-1">
-                                                <FormControl>
-                                                    <Input placeholder="Type (B1, B2...)" {...field} />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name={`feedConsumed.${index}.bags` as const}
-                                        render={({ field }) => (
-                                            <FormItem className="w-24">
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        placeholder="Bags"
-                                                        value={field.value || ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                            const bags = val || 0;
-                                                            field.onChange(bags);
-                                                            handleFeedAdjustment(index, bags);
-                                                        }}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {feedConsumedArray.fields.length > 1 && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-10 w-10 text-destructive hover:text-destructive"
-                                            onClick={() => feedConsumedArray.remove(index)}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                </div>
-                            ))}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => feedConsumedArray.append({ type: "", bags: 0 })}
-                                className="w-full"
-                            >
-                                <Plus className="h-4 w-4 mr-2" /> Add Feed Type
-                            </Button>
+                            <FeedFieldArray
+                                control={form.control}
+                                fieldArray={feedConsumedArray}
+                                namePrefix="feedConsumed"
+                                label="Feed Types & Bags"
+                                onBagsChange={handleFeedAdjustment}
+                            />
                         </div>
 
                         {/* Feed Stock - Dynamic Array */}
                         <div className="space-y-2 pt-4 border-t">
-                            <FormLabel>Remaining Feed Stock</FormLabel>
-                            {feedStockArray.fields.map((field, index) => (
-                                <div key={field.id} className="flex gap-2 items-end">
-                                    <FormField
-                                        control={form.control}
-                                        name={`feedStock.${index}.type` as const}
-                                        render={({ field }) => (
-                                            <FormItem className="flex-1">
-                                                <FormControl>
-                                                    <Input placeholder="Type (B1, B2...)" {...field} />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name={`feedStock.${index}.bags` as const}
-                                        render={({ field }) => (
-                                            <FormItem className="w-24">
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        placeholder="Bags"
-                                                        value={field.value || ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                            field.onChange(val || 0);
-                                                        }}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-10 w-10 text-destructive hover:text-destructive"
-                                        onClick={() => feedStockArray.remove(index)}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => feedStockArray.append({ type: "", bags: 0 })}
-                                className="w-full"
-                            >
-                                <Plus className="h-4 w-4 mr-2" /> Add Stock Type
-                            </Button>
+                            <FeedFieldArray
+                                control={form.control}
+                                fieldArray={feedStockArray}
+                                namePrefix="feedStock"
+                                label="Remaining Feed Stock"
+                                showRemoveOnSingle
+                            />
                         </div>
                     </div>
 

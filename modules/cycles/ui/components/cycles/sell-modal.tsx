@@ -21,22 +21,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { cn } from "@/lib/utils";
+import { feedItemSchema } from "@/modules/shared/types/feed";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, Banknote, Bird, Box, Calendar as CalendarIcon, MapPin, Phone, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { AlertTriangle, Banknote, Bird, Box, Calendar as CalendarIcon, Plus, ShoppingCart, Truck } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AddFeedModal } from "../mainstock/add-feed-modal";
-
-const feedItemSchema = z.object({
-    type: z.string().min(1, "Required"),
-    bags: z.number().min(0, "Must be 0 or greater"),
-});
+import { FarmerInfoHeader, FeedFieldArray, SaleMetricsBar } from "./sale-form-sections";
 
 const formSchema = z.object({
     saleDate: z.string().min(1, "Sale date is required"),
@@ -323,30 +320,13 @@ export const SellModal = ({
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 h-[80vh] overflow-y-auto pr-1">
                         {/* SECTION 1: FARMER INFO & BASIC DETAILS */}
                         <div className="space-y-4">
-                            {/* Farmer Header */}
-                            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                                <div className="text-center space-y-1">
-                                    <div className="text-lg font-bold text-blue-900 dark:text-blue-100">{farmerName}</div>
-                                    <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                                        {farmerLocation && (
-                                            <span className="flex items-center gap-1">
-                                                <MapPin className="h-3 w-3" /> {farmerLocation}
-                                            </span>
-                                        )}
-                                        {farmerMobile && (
-                                            <span className="flex items-center gap-1">
-                                                <Phone className="h-3 w-3" /> {farmerMobile}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="mt-3 flex items-center justify-center gap-4 text-sm">
-                                    <div className="flex items-center gap-1 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full">
-                                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                                        <span className="font-medium">Age: {cycleAge} days</span>
-                                    </div>
-                                </div>
-                            </div>
+                            <FarmerInfoHeader
+                                farmerName={farmerName}
+                                farmerLocation={farmerLocation}
+                                farmerMobile={farmerMobile}
+                                cycleAge={cycleAge}
+                                colorScheme="blue"
+                            />
 
                             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                 <Truck className="h-4 w-4" /> Sale Details
@@ -584,16 +564,7 @@ export const SellModal = ({
                             </div>
 
                             {/* Calculated Values */}
-                            <div className="grid grid-cols-2 gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Avg Weight</div>
-                                    <div className="font-mono font-bold text-lg">{avgWeight} kg</div>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Total Amount</div>
-                                    <div className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400">৳{totalAmount}</div>
-                                </div>
-                            </div>
+                            <SaleMetricsBar avgWeight={avgWeight} totalAmount={totalAmount} />
 
                             {/* Payment */}
                             <div className="grid grid-cols-2 gap-3">
@@ -672,126 +643,26 @@ export const SellModal = ({
 
                                 )}
 
-                                <FormLabel>Feed Types & Bags</FormLabel>
-                                <div className="text-xs text-muted-foreground mb-2">
-                                    Document remaining sacks returned from the shed.
-                                </div>
-                                {feedConsumedArray.fields.map((field, index) => (
-                                    <div key={field.id} className="flex gap-2 items-end">
-                                        <FormField
-                                            control={form.control}
-                                            name={`feedConsumed.${index}.type` as const}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Input placeholder="Type (B1, B2...)" {...field} />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`feedConsumed.${index}.bags` as const}
-                                            render={({ field }) => (
-                                                <FormItem className="w-24">
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="Bags"
-                                                            value={field.value || ""}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                                const bags = val || 0;
-                                                                field.onChange(bags);
-                                                                handleFeedAdjustment(index, bags);
-                                                            }}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        {feedConsumedArray.fields.length > 1 && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-10 w-10 text-destructive hover:text-destructive"
-                                                onClick={() => feedConsumedArray.remove(index)}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                ))}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => feedConsumedArray.append({ type: "", bags: 0 })}
-                                    className="w-full"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" /> Add Feed Type
-                                </Button>
+                                <FeedFieldArray
+                                    control={form.control}
+                                    fieldArray={feedConsumedArray}
+                                    namePrefix="feedConsumed"
+                                    label="Feed Types & Bags"
+                                    description="Document remaining sacks returned from the shed."
+                                    onBagsChange={handleFeedAdjustment}
+                                />
                             </div>
 
                             {/* Feed Stock - Dynamic Array */}
                             <div className="space-y-2 pt-4 border-t">
-                                <FormLabel>Remaining Feed Stock</FormLabel>
-                                <div className="text-xs text-muted-foreground mb-2">
-                                    Inventory left in main stock for this cycle.
-                                </div>
-                                {feedStockArray.fields.map((field, index) => (
-                                    <div key={field.id} className="flex gap-2 items-end">
-                                        <FormField
-                                            control={form.control}
-                                            name={`feedStock.${index}.type` as const}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Input placeholder="Type (B1, B2...)" {...field} />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`feedStock.${index}.bags` as const}
-                                            render={({ field }) => (
-                                                <FormItem className="w-24">
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="Bags"
-                                                            value={field.value || ""}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value === "" ? 0 : e.target.valueAsNumber;
-                                                                field.onChange(val || 0);
-                                                            }}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-10 w-10 text-destructive hover:text-destructive"
-                                            onClick={() => feedStockArray.remove(index)}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => feedStockArray.append({ type: "", bags: 0 })}
-                                    className="w-full"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" /> Add Stock Type
-                                </Button>
+                                <FeedFieldArray
+                                    control={form.control}
+                                    fieldArray={feedStockArray}
+                                    namePrefix="feedStock"
+                                    label="Remaining Feed Stock"
+                                    description="Inventory left in main stock for this cycle."
+                                    showRemoveOnSingle
+                                />
                             </div>
                         </div>
 
