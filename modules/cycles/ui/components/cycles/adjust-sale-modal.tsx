@@ -765,7 +765,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                             e.preventDefault();
                                             handleDelete();
                                         }}
-                                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                        variant="destructive"
                                         disabled={deleteSaleMutation.isPending}
                                     >
                                         {deleteSaleMutation.isPending ? "Deleting..." : "Yes, Delete All Sales"}

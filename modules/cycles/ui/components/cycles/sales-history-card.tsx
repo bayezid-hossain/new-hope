@@ -494,7 +494,7 @@ export const SalesHistoryCard = ({
         return (
             <AccordionItem value={group.id} key={group.id} className="border-b last:border-0 px-0">
                 <AccordionTrigger className="hover:no-underline py-3 px-0">
-                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-6 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
+                    <div className="grid grid-cols-12 items-center gap-x-1 sm:gap-x-2 w-full pr-2 text-[10px] xs:text-[11px] text-foreground/80 font-medium overflow-hidden">
                         <div className="col-span-1">
                             <div className="shrink-0 w-fit">
                                 {group.isEnded ? (
@@ -525,18 +525,26 @@ export const SalesHistoryCard = ({
                             {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            className="h-7 w-7 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setGroupToDelete(group);
                                                 setShowDeleteAlert(true);
                                             }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setGroupToDelete(group);
+                                                    setShowDeleteAlert(true);
+                                                }
+                                            }}
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
+                                        </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
                                         <p className="text-[10px]">Delete Sales History</p>
@@ -620,7 +628,7 @@ export const SalesHistoryCard = ({
                                     e.preventDefault();
                                     handleDeleteGroup();
                                 }}
-                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                variant="destructive"
                                 disabled={deleteSaleMutation.isPending}
                             >
                                 {deleteSaleMutation.isPending ? "Deleting..." : "Yes, Delete All Sales"}

@@ -1,5 +1,6 @@
 "use client"
 
+import { XIcon } from "lucide-react"
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
@@ -48,8 +49,11 @@ function DrawerOverlay({
 function DrawerContent({
   className,
   children,
+  showCloseButton = true,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+}: React.ComponentProps<typeof DrawerPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
@@ -67,6 +71,12 @@ function DrawerContent({
       >
         <div className="bg-muted mx-auto mt-4 hidden h-2 w-[100px] shrink-0 rounded-full group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
         {children}
+        {showCloseButton && (
+          <DrawerPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 bg-sidebar-accent/50 hover:bg-sidebar-accent border border-border/10 transition-colors">
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </DrawerPrimitive.Close>
+        )}
       </DrawerPrimitive.Content>
     </DrawerPortal>
   )

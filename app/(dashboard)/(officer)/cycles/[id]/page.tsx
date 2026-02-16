@@ -379,12 +379,17 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                     </Badge>
                                 )}
                                 <span>•</span>
-                                <div className="flex items-center gap-1">
-                                    <span className="font-medium text-foreground">{farmerContext.name}</span>
+                                <div className="flex items-center gap-1 group">
+                                    <Link
+                                        href={`/farmers/${farmerContext.id}`}
+                                        className="font-medium text-foreground hover:text-primary transition-colors hover:underline"
+                                    >
+                                        {farmerContext.name}
+                                    </Link>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                                        className="h-5 w-5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={() => setShowEditFarmerModal(true)}
                                     >
                                         <Wrench className="h-3 w-3" />

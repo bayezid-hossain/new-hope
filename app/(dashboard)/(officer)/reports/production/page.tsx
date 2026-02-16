@@ -98,7 +98,7 @@ export default function OfficerProductionReportPage() {
                         Consolidated performance record for all your farmers whose cycles ended in {monthName}.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-1">
                     <ProductionRecordTable
                         data={data}
                         isLoading={isLoading}

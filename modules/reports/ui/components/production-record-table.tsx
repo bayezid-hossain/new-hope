@@ -56,7 +56,7 @@ export function ProductionRecordTable({ data, isLoading, monthName, year }: Prod
     const formattedTotalProfit = totalProfit.toLocaleString('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 });
 
     return (
-        <div className="border rounded-md overflow-hidden">
+        <div className="border rounded-sm overflow-hidden border-0">
             <Table>
                 <TableHeader>
                     <TableRow className="bg-muted/50">
