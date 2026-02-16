@@ -28,6 +28,7 @@ import { useEffect, useState } from "react";
 import { FaProductHunt } from "react-icons/fa";
 import DashboardUserButton from "./dashboard-user-button";
 import { ModeToggle } from "./mode-toggle";
+import { SubscriptionStatus } from "./subscription-status";
 import { ThemeToggle } from "./theme-toggle";
 
 const firstSection = [
@@ -58,6 +59,9 @@ const firstSection = [
     href: "/stock-ledger",
     isPro: true,
   },
+];
+
+const ordersSection = [
   {
     icon: Package,
     label: "Feed Orders",
@@ -122,6 +126,9 @@ const managementSection = [
     label: "Cycles",
     href: "/management/cycles",
   },
+];
+
+const managementOrdersSection = [
   {
     icon: Package,
     label: "Feed Orders",
@@ -283,6 +290,55 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                   </SidebarMenuItem>
                 ))}
 
+                {/* Orders Collapsible Section */}
+                <Collapsible
+                  key="orders-collapsible"
+                  asChild
+                  defaultOpen={pathname === "/feed-orders" || pathname === "/doc-orders"}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        tooltip="Orders"
+                        className="h-10 hover:bg-sidebar-accent/50"
+                        isActive={ordersSection.some(item => pathname === item.href)}
+                      >
+                        <ShoppingBag className="size-5" />
+                        <span className="text-sm font-medium tracking-tight flex-1">Orders</span>
+                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {ordersSection.map((subItem) => (
+                          <SidebarMenuSubItem key={subItem.href}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={pathname === subItem.href}
+                              size="md"
+                            >
+                              <Link
+                                href={subItem.href}
+                                onClick={() => isMobile && setOpenMobile(false)}
+                                className="flex items-center gap-2"
+                              >
+                                <subItem.icon className="size-4 opacity-70" />
+                                <span className="text-sm flex-1 truncate">{subItem.label}</span>
+                                {subItem.isPro && (
+                                  <div className="shrink-0 text-[8px] font-bold px-1 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                                    PRO
+                                  </div>
+                                )}
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+
                 {/* Reports Collapsible Section */}
                 <Collapsible
                   key="reports-collapsible"
@@ -292,7 +348,11 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip="Reports" className="h-10 hover:bg-sidebar-accent/50">
+                      <SidebarMenuButton
+                        tooltip="Reports"
+                        className="h-10 hover:bg-sidebar-accent/50"
+                        isActive={reportsSection.some(item => pathname === item.href)}
+                      >
                         <BarChart3 className="size-5" />
                         <span className="text-sm font-medium tracking-tight flex-1">Reports</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -367,6 +427,55 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                   </SidebarMenuItem>
                 ))}
 
+                {/* Management Orders Collapsible Section */}
+                <Collapsible
+                  key="management-orders-collapsible"
+                  asChild
+                  defaultOpen={pathname === "/management/feed-orders"}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        tooltip="Orders"
+                        className="h-10 hover:bg-sidebar-accent/50"
+                        isActive={managementOrdersSection.some(item => pathname === item.href)}
+                      >
+                        <ShoppingBag className="size-5" />
+                        <span className="text-sm font-medium tracking-tight flex-1">Orders</span>
+                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {managementOrdersSection.map((subItem) => (
+                          <SidebarMenuSubItem key={subItem.href}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={pathname === subItem.href}
+                              size="md"
+                            >
+                              <Link
+                                href={subItem.href}
+                                onClick={() => isMobile && setOpenMobile(false)}
+                                className="flex items-center gap-2"
+                              >
+                                <subItem.icon className="size-4 opacity-70" />
+                                <span className="text-sm flex-1 truncate">{subItem.label}</span>
+                                {subItem.isPro && (
+                                  <div className="shrink-0 text-[8px] font-bold px-1 py-0.5 rounded-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm leading-none">
+                                    PRO
+                                  </div>
+                                )}
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+
                 {/* Management Reports Collapsible Section */}
                 <Collapsible
                   key="management-reports-collapsible"
@@ -376,7 +485,11 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip="Reports" className="h-10 hover:bg-sidebar-accent/50">
+                      <SidebarMenuButton
+                        tooltip="Reports"
+                        className="h-10 hover:bg-sidebar-accent/50"
+                        isActive={managementReportsSection.some(item => pathname === item.href)}
+                      >
                         <BarChart3 className="size-5" />
                         <span className="text-sm font-medium tracking-tight flex-1">Reports</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -451,6 +564,7 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SubscriptionStatus initialSession={initialSession} />
         <DashboardUserButton />
       </SidebarFooter>
     </Sidebar>

@@ -12,6 +12,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { cn } from "@/lib/utils";
 import { ProUpgradeTeaser } from "@/modules/shared/components/pro-upgrade-teaser";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -57,6 +58,11 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
     });
 
     const reportData = data;
+
+    // Summary data for mobile quick look
+    const totalDoc = reportData?.summary.totalDoc || 0;
+    const farmerCount = reportData?.summary.farmerCount || 0;
+    const cycleCount = reportData?.summary.cycleCount || 0;
 
     const toggleExpand = (farmerId: string) => {
         setExpandedFarmerId(expandedFarmerId === farmerId ? null : farmerId);
@@ -241,85 +247,99 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
                                 List of farmers who received DOCs in {months[month - 1]} {year}.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-1">
                             <div className="space-y-4">
                                 {reportData.farmers.map((farmer) => {
                                     const isSingleBatch = farmer.cycles.length === 1;
                                     const singleCycle = isSingleBatch ? farmer.cycles[0] : null;
-
-                                    if (isSingleBatch && singleCycle) {
-                                        return (
-                                            <div key={farmer.farmerName} className="border rounded-lg overflow-hidden bg-card">
-                                                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <div>
-                                                            <h3 className="font-semibold">{farmer.farmerName}</h3>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="text-xs text-muted-foreground">{format(new Date(singleCycle.date), 'dd/MM/yyyy')}</span>
-
-                                                        </div><Badge variant="outline" className="text-[10px] uppercase h-5">
-                                                            {singleCycle.status}
-                                                        </Badge>
-                                                        <Badge variant="secondary" className="text-sm font-mono h-8 px-3">
-                                                            {singleCycle.doc.toLocaleString()} DOC
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
+                                    const isExpanded = expandedFarmerId === farmer.farmerName;
 
                                     return (
-                                        <div key={farmer.farmerName} className="border rounded-lg overflow-hidden">
+                                        <div key={farmer.farmerName} className="border-b border-muted/30 last:border-0 pb-1">
                                             <div
-                                                className="p-4 flex items-center justify-between bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
-                                                onClick={() => toggleExpand(farmer.farmerName)}
+                                                className={cn(
+                                                    "p-3 sm:p-4 flex items-center justify-between transition-colors",
+                                                    !isSingleBatch ? "cursor-pointer hover:bg-muted/5" : ""
+                                                )}
+                                                onClick={() => !isSingleBatch && toggleExpand(farmer.farmerName)}
                                             >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                                                        {expandedFarmerId === farmer.farmerName ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className={cn(
+                                                        "h-8 w-8 rounded-full flex items-center justify-center transition-colors shrink-0",
+                                                        isExpanded ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary",
+                                                        isSingleBatch && "opacity-50"
+                                                    )}>
+                                                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-semibold">{farmer.farmerName}</h3>
-                                                        <p className="text-sm text-muted-foreground">{farmer.cycles.length} Batches</p>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-semibold text-sm sm:text-base truncate">{farmer.farmerName}</h3>
+                                                        {isSingleBatch && singleCycle ? (
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-tight">
+                                                                    {format(new Date(singleCycle.date), 'dd MMM yyyy')}
+                                                                </span>
+                                                                <Badge variant="outline" className="text-[9px] uppercase h-4 px-1 leading-none border-muted-foreground/20 text-muted-foreground">
+                                                                    {singleCycle.status}
+                                                                </Badge>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider">{farmer.cycles.length} Batches</p>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <Badge variant="secondary" className="text-sm font-mono">
+                                                <div className="text-right shrink-0">
+                                                    <Badge variant="secondary" className="text-xs sm:text-sm font-mono font-bold bg-primary/5 text-primary border-primary/10">
                                                         {farmer.totalDoc.toLocaleString()} DOC
                                                     </Badge>
                                                 </div>
                                             </div>
 
-                                            {expandedFarmerId === farmer.farmerName && (
-                                                <div className="border-t bg-card animate-in slide-in-from-top-1">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Date</TableHead>
-                                                                <TableHead>Status</TableHead>
-                                                                <TableHead className="text-right">DOC</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {farmer.cycles.map((cycle, idx) => (
-                                                                <TableRow key={idx}>
-                                                                    <TableCell>{format(new Date(cycle.date), 'dd/MM/yyyy')}</TableCell>
-                                                                    <TableCell>
-                                                                        <Badge variant="outline" className="text-xs uppercase">
-                                                                            {cycle.status}
-                                                                        </Badge>
-                                                                    </TableCell>
-                                                                    <TableCell className="text-right font-mono">
-                                                                        {cycle.doc.toLocaleString()}
-                                                                    </TableCell>
+                                            {!isSingleBatch && isExpanded && (
+                                                <div className="bg-muted/5 animate-in slide-in-from-top-1 px-3 sm:px-4 pb-4">
+                                                    {/* Mobile List View */}
+                                                    <div className="sm:hidden divide-y divide-muted/30 border-t border-muted/30">
+                                                        {farmer.cycles.map((cycle, idx) => (
+                                                            <div key={idx} className="py-3 flex items-center justify-between">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[11px] font-bold text-muted-foreground/80">
+                                                                        {format(new Date(cycle.date), 'dd MMM yyyy')}
+                                                                    </span>
+                                                                    <Badge variant="outline" className="text-[9px] uppercase h-4 px-1 w-fit border-muted-foreground/20 text-muted-foreground">
+                                                                        {cycle.status}
+                                                                    </Badge>
+                                                                </div>
+                                                                <span className="font-mono font-bold text-sm text-foreground">
+                                                                    {cycle.doc.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">DOC</span>
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Desktop Table View */}
+                                                    <div className="hidden sm:block border rounded-lg overflow-hidden bg-card">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow className="bg-muted/30">
+                                                                    <TableHead className="h-10 text-[10px] uppercase font-bold tracking-wider">Date</TableHead>
+                                                                    <TableHead className="h-10 text-[10px] uppercase font-bold tracking-wider">Status</TableHead>
+                                                                    <TableHead className="h-10 text-right text-[10px] uppercase font-bold tracking-wider">DOC</TableHead>
                                                                 </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {farmer.cycles.map((cycle, idx) => (
+                                                                    <TableRow key={idx} className="hover:bg-muted/5 transition-colors">
+                                                                        <TableCell className="py-3 text-sm">{format(new Date(cycle.date), 'dd/MM/yyyy')}</TableCell>
+                                                                        <TableCell className="py-3">
+                                                                            <Badge variant="outline" className="text-[10px] uppercase border-muted-foreground/20">
+                                                                                {cycle.status}
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right py-3 font-mono font-bold">{cycle.doc.toLocaleString()}</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

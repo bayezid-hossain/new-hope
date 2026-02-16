@@ -58,6 +58,11 @@ export const auth = betterAuth({
                 required: false,
                 defaultValue: false,
                 input: false
+            },
+            proExpiresAt: {
+                type: "date",
+                required: false,
+                input: false
             }
         }
     },
@@ -144,11 +149,11 @@ export const auth = betterAuth({
         })
     ],
     trustedOrigins: [
-    process.env.BETTER_AUTH_URL || "http://localhost:3000",
-    ...(process.env.NODE_ENV !== "production"
-        ? ["http://192.168.0.186:3000"]
-        : []),
-    "https://feed-newhope.vercel.app",
-    "https://demo-newhope.vercel.app",
-]
+        process.env.BETTER_AUTH_URL || "http://localhost:3000",
+        ...(process.env.NODE_ENV !== "production"
+            ? ["http://192.168.0.186:3000"]
+            : []),
+        "https://feed-newhope.vercel.app",
+        "https://demo-newhope.vercel.app",
+    ]
 })
