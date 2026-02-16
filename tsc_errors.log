@@ -1,7 +1,0 @@
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(98,30): error TS2339: Property 'list' does not exist on type 'DecoratedRouterRecord<{ ctx: { db: NeonDatabase<typeof import("C:/Users/amiba/Projects/feed-reminder-up/db/schema")> & { $client: Pool; }; user: { id: string; name: string; email: string; ... 8 more ...; twoFactorEnabled: boolean | null; } | null | undefined; session: { ...; } | undefined; headers: Headers; }; meta:...'.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(260,33): error TS2339: Property 'find' does not exist on type '{}'.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(260,38): error TS7006: Parameter 'f' implicitly has an 'any' type.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(408,88): error TS2339: Property 'find' does not exist on type '{}'.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(409,82): error TS7006: Parameter 'f' implicitly has an 'any' type.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(422,87): error TS2339: Property 'map' does not exist on type '{}'.
-modules/doc-orders/ui/components/create-doc-order-modal.tsx(422,92): error TS7006: Parameter 'farmer' implicitly has an 'any' type.
