@@ -2,7 +2,7 @@ import { db } from "@/db"
 import * as schema from "@/db/schema"
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { emailOTP, organization, twoFactor } from "better-auth/plugins"
+import { bearer, emailOTP, organization, twoFactor } from "better-auth/plugins"
 import { sendEmail } from "./email"
 
 export const auth = betterAuth({
@@ -146,14 +146,16 @@ export const auth = betterAuth({
                     }
                 }
             },
-        })
+        }),
+        bearer()
     ],
     trustedOrigins: [
         process.env.BETTER_AUTH_URL || "http://localhost:3000",
         ...(process.env.NODE_ENV !== "production"
-            ? ["http://192.168.0.186:3000"]
+            ? ["http://192.168.0.186:3000", "exp://192.168.0.186:8081"]
             : []),
         "https://feed-newhope.vercel.app",
         "https://demo-newhope.vercel.app",
+        "poultrysolution://"
     ]
 })
