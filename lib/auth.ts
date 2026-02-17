@@ -145,6 +145,31 @@ export const auth = betterAuth({
                     if (error) {
                         console.error("Email Error (Verification OTP):", error);
                     }
+                } else if (type === "forget-password") {
+                    const { error } = await sendEmail({
+                        to: email,
+                        subject: "Reset your password",
+                        html: `
+                            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                                <div style="text-align: center; margin-bottom: 30px;">
+                                    <h1 style="color: #007bff; margin-bottom: 10px;">Feed Reminder</h1>
+                                    <div style="height: 2px; background: #eee; width: 50px; margin: auto;"></div>
+                                </div>
+                                <h2 style="color: #333; text-align: center; margin-bottom: 20px;">Reset your password</h2>
+                                <p style="color: #666; font-size: 16px; line-height: 1.5;">Use the following 6-digit code to reset your password:</p>
+                                <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 24px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; text-align: center; color: #007bff; margin: 25px 0;">
+                                    ${otp}
+                                </div>
+                                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                                    <p style="font-size: 12px; color: #999;">This code expires in 5 minutes. If you didn't request a password reset, you can safely ignore this email.</p>
+                                    <p style="font-size: 12px; color: #999; margin-top: 10px;">&copy; ${new Date().getFullYear()} Feed Reminder. All rights reserved.</p>
+                                </div>
+                            </div>
+                        `,
+                    });
+                    if (error) {
+                        console.error("Email Error (Password Reset OTP):", error);
+                    }
                 }
             },
         }),
@@ -156,15 +181,12 @@ export const auth = betterAuth({
         ...(process.env.NODE_ENV !== "production"
             ? [
                 "http://192.168.0.186:3000",
-                "exp://",
-                "exp://**",
-                "exp://192.168.*.*:*/**",
             ]
             : []),
         "https://feed-newhope.vercel.app",
         "https://demo-newhope.vercel.app",
         "poultrysolution://",
-        "poultrysolution://**", 
+        "poultrysolution://**",
         "exp://",
         "exp://**",
         "exp://192.168.*.*:*/**",
