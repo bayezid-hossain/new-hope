@@ -1,5 +1,6 @@
 import { db } from "@/db"
 import * as schema from "@/db/schema"
+import { expo } from "@better-auth/expo"
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { bearer, emailOTP, organization, twoFactor } from "better-auth/plugins"
@@ -147,12 +148,18 @@ export const auth = betterAuth({
                 }
             },
         }),
-        bearer()
+        bearer(),
+        expo()
     ],
     trustedOrigins: [
         process.env.BETTER_AUTH_URL || "http://localhost:3000",
         ...(process.env.NODE_ENV !== "production"
-            ? ["http://192.168.0.186:3000", "exp://192.168.0.186:8081"]
+            ? [
+                "http://192.168.0.186:3000",
+                "exp://",
+                "exp://**",
+                "exp://192.168.*.*:*/**",
+            ]
             : []),
         "https://feed-newhope.vercel.app",
         "https://demo-newhope.vercel.app",
