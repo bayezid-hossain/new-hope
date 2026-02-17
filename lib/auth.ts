@@ -163,6 +163,10 @@ export const auth = betterAuth({
             : []),
         "https://feed-newhope.vercel.app",
         "https://demo-newhope.vercel.app",
-        "poultrysolution://"
+        "poultrysolution://",
+        "poultrysolution://**", 
+        "exp://",
+        "exp://**",
+        "exp://192.168.*.*:*/**",
     ]
 })
