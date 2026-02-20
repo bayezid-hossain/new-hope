@@ -362,7 +362,22 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             <Link href="/cycles"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                            <div className="flex items-center gap-1 group">
+                                <Link
+                                    href={`/farmers/${farmerContext.id}`}
+                                    className="font-medium text-foreground hover:text-primary transition-colors hover:underline"
+                                >
+                                    {farmerContext.name}
+                                </Link>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => setShowEditFarmerModal(true)}
+                                >
+                                    <Wrench className="h-3 w-3" />
+                                </Button>
+                            </div> <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                 {isActive ? (
                                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1.5 px-2.5">
                                         <Activity className="h-3 w-3" /> Active Cycle
@@ -377,23 +392,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         {cycle.birdType}
                                     </Badge>
                                 )}
-                                <span>•</span>
-                                <div className="flex items-center gap-1 group">
-                                    <Link
-                                        href={`/farmers/${farmerContext.id}`}
-                                        className="font-medium text-foreground hover:text-primary transition-colors hover:underline"
-                                    >
-                                        {farmerContext.name}
-                                    </Link>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => setShowEditFarmerModal(true)}
-                                    >
-                                        <Wrench className="h-3 w-3" />
-                                    </Button>
-                                </div>
+
                             </div>
                         </div>
                     </div>
