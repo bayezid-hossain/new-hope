@@ -62,9 +62,7 @@ export const QuickDetails = ({ cycles }: QuickDetailsProps) => {
                                         <TableRow key={cycle.id} className="border-border/50 group/row hover:bg-muted/30 transition-colors">
                                             <TableCell className="px-4 py-4">
                                                 <div className="font-black text-xs uppercase tracking-tight group-hover/row:text-primary transition-colors">{cycle.farmerName}</div>
-                                                <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                                                    {cycle.name}
-                                                </div>
+
                                             </TableCell>
                                             <TableCell className="px-4 py-4 text-center">
                                                 <div className="font-black text-sm text-emerald-500">{liveBirds.toLocaleString()}</div>

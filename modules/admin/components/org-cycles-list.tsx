@@ -290,9 +290,6 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                         {cycle.farmerName}
                                                     </Link>
                                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
-                                                            {cycle.name}
-                                                        </span>
                                                         {cycle.officerName && (
                                                             <>
                                                                 <span className="text-[10px] text-muted-foreground/30">•</span>

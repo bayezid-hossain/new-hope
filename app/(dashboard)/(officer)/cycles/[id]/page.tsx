@@ -362,7 +362,6 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             <Link href="/cycles"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-foreground">{cycle.name}</h1>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                 {isActive ? (
                                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1.5 px-2.5">
