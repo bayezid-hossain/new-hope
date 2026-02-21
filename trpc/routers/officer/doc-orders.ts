@@ -3,7 +3,7 @@ import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, proProcedure } from "../../init";
+import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 export const docOrdersRouter = createTRPCRouter({
     create: proProcedure
@@ -181,13 +181,13 @@ export const docOrdersRouter = createTRPCRouter({
         }),
 
     // BIRD TYPE MANAGEMENT
-    getBirdTypes: proProcedure
+    getBirdTypes: protectedProcedure
         .query(async ({ ctx }) => {
             const types = await ctx.db.select().from(birdTypes).orderBy(desc(birdTypes.createdAt));
             return types;
         }),
 
-    createBirdType: proProcedure
+    createBirdType: protectedProcedure
         .input(z.object({
             name: z.string().min(1)
         }))
