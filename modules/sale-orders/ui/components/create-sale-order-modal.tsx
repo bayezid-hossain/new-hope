@@ -28,7 +28,7 @@ interface SaleBatch {
     id: string; // temp id
     totalWeight: number;
     totalDoc: number;
-    avgWeight: string;
+    avgWeight: number;
     age: number;
 }
 
@@ -102,7 +102,7 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                     id: generateId(),
                     totalWeight: 0,
                     totalDoc: 0,
-                    avgWeight: "",
+                    avgWeight: 0,
                     age: 0,
                 }]
             }
@@ -125,19 +125,19 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                     const avg = Number(updated.avgWeight) || 0;
 
                     if (field === 'avgWeight') {
-                        if (doc > 0 && String(value) !== '') {
+                        if (doc > 0 && Number(value) > 0) {
                             updated.totalWeight = Number((Number(value) * doc).toFixed(2));
                         }
                     } else if (field === 'totalWeight') {
                         if (doc > 0 && Number(value) > 0) {
-                            updated.avgWeight = (Number(value) / doc).toFixed(3).replace(/\.?0+$/, '');
+                            updated.avgWeight = Number((Number(value) / doc).toFixed(3).replace(/\.?0+$/, ''));
                         }
                     } else if (field === 'totalDoc') {
                         if (Number(value) > 0) {
-                            if (String(updated.avgWeight) !== '') {
+                            if (Number(updated.avgWeight) > 0) {
                                 updated.totalWeight = Number((avg * Number(value)).toFixed(2));
                             } else if (weight > 0) {
-                                updated.avgWeight = (weight / Number(value)).toFixed(3).replace(/\.?0+$/, '');
+                                updated.avgWeight = Number((weight / Number(value)).toFixed(3).replace(/\.?0+$/, ''));
                             }
                         }
                     }
@@ -159,7 +159,7 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                         id: generateId(),
                         totalWeight: 0,
                         totalDoc: 0,
-                        avgWeight: "",
+                        avgWeight: 0,
                         age: 0,
                     }
                 ]
@@ -231,7 +231,7 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                     farmerId: item.farmerId,
                     totalWeight: batch.totalWeight,
                     totalDoc: batch.totalDoc,
-                    avgWeight: batch.avgWeight || undefined,
+                    avgWeight: Number(batch.avgWeight),
                     age: batch.age,
                 }))
         );
