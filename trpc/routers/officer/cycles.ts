@@ -548,12 +548,11 @@ export const officerCyclesRouter = createTRPCRouter({
             }
 
             if (input.date) {
-                const reqDate = new Date(input.date);
-                reqDate.setHours(0, 0, 0, 0);
-                const cycleStartDate = new Date(current.createdAt);
-                cycleStartDate.setHours(0, 0, 0, 0);
+                const reqTime = new Date(input.date).getTime();
+                const cycleTime = new Date(current.createdAt).getTime();
 
-                if (reqDate < cycleStartDate) {
+                // Allow up to 24 hours buffer to handle timezone discrepancies between local midnight and UTC server time
+                if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
                         message: `Mortality log date cannot be before cycle start date (${current.createdAt.toLocaleDateString()}).`
@@ -865,12 +864,11 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 // Date Validation
                 if (input.newDate) {
-                    const validationDate = new Date(input.newDate);
-                    validationDate.setHours(0, 0, 0, 0);
-                    const cycleStartDate = new Date(activeCycle.createdAt);
-                    cycleStartDate.setHours(0, 0, 0, 0);
+                    const reqTime = new Date(input.newDate).getTime();
+                    const cycleTime = new Date(activeCycle.createdAt).getTime();
 
-                    if (validationDate < cycleStartDate) {
+                    // Allow up to 24 hours buffer to handle timezone discrepancies between local midnight and UTC server time
+                    if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
                         throw new TRPCError({
                             code: "BAD_REQUEST",
                             message: `Mortality log date cannot be before cycle start date (${activeCycle.createdAt.toLocaleDateString()}).`
@@ -887,15 +885,14 @@ export const officerCyclesRouter = createTRPCRouter({
                     .limit(1);
 
                 if (latestSale) {
-                    const saleDate = new Date(latestSale.saleDate);
-                    saleDate.setHours(0, 0, 0, 0);
-                    const logDate = new Date(log.createdAt);
-                    logDate.setHours(0, 0, 0, 0);
+                    const saleTime = new Date(latestSale.saleDate).getTime();
+                    const logTime = new Date(log.createdAt).getTime();
+                    const newLogTime = input.newDate ? new Date(input.newDate).getTime() : logTime;
 
-                    if (logDate <= saleDate) {
+                    if (newLogTime < saleTime - 24 * 60 * 60 * 1000) {
                         throw new TRPCError({
                             code: "BAD_REQUEST",
-                            message: "Cannot edit mortality logs that occurred before or during a recorded sale."
+                            message: "Cannot edit mortality logs to occur before a recorded sale."
                         });
                     }
                 }

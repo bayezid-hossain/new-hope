@@ -97,11 +97,9 @@ export const CorrectMortalityModal = ({
 
         // Validate Date
         if (editDate && startDate) {
-            const d = new Date(editDate);
-            d.setHours(0, 0, 0, 0);
-            const s = new Date(startDate);
-            s.setHours(0, 0, 0, 0);
-            if (d < s) {
+            const reqTime = new Date(editDate).getTime();
+            const cycleTime = new Date(startDate).getTime();
+            if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
                 toast.error("Date cannot be before cycle start date");
                 return;
             }
@@ -192,9 +190,8 @@ export const CorrectMortalityModal = ({
                                                                 initialFocus
                                                                 disabled={(date) => {
                                                                     if (startDate) {
-                                                                        const s = new Date(startDate);
-                                                                        s.setHours(0, 0, 0, 0);
-                                                                        return date < s;
+                                                                        const cycleTime = new Date(startDate).getTime();
+                                                                        return date.getTime() < cycleTime - 24 * 60 * 60 * 1000;
                                                                     }
                                                                     return false;
                                                                 }}

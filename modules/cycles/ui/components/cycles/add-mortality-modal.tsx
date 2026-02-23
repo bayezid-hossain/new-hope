@@ -93,11 +93,9 @@ export const AddMortalityModal = ({
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (startDate) {
-      const d = new Date(values.date);
-      d.setHours(0, 0, 0, 0);
-      const s = new Date(startDate);
-      s.setHours(0, 0, 0, 0);
-      if (d < s) {
+      const reqTime = new Date(values.date).getTime();
+      const cycleTime = new Date(startDate).getTime();
+      if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
         toast.error("Date cannot be before cycle start");
         return;
       }
@@ -152,9 +150,8 @@ export const AddMortalityModal = ({
                       disabled={(date) => {
                         if (date > new Date()) return true;
                         if (startDate) {
-                          const s = new Date(startDate);
-                          s.setHours(0, 0, 0, 0);
-                          if (date < s) return true;
+                          const cycleTime = new Date(startDate).getTime();
+                          if (date.getTime() < cycleTime - 24 * 60 * 60 * 1000) return true;
                         }
                         return false;
                       }}
