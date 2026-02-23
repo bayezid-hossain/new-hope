@@ -139,6 +139,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
             <AddMortalityModal
                 cycleId={cycle.id}
                 farmerName={cycle.name}
+                startDate={cycle.createdAt}
                 open={showAddMortality}
                 onOpenChange={setShowAddMortality}
             />

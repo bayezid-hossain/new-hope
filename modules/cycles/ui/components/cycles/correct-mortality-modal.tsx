@@ -156,10 +156,13 @@ export const CorrectMortalityModal = ({
                             <TableBody>
                                 {mortalityLogs.map((log) => {
                                     const isEditing = editingLogId === log.id;
+                                    const isReverted = !!log.isReverted;
+                                    const isCorrection = (log.valueChange ?? 0) < 0;
+                                    const isLocked = isReverted || isCorrection;
 
                                     return (
-                                        <TableRow key={log.id}>
-                                            <TableCell className="text-muted-foreground text-xs">
+                                        <TableRow key={log.id} className={cn(isReverted && "opacity-60 bg-muted/30")}>
+                                            <TableCell className={cn("text-muted-foreground text-xs", isReverted && "line-through")}>
                                                 {format(new Date(log.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell>
@@ -211,9 +214,17 @@ export const CorrectMortalityModal = ({
                                                         onChange={(e) => setEditAmount(e.target.value)}
                                                     />
                                                 ) : (
-                                                    <span className="font-medium text-red-600">
-                                                        +{log.valueChange}
-                                                    </span>
+                                                    <div className="flex flex-col">
+                                                        <span className={cn(
+                                                            "font-medium",
+                                                            isReverted ? "line-through text-muted-foreground" :
+                                                                isCorrection ? "text-amber-600" : "text-red-600"
+                                                        )}>
+                                                            {log.valueChange}
+                                                        </span>
+                                                        {isReverted && <span className="text-[10px] text-muted-foreground uppercase">Reverted</span>}
+                                                        {isCorrection && <span className="text-[10px] text-amber-600 uppercase">Correction</span>}
+                                                    </div>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -235,7 +246,7 @@ export const CorrectMortalityModal = ({
                                                             <Save className="h-4 w-4" />
                                                         </Button>
                                                     </div>
-                                                ) : (
+                                                ) : !isLocked ? (
                                                     <div className="flex justify-end gap-2">
                                                         <Button
                                                             size="icon"
@@ -251,11 +262,16 @@ export const CorrectMortalityModal = ({
                                                                 variant="ghost"
                                                                 className="text-destructive hover:text-destructive"
                                                                 onClick={() => handleDelete(log.id)}
+                                                                disabled={deleteMutation.isPending}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         )}
                                                     </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic mr-2">
+                                                        Locked
+                                                    </span>
                                                 )}
                                             </TableCell>
                                         </TableRow>
