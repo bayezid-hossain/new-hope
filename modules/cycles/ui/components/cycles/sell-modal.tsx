@@ -32,6 +32,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AddFeedModal } from "../mainstock/add-feed-modal";
+import { EditAgeModal } from "./edit-age-modal";
 import { SaleDetailsContent } from "./sale-details-content";
 import { FarmerInfoHeader, FeedFieldArray, SaleMetricsBar } from "./sale-form-sections";
 
@@ -132,6 +133,7 @@ export const SellModal = ({
     const [previewData, setPreviewData] = useState<any>(null);
     const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
     const [showProfitModal, setShowProfitModal] = useState(false);
+    const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
 
     // Reset form with new defaults when modal opens or key props change
     useEffect(() => {
@@ -415,6 +417,7 @@ export const SellModal = ({
                                     farmerMobile={farmerMobile}
                                     cycleAge={cycleAge}
                                     colorScheme="blue"
+                                    onEditAgePress={() => setIsAgeModalOpen(true)}
                                 />
 
                                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
@@ -814,6 +817,13 @@ export const SellModal = ({
                 id={farmerId}
                 open={showRestockModal}
                 onOpenChange={setShowRestockModal}
+            />
+
+            <EditAgeModal
+                cycleId={cycleId}
+                currentAge={cycleAge}
+                open={isAgeModalOpen}
+                onOpenChange={setIsAgeModalOpen}
             />
         </>
     );
