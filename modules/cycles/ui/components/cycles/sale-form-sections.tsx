@@ -8,7 +8,7 @@ import {
     FormLabel
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon, MapPin, Phone, Plus, X } from "lucide-react";
+import { CalendarIcon, MapPin, Pencil, Phone, Plus, X } from "lucide-react";
 import { Control, UseFieldArrayReturn } from "react-hook-form";
 
 // --- Farmer Info Header ---
@@ -19,6 +19,7 @@ interface FarmerInfoHeaderProps {
     farmerMobile?: string | null;
     cycleAge: number;
     colorScheme?: "blue" | "orange";
+    onEditAgePress?: () => void;
 }
 
 export const FarmerInfoHeader = ({
@@ -27,6 +28,7 @@ export const FarmerInfoHeader = ({
     farmerMobile,
     cycleAge,
     colorScheme = "blue",
+    onEditAgePress,
 }: FarmerInfoHeaderProps) => {
     const colors = colorScheme === "blue"
         ? {
@@ -58,10 +60,15 @@ export const FarmerInfoHeader = ({
                 </div>
             </div>
             <div className="mt-3 flex items-center justify-center gap-4 text-sm">
-                <div className="flex items-center gap-1 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full">
+                <button
+                    type="button"
+                    onClick={onEditAgePress}
+                    className={`flex items-center gap-1.5 px-3 py-1 bg-white/50 dark:bg-black/20 rounded-full transition-colors ${onEditAgePress ? 'hover:bg-white/80 dark:hover:bg-black/40 cursor-pointer' : ''}`}
+                >
                     <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                     <span className="font-medium">Age: {cycleAge} days</span>
-                </div>
+                    {onEditAgePress && <Pencil className="h-3 w-3 text-muted-foreground ml-1" />}
+                </button>
             </div>
         </div>
     );

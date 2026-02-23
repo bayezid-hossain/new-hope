@@ -20,20 +20,25 @@ import { cn, copyToClipboard, generateId } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Check, Loader2, Search, X } from "lucide-react";
+import { CalendarIcon, Check, Loader2, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface SaleItem {
-    id: string;
-    farmerId: string;
-    farmerName: string;
-    location?: string | null;
-    mobile?: string | null;
+interface SaleBatch {
+    id: string; // temp id
     totalWeight: number;
     totalDoc: number;
     avgWeight: string;
     age: number;
+}
+
+interface SaleItem {
+    id: string; // temp id
+    farmerId: string;
+    farmerName: string;
+    location?: string | null;
+    mobile?: string | null;
+    batches: SaleBatch[];
 }
 
 interface CreateSaleOrderModalProps {
@@ -93,43 +98,82 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                 farmerName: farmer.name,
                 location: farmer.location,
                 mobile: farmer.mobile,
-                totalWeight: 0,
-                totalDoc: 0,
-                avgWeight: "",
-                age: 0,
+                batches: [{
+                    id: generateId(),
+                    totalWeight: 0,
+                    totalDoc: 0,
+                    avgWeight: "",
+                    age: 0,
+                }]
             }
         ]);
     };
 
-    const handleUpdateItem = (itemId: string, field: keyof SaleItem, value: string | number) => {
+    const handleUpdateBatch = (itemId: string, batchId: string, field: keyof SaleBatch, value: string | number) => {
         setSelectedItems(prev => prev.map(item => {
             if (item.id !== itemId) return item;
 
-            const updated = { ...item, [field]: value };
+            return {
+                ...item,
+                batches: item.batches.map(batch => {
+                    if (batch.id !== batchId) return batch;
 
-            const doc = Number(updated.totalDoc) || 0;
-            const weight = Number(updated.totalWeight) || 0;
-            const avg = Number(updated.avgWeight) || 0;
+                    const updated = { ...batch, [field]: value };
 
-            if (field === 'avgWeight') {
-                if (doc > 0 && String(value) !== '') {
-                    updated.totalWeight = Number((Number(value) * doc).toFixed(2));
-                }
-            } else if (field === 'totalWeight') {
-                if (doc > 0 && Number(value) > 0) {
-                    updated.avgWeight = (Number(value) / doc).toFixed(3).replace(/\.?0+$/, '');
-                }
-            } else if (field === 'totalDoc') {
-                if (Number(value) > 0) {
-                    if (String(updated.avgWeight) !== '' && avg > 0) {
-                        updated.totalWeight = Number((avg * Number(value)).toFixed(2));
-                    } else if (weight > 0) {
-                        updated.avgWeight = (weight / Number(value)).toFixed(3).replace(/\.?0+$/, '');
+                    const doc = Number(updated.totalDoc) || 0;
+                    const weight = Number(updated.totalWeight) || 0;
+                    const avg = Number(updated.avgWeight) || 0;
+
+                    if (field === 'avgWeight') {
+                        if (doc > 0 && String(value) !== '') {
+                            updated.totalWeight = Number((Number(value) * doc).toFixed(2));
+                        }
+                    } else if (field === 'totalWeight') {
+                        if (doc > 0 && Number(value) > 0) {
+                            updated.avgWeight = (Number(value) / doc).toFixed(3).replace(/\.?0+$/, '');
+                        }
+                    } else if (field === 'totalDoc') {
+                        if (Number(value) > 0) {
+                            if (String(updated.avgWeight) !== '') {
+                                updated.totalWeight = Number((avg * Number(value)).toFixed(2));
+                            } else if (weight > 0) {
+                                updated.avgWeight = (weight / Number(value)).toFixed(3).replace(/\.?0+$/, '');
+                            }
+                        }
                     }
-                }
-            }
 
-            return updated;
+                    return updated;
+                })
+            };
+        }));
+    };
+
+    const handleAddBatch = (itemId: string) => {
+        setSelectedItems(prev => prev.map(item => {
+            if (item.id !== itemId) return item;
+            return {
+                ...item,
+                batches: [
+                    ...item.batches,
+                    {
+                        id: generateId(),
+                        totalWeight: 0,
+                        totalDoc: 0,
+                        avgWeight: "",
+                        age: 0,
+                    }
+                ]
+            };
+        }));
+    };
+
+    const handleRemoveBatch = (itemId: string, batchId: string) => {
+        setSelectedItems(prev => prev.map(item => {
+            if (item.id !== itemId) return item;
+            return {
+                ...item,
+                batches: item.batches.filter(b => b.id !== batchId)
+            };
         }));
     };
 
@@ -147,27 +191,29 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
         let grandTotalDoc = 0;
 
         selectedItems.forEach(item => {
-            if (item.totalDoc <= 0 && item.totalWeight <= 0) return;
+            item.batches.forEach(batch => {
+                if (batch.totalDoc <= 0 && batch.totalWeight <= 0) return;
 
-            text += `${farmCounter}. ${item.farmerName} \n`;
-            if (item.location) text += `Location: ${item.location} \n`;
-            text += `Total: ${item.totalWeight} kg.\n`;
-            text += `Total: ${item.totalDoc} PCs \n`;
-            if (item.avgWeight) text += `Avg: ${item.avgWeight}kg \n`;
-            if (item.age > 0) text += `Age: ${item.age} days\n`;
-            if (item.mobile) {
-                // Format mobile: if starts with 0, prefix +880 and remove leading 0
-                let formattedMobile = item.mobile;
-                if (formattedMobile.startsWith("0")) {
-                    formattedMobile = "+880 " + formattedMobile.substring(1);
+                text += `${farmCounter}. ${item.farmerName} \n`;
+                if (item.location) text += `Location: ${item.location} \n`;
+                text += `Total: ${batch.totalWeight} kg.\n`;
+                text += `Total: ${batch.totalDoc} PCs \n`;
+                if (batch.avgWeight) text += `Avg: ${batch.avgWeight} (+-) kg \n`;
+                if (batch.age > 0) text += `Age: ${batch.age} days\n`;
+                if (item.mobile) {
+                    // Format mobile: if starts with 0, prefix +880 and remove leading 0
+                    let formattedMobile = item.mobile;
+                    if (formattedMobile.startsWith("0")) {
+                        formattedMobile = "+880 " + formattedMobile.substring(1);
+                    }
+                    text += `Mobile:  ${formattedMobile}\n`;
                 }
-                text += `Mobile:  ${formattedMobile}\n`;
-            }
-            text += `\n`;
+                text += `\n`;
 
-            grandTotalWeight += item.totalWeight;
-            grandTotalDoc += item.totalDoc;
-            farmCounter++;
+                grandTotalWeight += batch.totalWeight;
+                grandTotalDoc += batch.totalDoc;
+                farmCounter++;
+            });
         });
 
         text += `\nTotal: ${grandTotalWeight} kg  \n`;
@@ -178,7 +224,18 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
     };
 
     const handleSubmit = () => {
-        const validItems = selectedItems.filter(i => i.totalDoc > 0 || i.totalWeight > 0);
+        const validItems = selectedItems.flatMap(item =>
+            item.batches
+                .filter(b => b.totalDoc > 0 || b.totalWeight > 0)
+                .map(batch => ({
+                    farmerId: item.farmerId,
+                    totalWeight: batch.totalWeight,
+                    totalDoc: batch.totalDoc,
+                    avgWeight: batch.avgWeight || undefined,
+                    age: batch.age,
+                }))
+        );
+
         if (validItems.length === 0) {
             toast.error("Please add at least one farmer with weight or DOC.");
             return;
@@ -188,13 +245,7 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
             orgId,
             orderDate,
             branchName: branchName || undefined,
-            items: validItems.map(item => ({
-                farmerId: item.farmerId,
-                totalWeight: item.totalWeight,
-                totalDoc: item.totalDoc,
-                avgWeight: item.avgWeight || undefined,
-                age: item.age,
-            }))
+            items: validItems
         });
     };
 
@@ -321,47 +372,78 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
                                 </span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Total Weight (kg)</span>
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="h-8 text-xs"
-                                        value={item.totalWeight || ""}
-                                        onChange={(e) => handleUpdateItem(item.id, 'totalWeight', parseFloat(e.target.value) || 0)}
-                                    />
-                                </div>
-                                <div>
-                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Total DOC (PCs)</span>
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="h-8 text-xs"
-                                        value={item.totalDoc || ""}
-                                        onChange={(e) => handleUpdateItem(item.id, 'totalDoc', parseInt(e.target.value) || 0)}
-                                    />
-                                </div>
-                                <div>
-                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Avg Weight (kg)</span>
-                                    <Input
-                                        type="text"
-                                        placeholder="e.g. 1.70-1.80"
-                                        className="h-8 text-xs"
-                                        value={item.avgWeight}
-                                        onChange={(e) => handleUpdateItem(item.id, 'avgWeight', e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Age (days)</span>
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="h-8 text-xs"
-                                        value={item.age || ""}
-                                        onChange={(e) => handleUpdateItem(item.id, 'age', parseInt(e.target.value) || 0)}
-                                    />
-                                </div>
+                            <div className="space-y-4">
+                                {item.batches.map((batch, index) => (
+                                    <div key={batch.id} className="relative p-3 bg-muted/20 border border-muted-foreground/20 rounded-lg">
+                                        {item.batches.length > 1 && (
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sale {index + 1}</span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => handleRemoveBatch(item.id, batch.id)}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Avg Weight (kg)</span>
+                                                <Input
+                                                    type="text"
+                                                    placeholder="e.g. 1.80"
+                                                    className="h-8 text-xs"
+                                                    value={batch.avgWeight}
+                                                    onChange={(e) => handleUpdateBatch(item.id, batch.id, 'avgWeight', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Total DOC (PCs)</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    className="h-8 text-xs"
+                                                    value={batch.totalDoc || ""}
+                                                    onChange={(e) => handleUpdateBatch(item.id, batch.id, 'totalDoc', parseInt(e.target.value) || 0)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Total Weight (kg)</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    className="h-8 text-xs"
+                                                    value={batch.totalWeight || ""}
+                                                    onChange={(e) => handleUpdateBatch(item.id, batch.id, 'totalWeight', parseFloat(e.target.value) || 0)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 block">Age (days)</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    className="h-8 text-xs"
+                                                    value={batch.age || ""}
+                                                    onChange={(e) => handleUpdateBatch(item.id, batch.id, 'age', parseInt(e.target.value) || 0)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full border-dashed"
+                                    onClick={() => handleAddBatch(item.id)}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Sale Batch
+                                </Button>
                             </div>
                         </div>
                     ))}

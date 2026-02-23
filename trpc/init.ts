@@ -32,9 +32,27 @@ export const createTRPCContext = cache(async () => {
   };
 });
 
+import { ZodError } from "zod";
+
 // Initialize tRPC
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+      message:
+        error.cause instanceof ZodError
+          ? Object.values(error.cause.flatten().fieldErrors)
+            .flat()
+            .join(", ") || error.cause.message
+          : shape.message,
+    };
+  },
 });
 
 export const createTRPCRouter = t.router;
