@@ -82,6 +82,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
     // Form State
     const [orderDate, setOrderDate] = useState<Date>(new Date());
     const [branchName, setBranchName] = useState("");
+    const [isContract, setIsContract] = useState(false);
     const [selectedItems, setSelectedItems] = useState<DocItem[]>([]);
 
     // Search State
@@ -311,7 +312,7 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                     farmerId: item.farmerId,
                     birdType: batch.birdType,
                     docCount: batch.docCount,
-                    isContract: batch.isContract
+                    isContract
                 });
             });
         });
@@ -355,8 +356,8 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                 if (!batch.birdType || batch.docCount <= 0) return;
 
                 text += `Farm no: ${farmCounter.toString().padStart(2, '0')}\n`;
-                if (batch.isContract) {
-                    text += `Contact farm doc \n`;
+                if (isContract) {
+                    text += `Contract farm DOC \n`;
                 }
                 text += `Farm name: ${item.farmerName || 'Unknown Farmer'}\n`;
                 if (item.location) text += `Location: ${item.location}\n`;
@@ -431,6 +432,21 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                             onChange={(e) => setBranchName(e.target.value)}
                         />
                     </div>
+                </div>
+
+                {/* Contract Farm Toggle */}
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <Checkbox
+                        id="global-isContract"
+                        checked={isContract}
+                        onCheckedChange={(checked) => setIsContract(!!checked)}
+                    />
+                    <label
+                        htmlFor="global-isContract"
+                        className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                        Contract farm DOC
+                    </label>
                 </div>
 
                 {/* Farmer Search */}
@@ -568,22 +584,8 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
 
                                         </div>
 
-                                        <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                                            <div className="flex items-center gap-2">
-                                                <Checkbox
-                                                    id={`isContract-${batch.id}`}
-                                                    checked={batch.isContract}
-                                                    onCheckedChange={(checked) => handleUpdateBatch(item.id, batchIndex, 'isContract', !!checked)}
-                                                />
-                                                <label
-                                                    htmlFor={`isContract-${batch.id}`}
-                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                                >
-                                                    Contract farm DOC
-                                                </label>
-                                            </div>
-
-                                            {item.batches.length > 1 && (
+                                        {item.batches.length > 1 && (
+                                            <div className="flex justify-end pt-1 border-t border-border/30">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -592,8 +594,8 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 <Button
