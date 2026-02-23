@@ -104,7 +104,32 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
     const handleUpdateItem = (itemId: string, field: keyof SaleItem, value: string | number) => {
         setSelectedItems(prev => prev.map(item => {
             if (item.id !== itemId) return item;
-            return { ...item, [field]: value };
+
+            const updated = { ...item, [field]: value };
+
+            const doc = Number(updated.totalDoc) || 0;
+            const weight = Number(updated.totalWeight) || 0;
+            const avg = Number(updated.avgWeight) || 0;
+
+            if (field === 'avgWeight') {
+                if (doc > 0 && String(value) !== '') {
+                    updated.totalWeight = Number((Number(value) * doc).toFixed(2));
+                }
+            } else if (field === 'totalWeight') {
+                if (doc > 0 && Number(value) > 0) {
+                    updated.avgWeight = (Number(value) / doc).toFixed(3).replace(/\.?0+$/, '');
+                }
+            } else if (field === 'totalDoc') {
+                if (Number(value) > 0) {
+                    if (String(updated.avgWeight) !== '' && avg > 0) {
+                        updated.totalWeight = Number((avg * Number(value)).toFixed(2));
+                    } else if (weight > 0) {
+                        updated.avgWeight = (weight / Number(value)).toFixed(3).replace(/\.?0+$/, '');
+                    }
+                }
+            }
+
+            return updated;
         }));
     };
 
