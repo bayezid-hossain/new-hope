@@ -806,6 +806,8 @@ export const officerCyclesRouter = createTRPCRouter({
                 const [log] = await tx.select().from(cycleLogs).where(eq(cycleLogs.id, input.logId));
                 if (!log) throw new TRPCError({ code: "NOT_FOUND" });
                 if (log.type !== "MORTALITY") throw new TRPCError({ code: "BAD_REQUEST", message: "Only mortality logs can be edited here." });
+                if (log.isReverted) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit a log that has already been reverted." });
+                if ((log.valueChange ?? 0) < 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit a system-generated adjustment log." });
 
                 // Verify Ownership via Cycle (Active)
                 let cycleId = log.cycleId;
@@ -1002,10 +1004,10 @@ export const officerCyclesRouter = createTRPCRouter({
                     });
                 }
 
-                if ((log.valueChange ?? 0) <= 0) {
+                if ((log.valueChange ?? 0) < 0) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: "Cannot revert a negative log or a correction."
+                        message: "Cannot revert a system-generated adjustment/revert log."
                     });
                 }
 
