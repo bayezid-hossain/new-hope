@@ -14,7 +14,7 @@ export const saleOrdersRouter = createTRPCRouter({
                 farmerId: z.string(),
                 totalWeight: z.number().min(0),
                 totalDoc: z.number().int().min(0),
-                avgWeight: z.string().optional(),
+                avgWeight: z.number().optional(),
                 age: z.number().int().min(0).default(0),
             })).min(1)
         }))
@@ -51,7 +51,7 @@ export const saleOrdersRouter = createTRPCRouter({
                 farmerId: item.farmerId,
                 totalWeight: item.totalWeight,
                 totalDoc: item.totalDoc,
-                avgWeight: item.avgWeight || null,
+                avgWeight: item.avgWeight?.toString() || null,
                 age: item.age,
             }));
 
