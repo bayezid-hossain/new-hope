@@ -47,13 +47,13 @@ const ResponsiveDialog = ({
           onEscapeKeyDown={(e) => persistent && e.preventDefault()}
           onClick={(e) => e.stopPropagation()}
         >
-          <DrawerHeader>
+          <DrawerHeader className="pb-2 pt-1">
             <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription>
+            <DrawerDescription className="text-xs">
               {description}
             </DrawerDescription>
           </DrawerHeader>
-          <div className="p-4 flex-1 flex flex-col min-h-0">{children}</div>
+          <div className="px-4 pb-4 pt-1 flex-1 flex flex-col min-h-0 overflow-y-auto">{children}</div>
         </DrawerContent>
       </Drawer>
     );

@@ -578,3 +578,47 @@ export const docOrderItemRelations = relations(docOrderItems, ({ one }) => ({
   order: one(docOrders, { fields: [docOrderItems.docOrderId], references: [docOrders.id] }),
   farmer: one(farmer, { fields: [docOrderItems.farmerId], references: [farmer.id] }),
 }));
+
+// =========================================================
+// 9. SALE ORDERS (Broiler Sale Plans)
+// =========================================================
+
+export const saleOrders = pgTable("sale_orders", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").notNull().references(() => user.id),
+
+  orderDate: timestamp("order_date").notNull(),
+  branchName: text("branch_name"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_sale_order_org").on(t.orgId),
+  index("idx_sale_order_officer").on(t.officerId),
+]);
+
+export const saleOrderItems = pgTable("sale_order_items", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  saleOrderId: text("sale_order_id").notNull().references(() => saleOrders.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+
+  totalWeight: real("total_weight").notNull().default(0),
+  totalDoc: integer("total_doc").notNull().default(0),
+  avgWeight: text("avg_weight"), // Stored as text for ranges like "1.70-1.80"
+  age: integer("age").notNull().default(0),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_sale_order_item_order").on(t.saleOrderId),
+]);
+
+export const saleOrderRelations = relations(saleOrders, ({ many, one }) => ({
+  items: many(saleOrderItems),
+  organization: one(organization, { fields: [saleOrders.orgId], references: [organization.id] }),
+  officer: one(user, { fields: [saleOrders.officerId], references: [user.id] }),
+}));
+
+export const saleOrderItemRelations = relations(saleOrderItems, ({ one }) => ({
+  order: one(saleOrders, { fields: [saleOrderItems.saleOrderId], references: [saleOrders.id] }),
+  farmer: one(farmer, { fields: [saleOrderItems.farmerId], references: [farmer.id] }),
+}));
