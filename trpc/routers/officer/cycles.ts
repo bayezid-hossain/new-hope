@@ -547,6 +547,20 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
             }
 
+            if (input.date) {
+                const reqDate = new Date(input.date);
+                reqDate.setHours(0, 0, 0, 0);
+                const cycleStartDate = new Date(current.createdAt);
+                cycleStartDate.setHours(0, 0, 0, 0);
+
+                if (reqDate < cycleStartDate) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Mortality log date cannot be before cycle start date (${current.createdAt.toLocaleDateString()}).`
+                    });
+                }
+            }
+
             const updated = await ctx.db.transaction(async (tx) => {
                 const [result] = await tx.update(cycles)
                     .set({

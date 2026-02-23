@@ -39,6 +39,7 @@ const formSchema = z.object({
 interface AddMortalityModalProps {
   cycleId: string;
   farmerName: string;
+  startDate?: Date;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -46,6 +47,7 @@ interface AddMortalityModalProps {
 export const AddMortalityModal = ({
   cycleId,
   farmerName,
+  startDate,
   open,
   onOpenChange,
 }: AddMortalityModalProps) => {
@@ -90,6 +92,17 @@ export const AddMortalityModal = ({
   );
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (startDate) {
+      const d = new Date(values.date);
+      d.setHours(0, 0, 0, 0);
+      const s = new Date(startDate);
+      s.setHours(0, 0, 0, 0);
+      if (d < s) {
+        toast.error("Date cannot be before cycle start");
+        return;
+      }
+    }
+
     mutation.mutate({
       id: cycleId,
       amount: values.amount,
@@ -136,9 +149,15 @@ export const AddMortalityModal = ({
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
+                      disabled={(date) => {
+                        if (date > new Date()) return true;
+                        if (startDate) {
+                          const s = new Date(startDate);
+                          s.setHours(0, 0, 0, 0);
+                          if (date < s) return true;
+                        }
+                        return false;
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
