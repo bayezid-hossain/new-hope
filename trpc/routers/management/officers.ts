@@ -45,7 +45,8 @@ export const managementOfficersRouter = createTRPCRouter({
             const managedFarmers = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.officerId, input.userId),
-                    eq(farmer.organizationId, input.orgId)
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.status, "active")
                 ),
                 with: {
                     cycles: {
