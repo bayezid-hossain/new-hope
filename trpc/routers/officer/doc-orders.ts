@@ -76,14 +76,12 @@ export const docOrdersRouter = createTRPCRouter({
         .input(z.object({
             orgId: z.string(),
             limit: z.number().min(1).max(100).default(50),
-            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const targetOfficerId = input.officerId ?? ctx.user.id;
             const orders = await ctx.db.query.docOrders.findMany({
                 where: and(
                     eq(docOrders.orgId, input.orgId),
-                    eq(docOrders.officerId, targetOfficerId)
+                    eq(docOrders.officerId, ctx.user.id)
                 ),
                 with: {
                     items: {

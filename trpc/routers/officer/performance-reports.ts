@@ -308,12 +308,10 @@ export const performanceReportsRouter = createTRPCRouter({
         .input(z.object({
             year: z.number(),
             month: z.number(), // 0-11
-            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const targetOfficerId = input.officerId ?? ctx.user.id;
             return await PerformanceAnalyticsService.getMonthlyProductionRecord(
-                targetOfficerId,
+                ctx.user.id,
                 input.year,
                 input.month
             );
