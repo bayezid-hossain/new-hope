@@ -19,7 +19,7 @@ import { HistoricalAnalysis } from "../components/historical-analysis";
 import { KpiCards } from "../components/kpi-cards";
 import { PerformanceInsights } from "../components/performance-insights";
 import { QuickDetails } from "../components/quick-details";
-import { UrgentActions } from "../components/urgent-actions";
+
 
 
 // --- Active Operations Component ---
@@ -42,27 +42,7 @@ const OperationsContent = ({ orgId, officerId, canEdit }: { orgId: string; offic
 
   const cycles = cyclesData.items;
 
-  // --- DERIVED LISTS (Still using cycles for details) ---
-
-  // Urgent: Less than 3 bags remaining (Deduplicated by Farmer)
-  const farmerConsumptionMap = new Map<string, number>();
-  cycles.forEach(c => {
-    const current = farmerConsumptionMap.get(c.farmerId) || 0;
-    farmerConsumptionMap.set(c.farmerId, current + c.intake);
-  });
-
-  const lowStockCycles = cycles
-    .map(c => {
-      const totalConsumption = farmerConsumptionMap.get(c.farmerId) || 0;
-      const initialStock = c.farmerMainStock || 0;
-      const availableStock = initialStock - totalConsumption;
-      return { ...c, availableStock };
-    })
-    .filter((c, index, self) =>
-      index === self.findIndex((t) => t.farmerId === c.farmerId)
-    )
-    .filter(c => c.availableStock < 3)
-    .sort((a, b) => a.availableStock - b.availableStock);
+  // --- DERIVED LISTS REMOVED (Unified into Watchdog) ---
 
   // --- Aggregation grouped by Farmer ---
   const farmerStats = new Map<string, {
@@ -138,9 +118,8 @@ const OperationsContent = ({ orgId, officerId, canEdit }: { orgId: string; offic
         totalFarmers={stats.totalFarmers}
       />
 
-      {/* 2. Urgent Actions & Performance */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <UrgentActions lowStockCycles={lowStockCycles} canEdit={canEdit} />
+      {/* 2. Performance Insights (Full Width in unified view) */}
+      <div className="grid gap-4">
         <PerformanceInsights topPerformers={topPerformers} />
       </div>
 
