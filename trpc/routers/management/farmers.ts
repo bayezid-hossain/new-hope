@@ -11,6 +11,7 @@ export const managementFarmersRouter = createTRPCRouter({
             page: z.number().default(1),
             pageSize: z.number().default(50),
             onlyMine: z.boolean().optional().default(false),
+            officerId: z.string().optional(), // Filter by specific officer
             status: z.enum(["active", "deleted", "all"]).default("active"),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
@@ -26,7 +27,8 @@ export const managementFarmersRouter = createTRPCRouter({
                     ilike(farmer.name, `%${search}%`),
                     ilike(officers.name, `%${search}%`)
                 ) : undefined,
-                onlyMine ? eq(farmer.officerId, ctx.user.id) : undefined,
+                onlyMine ? eq(farmer.officerId, ctx.user.id) :
+                    input.officerId ? eq(farmer.officerId, input.officerId) : undefined,
                 input.status === "all" ? undefined : eq(farmer.status, input.status)
             );
 

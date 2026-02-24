@@ -65,6 +65,7 @@ export const officerFarmersRouter = createTRPCRouter({
             const { orgId, search, page, pageSize } = input;
             // Use provided officerId if present, otherwise scope to the logged-in user
             const targetOfficerId = input.officerId ?? ctx.user.id;
+            const officerFilter = eq(farmer.officerId, targetOfficerId);
             const statusFilter = (input as any).status === 'deleted'
                 ? eq(farmer.status, 'deleted')
                 : eq(farmer.status, 'active');
@@ -72,7 +73,7 @@ export const officerFarmersRouter = createTRPCRouter({
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, orgId),
-                    eq(farmer.officerId, targetOfficerId),
+                    officerFilter,
                     statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
@@ -93,7 +94,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, orgId),
-                    eq(farmer.officerId, targetOfficerId),
+                    officerFilter,
                     statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ));
