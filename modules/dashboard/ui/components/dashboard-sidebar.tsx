@@ -227,24 +227,40 @@ const DashboardSidebar = ({ initialSession, initialMembership }: DashboardSideba
 
 
   return (
-    <Sidebar className={cn(sidebarModeStyles[currentMode], "transition-colors duration-300")}>
-      <SidebarHeader className="text-sidebar-accent-foreground">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 px-2 pt-2"
-          >
-            <Image
-              src="/logo.png"
-              height={36}
-              width={36}
-              alt="Feed Reminder Logo"
-              unoptimized
-            />
-            <p className="text-2xl font-semibold">Feed Reminder</p>
-          </Link>
-          <div className="pt-2 pr-2">
-            <ThemeToggle />
+    <Sidebar className={cn(sidebarModeStyles[currentMode], "transition-colors duration-300 border-r-0")}>
+      <SidebarHeader className="p-0 overflow-hidden">
+        <div className="relative">
+          {/* Decorative background element for premium feel */}
+          <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl opacity-50" />
+
+          <div className="flex items-center justify-between p-4 relative z-10">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 group transition-transform duration-300 active:scale-95"
+            >
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-tr from-primary/20 to-primary/0 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Image
+                  src="/logo.png"
+                  height={38}
+                  width={38}
+                  alt="Feed Reminder Logo"
+                  className="rounded-xl shadow-sm ring-1 ring-border/50 relative bg-background p-1"
+                  unoptimized
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-black tracking-tight leading-none text-foreground uppercase">
+                  Feed
+                </span>
+                <span className="text-[10px] font-black tracking-[0.3em] leading-none text-primary uppercase mt-0.5">
+                  Reminder
+                </span>
+              </div>
+            </Link>
+            <div className="shrink-0">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </SidebarHeader>

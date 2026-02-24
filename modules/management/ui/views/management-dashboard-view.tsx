@@ -14,7 +14,7 @@ import { HistoricalAnalysis } from "@/modules/home/ui/components/historical-anal
 import { KpiCards } from "@/modules/home/ui/components/kpi-cards";
 import { PerformanceInsights } from "@/modules/home/ui/components/performance-insights";
 import { QuickDetails } from "@/modules/home/ui/components/quick-details";
-import { UrgentActions } from "@/modules/home/ui/components/urgent-actions";
+
 import { SmartWatchdogWidget } from "@/modules/shared/components/smart-watchdog-widget";
 import { SupplyChainWidget } from "@/modules/shared/components/supply-chain-widget";
 import { useTRPC } from "@/trpc/client";
@@ -30,7 +30,12 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
     const trpc = useTRPC();
     const { canEdit } = useCurrentOrg();
 
-    // Fetch ALL Active Cycles in the Org
+    // Fetch Global Dashboard Stats
+    const { data: stats, isLoading: statsLoading } = useQuery(
+        trpc.management.analytics.getGlobalDashboardStats.queryOptions({ orgId })
+    );
+
+    // Fetch ALL Active Cycles (for charts/details)
     const { data, isLoading } = useQuery(
         trpc.management.cycles.listActive.queryOptions({
             orgId,
@@ -39,54 +44,13 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
         })
     );
 
-    if (isLoading || !data) {
+    if (isLoading || statsLoading || !data || !stats) {
         return <LoadingState title="Loading Operations" description="Gathering active metrics..." />;
     }
 
     const cycles = data.items;
 
-    // --- Derived Metrics ---
-    const totalBirds = cycles.reduce((acc, f) => acc + (f.doc - f.mortality - (f.birdsSold || 0)), 0);
-
-    // Calculate Total Feed Stock (Sum of UNIQUE Farmers' mainStock)
-    const uniqueFarmers = new Map();
-    cycles.forEach(c => {
-        if (!uniqueFarmers.has(c.farmerId)) {
-            uniqueFarmers.set(c.farmerId, c.farmerMainStock || 0);
-        }
-    });
-    const totalMainStock = Array.from(uniqueFarmers.values()).reduce((acc, stock) => acc + stock, 0);
-
-    // Calculate Total Active Consumption
-    const totalActiveConsumption = cycles.reduce((acc, c) => acc + c.intake, 0);
-
-    // Effective Available Stock
-    const totalAvailableStock = totalMainStock - totalActiveConsumption;
-
-    const avgMortality = cycles.length
-        ? (cycles.reduce((acc, f) => acc + f.mortality, 0) / cycles.reduce((acc, f) => acc + f.doc, 0) * 100).toFixed(2)
-        : "0";
-
-    // Urgent: Less than 3 bags remaining (Based on Calculated Available Stock)
-    const farmerConsumptionMap = new Map<string, number>();
-    cycles.forEach(c => {
-        const current = farmerConsumptionMap.get(c.farmerId) || 0;
-        farmerConsumptionMap.set(c.farmerId, current + c.intake);
-    });
-
-    const lowStockCycles = cycles
-        .map(c => {
-            const totalConsumption = farmerConsumptionMap.get(c.farmerId) || 0;
-            const initialStock = c.farmerMainStock || 0;
-            const availableStock = initialStock - totalConsumption;
-            return { ...c, availableStock };
-        })
-        .filter((c, index, self) =>
-            // Deduplicate by farmer
-            index === self.findIndex((t) => t.farmerId === c.farmerId)
-        )
-        .filter(c => c.availableStock < 3)
-        .sort((a, b) => a.availableStock - b.availableStock);
+    // --- DERIVED LISTS REMOVED (Unified into Watchdog) ---
 
     // --- Aggregation grouped by Farmer ---
     const farmerStats = new Map<string, {
@@ -146,20 +110,19 @@ const ManagementOperationsContent = ({ orgId }: { orgId: string }) => {
         <div className="space-y-6 pt-2">
             {/* 1. Top Row KPIs */}
             <KpiCards
-                totalBirds={totalBirds}
-                totalBirdsSold={totalBirdsSold}
-                totalFeedStock={totalMainStock}
-                activeConsumption={totalActiveConsumption}
-                availableStock={totalAvailableStock}
-                lowStockCount={lowStockCycles.length}
-                avgMortality={avgMortality}
-                activeCyclesCount={cycles.length}
-                totalFarmers={uniqueFarmers.size}
+                totalBirds={stats.totalBirds}
+                totalBirdsSold={stats.totalBirdsSold}
+                totalFeedStock={stats.totalFeedStock}
+                activeConsumption={stats.activeConsumption}
+                availableStock={stats.availableStock}
+                lowStockCount={stats.lowStockCount}
+                avgMortality={stats.avgMortality}
+                activeCyclesCount={stats.activeCyclesCount}
+                totalFarmers={stats.totalFarmers}
             />
 
-            {/* 2. Urgent Actions & Performance */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <UrgentActions lowStockCycles={lowStockCycles} canEdit={canEdit ?? false} />
+            {/* 2. Performance Insights (Full Width in unified view) */}
+            <div className="grid gap-4">
                 <PerformanceInsights topPerformers={topPerformers} />
             </div>
 

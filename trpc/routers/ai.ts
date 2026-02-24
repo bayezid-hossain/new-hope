@@ -810,7 +810,11 @@ FORMAT:
                 age: cycles.age,
             })
                 .from(farmer)
-                .leftJoin(cycles, and(eq(cycles.farmerId, farmer.id), eq(cycles.status, "active")))
+                .innerJoin(cycles, and(
+                    eq(cycles.farmerId, farmer.id),
+                    eq(cycles.status, "active"),
+                    gt(sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsSold}, 0)`, 0)
+                ))
                 .where(and(
                     eq(farmer.organizationId, input.orgId),
                     eq(farmer.status, "active"),
@@ -860,7 +864,15 @@ FORMAT:
                 feedLogsByCycle.get(log.cycleId!)!.push(log);
             }
 
-            const predictions: { farmerId: string; farmer: string; stock: number; burnRate: string; daysRemaining: string; urgency: "CRITICAL" | "HIGH" }[] = [];
+            const predictions: {
+                farmerId: string;
+                farmer: string;
+                stock: number;
+                burnRate: string;
+                daysRemaining: string;
+                urgency: "CRITICAL" | "HIGH";
+                riskType: "IMMEDIATE" | "PREDICTED"
+            }[] = [];
 
             for (const [farmerId, data] of farmerData.entries()) {
                 let totalDailyBurnRate = 0;
@@ -889,7 +901,6 @@ FORMAT:
                 const actualRemainingStock = data.stock - totalConsumedInActiveCycles;
 
                 // 3. Determine urgency and prediction
-                // Fix: Properly handle zero/negative stock for daysRemaining
                 let daysRemaining = 999;
                 if (actualRemainingStock <= 0) {
                     daysRemaining = 0;
@@ -897,17 +908,19 @@ FORMAT:
                     daysRemaining = actualRemainingStock / totalDailyBurnRate;
                 }
 
-                // Logic Refinement: Risk is based purely on burn-rate (days remaining) 
-                // OR actual negative/zero stock state.
-                if (actualRemainingStock <= 0 || daysRemaining < 4) {
+                // Unified Logic: Flag if stock is low (< 3 bags) OR survival is low (< 4 days)
+                if (actualRemainingStock < 3 || daysRemaining < 4) {
                     const urgency = (daysRemaining < 1.5 || actualRemainingStock <= 0) ? "CRITICAL" : "HIGH";
+                    const riskType = (actualRemainingStock < 3) ? "IMMEDIATE" : "PREDICTED";
+
                     predictions.push({
                         farmerId,
                         farmer: data.name,
                         stock: actualRemainingStock,
                         burnRate: totalDailyBurnRate.toFixed(2),
                         daysRemaining: daysRemaining.toFixed(2),
-                        urgency
+                        urgency,
+                        riskType
                     });
                 }
             }

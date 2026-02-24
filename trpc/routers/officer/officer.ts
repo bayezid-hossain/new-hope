@@ -73,7 +73,7 @@ export const officerRouter = createTRPCRouter({
                 };
             }
 
-            // 2. Get all active cycles for these farmers
+            // 2. Get all active cycles for these farmers with birds remaining
             const activeCycles = await ctx.db.select({
                 id: cycles.id,
                 farmerId: cycles.farmerId,
@@ -86,6 +86,7 @@ export const officerRouter = createTRPCRouter({
                 .where(and(
                     eq(cycles.organizationId, orgId),
                     eq(cycles.status, "active"),
+                    sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsSold}, 0) > 0`,
                     sql`${cycles.farmerId} IN ${farmerIds}`
                 ));
 
@@ -113,6 +114,8 @@ export const officerRouter = createTRPCRouter({
                 ? ((totalMortality / totalDoc) * 100).toFixed(2)
                 : "0";
 
+            const finalActiveFarmersCount = new Set(activeCycles.map(c => c.farmerId)).size;
+
             return {
                 totalBirds,
                 totalBirdsSold,
@@ -122,7 +125,7 @@ export const officerRouter = createTRPCRouter({
                 lowStockCount,
                 avgMortality,
                 activeCyclesCount: activeCycles.length,
-                totalFarmers: activeFarmers.length
+                totalFarmers: finalActiveFarmersCount
             };
         }),
     getMyRequestStatus: protectedProcedure

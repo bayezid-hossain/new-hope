@@ -31,6 +31,7 @@ interface PredictionResult {
         burnRate: string;
         daysRemaining: string;
         urgency: "CRITICAL" | "HIGH";
+        riskType: "IMMEDIATE" | "PREDICTED";
     }>;
     aiPlan: {
         suggestedRoute: string[];
@@ -117,7 +118,7 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                 <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-primary text-[11px] font-black uppercase tracking-[0.1em]">
                         <Package className="h-3.5 w-3.5" />
-                        Supply Chain Predictor
+                        Smart Watchdog (Supply)
                     </div>
                     {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
                 </CardTitle>
@@ -205,9 +206,17 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                             {result?.predictions.slice(0, 3).map((p, i) => (
                                 <div key={i} className="space-y-1">
                                     <div className="flex justify-between text-xs font-medium">
-                                        <span>{p.farmer}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span>{p.farmer}</span>
+                                            <Badge variant="outline" className={cn(
+                                                "text-[8px] font-black px-1.5 h-4",
+                                                p.riskType === "IMMEDIATE" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                            )}>
+                                                {p.riskType}
+                                            </Badge>
+                                        </div>
                                         <span className={p.urgency === "CRITICAL" ? "text-destructive font-bold" : "text-amber-600"}>
-                                            {p.daysRemaining} days left
+                                            {parseFloat(p.daysRemaining) === 0 ? "OUT" : `${p.daysRemaining} days left`}
                                         </span>
                                     </div>
                                     <Progress value={Math.max(5, (parseFloat(p.daysRemaining) / 4) * 100)} className={`h-1.5 ${p.urgency === "CRITICAL" ? "bg-destructive/10" : "bg-amber-500/10"}`} />
@@ -342,7 +351,15 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                                 >
                                                     <TableCell className="py-4 md:py-6 px-4 md:px-8">
                                                         <div className="flex flex-col">
-                                                            <span className="font-black group-hover:text-primary transition-colors uppercase tracking-tight">{p.farmer}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black group-hover:text-primary transition-colors uppercase tracking-tight">{p.farmer}</span>
+                                                                <Badge variant="outline" className={cn(
+                                                                    "text-[9px] font-black px-2 h-5",
+                                                                    p.riskType === "IMMEDIATE" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                                                )}>
+                                                                    {p.riskType}
+                                                                </Badge>
+                                                            </div>
                                                             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
                                                         </div>
                                                     </TableCell>
@@ -397,9 +414,14 @@ export const SupplyChainWidget = ({ orgId, officerId, viewMode }: SupplyChainWid
                                             onClick={() => window.location.href = getFarmerLink(p.farmerId)}
                                         >
                                             <div className="flex justify-between items-start">
-                                                <div className="flex flex-col">
+                                                <div className="flex flex-col gap-1">
                                                     <span className="font-black text-base">{p.farmer}</span>
-                                                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Active Unit</span>
+                                                    <Badge variant="outline" className={cn(
+                                                        "text-[9px] font-black px-2 h-5 w-fit",
+                                                        p.riskType === "IMMEDIATE" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                                    )}>
+                                                        {p.riskType}
+                                                    </Badge>
                                                 </div>
                                                 <Badge className={`font-black text-[9px] uppercase tracking-[0.1em] px-2.5 py-1 rounded-full border-none ${p.urgency === "CRITICAL"
                                                     ? "bg-gradient-to-r from-destructive to-destructive/80 text-destructive-foreground"
