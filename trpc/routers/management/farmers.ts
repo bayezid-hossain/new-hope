@@ -29,7 +29,7 @@ export const managementFarmersRouter = createTRPCRouter({
             }
 
             const whereClause = and(
-                eq(farmer.organizationId, input.orgId),
+                eq(farmer.organizationId, orgId),
                 search
                     ? or(
                         ilike(farmer.name, `%${search}%`),
