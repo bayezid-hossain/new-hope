@@ -63,8 +63,11 @@ export const officerFarmersRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, search, page, pageSize } = input;
+            // DEBUG: Log officerId to trace the issue
+            console.log('[listWithStock] input.officerId:', input.officerId, 'ctx.user.id:', ctx.user.id);
             // Use provided officerId if present, otherwise scope to the logged-in user
             const targetOfficerId = input.officerId ?? ctx.user.id;
+            console.log('[listWithStock] targetOfficerId:', targetOfficerId);
             const officerFilter = eq(farmer.officerId, targetOfficerId);
             const statusFilter = (input as any).status === 'deleted'
                 ? eq(farmer.status, 'deleted')
