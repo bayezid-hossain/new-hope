@@ -8,10 +8,12 @@ export const officerReportsRouter = createTRPCRouter({
     getMonthlyDocPlacements: proProcedure
         .input(z.object({
             month: z.number().min(1).max(12),
-            year: z.number().int().min(2000).max(2100)
+            year: z.number().int().min(2000).max(2100),
+            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
             const { month, year } = input;
+            const targetOfficerId = input.officerId ?? ctx.user.id;
 
             // Start and end dates for the month (careful with JS dates vs UTC)
             // We want cycles created in this month.
@@ -36,7 +38,7 @@ export const officerReportsRouter = createTRPCRouter({
                 .from(cycles)
                 .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
                 .where(and(
-                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.officerId, targetOfficerId),
                     ne(farmer.status, "deleted"),
                     ne(cycles.status, "deleted"),
                     gte(cycles.createdAt, startDate),
@@ -55,7 +57,7 @@ export const officerReportsRouter = createTRPCRouter({
                 .from(cycleHistory)
                 .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
                 .where(and(
-                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.officerId, targetOfficerId),
                     ne(farmer.status, "deleted"),
                     ne(cycleHistory.status, "deleted"),
                     gte(cycleHistory.startDate, startDate), // History has explicit start_date

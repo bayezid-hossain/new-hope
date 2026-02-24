@@ -63,13 +63,17 @@ export const officerFarmersRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, search, page, pageSize } = input;
+            // Use provided officerId if present, otherwise scope to the logged-in user
+            const targetOfficerId = input.officerId ?? ctx.user.id;
+            const statusFilter = (input as any).status === 'deleted'
+                ? eq(farmer.status, 'deleted')
+                : eq(farmer.status, 'active');
 
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, orgId),
-                    // STRICT SECURITY: Only show farmers owned by this officer
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
+                    eq(farmer.officerId, targetOfficerId),
+                    statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
                 limit: pageSize,
@@ -85,13 +89,12 @@ export const officerFarmersRouter = createTRPCRouter({
                     }
                 }
             });
-            // console.log(farmersData)
             const [total] = await ctx.db.select({ count: sql<number>`count(*)` })
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, orgId),
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
+                    eq(farmer.officerId, targetOfficerId),
+                    statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ));
 

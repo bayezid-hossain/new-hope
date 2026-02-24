@@ -628,12 +628,14 @@ export const officerStockRouter = createTRPCRouter({
     getAllFarmersStock: proProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
-            cursor: z.number().default(0), // Using offset as cursor for simplicity with Drizzle query API here
+            cursor: z.number().default(0),
+            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const targetOfficerId = input.officerId ?? ctx.user.id;
             const items = await ctx.db.query.farmer.findMany({
                 where: and(
-                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.officerId, targetOfficerId),
                     eq(farmer.status, "active")
                 ),
                 columns: {
@@ -664,8 +666,10 @@ export const officerStockRouter = createTRPCRouter({
         .input(z.object({
             limit: z.number().min(1).max(50).default(20),
             cursor: z.number().default(0),
+            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const targetOfficerId = input.officerId ?? ctx.user.id;
             // We want to group by referenceId where type is RESTOCK
             // Drizzle doesn't support easy "GROUP BY" with relations in query builder yet,
             // so we might need raw SQL or thoughtful query construction.
@@ -681,7 +685,7 @@ export const officerStockRouter = createTRPCRouter({
                 FROM ${stockLogs}
                 WHERE type = 'RESTOCK' 
                 AND reference_id IS NOT NULL
-                AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${ctx.user.id})
+                AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${targetOfficerId})
                 GROUP BY reference_id
                 ORDER BY MIN(created_at) DESC
                 LIMIT ${input.limit + 1} OFFSET ${input.cursor}

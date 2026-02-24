@@ -1269,11 +1269,11 @@ export const officerSalesRouter = createTRPCRouter({
             });
         }),
 
-    // Get Recent Sales Feed (Aggregated)
     getRecentSales: proProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
-            search: z.string().optional()
+            search: z.string().optional(),
+            officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
             // Fetch sales created by the officer
@@ -1283,8 +1283,10 @@ export const officerSalesRouter = createTRPCRouter({
             // Since Drizzle 'findMany' with 'where' on deep relations is tricky, we'll fetch a larger set if searching,
             // or just rely on 'createdBy' index which should be fast.
 
+            const targetOfficerId = input.officerId ?? ctx.user.id;
+
             const events = await ctx.db.query.saleEvents.findMany({
-                where: eq(saleEvents.createdBy, ctx.user.id),
+                where: eq(saleEvents.createdBy, targetOfficerId),
                 orderBy: desc(saleEvents.saleDate),
                 // If searching, we might need to fetch more to find matches, but for safety let's cap at 200 then filter
                 limit: input.search ? 200 : input.limit,
