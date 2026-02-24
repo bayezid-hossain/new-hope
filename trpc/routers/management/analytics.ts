@@ -114,8 +114,6 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 ? ((totalMortality / totalDoc) * 100).toFixed(2)
                 : "0";
 
-            const finalActiveFarmersCount = new Set(activeCycles.map(c => c.farmerId)).size;
-
             return {
                 totalBirds,
                 totalBirdsSold,
@@ -125,7 +123,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 lowStockCount,
                 avgMortality,
                 activeCyclesCount: activeCycles.length,
-                totalFarmers: finalActiveFarmersCount
+                totalFarmers: activeFarmers.length
             };
         }),
 });

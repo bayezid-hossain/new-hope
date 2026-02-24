@@ -112,8 +112,8 @@ const OperationsContent = ({ orgId, officerId, canEdit }: { orgId: string; offic
         totalFeedStock={stats.totalFeedStock}
         activeConsumption={stats.activeConsumption}
         availableStock={stats.availableStock}
-        lowStockCount={stats.lowStockCount}
         avgMortality={stats.avgMortality}
+        lowStockCount={stats.lowStockCount}
         activeCyclesCount={stats.activeCyclesCount}
         totalFarmers={stats.totalFarmers}
       />
