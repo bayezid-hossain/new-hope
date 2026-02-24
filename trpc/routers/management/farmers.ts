@@ -7,6 +7,7 @@ import { createTRPCRouter, managementProcedure } from "../../init";
 export const managementFarmersRouter = createTRPCRouter({
     getMany: managementProcedure
         .input(z.object({
+            orgId: z.string().optional(),
             search: z.string().optional(),
             page: z.number().default(1),
             pageSize: z.number().default(50),
@@ -21,15 +22,24 @@ export const managementFarmersRouter = createTRPCRouter({
             const orgId = input.orgId;
 
             const officers = aliasedTable(user, "officers");
+            let officerFilter;
+
+            if (input.officerId) {
+                officerFilter = eq(farmer.officerId, input.officerId);
+            }
+
             const whereClause = and(
-                eq(farmer.organizationId, orgId),
-                search ? or(
-                    ilike(farmer.name, `%${search}%`),
-                    ilike(officers.name, `%${search}%`)
-                ) : undefined,
-                onlyMine ? eq(farmer.officerId, ctx.user.id) :
-                    input.officerId ? eq(farmer.officerId, input.officerId) : undefined,
-                input.status === "all" ? undefined : eq(farmer.status, input.status)
+                eq(farmer.organizationId, input.orgId),
+                search
+                    ? or(
+                        ilike(farmer.name, `%${search}%`),
+                        ilike(officers.name, `%${search}%`)
+                    )
+                    : undefined,
+                officerFilter,
+                input.status === "all"
+                    ? undefined
+                    : eq(farmer.status, input.status)
             );
 
             const data = await ctx.db.select({
