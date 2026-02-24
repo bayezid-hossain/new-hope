@@ -105,9 +105,12 @@ export const officerRouter = createTRPCRouter({
 
             let lowStockCount = 0;
             activeFarmers.forEach(f => {
-                const consumption = farmerConsumptionMap.get(f.id) || 0;
-                const available = (f.mainStock || 0) - consumption;
-                if (available < 3) lowStockCount++;
+                // Only count low stock for farmers with active cycles (matching Smart Watchdog logic)
+                if (farmerConsumptionMap.has(f.id)) {
+                    const consumption = farmerConsumptionMap.get(f.id) || 0;
+                    const available = (f.mainStock || 0) - consumption;
+                    if (available < 3) lowStockCount++;
+                }
             });
 
             const avgMortality = totalDoc > 0
