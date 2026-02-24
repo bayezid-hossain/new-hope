@@ -61,6 +61,7 @@ export interface SaleEvent {
         age: number;
         farmer?: { id: string; name: string };
     } | null;
+    saleAge?: number;
     cycleContext?: {
         doc: number;
         mortality: number;

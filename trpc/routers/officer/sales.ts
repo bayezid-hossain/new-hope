@@ -50,6 +50,8 @@ const getCycleStats = (events: any[]) => {
     const weightMap = new Map<string, number>();
     const birdsSoldMap = new Map<string, number>();
     const adjustmentsMap = new Map<string, number>();
+    const totalBirdDaysMap = new Map<string, number>();
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     events.forEach(ev => {
         const key = ev.cycleId || ev.historyId || "unknown";
@@ -57,11 +59,30 @@ const getCycleStats = (events: any[]) => {
         const currentWeight = weightMap.get(key) || 0;
         const currentBirdsSold = birdsSoldMap.get(key) || 0;
         let currentAdjustment = adjustmentsMap.get(key) || 0;
+        const currentBirdDays = totalBirdDaysMap.get(key) || 0;
 
         const price = parseFloat(ev.pricePerKg);
         revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
         weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
         birdsSoldMap.set(key, currentBirdsSold + (ev.birdsSold || 0));
+
+        // Use the explicitly locked sale age if available, otherwise fallback dynamically
+        const ageAtSale = ev.age ?? (() => {
+            const cycleStartDate = ev.cycle?.createdAt || ev.history?.startDate;
+            if (cycleStartDate) {
+                const saleDate = new Date(ev.saleDate);
+                const cycleStart = new Date(cycleStartDate);
+                saleDate.setHours(0, 0, 0, 0);
+                cycleStart.setHours(0, 0, 0, 0);
+                const diffTime = saleDate.getTime() - cycleStart.getTime();
+                return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+            }
+            return 0;
+        })();
+
+        if (ageAtSale > 0) {
+            totalBirdDaysMap.set(key, currentBirdDays + ((ev.birdsSold || 0) * ageAtSale));
+        }
 
         // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
         const diff = price - BASE_SELLING_PRICE;
@@ -73,7 +94,13 @@ const getCycleStats = (events: any[]) => {
         adjustmentsMap.set(key, currentAdjustment);
     });
 
-    return { revenueMap, weightMap, birdsSoldMap, adjustmentsMap };
+    const ageMap = new Map<string, number>();
+    birdsSoldMap.forEach((totalBirds, key) => {
+        const birdDays = totalBirdDaysMap.get(key) || 0;
+        ageMap.set(key, totalBirds > 0 ? Number((birdDays / totalBirds).toFixed(2)) : 0);
+    });
+    // console.log(ageMap)
+    return { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, ageMap };
 };
 
 const getCycleStatsWithMortality = (events: any[]) => {
@@ -298,6 +325,7 @@ export const officerSalesRouter = createTRPCRouter({
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     avgWeight: avgWeight.toFixed(2),
+                    age: cycle.age,
                     pricePerKg: input.pricePerKg.toString(),
                     totalAmount: totalAmount.toFixed(2),
                     cashReceived: input.cashReceived.toString(),
@@ -827,9 +855,42 @@ export const officerSalesRouter = createTRPCRouter({
 
             // FCR/EPI
             // Age: use input date diff from start
-            const saleDateLocal = input.saleDate || new Date();
+            const saleDateLocal = new Date(input.saleDate || new Date());
             const cycleStartDate = new Date(cycle.startDate || cycle.createdAt);
-            const age = Math.max(1, Math.floor((saleDateLocal.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+            saleDateLocal.setHours(0, 0, 0, 0);
+            cycleStartDate.setHours(0, 0, 0, 0);
+            const MS_PER_DAY = 1000 * 60 * 60 * 24;
+            const diffTimeLocal = saleDateLocal.getTime() - cycleStartDate.getTime();
+            let age = Math.max(1, Math.round(diffTimeLocal / MS_PER_DAY) + 1);
+
+            if (isEnded) {
+                let totalBirdDays = 0;
+
+                for (const sale of previousSales) {
+                    if (input.excludeSaleId && sale.id === input.excludeSaleId) continue;
+
+                    const data = sale.selectedReport || sale;
+                    const bSold = Number(data.birdsSold) || 0;
+
+                    const ageAtSale = sale.age ?? (() => {
+                        const sDate = new Date(sale.saleDate);
+                        const cStart = new Date(cycleStartDate);
+                        sDate.setHours(0, 0, 0, 0);
+                        cStart.setHours(0, 0, 0, 0);
+                        const diffTime = sDate.getTime() - cStart.getTime();
+                        return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+                    })();
+
+                    totalBirdDays += bSold * ageAtSale;
+                }
+
+                totalBirdDays += input.birdsSold * age;
+
+                if (totalBirdsSold > 0) {
+                    age = Number((totalBirdDays / totalBirdsSold).toFixed(2));
+                }
+            }
+
             const epi = (fcr > 0 && age > 0) ? (survivalRate * avgWeight) / (fcr * age) * 100 : 0;
 
             // Construct Preview Object
@@ -1013,7 +1074,7 @@ export const officerSalesRouter = createTRPCRouter({
             }
 
             // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(events);
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(events);
 
             // Pre-calculate LATEST feed intake for each History Group from the events themselves
             // (Since events are sorted DESC, the first event for a historyId is the Final Sale)
@@ -1042,8 +1103,15 @@ export const officerSalesRouter = createTRPCRouter({
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
 
-                const age = cycleOrHistory?.age || 0;
-
+                let age = cycleOrHistory?.age || 0;
+                if (isEnded && isLatestInGroup) {
+                    const weightedAge = ageMap.get(groupKey);
+                    if (weightedAge && weightedAge > 0) {
+                        age = weightedAge;
+                    }
+                } else if (e.age) {
+                    age = e.age;
+                }
                 // FIX: Use the feed from the LATEST sale event for this history (version-aware),
                 // fallback to database snapshot if needed.
                 const feedConsumed = isEnded
@@ -1126,8 +1194,24 @@ export const officerSalesRouter = createTRPCRouter({
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
+                // Calculate the original sale age (not the weighted one)
+                const saleAge = e.age ?? (() => {
+                    const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
+                    if (cycleStartDate) {
+                        const saleDateOnly = new Date(e.saleDate);
+                        const cycleStartOnly = new Date(cycleStartDate);
+                        saleDateOnly.setHours(0, 0, 0, 0);
+                        cycleStartOnly.setHours(0, 0, 0, 0);
+                        const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
+                        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                        return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+                    }
+                    return cycleOrHistory?.age || 0;
+                })();
+
                 return {
                     ...e,
+                    saleAge,
                     feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
                     feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
@@ -1324,7 +1408,7 @@ export const officerSalesRouter = createTRPCRouter({
                 )
             });
 
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap } = getCycleStatsWithMortality(allCycleEvents);
+            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
 
             // Pre-calculate LATEST feed intake for each History Group from ALL related events
             const historyFeedMap = new Map<string, number>();
@@ -1333,7 +1417,16 @@ export const officerSalesRouter = createTRPCRouter({
                 new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()
             );
 
+            const latestSaleIds = new Set<string>();
+            const seenGroupsForLatest = new Set<string>();
+
             for (const ev of sortedAllEvents) {
+                const groupKey = ev.cycleId || ev.historyId || "unknown";
+                if (!seenGroupsForLatest.has(groupKey)) {
+                    latestSaleIds.add(ev.id);
+                    seenGroupsForLatest.add(groupKey);
+                }
+
                 if (ev.historyId && !historyFeedMap.has(ev.historyId)) {
                     const bags = getFeedFromEvent(ev);
                     historyFeedMap.set(ev.historyId, bags);
@@ -1344,12 +1437,21 @@ export const officerSalesRouter = createTRPCRouter({
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
                 const groupKey = e.cycleId || e.historyId || "unknown";
+                const isLatestInGroup = latestSaleIds.has(e.id);
 
                 const doc = cycleOrHistory?.doc || 0;
                 // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
                 const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
-                const age = cycleOrHistory?.age || 0;
 
+                let age = cycleOrHistory?.age || 0;
+                if (isEnded && isLatestInGroup) {
+                    const weightedAge = ageMap.get(groupKey);
+                    if (weightedAge && weightedAge > 0) {
+                        age = weightedAge;
+                    }
+                } else if (e.age) {
+                    age = e.age;
+                }
                 // FIX: Use the feed from the LATEST sale event
                 const feedConsumed = isEnded
                     ? (historyFeedMap.get(e.historyId!) ?? e.history?.finalIntake ?? 0)
@@ -1374,8 +1476,24 @@ export const officerSalesRouter = createTRPCRouter({
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
+                // Calculate the original sale age (not the weighted one)
+                const saleAge = e.age ?? (() => {
+                    const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
+                    if (cycleStartDate) {
+                        const saleDateOnly = new Date(e.saleDate);
+                        const cycleStartOnly = new Date(cycleStartDate);
+                        saleDateOnly.setHours(0, 0, 0, 0);
+                        cycleStartOnly.setHours(0, 0, 0, 0);
+                        const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
+                        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                        return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+                    }
+                    return cycleOrHistory?.age || 0;
+                })();
+
                 return {
                     ...e,
+                    saleAge,
                     feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
                     feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",

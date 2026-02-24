@@ -296,6 +296,8 @@ export const saleEvents = pgTable("sale_events", {
   birdsSold: integer("birds_sold").notNull(),
   totalMortality: integer("total_mortality").notNull(),
 
+  age: integer("age"), // Snapshot of bird age at the time of sale
+
   totalWeight: decimal("total_weight").notNull(), // kg
   avgWeight: decimal("avg_weight").notNull(), // kg per bird
   pricePerKg: decimal("price_per_kg").notNull(),

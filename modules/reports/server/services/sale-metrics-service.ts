@@ -137,9 +137,33 @@ export class SaleMetricsService {
         }
 
         const numSales = sales.length;
-        // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx)
-        const averageAge = cycle.age || 0;
 
+        // Calculate Weighted Average Age
+        // Formula: Sum(Bird-Days) / Total Birds Sold where Bird-Days = birds sold * Age at Sale
+        let totalBirdDays = 0;
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+        for (const sale of sales) {
+            const data = sale.selectedReport || sale;
+            const birdsSold = Number(data.birdsSold) || 0;
+
+            const ageAtSale = sale.age ?? (() => {
+                const saleDate = new Date(sale.saleDate);
+                const cycleStart = new Date(cycleStartDate);
+                saleDate.setHours(0, 0, 0, 0);
+                cycleStart.setHours(0, 0, 0, 0);
+
+                const diffTime = saleDate.getTime() - cycleStart.getTime();
+                return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+            })();
+
+            totalBirdDays += birdsSold * ageAtSale;
+        }
+
+        // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
+        const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
+        const averageAge = Number(rawAverageAge.toFixed(2));
+        console.log(averageAge)
         // Calculate Average Weight using SURVIVORS (DOC - Mortality) to match frontend logic
         // This accounts for missing birds/theft which reduces the effective average weight of the flock
         const survivors = cycle.doc - (cycle.mortality || 0);

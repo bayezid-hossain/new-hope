@@ -103,10 +103,23 @@ export const SaleDetailsContent = ({
                 {/* Main Stats Grid */}
                 <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-3 text-[13px] sm:text-sm">
                     <div className="space-y-3">
-                        <div className="flex justify-between items-baseline">
-                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Sale Age</span>
-                            <span className="font-semibold">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium text-[10px]">days</small></span>
-                        </div>
+                        {sale.cycleContext?.isEnded && isLatest ? (
+                            <>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight">Weighted Age</span>
+                                    <span className="font-semibold text-primary">{sale.cycleContext?.age} <small className="font-medium text-[10px] ml-1">days</small></span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-muted-foreground text-xs uppercase tracking-tight opacity-70">Sale Age</span>
+                                    <span className="font-semibold text-muted-foreground opacity-80">{sale.saleAge ?? "N/A"} <small className="font-medium text-[10px] ml-1">days</small></span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-muted-foreground text-xs uppercase tracking-tight">Sale Age</span>
+                                <span className="font-semibold">{sale.saleAge ?? sale.cycleContext?.age ?? "N/A"} <small className="text-muted-foreground font-medium text-[10px] ml-1">days</small></span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-baseline">
                             <span className="text-muted-foreground text-xs uppercase tracking-tight">Total DOC</span>
                             <span className="font-semibold">{sale.cycleContext?.doc || sale.houseBirds}</span>
@@ -233,7 +246,7 @@ export const SaleDetailsContent = ({
                                 )}
                             </div>
                             <ProfitDetailsModal open={showProfitModal} onOpenChange={setShowProfitModal} revenue={formulaRevenue} actualRevenue={actualRevenue} totalWeight={cycleTotalWeight} avgPrice={avgPrice} effectiveRate={effectiveRate} netAdjustment={netAdjustment} feedBags={totalFeedBags} docCount={doc} feedCost={feedCost} docCost={docCost} profit={formulaProfit} />
-                            <FcrEpiDetailsModal open={showFcrEpiModal} onOpenChange={setShowFcrEpiModal} fcr={fcr} epi={epi} doc={doc} mortality={mortality} age={sale.cycleContext?.age || 0} totalWeight={cycleTotalWeight} feedBags={totalFeedBags} />
+                            <FcrEpiDetailsModal open={showFcrEpiModal} onOpenChange={setShowFcrEpiModal} fcr={fcr} epi={epi} doc={doc} mortality={mortality} age={sale.cycleContext?.age || 0} totalWeight={cycleTotalWeight} feedBags={totalFeedBags} isEnded={isEnded} />
                         </div>
                     );
                 })()}
@@ -254,13 +267,41 @@ export const SaleDetailsContent = ({
                     </div>
 
                     <div className="space-y-3 px-1">
-                        <div className="flex justify-between items-center group">
-                            <div className="flex items-center gap-2">
-                                <History className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
-                                <span className="text-sm text-muted-foreground">Sale Age</span>
+                        {sale.cycleContext?.isEnded && isLatest ? (
+                            <>
+                                <div className="flex justify-between items-center group">
+                                    <div className="flex items-center gap-2">
+                                        <History className="h-3.5 w-3.5 text-primary/70" />
+                                        <span className="text-sm font-medium text-primary">Weighted Avg. Age</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-primary">
+                                        {sale.cycleContext?.age}
+                                        <small className="font-medium uppercase text-[10px] ml-1">days</small>
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center group">
+                                    <div className="flex items-center gap-2">
+                                        <History className="h-3.5 w-3.5 text-muted-foreground/40" />
+                                        <span className="text-sm text-muted-foreground opacity-80">Original Sale Age</span>
+                                    </div>
+                                    <span className="text-sm font-semibold text-muted-foreground opacity-90">
+                                        {sale.saleAge ?? "N/A"}
+                                        <small className="font-medium uppercase text-[10px] ml-1">days</small>
+                                    </span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-between items-center group">
+                                <div className="flex items-center gap-2">
+                                    <History className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                                    <span className="text-sm text-muted-foreground">Sale Age</span>
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">
+                                    {sale.saleAge ?? sale.cycleContext?.age ?? "N/A"}
+                                    <small className="text-muted-foreground font-medium uppercase text-[10px] ml-1">days</small>
+                                </span>
                             </div>
-                            <span className="text-sm font-semibold text-foreground">{sale.cycleContext?.age || "N/A"} <small className="text-muted-foreground font-medium uppercase text-[10px]">days</small></span>
-                        </div>
+                        )}
                         <div className="flex justify-between items-center group">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
