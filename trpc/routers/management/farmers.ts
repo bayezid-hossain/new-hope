@@ -7,10 +7,12 @@ import { createTRPCRouter, managementProcedure } from "../../init";
 export const managementFarmersRouter = createTRPCRouter({
     getMany: managementProcedure
         .input(z.object({
+            orgId: z.string().optional(),
             search: z.string().optional(),
             page: z.number().default(1),
             pageSize: z.number().default(50),
             onlyMine: z.boolean().optional().default(false),
+            officerId: z.string().optional(), // Filter by specific officer
             status: z.enum(["active", "deleted", "all"]).default("active"),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
@@ -19,15 +21,31 @@ export const managementFarmersRouter = createTRPCRouter({
             const { search, page, pageSize, onlyMine } = input;
             const orgId = input.orgId;
 
+            // Visibility Restriction: Only admins see deleted farmers
+            let effectiveStatus = input.status;
+            if (ctx.user.globalRole !== "ADMIN" && effectiveStatus !== "active") {
+                effectiveStatus = "active";
+            }
+
             const officers = aliasedTable(user, "officers");
+            let officerFilter;
+
+            if (input.officerId) {
+                officerFilter = eq(farmer.officerId, input.officerId);
+            }
+
             const whereClause = and(
                 eq(farmer.organizationId, orgId),
-                search ? or(
-                    ilike(farmer.name, `%${search}%`),
-                    ilike(officers.name, `%${search}%`)
-                ) : undefined,
-                onlyMine ? eq(farmer.officerId, ctx.user.id) : undefined,
-                input.status === "all" ? undefined : eq(farmer.status, input.status)
+                search
+                    ? or(
+                        ilike(farmer.name, `%${search}%`),
+                        ilike(officers.name, `%${search}%`)
+                    )
+                    : undefined,
+                officerFilter,
+                effectiveStatus === "all"
+                    ? undefined
+                    : eq(farmer.status, effectiveStatus)
             );
 
             const data = await ctx.db.select({
@@ -80,6 +98,12 @@ export const managementFarmersRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const search = input.search;
 
+            // Visibility Restriction
+            let effectiveStatus = input.status;
+            if (ctx.user.globalRole !== "ADMIN" && effectiveStatus !== "active") {
+                effectiveStatus = "active";
+            }
+
             const officers = aliasedTable(user, "officers");
             const data = await ctx.db.select({
                 farmer: farmer,
@@ -90,7 +114,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 .leftJoin(officers, eq(farmer.officerId, officers.id))
                 .where(and(
                     eq(farmer.organizationId, input.orgId),
-                    input.status === "all" ? undefined : eq(farmer.status, input.status),
+                    effectiveStatus === "all" ? undefined : eq(farmer.status, effectiveStatus),
                     search ? or(
                         ilike(farmer.name, `%${search}%`),
                         ilike(officers.name, `%${search}%`)
@@ -133,7 +157,13 @@ export const managementFarmersRouter = createTRPCRouter({
 
             if (!data) throw new TRPCError({ code: "NOT_FOUND" });
 
-            // Post-fetch org membership check (just in case they hacked farmerId but provided correct orgId)
+            // Visibility Restriction
+            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
+            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && data.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer profile not found or archived" });
+            }
+
+            // Post-fetch org membership check
             if (data.organizationId !== input.orgId) {
                 throw new TRPCError({ code: "FORBIDDEN", message: "Farmer belongs to a different organization" });
             }
@@ -144,9 +174,18 @@ export const managementFarmersRouter = createTRPCRouter({
     getCycles: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
-            // Fetch farmer to check Org access
-            const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
+            // Fetch farmer to check Org access and Status
+            const f = await ctx.db.query.farmer.findFirst({
+                where: eq(farmer.id, input.farmerId),
+                columns: { organizationId: true, status: true }
+            });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Visibility Restriction
+            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
+            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && f.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
 
             if (f.organizationId !== input.orgId) {
                 throw new TRPCError({ code: "FORBIDDEN" });
@@ -167,9 +206,18 @@ export const managementFarmersRouter = createTRPCRouter({
     getHistory: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
-            // Fetch farmer to check Org access
-            const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
+            // Fetch farmer to check Org access and Status
+            const f = await ctx.db.query.farmer.findFirst({
+                where: eq(farmer.id, input.farmerId),
+                columns: { organizationId: true, status: true }
+            });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Visibility Restriction
+            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
+            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && f.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
 
             if (f.organizationId !== input.orgId) {
                 throw new TRPCError({ code: "FORBIDDEN" });
@@ -201,9 +249,18 @@ export const managementFarmersRouter = createTRPCRouter({
     getStockLogs: managementProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
-            // Fetch farmer to check Org access
-            const f = await ctx.db.query.farmer.findFirst({ where: eq(farmer.id, input.farmerId), columns: { organizationId: true } });
+            // Fetch farmer to check Org access and Status
+            const f = await ctx.db.query.farmer.findFirst({
+                where: eq(farmer.id, input.farmerId),
+                columns: { organizationId: true, status: true }
+            });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Visibility Restriction
+            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
+            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && f.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
 
             if (f.organizationId !== input.orgId) {
                 throw new TRPCError({ code: "FORBIDDEN" });
@@ -224,6 +281,12 @@ export const managementFarmersRouter = createTRPCRouter({
             });
 
             if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Visibility Restriction
+            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
+            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && farmerData.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
 
             // Post-fetch org membership check
             if (farmerData.organizationId !== input.orgId) {

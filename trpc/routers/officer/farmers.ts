@@ -59,17 +59,17 @@ export const officerFarmersRouter = createTRPCRouter({
             pageSize: z.number().default(10),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
-            officerId: z.string().optional(), // REMOVED: Strict security enforcement
         }))
         .query(async ({ ctx, input }) => {
             const { orgId, search, page, pageSize } = input;
+            const officerFilter = eq(farmer.officerId, ctx.user.id);
+            const statusFilter = eq(farmer.status, 'active');
 
             const farmersData = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.organizationId, orgId),
-                    // STRICT SECURITY: Only show farmers owned by this officer
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
+                    officerFilter,
+                    statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ),
                 limit: pageSize,
@@ -85,13 +85,12 @@ export const officerFarmersRouter = createTRPCRouter({
                     }
                 }
             });
-            // console.log(farmersData)
             const [total] = await ctx.db.select({ count: sql<number>`count(*)` })
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, orgId),
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
+                    officerFilter,
+                    statusFilter,
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ));
 
@@ -539,19 +538,40 @@ export const officerFarmersRouter = createTRPCRouter({
     getDetails: protectedProcedure
         .input(z.object({ farmerId: z.string() }))
         .query(async ({ ctx, input }) => {
+            // 1. Fetch farmer first to check Org and Status
+            const f = await ctx.db.query.farmer.findFirst({
+                where: eq(farmer.id, input.farmerId),
+            });
+
+            if (!f || f.status === "deleted") throw new TRPCError({ code: "NOT_FOUND" });
+
+            // 2. Authorization: Officer assigned OR Org Admin (Manager/Owner) OR Global Admin
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, f.organizationId),
+                        eq(member.status, "ACTIVE")
+                    )
+                });
+
+                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+
+                const isOrgAdmin = membership.role === "OWNER" || membership.role === "MANAGER";
+                if (!isOrgAdmin && f.officerId !== ctx.user.id) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "You are not assigned to this farmer" });
+                }
+            }
+
+            // 3. Fetch full data with cycles
             const data = await ctx.db.query.farmer.findFirst({
-                where: and(
-                    eq(farmer.id, input.farmerId),
-                    eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active")
-                ),
+                where: eq(farmer.id, input.farmerId),
                 with: {
                     cycles: { where: eq(cycles.status, 'active') },
                 }
             });
 
-            if (!data) throw new TRPCError({ code: "NOT_FOUND" });
-            return data;
+            return data!;
         }),
 
     getSecurityMoneyHistory: protectedProcedure
@@ -643,13 +663,20 @@ export const officerFarmersRouter = createTRPCRouter({
                 )
             });
 
-            // 2. Get all org's completed cycles for comparison
-            const orgHistory = await ctx.db.query.cycleHistory.findMany({
-                where: and(
+            // 2. Get all org's completed cycles for comparison (ONLY for active farmers)
+            const orgHistory = await ctx.db.select({
+                doc: cycleHistory.doc,
+                mortality: cycleHistory.mortality,
+                finalIntake: cycleHistory.finalIntake,
+                age: cycleHistory.age
+            })
+                .from(cycleHistory)
+                .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
+                .where(and(
                     eq(cycleHistory.organizationId, orgId),
-                    ne(cycleHistory.status, "deleted")
-                )
-            });
+                    ne(cycleHistory.status, "deleted"),
+                    eq(farmer.status, "active")
+                ));
 
             // Calculate farmer's metrics
             const farmerStats = calculateCycleStats(farmerHistory);

@@ -628,7 +628,7 @@ export const officerStockRouter = createTRPCRouter({
     getAllFarmersStock: proProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
-            cursor: z.number().default(0), // Using offset as cursor for simplicity with Drizzle query API here
+            cursor: z.number().default(0),
         }))
         .query(async ({ ctx, input }) => {
             const items = await ctx.db.query.farmer.findMany({

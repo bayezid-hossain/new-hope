@@ -1,6 +1,6 @@
 import { cycles, farmer, organization, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "../../init";
 
 const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
@@ -17,17 +17,27 @@ export const adminStatsRouter = createTRPCRouter({
     getDashboardStats: adminProcedure.query(async ({ ctx }) => {
         const [orgCount] = await ctx.db.select({ count: count() }).from(organization);
         const [userCount] = await ctx.db.select({ count: count() }).from(user);
-        const [farmerCount] = await ctx.db.select({ count: count() }).from(farmer);
+        const [farmerCount] = await ctx.db.select({ count: count() })
+            .from(farmer)
+            .where(eq(farmer.status, "active"));
         const [activeCycles] = await ctx.db.select({ count: count() })
             .from(cycles)
-            .where(eq(cycles.status, "active"));
+            .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+            .where(and(
+                eq(cycles.status, "active"),
+                eq(farmer.status, "active")
+            ));
 
         // Calculate Total Active Birds
         const activeCyclesData = await ctx.db.select({ doc: cycles.doc, mortality: cycles.mortality })
             .from(cycles)
-            .where(eq(cycles.status, "active"));
+            .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+            .where(and(
+                eq(cycles.status, "active"),
+                eq(farmer.status, "active")
+            ));
 
-        const totalActiveBirds = activeCyclesData.reduce((acc, c) => acc + (c.doc - c.mortality), 0);
+        const totalActiveBirds = activeCyclesData.reduce((acc, c) => acc + (c.doc - (c.mortality || 0)), 0);
 
         return {
             orgs: orgCount.count,

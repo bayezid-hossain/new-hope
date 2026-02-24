@@ -63,7 +63,8 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             .innerJoin(farmer, eq(cycleHistory.farmerId, farmer.id))
             .where(and(
                 eq(cycleHistory.organizationId, orgId),
-                ne(cycleHistory.status, "deleted")
+                ne(cycleHistory.status, "deleted"),
+                eq(farmer.status, "active")
             ))
             .groupBy(farmer.officerId)
     );

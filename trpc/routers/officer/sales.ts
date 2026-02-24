@@ -1269,11 +1269,10 @@ export const officerSalesRouter = createTRPCRouter({
             });
         }),
 
-    // Get Recent Sales Feed (Aggregated)
     getRecentSales: proProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
-            search: z.string().optional()
+            search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
             // Fetch sales created by the officer

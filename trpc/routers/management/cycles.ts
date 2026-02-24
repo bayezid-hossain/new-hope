@@ -108,6 +108,11 @@ export const managementCyclesRouter = createTRPCRouter({
             });
 
             if (activeCycle) {
+                // Visibility Restriction
+                if (ctx.user.globalRole !== "ADMIN" && activeCycle.farmer.status === "deleted") {
+                    throw new TRPCError({ code: "NOT_FOUND" });
+                }
+
                 // Access Check
                 if (ctx.user.globalRole !== "ADMIN") {
                     const membership = await ctx.db.query.member.findFirst({
@@ -168,6 +173,13 @@ export const managementCyclesRouter = createTRPCRouter({
             });
 
             if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Visibility Restriction
+            if (ctx.user.globalRole !== "ADMIN") {
+                if (historyRecord.status === "deleted" || historyRecord.farmer.status === "deleted") {
+                    throw new TRPCError({ code: "NOT_FOUND" });
+                }
+            }
 
             // Access Check
             if (ctx.user.globalRole !== "ADMIN") {
@@ -238,11 +250,18 @@ export const managementCyclesRouter = createTRPCRouter({
 
             const users = aliasedTable(user, "officer");
             const offset = (page - 1) * pageSize;
+
+            // Visibility Restriction: Only admins see deleted cycles
+            let effectiveStatus = status;
+            if (ctx.user.globalRole !== "ADMIN" && effectiveStatus !== "archived") {
+                effectiveStatus = "archived";
+            }
+
             const whereClause = and(
                 eq(cycleHistory.organizationId, orgId),
                 farmerId ? eq(cycleHistory.farmerId, farmerId) : undefined,
                 officerId ? eq(farmer.officerId, officerId) : undefined,
-                status === "all" ? undefined : eq(cycleHistory.status, status),
+                effectiveStatus === "all" ? undefined : eq(cycleHistory.status, effectiveStatus),
                 search ? or(
                     ilike(cycleHistory.cycleName, `%${search}%`),
                     ilike(farmer.name, `%${search}%`),

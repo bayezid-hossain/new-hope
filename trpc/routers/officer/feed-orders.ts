@@ -67,7 +67,7 @@ export const feedOrdersRouter = createTRPCRouter({
         .input(z.object({
             orgId: z.string(),
             limit: z.number().min(1).max(100).default(50),
-            cursor: z.string().nullish(), // For infinite scrolling if needed later (using date or id)
+            cursor: z.string().nullish(),
         }))
         .query(async ({ ctx, input }) => {
             const orders = await ctx.db.query.feedOrders.findMany({
