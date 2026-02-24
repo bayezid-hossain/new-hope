@@ -74,7 +74,6 @@ export function TransferStockModal({
         ...trpc.officer.farmers.listWithStock.queryOptions({
             orgId: orgId!,
             pageSize: 100, // Fetch top 100 for now
-            officerId: officerId,
         }),
         enabled: open && !!orgId,
     });
