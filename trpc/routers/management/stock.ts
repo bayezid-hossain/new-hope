@@ -1,10 +1,10 @@
 import { farmer, stockLogs } from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, managementProProcedure } from "../../init";
+import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementStockRouter = createTRPCRouter({
-    getAllFarmersStock: managementProProcedure
+    getAllFarmersStock: managementProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
             cursor: z.number().default(0),
@@ -41,7 +41,7 @@ export const managementStockRouter = createTRPCRouter({
             return { items, nextCursor };
         }),
 
-    getImportHistory: managementProProcedure
+    getImportHistory: managementProcedure
         .input(z.object({
             limit: z.number().min(1).max(50).default(20),
             cursor: z.number().default(0),
