@@ -10,6 +10,7 @@ export const managementStockRouter = createTRPCRouter({
             limit: z.number().min(1).max(100).default(20),
             cursor: z.number().default(0),
             officerId: z.string().optional(),
+            search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
             const officerFilter = input.officerId
@@ -20,7 +21,8 @@ export const managementStockRouter = createTRPCRouter({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     officerFilter,
-                    eq(farmer.status, "active")
+                    eq(farmer.status, "active"),
+                    input.search ? sql`${farmer.name} ILIKE ${`%${input.search}%`}` : undefined
                 ),
                 columns: {
                     id: true,
@@ -47,23 +49,29 @@ export const managementStockRouter = createTRPCRouter({
             limit: z.number().min(1).max(50).default(20),
             cursor: z.number().default(0),
             officerId: z.string().optional(),
+            search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
             const officerFilter = input.officerId
                 ? sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${input.officerId} AND organization_id = ${input.orgId})`
                 : sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE organization_id = ${input.orgId})`;
 
+            const searchPattern = input.search ? `%${input.search}%` : null;
+            const searchCondition = searchPattern ? sql`AND (driver_name ILIKE ${searchPattern} OR farmer_id IN (SELECT id FROM ${farmer} WHERE name ILIKE ${searchPattern}))` : sql``;
+
             const result: any = await ctx.db.execute(sql`
                 SELECT 
                     reference_id as "batchId",
-                    MIN(created_at) as "createdAt",
-                    COUNT(*) as "count",
-                    SUM(CAST(amount AS NUMERIC)) as "totalAmount",
+                    MIN(created_at) as "importDate",
+                    COUNT(DISTINCT farmer_id) as "count",
+                    SUM(amount) as "totalAmount",
+                    -- Get the driver_name from the first log in each batch that has one
                     MAX(driver_name) as "driverName"
                 FROM ${stockLogs}
                 WHERE type = 'RESTOCK' 
                 AND reference_id IS NOT NULL
                 ${officerFilter}
+                ${searchCondition}
                 GROUP BY reference_id
                 ORDER BY MIN(created_at) DESC
                 LIMIT ${input.limit + 1} OFFSET ${input.cursor}

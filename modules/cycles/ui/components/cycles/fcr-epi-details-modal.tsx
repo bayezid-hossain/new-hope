@@ -15,6 +15,7 @@ interface FcrEpiDetailsModalProps {
     age: number;
     totalWeight: number;
     feedBags: number;
+    isEnded?: boolean;
 }
 
 export const FcrEpiDetailsModal = ({
@@ -27,6 +28,7 @@ export const FcrEpiDetailsModal = ({
     age,
     totalWeight,
     feedBags,
+    isEnded,
 }: FcrEpiDetailsModalProps) => {
     const survivors = doc - mortality;
     const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
@@ -121,7 +123,9 @@ export const FcrEpiDetailsModal = ({
                     </div>
                     <div className="ml-8 text-sm space-y-2">
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
-                            <span className="text-muted-foreground text-xs font-medium">Cycle Duration</span>
+                            <span className="text-muted-foreground text-xs font-medium">
+                                {isEnded ? "Weighted Avg. Age" : "Current Cycle Age"}
+                            </span>
                             <span className="font-mono">{age} Days</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-primary/10 border border-primary/20 rounded-md">

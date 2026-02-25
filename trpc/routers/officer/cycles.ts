@@ -1237,7 +1237,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 }
 
                 // 3. VALIDATION: Cannot edit age if sales have occurred
-                if (cycle.birdsSold > 0) {
+                if (cycle.birdsSold > 0 && cycle.age > input.newAge) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
                         message: "Cannot edit age after birds have been sold. Adjustments are locked."

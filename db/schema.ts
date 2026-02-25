@@ -296,6 +296,8 @@ export const saleEvents = pgTable("sale_events", {
   birdsSold: integer("birds_sold").notNull(),
   totalMortality: integer("total_mortality").notNull(),
 
+  age: integer("age"), // Snapshot of bird age at the time of sale
+
   totalWeight: decimal("total_weight").notNull(), // kg
   avgWeight: decimal("avg_weight").notNull(), // kg per bird
   pricePerKg: decimal("price_per_kg").notNull(),
@@ -338,6 +340,11 @@ export const saleReports = pgTable("sale_reports", {
   feedConsumed: text("feed_consumed"), // JSON stringified array
   feedStock: text("feed_stock"),       // JSON stringified array
 
+  // Historical Pricing Context
+  feedPriceUsed: decimal("feed_price_used"),
+  docPriceUsed: decimal("doc_price_used"),
+  recoveryPrice: decimal("recovery_price"),
+
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
@@ -377,6 +384,7 @@ export const saleMetrics = pgTable("sale_metrics", {
   // Metadata (audit trail - what prices were used)
   feedPriceUsed: decimal("feed_price_used").notNull().default("3220"),
   docPriceUsed: decimal("doc_price_used").notNull().default("41.5"),
+  recoveryPrice: decimal("recovery_price"), // Per-cycle base selling price, nullable (defaults to BASE_SELLING_PRICE when null)
   calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
   lastRecalculatedAt: timestamp("last_recalculated_at").notNull().defaultNow(),
 }, (t) => [

@@ -14,7 +14,10 @@ export class SaleMetricsService {
     static async recalculateForCycle(
         cycleId?: string,
         historyId?: string,
-        tx?: any
+        tx?: any,
+        recoveryPrice?: number,
+        feedPriceOverride?: number,
+        docPriceOverride?: number
     ): Promise<void> {
         if (!cycleId && !historyId) throw new Error("Must provide cycleId or historyId");
 
@@ -76,7 +79,8 @@ export class SaleMetricsService {
         // Use organization's feed price if available, otherwise fallback to constant
         // Note: We use the CURRENT feed price. Ideally this should be snapshot at cycle creation,
         // but for now this is better than a hardcoded constant.
-        const orgFeedPrice = Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG;
+        const orgFeedPrice = feedPriceOverride ?? (Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG);
+        const docPriceUsed = docPriceOverride ?? DOC_PRICE_PER_BIRD;
 
         // Sort sales to find the latest one (Logic matches sales.ts)
         const sortedSales = [...sales].sort((a, b) => {
@@ -86,6 +90,9 @@ export class SaleMetricsService {
         });
 
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
+
+        // Use per-cycle recovery price if provided, otherwise fallback to global constant
+        const basePrice = recoveryPrice ?? BASE_SELLING_PRICE;
 
         let netAdjustment = 0;
 
@@ -104,7 +111,7 @@ export class SaleMetricsService {
             totalMedicineCost += parseFloat(data.medicineCost || "0") || 0;
 
             // Calculate Price Adjustment
-            const diff = price - BASE_SELLING_PRICE;
+            const diff = price - basePrice;
             if (diff > 0) {
                 netAdjustment += diff / 2;
             } else {
@@ -137,9 +144,33 @@ export class SaleMetricsService {
         }
 
         const numSales = sales.length;
-        // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx)
-        const averageAge = cycle.age || 0;
 
+        // Calculate Weighted Average Age
+        // Formula: Sum(Bird-Days) / Total Birds Sold where Bird-Days = birds sold * Age at Sale
+        let totalBirdDays = 0;
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+        for (const sale of sales) {
+            const data = sale.selectedReport || sale;
+            const birdsSold = Number(data.birdsSold) || 0;
+
+            const ageAtSale = sale.age ?? (() => {
+                const saleDate = new Date(sale.saleDate);
+                const cycleStart = new Date(cycleStartDate);
+                saleDate.setHours(0, 0, 0, 0);
+                cycleStart.setHours(0, 0, 0, 0);
+
+                const diffTime = saleDate.getTime() - cycleStart.getTime();
+                return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+            })();
+
+            totalBirdDays += birdsSold * ageAtSale;
+        }
+
+        // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
+        const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
+        const averageAge = Number(rawAverageAge.toFixed(2));
+        // console.log(averageAge)
         // Calculate Average Weight using SURVIVORS (DOC - Mortality) to match frontend logic
         // This accounts for missing birds/theft which reduces the effective average weight of the flock
         const survivors = cycle.doc - (cycle.mortality || 0);
@@ -155,10 +186,10 @@ export class SaleMetricsService {
         // Profit = Formula Revenue - DOC Cost - Feed Cost
         // Medicine Cost is EXCLUDED from profit calculation (but still tracked)
 
-        const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+        const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
         const formulaRevenue = effectiveRate * totalWeight;
 
-        const docCost = cycle.doc * DOC_PRICE_PER_BIRD;
+        const docCost = cycle.doc * docPriceUsed;
         const feedCost = totalFeedBags * orgFeedPrice;
 
         // Use formula revenue for profit, and exclude medicine cost
@@ -181,8 +212,9 @@ export class SaleMetricsService {
             medicineCost: totalMedicineCost.toString(),
             totalRevenue: totalRevenue.toString(),
             netProfit: netProfit.toFixed(2).toString(),
-            feedPriceUsed: FEED_PRICE_PER_BAG.toString(),
-            docPriceUsed: DOC_PRICE_PER_BIRD.toString(),
+            feedPriceUsed: orgFeedPrice.toString(),
+            docPriceUsed: docPriceUsed.toString(),
+            recoveryPrice: recoveryPrice ? recoveryPrice.toString() : null,
             lastRecalculatedAt: new Date(),
         }).onConflictDoUpdate({
             target: cycleId ? [saleMetrics.cycleId] : [saleMetrics.historyId],
@@ -198,6 +230,7 @@ export class SaleMetricsService {
                 medicineCost: totalMedicineCost.toString(),
                 totalRevenue: totalRevenue.toString(),
                 netProfit: netProfit.toString(),
+                recoveryPrice: recoveryPrice ? recoveryPrice.toString() : null,
                 lastRecalculatedAt: new Date(),
             }
         });

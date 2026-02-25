@@ -1,0 +1,1 @@
+ALTER TABLE "sale_events" ADD COLUMN "age" integer;
