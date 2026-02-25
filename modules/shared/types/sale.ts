@@ -80,6 +80,9 @@ export interface SaleEvent {
         docCost?: number;
         profit?: number;
         avgPrice?: number;
+        recoveryPrice?: number | null;
+        feedPriceUsed?: number | null;
+        docPriceUsed?: number | null;
     };
     isLatestInCycle?: boolean;
 }

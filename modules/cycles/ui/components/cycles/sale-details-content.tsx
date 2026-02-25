@@ -245,7 +245,7 @@ export const SaleDetailsContent = ({
                                     <div className="mt-2 text-xs text-amber-600/80 italic">* Costs will be deducted when cycle ends.</div>
                                 )}
                             </div>
-                            <ProfitDetailsModal open={showProfitModal} onOpenChange={setShowProfitModal} revenue={formulaRevenue} actualRevenue={actualRevenue} totalWeight={cycleTotalWeight} avgPrice={avgPrice} effectiveRate={effectiveRate} netAdjustment={netAdjustment} feedBags={totalFeedBags} docCount={doc} feedCost={feedCost} docCost={docCost} profit={formulaProfit} />
+                            <ProfitDetailsModal open={showProfitModal} onOpenChange={setShowProfitModal} revenue={formulaRevenue} actualRevenue={actualRevenue} totalWeight={cycleTotalWeight} avgPrice={avgPrice} effectiveRate={effectiveRate} netAdjustment={netAdjustment} feedBags={totalFeedBags} docCount={doc} feedCost={feedCost} docCost={docCost} profit={formulaProfit} baseRate={ctx.recoveryPrice ?? 141} />
                             <FcrEpiDetailsModal open={showFcrEpiModal} onOpenChange={setShowFcrEpiModal} fcr={fcr} epi={epi} doc={doc} mortality={mortality} age={sale.cycleContext?.age || 0} totalWeight={cycleTotalWeight} feedBags={totalFeedBags} isEnded={isEnded} />
                         </div>
                     );
@@ -510,6 +510,7 @@ export const SaleDetailsContent = ({
                             feedCost={feedCost}
                             docCost={docCost}
                             profit={formulaProfit}
+                            baseRate={ctx.recoveryPrice ?? undefined}
                         />
 
                         <FcrEpiDetailsModal

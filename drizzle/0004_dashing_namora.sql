@@ -1,0 +1,1 @@
+ALTER TABLE "sale_metrics" ADD COLUMN "recovery_price" numeric;

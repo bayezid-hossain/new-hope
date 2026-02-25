@@ -379,6 +379,7 @@ export const saleMetrics = pgTable("sale_metrics", {
   // Metadata (audit trail - what prices were used)
   feedPriceUsed: decimal("feed_price_used").notNull().default("3220"),
   docPriceUsed: decimal("doc_price_used").notNull().default("41.5"),
+  recoveryPrice: decimal("recovery_price"), // Per-cycle base selling price, nullable (defaults to BASE_SELLING_PRICE when null)
   calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
   lastRecalculatedAt: timestamp("last_recalculated_at").notNull().defaultNow(),
 }, (t) => [

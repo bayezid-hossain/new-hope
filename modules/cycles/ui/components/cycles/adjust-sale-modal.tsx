@@ -28,7 +28,7 @@ import type { SaleEvent, SaleReport } from "@/modules/shared/types/sale";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Banknote, Bird, Box, FileText, ShoppingCart, Truck } from "lucide-react";
+import { ArrowLeft, Banknote, Bird, Box, FileText, Settings, ShoppingCart, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -54,6 +54,9 @@ const adjustSaleSchema = z.object({
     party: z.string().optional(),
     farmerMobile: z.string().optional(),
     adjustmentNote: z.string().min(0, "Please provide a more detailed reason for this adjustment"),
+    recoveryPrice: z.coerce.number().positive().optional(),
+    feedPricePerBag: z.coerce.number().positive().optional(),
+    docPricePerBird: z.coerce.number().positive().optional(),
 });
 
 interface AdjustSaleModalProps {
@@ -103,6 +106,9 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         party: saleEvent.party || "",
         farmerMobile: saleEvent.farmerMobile || "",
         adjustmentNote: "",
+        recoveryPrice: saleEvent.cycleContext?.recoveryPrice ? Number(saleEvent.cycleContext.recoveryPrice) : undefined,
+        feedPricePerBag: saleEvent.cycleContext?.feedPriceUsed ? Number(saleEvent.cycleContext.feedPriceUsed) : undefined,
+        docPricePerBird: saleEvent.cycleContext?.docPriceUsed ? Number(saleEvent.cycleContext.docPriceUsed) : undefined,
     };
 
     const form = useForm<z.infer<typeof adjustSaleSchema>>({
@@ -216,6 +222,9 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                 party: saleEvent.party || "",
                 farmerMobile: saleEvent.farmerMobile || "",
                 adjustmentNote: "",
+                recoveryPrice: saleEvent.cycleContext?.recoveryPrice ? Number(saleEvent.cycleContext.recoveryPrice) : undefined,
+                feedPricePerBag: saleEvent.cycleContext?.feedPriceUsed ? Number(saleEvent.cycleContext.feedPriceUsed) : undefined,
+                docPricePerBird: saleEvent.cycleContext?.docPriceUsed ? Number(saleEvent.cycleContext.docPriceUsed) : undefined,
             });
         }
     }, [isOpen, saleEvent, latestReport, form]);
@@ -296,7 +305,10 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             farmerMobile: values.farmerMobile || "",
             excludeSaleId: saleEvent.id,
             historyId: saleEvent.historyId || null,
-            saleDate: saleEvent.saleDate
+            saleDate: saleEvent.saleDate,
+            recoveryPrice: values.recoveryPrice,
+            feedPricePerBag: values.feedPricePerBag,
+            docPricePerBird: values.docPricePerBird,
         });
     };
 
@@ -318,6 +330,9 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
             location: values.location,
             party: values.party,
             adjustmentNote: values.adjustmentNote,
+            recoveryPrice: values.recoveryPrice,
+            feedPricePerBag: values.feedPricePerBag,
+            docPricePerBird: values.docPricePerBird,
         });
     };
 
@@ -696,6 +711,65 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                 />
                             </div>
                         </div>
+
+                        {remainingBirdsAfterAdjustment === 0 && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 space-y-3">
+                                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs font-bold uppercase tracking-wider">
+                                    <Settings className="h-3.5 w-3.5" /> Cycle Constants
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="recoveryPrice"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs text-amber-700 dark:text-amber-300">Recovery Price</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="0.01" placeholder="141" className="h-8 text-sm"
+                                                        value={field.value ?? ""}
+                                                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber || undefined)}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="feedPricePerBag"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs text-amber-700 dark:text-amber-300">Feed/Bag</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="1" placeholder="3220" className="h-8 text-sm"
+                                                        value={field.value ?? ""}
+                                                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber || undefined)}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="docPricePerBird"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs text-amber-700 dark:text-amber-300">DOC/Bird</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="0.1" placeholder="41.5" className="h-8 text-sm"
+                                                        value={field.value ?? ""}
+                                                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber || undefined)}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-amber-600/70 dark:text-amber-400/60">Leave empty to use defaults.</p>
+                            </div>
+                        )}
 
                         <Separator />
 

@@ -20,6 +20,7 @@ interface ProfitDetailsModalProps {
     feedCost: number;
     docCost: number;
     profit: number;
+    baseRate?: number; // Per-cycle recovery price, defaults to BASE_SELLING_PRICE
 }
 
 export const ProfitDetailsModal = ({
@@ -36,10 +37,12 @@ export const ProfitDetailsModal = ({
     feedCost,
     docCost,
     profit,
+    baseRate: baseRateProp,
 }: ProfitDetailsModalProps) => {
+    const baseRate = baseRateProp ?? BASE_SELLING_PRICE;
     // Check if there is a discrepancy between actual revenue and formula revenue
     const adjustmentType = netAdjustment > 0 ? "surplus" : netAdjustment < 0 ? "deficit" : "neutral";
-    const baseRevenue = totalWeight * BASE_SELLING_PRICE;
+    const baseRevenue = totalWeight * baseRate;
 
     return (
         <ResponsiveDialog
@@ -53,7 +56,7 @@ export const ProfitDetailsModal = ({
                 <div className="bg-muted/30 p-3 rounded-lg text-xs font-mono text-muted-foreground border border-border/50">
                     <p className="font-semibold text-foreground mb-1">Profit Formula:</p>
                     <p>(Weight × Effective Rate) - (Feed Cost + DOC Cost)</p>
-                    <p className="mt-1 opacity-70">Effective Rate = max(141, 141 + Σ Independent Adjustments)</p>
+                    <p className="mt-1 opacity-70">Effective Rate = max({baseRate}, {baseRate} + Σ Independent Adjustments)</p>
                 </div>
 
                 {/* Step 0: Average Price */}
@@ -96,12 +99,12 @@ export const ProfitDetailsModal = ({
                     <div className="ml-8 text-sm space-y-2">
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
                             <span className="text-muted-foreground text-xs">Base Rate</span>
-                            <span className="font-mono">৳{BASE_SELLING_PRICE}</span>
+                            <span className="font-mono">৳{baseRate}</span>
                         </div>
                         <div className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 bg-muted/20 rounded-md">
                             <div className="flex flex-col">
                                 <span className="text-muted-foreground text-xs">Total Net Adjustment</span>
-                                <span className="text-[10px] opacity-70 text-muted-foreground">Σ Surplus(P-141)/2 + Σ Deficit(P-141)</span>
+                                <span className="text-[10px] opacity-70 text-muted-foreground">Σ Surplus(P-{baseRate})/2 + Σ Deficit(P-{baseRate})</span>
                             </div>
                             <span className={`font-mono ${netAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                 {netAdjustment >= 0 ? "+" : ""}{netAdjustment.toFixed(2)} tk
@@ -111,7 +114,7 @@ export const ProfitDetailsModal = ({
                             <div className="flex flex-col">
                                 <span className="font-medium text-xs">Farmer's Effective Rate</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    max({BASE_SELLING_PRICE}, {BASE_SELLING_PRICE} + {netAdjustment.toFixed(2)})
+                                    max({baseRate}, {baseRate} + {netAdjustment.toFixed(2)})
                                 </span>
                             </div>
                             <span className="font-bold text-primary font-mono">৳{effectiveRate.toFixed(2)}</span>

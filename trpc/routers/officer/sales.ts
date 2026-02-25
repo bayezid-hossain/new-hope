@@ -1,5 +1,5 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
-import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleReports } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports } from "@/db/schema";
 
 
 import { TRPCError } from "@trpc/server";
@@ -49,7 +49,6 @@ const getCycleStats = (events: any[]) => {
     const revenueMap = new Map<string, number>();
     const weightMap = new Map<string, number>();
     const birdsSoldMap = new Map<string, number>();
-    const adjustmentsMap = new Map<string, number>();
     const totalBirdDaysMap = new Map<string, number>();
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -58,7 +57,6 @@ const getCycleStats = (events: any[]) => {
         const currentRevenue = revenueMap.get(key) || 0;
         const currentWeight = weightMap.get(key) || 0;
         const currentBirdsSold = birdsSoldMap.get(key) || 0;
-        let currentAdjustment = adjustmentsMap.get(key) || 0;
         const currentBirdDays = totalBirdDaysMap.get(key) || 0;
 
         const price = parseFloat(ev.pricePerKg);
@@ -86,12 +84,6 @@ const getCycleStats = (events: any[]) => {
 
         // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
         const diff = price - BASE_SELLING_PRICE;
-        if (diff > 0) {
-            currentAdjustment += diff / 2;
-        } else if (diff < 0) {
-            currentAdjustment += diff;
-        }
-        adjustmentsMap.set(key, currentAdjustment);
     });
 
     const ageMap = new Map<string, number>();
@@ -100,7 +92,7 @@ const getCycleStats = (events: any[]) => {
         ageMap.set(key, totalBirds > 0 ? Number((birdDays / totalBirds).toFixed(2)) : 0);
     });
     // console.log(ageMap)
-    return { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, ageMap };
+    return { revenueMap, weightMap, birdsSoldMap, ageMap };
 };
 
 const getCycleStatsWithMortality = (events: any[]) => {
@@ -147,6 +139,9 @@ const createSaleEventSchema = z.object({
     feedStock: z.array(feedItemSchema),
     medicineCost: z.number().min(0).default(0),
     farmerMobile: z.string().min(1, "Mobile number is required"),
+    recoveryPrice: z.number().positive().optional(),
+    feedPricePerBag: z.number().positive().optional(),
+    docPricePerBird: z.number().positive().optional(),
 });
 
 // ... (omitted unrelated implementations)
@@ -166,6 +161,9 @@ const generateReportSchema = z.object({
     medicineCost: z.number().min(0).default(0),
     feedConsumed: z.array(feedItemSchema).optional(),
     feedStock: z.array(feedItemSchema).optional(),
+    recoveryPrice: z.number().positive().optional(),
+    feedPricePerBag: z.number().positive().optional(),
+    docPricePerBird: z.number().positive().optional(),
 });
 
 // Helper to count bags from feed JSON
@@ -438,7 +436,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // Recalculate metrics for this cycle/history
-                await SaleMetricsService.recalculateForCycle(input.cycleId, historyId, tx);
+                await SaleMetricsService.recalculateForCycle(input.cycleId, historyId, tx, input.recoveryPrice, input.feedPricePerBag, input.docPricePerBird);
 
                 return { saleEvent, cycleEnded, historyId };
             });
@@ -666,7 +664,10 @@ export const officerSalesRouter = createTRPCRouter({
                 await SaleMetricsService.recalculateForCycle(
                     event.cycleId || undefined,
                     event.historyId || undefined,
-                    tx
+                    tx,
+                    input.recoveryPrice,
+                    input.feedPricePerBag,
+                    input.docPricePerBird
                 );
 
                 return { report, birdsSoldDifference };
@@ -760,9 +761,6 @@ export const officerSalesRouter = createTRPCRouter({
             let totalWeight = input.totalWeight;
             let totalBirdsSold = input.birdsSold;
             let totalRevenue = input.birdsSold > 0 ? (input.totalWeight * input.pricePerKg) : 0; // Actual amount
-            // For formula revenue calculation
-            let cumulativeAdjustment = 0;
-
             // Process previous sales
             for (const sale of previousSales) {
                 if (input.excludeSaleId && sale.id === input.excludeSaleId) continue;
@@ -775,16 +773,7 @@ export const officerSalesRouter = createTRPCRouter({
                 totalWeight += isNaN(w) ? 0 : w;
                 totalBirdsSold += s;
                 totalRevenue += parseFloat(data.totalAmount);
-
-                const diff = p - BASE_SELLING_PRICE;
-                if (diff > 0) cumulativeAdjustment += diff / 2;
-                else cumulativeAdjustment += diff;
             }
-
-            // Add current sale adjustment
-            const currentDiff = input.pricePerKg - BASE_SELLING_PRICE;
-            if (currentDiff > 0) cumulativeAdjustment += currentDiff / 2;
-            else cumulativeAdjustment += currentDiff;
 
 
             const newMortality = cycle.mortality + input.mortalityChange;
@@ -813,7 +802,7 @@ export const officerSalesRouter = createTRPCRouter({
             }
 
             // Calculate Metrics
-            const orgFeedPrice = Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG;
+            const orgFeedPrice = input.feedPricePerBag ?? (Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG);
             const feedCost = totalFeedBags * orgFeedPrice;
 
             // EPI Calculation needs age
@@ -845,9 +834,13 @@ export const officerSalesRouter = createTRPCRouter({
             // (Survival% * (AvgWeight / Age) * 100) / FCR? No that's huge.
             // (Survival% * AvgWeight / FCR / Age) * 100
 
-            const docCost = cycle.doc * DOC_PRICE_PER_BIRD;
+            const docPriceUsed = input.docPricePerBird ?? DOC_PRICE_PER_BIRD;
+            const docCost = cycle.doc * docPriceUsed;
 
-            const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + cumulativeAdjustment);
+            const basePrice = input.recoveryPrice ?? BASE_SELLING_PRICE;
+            const avgPrice = totalWeight > 0 ? totalRevenue / totalWeight : 0;
+            const netAdjustment = (avgPrice - basePrice) / 2;
+            const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
             const formulaRevenue = effectiveRate * totalWeight;
             const formulaProfit = formulaRevenue - docCost - feedCost;
 
@@ -862,6 +855,7 @@ export const officerSalesRouter = createTRPCRouter({
             const MS_PER_DAY = 1000 * 60 * 60 * 24;
             const diffTimeLocal = saleDateLocal.getTime() - cycleStartDate.getTime();
             let age = Math.max(1, Math.round(diffTimeLocal / MS_PER_DAY) + 1);
+            const originalSaleAge = age;
 
             if (isEnded) {
                 let totalBirdDays = 0;
@@ -898,6 +892,7 @@ export const officerSalesRouter = createTRPCRouter({
                 ...input,
                 id: "preview-id",
                 cycleId: input.cycleId,
+                saleAge: originalSaleAge,
                 totalAmount: (input.totalWeight * input.pricePerKg).toFixed(2),
                 avgWeight: (input.birdsSold > 0 ? input.totalWeight / input.birdsSold : 0).toFixed(2),
                 totalMortality: newMortality,
@@ -907,7 +902,7 @@ export const officerSalesRouter = createTRPCRouter({
                     revenue: formulaRevenue,
                     actualRevenue: totalRevenue,
                     effectiveRate,
-                    netAdjustment: cumulativeAdjustment,
+                    netAdjustment,
                     fcr: parseFloat(fcr.toFixed(2)),
                     epi: parseFloat(epi.toFixed(0)),
                     mortality: newMortality,
@@ -919,7 +914,10 @@ export const officerSalesRouter = createTRPCRouter({
                     profit: formulaProfit,
                     totalWeight,
                     cumulativeBirdsSold: totalBirdsSold,
-                    age
+                    age,
+                    recoveryPrice: basePrice,
+                    feedPriceUsed: orgFeedPrice,
+                    docPriceUsed: docPriceUsed
                 }
             };
         }),
@@ -1073,8 +1071,26 @@ export const officerSalesRouter = createTRPCRouter({
                 });
             }
 
+            // Fetch per-cycle recovery prices from saleMetrics
+            const allGroupKeys = [...new Set(events.map(e => e.cycleId || e.historyId).filter(Boolean))] as string[];
+            const metricsRows = allGroupKeys.length > 0 ? await ctx.db.query.saleMetrics.findMany({
+                where: or(
+                    ...allGroupKeys.map(k => or(eq(saleMetrics.cycleId, k), eq(saleMetrics.historyId, k)))
+                ),
+                columns: { cycleId: true, historyId: true, recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
+            }) : [];
+            const recoveryPriceMap = new Map<string, number>();
+            const feedPriceUsedMap = new Map<string, number>();
+            const docPriceUsedMap = new Map<string, number>();
+            for (const m of metricsRows) {
+                const key = m.cycleId || m.historyId || "";
+                if (key && m.recoveryPrice) recoveryPriceMap.set(key, Number(m.recoveryPrice));
+                if (key && m.feedPriceUsed) feedPriceUsedMap.set(key, Number(m.feedPriceUsed));
+                if (key && m.docPriceUsed) docPriceUsedMap.set(key, Number(m.docPriceUsed));
+            }
+
             // Calculate cumulative revenue, weight AND independent price adjustments PER CYCLE/HISTORY
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(events);
+            const { latestMortalityMap, ageMap } = getCycleStatsWithMortality(events);
 
             // Pre-calculate LATEST feed intake for each History Group from the events themselves
             // (Since events are sorted DESC, the first event for a historyId is the Final Sale)
@@ -1130,7 +1146,6 @@ export const officerSalesRouter = createTRPCRouter({
                 let cumulativeRevenue = 0;
                 let cumulativeBirdsSold = 0;
                 let latestMortality = 0;
-                let netAdjustment = 0;
 
                 groupEvents.forEach(evt => {
                     const selectedReport = evt.reports?.find(
@@ -1164,15 +1179,14 @@ export const officerSalesRouter = createTRPCRouter({
 
                     // 🔥 LATEST MORTALITY FROM SELECTED VERSION
                     latestMortality = Math.max(latestMortality, mortality);
-
-                    // Price adjustment logic (unchanged)
-                    const diff = price - BASE_SELLING_PRICE;
-                    if (diff > 0) netAdjustment += diff / 2;
-                    else netAdjustment += diff;
                 });
+                const basePrice = recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
+                const netAdjustment = ((cumulativeRevenue / cumulativeWeight) - basePrice) / 2;
 
-                // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
-                const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+
+                // Calculate the original sale age (not the weighted one)
+                // Effective Rate = max(basePrice, basePrice + Net Adjustment)
+                const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
                 const formulaRevenue = effectiveRate * cumulativeWeight;
 
                 // Use latest mortality from selected reports across all sales in this cycle
@@ -1189,8 +1203,10 @@ export const officerSalesRouter = createTRPCRouter({
                     isLatestInGroup && isEnded      // Replaced isEnded
                 );
                 // Profit calculation (backend-only)
-                const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;
-                const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
+                const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
+                const feedCost = isEnded ? feedConsumed * feedPrice : 0;
+                const docCost = isEnded ? doc * docPrice : 0;
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
@@ -1237,6 +1253,9 @@ export const officerSalesRouter = createTRPCRouter({
                         docCost,
                         profit,
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
+                        feedPriceUsed: feedPriceUsedMap.get(groupKey) ?? null,
+                        docPriceUsed: docPriceUsedMap.get(groupKey) ?? null,
                     }
                 };
             });
@@ -1308,10 +1327,18 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // Recalculate metrics for this cycle/history to update Production Report
+                // Preserve existing recovery price from saleMetrics
+                const existingMetrics = await tx.query.saleMetrics.findFirst({
+                    where: event.cycleId ? eq(saleMetrics.cycleId, event.cycleId) : eq(saleMetrics.historyId, event.historyId!),
+                    columns: { recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
+                });
                 await SaleMetricsService.recalculateForCycle(
                     event.cycleId || undefined,
                     event.historyId || undefined,
-                    tx
+                    tx,
+                    existingMetrics?.recoveryPrice ? Number(existingMetrics.recoveryPrice) : undefined,
+                    existingMetrics?.feedPriceUsed ? Number(existingMetrics.feedPriceUsed) : undefined,
+                    existingMetrics?.docPriceUsed ? Number(existingMetrics.docPriceUsed) : undefined
                 );
 
                 return { success: true };
@@ -1408,7 +1435,25 @@ export const officerSalesRouter = createTRPCRouter({
                 )
             });
 
-            const { revenueMap, weightMap, birdsSoldMap, adjustmentsMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
+            // Fetch per-cycle recovery prices from saleMetrics
+            const allGroupKeysForMetrics = [...new Set([...cycleIds, ...historyIds])];
+            const metricsRows = allGroupKeysForMetrics.length > 0 ? await ctx.db.query.saleMetrics.findMany({
+                where: or(
+                    ...allGroupKeysForMetrics.map(k => or(eq(saleMetrics.cycleId, k), eq(saleMetrics.historyId, k)))
+                ),
+                columns: { cycleId: true, historyId: true, recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
+            }) : [];
+            const recoveryPriceMap = new Map<string, number>();
+            const feedPriceUsedMap = new Map<string, number>();
+            const docPriceUsedMap = new Map<string, number>();
+            for (const m of metricsRows) {
+                const key = m.cycleId || m.historyId || "";
+                if (key && m.recoveryPrice) recoveryPriceMap.set(key, Number(m.recoveryPrice));
+                if (key && m.feedPriceUsed) feedPriceUsedMap.set(key, Number(m.feedPriceUsed));
+                if (key && m.docPriceUsed) docPriceUsedMap.set(key, Number(m.docPriceUsed));
+            }
+
+            const { revenueMap, weightMap, birdsSoldMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
 
             // Pre-calculate LATEST feed intake for each History Group from ALL related events
             const historyFeedMap = new Map<string, number>();
@@ -1461,21 +1506,31 @@ export const officerSalesRouter = createTRPCRouter({
                 const cumulativeRevenue = revenueMap.get(groupKey) || 0;
                 const cumulativeWeight = weightMap.get(groupKey) || 0;
                 const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
-                const netAdjustment = adjustmentsMap.get(groupKey) || 0;
+                const basePrice = recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
+                const netAdjustment = ((cumulativeRevenue / cumulativeWeight) - basePrice) / 2;
 
-                // Effective Rate = max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + Net Adjustment)
-                const effectiveRate = Math.max(BASE_SELLING_PRICE, BASE_SELLING_PRICE + netAdjustment);
+                // Effective Rate = max(basePrice, basePrice + Net Adjustment)
+                const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
                 const formulaRevenue = effectiveRate * cumulativeWeight;
 
                 // Calculate FCR/EPI
                 const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
-
+                console.log("fcr", fcr);
+                console.log("epi", epi);
+                console.log("effectiveRate", effectiveRate);
+                console.log("formulaRevenue", formulaRevenue);
                 // Profit calculation (backend-only)
-                const feedCost = isEnded ? feedConsumed * FEED_PRICE_PER_BAG : 0;
-                const docCost = isEnded ? doc * DOC_PRICE_PER_BIRD : 0;
+                const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
+                const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
+                const feedCost = isEnded ? feedConsumed * feedPrice : 0;
+                const docCost = isEnded ? doc * docPrice : 0;
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
+                console.log("feedCost", feedCost);
+                console.log("docCost", docCost);
+                console.log("profit", profit);
+                console.log("avgPrice", avgPrice);
                 // Calculate the original sale age (not the weighted one)
                 const saleAge = e.age ?? (() => {
                     const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
@@ -1517,6 +1572,7 @@ export const officerSalesRouter = createTRPCRouter({
                         docCost,
                         profit,
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
                     }
                 };
             });
