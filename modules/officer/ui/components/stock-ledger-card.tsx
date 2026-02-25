@@ -7,6 +7,7 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronDown, ChevronRight, ClipboardList, TrendingDown, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface FarmerStockSummary {
@@ -18,6 +19,7 @@ interface FarmerStockSummary {
 
 export function StockLedgerCard({ farmer }: { farmer: FarmerStockSummary }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const router = useRouter();
     const trpc = useTRPC()
     // Lazy load history
     const { data: history, isLoading } = useQuery(trpc.officer.stock.getHistory.queryOptions(
@@ -37,7 +39,15 @@ export function StockLedgerCard({ farmer }: { farmer: FarmerStockSummary }) {
                             <ClipboardList className="h-6 w-6" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors duration-300">{farmer.name}</h3>
+                            <h3
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push("/farmers/" + farmer.id);
+                                }}
+                                className="font-bold text-lg tracking-tight hover:text-primary hover:underline transition-colors duration-300"
+                            >
+                                {farmer.name}
+                            </h3>
                             <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/80 animate-pulse"></span>
                                 Updated: {format(new Date(farmer.updatedAt), "dd/MM/yyyy")}

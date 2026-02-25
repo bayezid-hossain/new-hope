@@ -15,14 +15,15 @@ import { useTRPC } from "@/trpc/client";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronDown, ChevronRight, FileSpreadsheet, Loader2, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function ImportHistoryView() {
+export function ImportHistoryView({ search }: { search?: string }) {
     const trpc = useTRPC();
     const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
     const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(trpc.officer.stock.getImportHistory.infiniteQueryOptions(
-        { limit: 10 },
+        { limit: 10, search },
         {
             getNextPageParam: (lastPage: any) => lastPage.nextCursor,
         }
@@ -124,6 +125,7 @@ export function ImportHistoryView() {
 
 function BatchDetails({ batchId }: { batchId: string }) {
     const trpc = useTRPC();
+    const router = useRouter();
     const { data: details, isLoading } = useQuery(trpc.officer.stock.getBatchDetails.queryOptions({ batchId }));
 
     if (isLoading) {
@@ -143,7 +145,17 @@ function BatchDetails({ batchId }: { batchId: string }) {
                 <TableBody>
                     {details?.map((log) => (
                         <TableRow key={log.logId}>
-                            <TableCell className="font-medium">{log.farmerName}</TableCell>
+                            <TableCell>
+                                <span
+                                    className="font-medium hover:text-primary hover:underline cursor-pointer transition-colors"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push("/farmers/" + log.farmerId);
+                                    }}
+                                >
+                                    {log.farmerName}
+                                </span>
+                            </TableCell>
                             <TableCell>
                                 <Badge variant="secondary" className="font-mono">
                                     +{log.amount}

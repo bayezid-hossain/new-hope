@@ -13,10 +13,12 @@ import { useTRPC } from "@/trpc/client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardList, RefreshCw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useDebounce } from "use-debounce";
 
 export default function StockLedgerPage() {
     const { isPro, isLoading: isOrgLoading } = useCurrentOrg();
     const [search, setSearch] = useState("");
+    const [debouncedSearch] = useDebounce(search, 500);
     const trpc = useTRPC()
 
     const {
@@ -29,7 +31,7 @@ export default function StockLedgerPage() {
         refetch
     } = useInfiniteQuery({
         ...trpc.officer.stock.getAllFarmersStock.infiniteQueryOptions(
-            { limit: 20 },
+            { limit: 20, search: debouncedSearch },
         ),
         getNextPageParam: (lastPage: any) => lastPage.nextCursor,
         initialPageParam: 0,
@@ -52,10 +54,6 @@ export default function StockLedgerPage() {
     if (!isPro) {
         return <ProBlocker feature="Stock Ledger" description="Access full stock history and realtime balances for all farmers." />;
     }
-
-    const filteredFarmers = farmers.filter(f =>
-        f.name.toLowerCase().includes(search.toLowerCase())
-    );
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/5">
@@ -120,7 +118,7 @@ export default function StockLedgerPage() {
                             )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredFarmers.map((farmer) => (
+                                {farmers.map((farmer) => (
                                     <StockLedgerCard key={farmer.id} farmer={{
                                         ...farmer,
                                         updatedAt: new Date(farmer.updatedAt)
@@ -128,7 +126,7 @@ export default function StockLedgerPage() {
                                 ))}
                             </div>
 
-                            {!isLoading && filteredFarmers.length === 0 && (
+                            {!isLoading && farmers.length === 0 && (
                                 <div className="text-center py-20 bg-muted/5 rounded-3xl border border-dashed border-muted/50 col-span-full">
                                     <div className="mx-auto h-16 w-16 bg-muted/20 rounded-full flex items-center justify-center mb-4">
                                         <Search className="h-8 w-8 text-muted-foreground/40" />
@@ -166,7 +164,7 @@ export default function StockLedgerPage() {
                         </TabsContent>
 
                         <TabsContent value="history">
-                            <ImportHistoryView />
+                            <ImportHistoryView search={debouncedSearch} />
                         </TabsContent>
                     </Tabs>
                 </div>
