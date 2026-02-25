@@ -43,7 +43,7 @@ export const DesktopSalesTable = ({
 }: {
     sales: SaleEvent[];
     selectedReports: Record<string, string | null>;
-    onReportSelect: (saleId: string, reportId: string | null) => void;
+    onReportSelect: (saleId: string, reportId: string | null, isLatest: boolean) => void;
     hideFarmerName?: boolean;
 }) => {
     return (
@@ -73,7 +73,7 @@ export const DesktopSalesTable = ({
                                 sale={sale}
                                 isLatest={(sale as any).isLatestInCycle ?? (index === 0)}
                                 selectedReportId={selectedReports[sale.id] || null}
-                                onReportSelect={(reportId) => onReportSelect(sale.id, reportId)}
+                                onReportSelect={(reportId) => onReportSelect(sale.id, reportId, (sale as any).isLatestInCycle ?? (index === 0))}
                                 hideFarmerName={hideFarmerName}
                             />
                         ))}
@@ -226,7 +226,7 @@ const DesktopSaleRow = ({
                                         ))}
                                     </>
                                 )}
-                                {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
+                                {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit && isLatest) && (
                                     <>
                                         <DropdownMenuItem onClick={() => setIsAdjustOpen(true)}>
                                             <Pencil className="h-4 w-4 mr-2" /> Adjust Sale

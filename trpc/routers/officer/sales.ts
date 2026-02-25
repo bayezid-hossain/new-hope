@@ -499,6 +499,21 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             }
 
+            // Safeguard: Ensure only the latest sale event can be adjusted
+            const latestEvent = await ctx.db.query.saleEvents.findFirst({
+                where: event.historyId
+                    ? eq(saleEvents.historyId, event.historyId)
+                    : eq(saleEvents.cycleId, event.cycleId!),
+                orderBy: [desc(saleEvents.saleDate), desc(saleEvents.createdAt)]
+            });
+
+            if (latestEvent?.id !== event.id) {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "Only the latest sale event can be adjusted."
+                });
+            }
+
             // Calculate totals
             const avgWeight = input.totalWeight / input.birdsSold;
             const totalAmount = input.totalWeight * input.pricePerKg;
@@ -581,6 +596,8 @@ export const officerSalesRouter = createTRPCRouter({
 
                 const mortalityDifference = input.totalMortality - previousMortality;
                 const birdsSoldDifference = input.birdsSold - previousBirdsSold;
+                let reopenedCycleId: string | null = null;
+                let autoClosedHistoryId: string | null = null;
 
                 if ((mortalityDifference !== 0 || birdsSoldDifference !== 0) && event.cycleId) {
                     const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId));
@@ -619,15 +636,7 @@ export const officerSalesRouter = createTRPCRouter({
                             );
                         }
 
-                        // LOOPHOLE FIX: Auto-Close if adjustment clears the population
-                        const [refetchedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
-                        const remaining = (refetchedCycle?.doc || 0) - (refetchedCycle?.mortality || 0) - (refetchedCycle?.birdsSold || 0);
-                        if (remaining <= 0) {
-                            const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                            await endCycleLogic(tx, event.cycleId, refetchedCycle?.intake || 0, ctx.user.id, ctx.user.name);
-                        }
-
-                        // Log the system adjustment
+                        // Log the system adjustment (BEFORE auto-close, which deletes the cycle)
                         if (mortalityDifference !== 0) {
                             await tx.insert(cycleLogs).values({
                                 cycleId: event.cycleId,
@@ -649,13 +658,101 @@ export const officerSalesRouter = createTRPCRouter({
                                 createdAt: event.saleDate
                             });
                         }
+
+                        // LOOPHOLE FIX: Auto-Close if adjustment clears the population
+                        const [refetchedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
+                        const remaining = (refetchedCycle?.doc || 0) - (refetchedCycle?.mortality || 0) - (refetchedCycle?.birdsSold || 0);
+                        if (remaining <= 0) {
+                            const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
+                            const endResult = await endCycleLogic(tx, event.cycleId, refetchedCycle?.intake || 0, ctx.user.id, ctx.user.name);
+                            autoClosedHistoryId = endResult.historyId;
+                        }
                     }
+                } else if (event.historyId) {
+                    // Update cycle history stats for ended cycles
+                    const [historyRecord] = await tx.select().from(cycleHistory).where(eq(cycleHistory.id, event.historyId));
+
+                    if (historyRecord) {
+                        const newMortality = historyRecord.mortality + mortalityDifference;
+                        const newBirdsSold = historyRecord.birdsSold + birdsSoldDifference;
+
+                        // Population Safety Check
+                        if (newMortality + newBirdsSold > historyRecord.doc) {
+                            throw new TRPCError({
+                                code: "BAD_REQUEST",
+                                message: `Adjustment rejected. Total dead/sold (${newMortality + newBirdsSold}) would exceed initial birds (${historyRecord.doc}).`
+                            });
+                        }
+
+                        // Calculate new intake from adjustment's feed data
+                        const adjustedIntake = input.feedConsumed
+                            ? input.feedConsumed.reduce((sum, item) => sum + (Number(item.bags) || 0), 0)
+                            : historyRecord.finalIntake;
+
+                        // Update the history record with all adjusted stats
+                        await tx.update(cycleHistory)
+                            .set({
+                                mortality: newMortality,
+                                birdsSold: newBirdsSold,
+                                finalIntake: adjustedIntake,
+                            })
+                            .where(eq(cycleHistory.id, event.historyId));
+
+                        // Log the system adjustment
+                        if (mortalityDifference !== 0) {
+                            await tx.insert(cycleLogs).values({
+                                historyId: event.historyId,
+                                userId: ctx.user.id,
+                                type: "MORTALITY",
+                                valueChange: mortalityDifference,
+                                note: `Sale Report Adjustment (Mortality change: ${mortalityDifference})`,
+                                createdAt: event.saleDate
+                            });
+                        }
+
+                        if (birdsSoldDifference !== 0) {
+                            await tx.insert(cycleLogs).values({
+                                historyId: event.historyId,
+                                userId: ctx.user.id,
+                                type: "SYSTEM",
+                                valueChange: birdsSoldDifference,
+                                note: `Sale Report Adjustment (Birds sold adjusted by: ${birdsSoldDifference})`,
+                                createdAt: event.saleDate
+                            });
+                        }
+
+                        // Check if birds remain after adjustment → reopen cycle
+                        const remaining = historyRecord.doc - newMortality - newBirdsSold;
+                        if (remaining > 0) {
+                            const { reopenCycleFromHistory } = await import("@/modules/cycles/server/services/reopen-cycle-service");
+                            const reopened = await reopenCycleFromHistory(tx, event.historyId, ctx.user.id);
+                            reopenedCycleId = reopened.cycleId;
+                        }
+                    }
+                }
+
+                // Determine the correct references for post-adjustment logs/metrics
+                // Three cases:
+                // 1. History reopen: historyId deleted → use new cycleId
+                // 2. Active auto-close: cycleId deleted → use new historyId
+                // 3. Normal: use event's original cycleId/historyId
+                let logCycleId: string | null;
+                let logHistoryId: string | null;
+                if (reopenedCycleId) {
+                    logCycleId = reopenedCycleId;
+                    logHistoryId = null;
+                } else if (autoClosedHistoryId) {
+                    logCycleId = null;
+                    logHistoryId = autoClosedHistoryId;
+                } else {
+                    logCycleId = event.cycleId || null;
+                    logHistoryId = event.historyId || null;
                 }
 
                 // Add SALES log entry for adjustment
                 await tx.insert(cycleLogs).values({
-                    cycleId: event.cycleId,
-                    historyId: event.historyId,
+                    cycleId: logCycleId,
+                    historyId: logHistoryId,
                     userId: ctx.user.id,
                     type: "SALES",
                     valueChange: birdsSoldDifference,
@@ -665,8 +762,8 @@ export const officerSalesRouter = createTRPCRouter({
 
                 // Recalculate metrics
                 await SaleMetricsService.recalculateForCycle(
-                    event.cycleId || undefined,
-                    event.historyId || undefined,
+                    logCycleId || undefined,
+                    logHistoryId || undefined,
                     tx,
                     input.recoveryPrice,
                     input.feedPricePerBag,
@@ -1309,6 +1406,21 @@ export const officerSalesRouter = createTRPCRouter({
                     throw new TRPCError({
                         code: "NOT_FOUND",
                         message: "Event or Report not found"
+                    });
+                }
+
+                // Safeguard: Ensure only the latest sale can have its active version changed
+                const latestEvent = await tx.query.saleEvents.findFirst({
+                    where: event.historyId
+                        ? eq(saleEvents.historyId, event.historyId)
+                        : eq(saleEvents.cycleId, event.cycleId!),
+                    orderBy: [desc(saleEvents.saleDate), desc(saleEvents.createdAt)]
+                });
+
+                if (latestEvent?.id !== event.id) {
+                    throw new TRPCError({
+                        code: "FORBIDDEN",
+                        message: "Persistent version selection is only allowed for the latest sale."
                     });
                 }
 
