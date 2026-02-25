@@ -135,7 +135,7 @@ export const SaleEventCard = ({
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full pt-1" onClick={(e) => e.stopPropagation()}>
-                            {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) && (
+                            {((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit && isLatest) && (
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -151,7 +151,7 @@ export const SaleEventCard = ({
                                 size="sm"
                                 onClick={handleCopy}
                                 className="h-8 px-2 text-[11px] xs:text-xs gap-1.5"
-                                style={{ gridColumn: ((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit) ? 'auto' : 'span 2' }}
+                                style={{ gridColumn: ((activeMode === "OFFICER" || (!activeMode && role === "OFFICER")) && canEdit && isLatest) ? 'auto' : 'span 2' }}
                             >
                                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
                                 Copy

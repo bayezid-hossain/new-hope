@@ -192,16 +192,34 @@ export const SalesHistoryCard = ({
     const isLoading = recent ? recentQuery.isLoading : eventsQuery.isLoading;
     const isFetching = recent ? recentQuery.isFetching : eventsQuery.isFetching;
 
-    // Initialize selectedReports when data changes - only if not already set or for new sales
+    // Initialize selectedReports when data changes - only sync latest sales from backend
+    // Non-latest sales keep their local-only version selection
     useEffect(() => {
         if (salesEventsData) {
+            const events = salesEventsData as any[];
+
+            // Compute which sale IDs are "latest" in their cycle/history group
+            const latestIds = new Set<string>();
+            const seenGroups = new Set<string>();
+            for (const sale of events) {
+                const groupKey = sale.cycleId || sale.historyId || "unknown";
+                if (!seenGroups.has(groupKey)) {
+                    latestIds.add(sale.id);
+                    seenGroups.add(groupKey);
+                }
+            }
+
             setSelectedReports(prev => {
                 const next = { ...prev };
                 let changed = false;
-                (salesEventsData as any[]).forEach(sale => {
-                    // Update if backend's selectedReportId changed, or if not yet initialized
+                events.forEach(sale => {
                     const backendSelectedId = sale.selectedReportId || (sale.reports?.[0]?.id ?? null);
-                    if (next[sale.id] !== backendSelectedId) {
+                    // Only sync from backend for latest sales; non-latest keep local state
+                    if (latestIds.has(sale.id) && next[sale.id] !== backendSelectedId) {
+                        next[sale.id] = backendSelectedId;
+                        changed = true;
+                    } else if (!(sale.id in next)) {
+                        // Initialize if not yet set (first render for any sale)
                         next[sale.id] = backendSelectedId;
                         changed = true;
                     }
@@ -249,17 +267,19 @@ export const SalesHistoryCard = ({
         });
     };
 
-    const handleVersionChange = async (saleId: string, reportId: string | null) => {
+    const handleVersionChange = async (saleId: string, reportId: string | null, isLatest: boolean) => {
         if (!reportId) return;
 
         setSelectedReports(prev => ({ ...prev, [saleId]: reportId }));
         setIsVersionChanging(true);
 
         try {
-            await setActiveVersionMutation.mutateAsync({
-                saleEventId: saleId,
-                saleReportId: reportId
-            });
+            if (isLatest) {
+                await setActiveVersionMutation.mutateAsync({
+                    saleEventId: saleId,
+                    saleReportId: reportId
+                });
+            }
             // Await refetch so backend recalculates all metrics (EPI, FCR, profit)
             if (recent) {
                 await recentQuery.refetch();
@@ -450,7 +470,7 @@ export const SalesHistoryCard = ({
                                     indexInGroup={index}
                                     totalInGroup={events.length}
                                     selectedReportId={selectedReports[sale.id] || null}
-                                    onReportSelect={(reportId) => handleVersionChange(sale.id, reportId)}
+                                    onReportSelect={(reportId) => handleVersionChange(sale.id, reportId, isLatestInCycle)}
                                     hideName={hideFarmerName}
                                 />
                             </div>
@@ -471,7 +491,7 @@ export const SalesHistoryCard = ({
                             };
                         })}
                         selectedReports={selectedReports}
-                        onReportSelect={handleVersionChange}
+                        onReportSelect={(saleId, reportId, isLatest) => handleVersionChange(saleId, reportId, isLatest)}
                         hideFarmerName={hideFarmerName}
                     />
                 </div>

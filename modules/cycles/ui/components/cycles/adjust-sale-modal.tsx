@@ -78,6 +78,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
     const [showProfitModal, setShowProfitModal] = useState(false);
     const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+    const [showReopenWarning, setShowReopenWarning] = useState(false);
 
     const defaultValues = {
         birdsSold: latestReport ? latestReport.birdsSold : saleEvent.birdsSold,
@@ -336,6 +337,23 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         });
     };
 
+    const handleConfirmClick = () => {
+        // Check if this adjustment would reopen a history cycle
+        const values = form.getValues();
+        const birdsSold = Number(values.birdsSold) || 0;
+        const totalMortality = Number(values.totalMortality) || 0;
+        if (saleEvent.historyId && (birdsSold + totalMortality < saleEvent.houseBirds)) {
+            setShowReopenWarning(true);
+            return;
+        }
+        form.handleSubmit(onSubmit)();
+    };
+
+    const handleReopenConfirm = () => {
+        setShowReopenWarning(false);
+        form.handleSubmit(onSubmit)();
+    };
+
     const deleteSaleMutation = useMutation(trpc.officer.sales.delete.mutationOptions({
         onSuccess: () => {
             toast.success("Sales deleted successfully");
@@ -423,13 +441,33 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                         <Button
                             type="button"
                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={form.handleSubmit(onSubmit)}
+                            onClick={handleConfirmClick}
                             disabled={generateReport.isPending}
                         >
                             <ShoppingCart className="h-4 w-4 mr-2" />
                             {generateReport.isPending ? "Saving..." : "Confirm & Save"}
                         </Button>
                     </div>
+
+                    {/* Reopen cycle warning dialog */}
+                    <AlertDialog open={showReopenWarning} onOpenChange={setShowReopenWarning}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle className="text-amber-600">⚠️ This will reopen the cycle</AlertDialogTitle>
+                                <AlertDialogDescription className="space-y-2">
+                                    <p>This adjustment results in <strong>{saleEvent.houseBirds - (form.getValues("birdsSold") + form.getValues("totalMortality"))} remaining birds</strong> that haven't been sold or marked as mortality.</p>
+                                    <p>The ended cycle will be <strong>reopened as active</strong>, farmer's feed stock will be restored, and all metrics will be recalculated.</p>
+                                    <p className="font-semibold">Are you sure you want to proceed?</p>
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleReopenConfirm} className="bg-amber-600 hover:bg-amber-700">
+                                    Reopen Cycle & Save
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
             ) : (
                 <Form {...form}>
