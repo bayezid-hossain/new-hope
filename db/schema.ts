@@ -340,6 +340,11 @@ export const saleReports = pgTable("sale_reports", {
   feedConsumed: text("feed_consumed"), // JSON stringified array
   feedStock: text("feed_stock"),       // JSON stringified array
 
+  // Historical Pricing Context
+  feedPriceUsed: decimal("feed_price_used"),
+  docPriceUsed: decimal("doc_price_used"),
+  recoveryPrice: decimal("recovery_price"),
+
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [

@@ -535,6 +535,9 @@ export const officerSalesRouter = createTRPCRouter({
                     feedConsumed: JSON.stringify(input.feedConsumed),
                     feedStock: JSON.stringify(input.feedStock),
                     adjustmentNote: input.adjustmentNote,
+                    feedPriceUsed: input.feedPricePerBag?.toString(),
+                    docPriceUsed: input.docPricePerBird?.toString(),
+                    recoveryPrice: input.recoveryPrice?.toString(),
                     createdBy: ctx.user.id,
                     createdAt: new Date(), // Ensure adjustment is always newer than original
                 }).returning();
@@ -962,6 +965,9 @@ export const officerSalesRouter = createTRPCRouter({
                                                 adjustmentNote: true,
                                                 feedConsumed: true,
                                                 feedStock: true,
+                                                feedPriceUsed: true,
+                                                docPriceUsed: true,
+                                                recoveryPrice: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -997,6 +1003,9 @@ export const officerSalesRouter = createTRPCRouter({
                                                 adjustmentNote: true,
                                                 feedConsumed: true,
                                                 feedStock: true,
+                                                feedPriceUsed: true,
+                                                docPriceUsed: true,
+                                                recoveryPrice: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -1055,6 +1064,9 @@ export const officerSalesRouter = createTRPCRouter({
                                 adjustmentNote: true,
                                 feedConsumed: true,
                                 feedStock: true,
+                                feedPriceUsed: true,
+                                docPriceUsed: true,
+                                recoveryPrice: true,
                                 createdAt: true,
                             }
                         },
@@ -1147,10 +1159,22 @@ export const officerSalesRouter = createTRPCRouter({
                 let cumulativeBirdsSold = 0;
                 let latestMortality = 0;
 
+                // Initialize overridden prices with current global values from saleMetrics
+                let finalRecoveryPrice: number | null = recoveryPriceMap.get(groupKey) ?? null;
+                let finalFeedPrice: number | null = feedPriceUsedMap.get(groupKey) ?? null;
+                let finalDocPrice: number | null = docPriceUsedMap.get(groupKey) ?? null;
+
                 groupEvents.forEach(evt => {
                     const selectedReport = evt.reports?.find(
                         (r: any) => r.id === evt.selectedReportId
                     );
+
+                    // Extract historical overrides from the selected report
+                    if (selectedReport) {
+                        if (selectedReport.recoveryPrice) finalRecoveryPrice = Number(selectedReport.recoveryPrice);
+                        if (selectedReport.feedPriceUsed) finalFeedPrice = Number(selectedReport.feedPriceUsed);
+                        if (selectedReport.docPriceUsed) finalDocPrice = Number(selectedReport.docPriceUsed);
+                    }
 
                     const weight = selectedReport
                         ? parseFloat(selectedReport.totalWeight)
@@ -1180,7 +1204,7 @@ export const officerSalesRouter = createTRPCRouter({
                     // 🔥 LATEST MORTALITY FROM SELECTED VERSION
                     latestMortality = Math.max(latestMortality, mortality);
                 });
-                const basePrice = recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
+                const basePrice = finalRecoveryPrice ?? recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
                 const netAdjustment = ((cumulativeRevenue / cumulativeWeight) - basePrice) / 2;
 
 
@@ -1203,8 +1227,8 @@ export const officerSalesRouter = createTRPCRouter({
                     isLatestInGroup && isEnded      // Replaced isEnded
                 );
                 // Profit calculation (backend-only)
-                const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
-                const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
+                const feedPrice = finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
+                const docPrice = finalDocPrice ?? docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
                 const feedCost = isEnded ? feedConsumed * feedPrice : 0;
                 const docCost = isEnded ? doc * docPrice : 0;
                 const profit = formulaRevenue - feedCost - docCost;
@@ -1253,9 +1277,9 @@ export const officerSalesRouter = createTRPCRouter({
                         docCost,
                         profit,
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
-                        recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
-                        feedPriceUsed: feedPriceUsedMap.get(groupKey) ?? null,
-                        docPriceUsed: docPriceUsedMap.get(groupKey) ?? null,
+                        recoveryPrice: finalRecoveryPrice ?? recoveryPriceMap.get(groupKey) ?? null,
+                        feedPriceUsed: finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? null,
+                        docPriceUsed: finalDocPrice ?? docPriceUsedMap.get(groupKey) ?? null,
                     }
                 };
             });
@@ -1327,18 +1351,23 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // Recalculate metrics for this cycle/history to update Production Report
-                // Preserve existing recovery price from saleMetrics
+                // Use the overrides saved in the historical report if present, fallback to existing metrics
                 const existingMetrics = await tx.query.saleMetrics.findFirst({
                     where: event.cycleId ? eq(saleMetrics.cycleId, event.cycleId) : eq(saleMetrics.historyId, event.historyId!),
                     columns: { recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
                 });
+
+                const reportRecoveryPrice = report.recoveryPrice ? Number(report.recoveryPrice) : undefined;
+                const reportFeedPrice = report.feedPriceUsed ? Number(report.feedPriceUsed) : undefined;
+                const reportDocPrice = report.docPriceUsed ? Number(report.docPriceUsed) : undefined;
+
                 await SaleMetricsService.recalculateForCycle(
                     event.cycleId || undefined,
                     event.historyId || undefined,
                     tx,
-                    existingMetrics?.recoveryPrice ? Number(existingMetrics.recoveryPrice) : undefined,
-                    existingMetrics?.feedPriceUsed ? Number(existingMetrics.feedPriceUsed) : undefined,
-                    existingMetrics?.docPriceUsed ? Number(existingMetrics.docPriceUsed) : undefined
+                    reportRecoveryPrice ?? (existingMetrics?.recoveryPrice ? Number(existingMetrics.recoveryPrice) : undefined),
+                    reportFeedPrice ?? (existingMetrics?.feedPriceUsed ? Number(existingMetrics.feedPriceUsed) : undefined),
+                    reportDocPrice ?? (existingMetrics?.docPriceUsed ? Number(existingMetrics.docPriceUsed) : undefined)
                 );
 
                 return { success: true };
