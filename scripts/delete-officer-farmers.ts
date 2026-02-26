@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "../db";
-import { cycleHistory, cycleLogs, cycles, farmer, farmerSecurityMoneyLogs, feedOrderItems, feedOrders, saleEvents, saleReports, stockLogs, user } from "../db/schema";
+import { cycleHistory, cycleLogs, cycles, docOrderItems, farmer, farmerSecurityMoneyLogs, feedOrderItems, feedOrders, saleEvents, saleOrderItems, saleReports, stockLogs, user } from "../db/schema";
 
 async function main() {
     const email = process.argv[2];
@@ -89,7 +89,13 @@ async function main() {
 
         // Delete Feed Order Items for these farmers
         console.log("  - Deleting feed order items...");
-        await db.delete(feedOrderItems).where(inArray(feedOrderItems.farmerId, farmerIds));
+        if (farmerIds.length > 0) {
+            await db.delete(feedOrderItems).where(inArray(feedOrderItems.farmerId, farmerIds));
+            console.log("  - Deleting doc order items...");
+            await db.delete(docOrderItems).where(inArray(docOrderItems.farmerId, farmerIds));
+            console.log("  - Deleting sale order items...");
+            await db.delete(saleOrderItems).where(inArray(saleOrderItems.farmerId, farmerIds));
+        }
 
         // Delete Active Cycles
         if (activeCycleIds.length > 0) {
