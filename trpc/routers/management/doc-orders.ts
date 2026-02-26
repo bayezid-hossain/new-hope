@@ -1,10 +1,10 @@
 import { docOrders } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, managementProcedure } from "../../init";
+import { createTRPCRouter, managementProProcedure } from "../../init";
 
 export const managementDocOrdersRouter = createTRPCRouter({
-    list: managementProcedure
+    list: managementProProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(50),
             officerId: z.string().optional(),

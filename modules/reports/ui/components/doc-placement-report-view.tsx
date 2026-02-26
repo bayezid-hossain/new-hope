@@ -59,10 +59,6 @@ export function DocPlacementReportView({ isManagement = false, orgId }: DocPlace
 
     const reportData = data;
 
-    // Summary data for mobile quick look
-    const totalDoc = reportData?.summary.totalDoc || 0;
-    const farmerCount = reportData?.summary.farmerCount || 0;
-    const cycleCount = reportData?.summary.cycleCount || 0;
 
     const toggleExpand = (farmerId: string) => {
         setExpandedFarmerId(expandedFarmerId === farmerId ? null : farmerId);
