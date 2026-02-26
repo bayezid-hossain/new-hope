@@ -66,6 +66,7 @@ export const officerReportsRouter = createTRPCRouter({
             const allCycles = [...activeCycles, ...historicalCycles];
 
             const groupedByFarmer: Record<string, {
+                farmerId: string;
                 farmerName: string;
                 totalDoc: number;
                 cycles: { name: string; doc: number; date: Date; status: string }[]
@@ -76,6 +77,7 @@ export const officerReportsRouter = createTRPCRouter({
             for (const c of allCycles) {
                 if (!groupedByFarmer[c.farmerId]) {
                     groupedByFarmer[c.farmerId] = {
+                        farmerId: c.farmerId,
                         farmerName: c.farmerName,
                         totalDoc: 0,
                         cycles: []
