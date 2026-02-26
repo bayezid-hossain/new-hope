@@ -1101,7 +1101,7 @@ export const officerCyclesRouter = createTRPCRouter({
         .input(z.object({
             cycleId: z.string(),
             newDoc: z.number().int().positive().max(200000, "Maximum 200,000 birds"),
-            reason: z.string().min(3).max(500)
+            reason: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // //conosle.log(`[correctDoc] Starting for cycleId: ${input.cycleId}, newDoc: ${input.newDoc}`);
@@ -1206,7 +1206,7 @@ export const officerCyclesRouter = createTRPCRouter({
         .input(z.object({
             cycleId: z.string(),
             newAge: z.number().int().positive().max(40, "Maximum 40 days"),
-            reason: z.string().min(3).max(500)
+            reason: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             return await ctx.db.transaction(async (tx) => {
@@ -1423,7 +1423,7 @@ export const officerCyclesRouter = createTRPCRouter({
         .input(z.object({
             cycleId: z.string(),
             newTotalMortality: z.number().int().min(0),
-            reason: z.string().min(3)
+            reason: z.string().optional()
         }))
         .mutation(async ({ ctx, input }) => {
             return await ctx.db.transaction(async (tx) => {
