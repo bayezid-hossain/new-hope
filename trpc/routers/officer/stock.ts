@@ -1,7 +1,7 @@
 import { farmer, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerStockRouter = createTRPCRouter({
@@ -644,7 +644,7 @@ export const officerStockRouter = createTRPCRouter({
                     mainStock: true,
                     updatedAt: true,
                 },
-                orderBy: desc(farmer.updatedAt),
+                orderBy: [asc(farmer.name), asc(farmer.id)],
                 limit: input.limit + 1, // Fetch one extra to know if there's a next page
                 offset: input.cursor,
             });

@@ -1,6 +1,6 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { aliasedTable, and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -58,7 +58,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 .where(whereClause)
                 .limit(pageSize)
                 .offset((page - 1) * pageSize)
-                .orderBy(desc(farmer.createdAt));
+                .orderBy(asc(farmer.name), asc(farmer.id));
 
             const [total] = await ctx.db.select({ count: sql<number>`count(*)` })
                 .from(farmer)

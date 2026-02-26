@@ -1,7 +1,7 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, member, saleEvents, stockLogs } from "@/db/schema";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 // Helper function for benchmark calculations
@@ -74,7 +74,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 ),
                 limit: pageSize,
                 offset: (page - 1) * pageSize,
-                orderBy: [desc(farmer.createdAt)],
+                orderBy: [asc(farmer.name), asc(farmer.id)],
                 with: {
                     cycles: {
                         where: eq(cycles.status, "active"),
