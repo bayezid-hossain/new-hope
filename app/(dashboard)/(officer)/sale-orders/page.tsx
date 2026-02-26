@@ -1,11 +1,12 @@
 "use client";
 
+import { ProBlocker } from "@/components/pro-blocker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { SaleOrdersPage } from "@/modules/sale-orders/ui/pages/sale-orders-page";
 
 export default function SaleOrdersRoute() {
-    const { orgId, isLoading } = useCurrentOrg();
+    const { orgId, isLoading, isPro } = useCurrentOrg();
 
     if (isLoading) {
         return (
@@ -23,6 +24,10 @@ export default function SaleOrdersRoute() {
                 <p>Please select an organization to continue.</p>
             </div>
         );
+    }
+
+    if (!isPro) {
+        return <ProBlocker feature="Sale Orders" description="Manage and track sale orders seamlessly with Pro." />;
     }
 
     return <SaleOrdersPage orgId={orgId} />;

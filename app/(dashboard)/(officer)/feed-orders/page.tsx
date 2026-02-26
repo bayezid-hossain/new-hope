@@ -1,11 +1,12 @@
 "use client";
 
+import { ProBlocker } from "@/components/pro-blocker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { FeedOrdersPage } from "@/modules/feed-orders/ui/pages/feed-orders-page";
 
 export default function FeedOrdersRoute() {
-    const { orgId, isLoading } = useCurrentOrg();
+    const { orgId, isLoading, isPro } = useCurrentOrg();
 
     if (isLoading) {
         return (
@@ -23,6 +24,10 @@ export default function FeedOrdersRoute() {
                 <p>Please select an organization to continue.</p>
             </div>
         );
+    }
+
+    if (!isPro) {
+        return <ProBlocker feature="Feed Orders" description="Manage and track feed orders seamlessly with Pro." />;
     }
 
     return <FeedOrdersPage orgId={orgId} />;

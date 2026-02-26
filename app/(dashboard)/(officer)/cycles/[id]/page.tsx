@@ -39,9 +39,10 @@ import { useParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
-// EndCycle/ReopenCycle modals imported via columns-factory now
 // import { EndCycleModal } from "@/modules/cycles/ui/components/cycles/end-cycle-modal";
 // import { ReopenCycleModal } from "@/modules/cycles/ui/components/cycles/reopen-cycle-modal";
+import { ProBlocker } from "@/components/pro-blocker";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 
 // ... existing imports
 
@@ -309,6 +310,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
     const [showEndCycleModal, setShowEndCycleModal] = useState(false);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const [showEditFarmerModal, setShowEditFarmerModal] = useState(false);
+    const { isPro } = useCurrentOrg();
 
     // --- Data Normalization Hook ---
     const normalized = useMemo(() => {
@@ -564,7 +566,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             </TabsContent>
 
                             <TabsContent value="analysis" className="mt-6">
-                                <AnalysisContent cycle={cycle} history={history.filter((h: any) => h.id !== cycle.id) || []} />
+                                {isPro ? (
+                                    <AnalysisContent cycle={cycle} history={history.filter((h: any) => h.id !== cycle.id) || []} />
+                                ) : (
+                                    <ProBlocker feature="Analysis Insights" description="Automated insights and historical benchmarking are Pro features. Upgrade to gain actionable intelligence." />
+                                )}
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -616,7 +622,11 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
-                                    <AnalysisContent cycle={cycle} history={history.filter((h: any) => h.id !== cycle.id) || []} />
+                                    {isPro ? (
+                                        <AnalysisContent cycle={cycle} history={history.filter((h: any) => h.id !== cycle.id) || []} />
+                                    ) : (
+                                        <ProBlocker feature="Analysis Insights" description="Automated insights and historical benchmarking are Pro features. Upgrade to gain actionable intelligence." />
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>

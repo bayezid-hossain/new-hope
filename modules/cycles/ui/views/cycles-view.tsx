@@ -1,4 +1,5 @@
 'use client';
+import { ProAccessModal } from "@/components/pro-access-modal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrg } from "@/hooks/use-current-org";
@@ -13,10 +14,11 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 
 const CyclesContent = () => {
-    const { orgId } = useCurrentOrg();
+    const { orgId, isPro } = useCurrentOrg();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isBulkOpen, setIsBulkOpen] = useState(false);
     const [isDocOpen, setIsDocOpen] = useState(false);
+    const [showProModal, setShowProModal] = useState(false);
     const trpc = useTRPC();
 
     const { data: activeCount } = useQuery(trpc.officer.cycles.listActive.queryOptions({
@@ -45,7 +47,13 @@ const CyclesContent = () => {
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <Button
                             variant="secondary"
-                            onClick={() => setIsBulkOpen(true)}
+                            onClick={() => {
+                                if (!isPro) {
+                                    setShowProModal(true);
+                                    return;
+                                }
+                                setIsBulkOpen(true);
+                            }}
                             className="border shadow-sm bg-card hover:bg-muted text-purple-600 dark:text-purple-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm flex-1 sm:flex-none"
                         >
                             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -54,8 +62,13 @@ const CyclesContent = () => {
                         </Button>
                         <Button
                             variant="outline"
-                            onClick={() => setIsDocOpen(true)}
-                            className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 shadow-sm transition-all flex-1 sm:flex-none"
+                            onClick={() => {
+                                if (!isPro) {
+                                    setShowProModal(true);
+                                    return;
+                                }
+                                setIsDocOpen(true);
+                            }} className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 shadow-sm transition-all flex-1 sm:flex-none"
                         >
                             <Bird className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
                             <span className="hidden sm:inline">Order DOC</span>
@@ -102,6 +115,13 @@ const CyclesContent = () => {
             <CreateCycleModal open={isCreateOpen} onOpenChange={setIsCreateOpen} onlyMine={true} />
             <BulkCycleImportModal open={isBulkOpen} onOpenChange={setIsBulkOpen} orgId={orgId} />
             <CreateDocOrderModal open={isDocOpen} onOpenChange={setIsDocOpen} orgId={orgId} />
+
+            <ProAccessModal
+                open={showProModal}
+                onOpenChange={setShowProModal}
+                feature="Bulk Import"
+                description="Import multiple records at once with a Pro subscription."
+            />
         </div>
     );
 };

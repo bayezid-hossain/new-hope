@@ -1,10 +1,10 @@
 import { saleEvents, saleReports } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, managementProcedure } from "../../init";
+import { createTRPCRouter, managementProProcedure } from "../../init";
 
 export const managementSalesRouter = createTRPCRouter({
-    getRecentSales: managementProcedure
+    getRecentSales: managementProProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
             search: z.string().optional(),

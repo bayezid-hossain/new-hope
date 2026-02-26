@@ -3,7 +3,7 @@ import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../../init";
+import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
 const officerProcedure = protectedProcedure;
 
@@ -242,7 +242,7 @@ export const officerCyclesRouter = createTRPCRouter({
             return newCycle;
         }),
 
-    createBulk: officerProcedure
+    createBulk: proProcedure
         .input(z.object({
             orgId: z.string(),
             cycles: z.array(z.object({
@@ -1097,7 +1097,7 @@ export const officerCyclesRouter = createTRPCRouter({
         }),
 
     // CORRECT DOC (Edit Initial Birds)
-    correctDoc: officerProcedure
+    correctDoc: proProcedure
         .input(z.object({
             cycleId: z.string(),
             newDoc: z.number().int().positive().max(200000, "Maximum 200,000 birds"),
@@ -1202,7 +1202,7 @@ export const officerCyclesRouter = createTRPCRouter({
         }),
 
     // CORRECT AGE (Edit Cycle Age)
-    correctAge: officerProcedure
+    correctAge: proProcedure
         .input(z.object({
             cycleId: z.string(),
             newAge: z.number().int().positive().max(40, "Maximum 40 days"),
@@ -1419,7 +1419,7 @@ export const officerCyclesRouter = createTRPCRouter({
             });
         }),
 
-    correctMortality: officerProcedure
+    correctMortality: proProcedure
         .input(z.object({
             cycleId: z.string(),
             newTotalMortality: z.number().int().min(0),

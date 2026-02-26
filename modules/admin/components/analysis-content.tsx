@@ -1,15 +1,8 @@
 "use client";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
-import {
-    AlertTriangle,
-    Calculator,
-    Lightbulb,
-    Scale,
-    TrendingUp,
-} from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, Calculator, Lightbulb, Scale, TrendingUp } from "lucide-react";
 
 export const AnalysisContent = ({
     cycle,
@@ -22,6 +15,7 @@ export const AnalysisContent = ({
     const mortality = cycle.mortality || 0;
     const currentMortalityRate = doc > 0 ? (mortality / doc) * 100 : 0;
 
+    // Calculate Historical Averages (safely)
     const historicalAvgMortality = history.length > 0
         ? history.reduce((acc: number, h: any) => {
             const hDoc = h.doc || 0;
@@ -30,22 +24,27 @@ export const AnalysisContent = ({
         }, 0) / history.length
         : 0;
 
+    // Feed Calculations
     const intake = cycle.intake || 0;
     const age = cycle.age || 0;
     const avgDailyIntake = age > 0 ? (intake / age) : 0;
 
-    const liveBirds = Math.max(0, doc - mortality - (cycle.birdsSold || 0));
-    const currentFeedPerBird = liveBirds > 0 ? (intake / liveBirds) : 0;
+    // Feed per Bird (Efficiency Proxy)
+    const liveBirds = Math.max(0, doc - mortality);
+    const currentFeedPerBird = liveBirds > 0 ? (intake / liveBirds) : 0; // Bags per bird
 
     const historicalAvgFeedPerBird = history.length > 0
         ? history.reduce((acc: number, h: any) => {
             const hLive = (h.doc || 0) - (h.mortality || 0);
-            const hIntake = h.intake || h.finalIntake || 0;
+            const hIntake = h.finalIntake || 0;
             return acc + (hLive > 0 ? hIntake / hLive : 0);
         }, 0) / history.length
         : 0;
 
+    // --- Logic-Based Suggestions ---
     const suggestions = [];
+
+    // Mortality Logic
     if (currentMortalityRate > 5) {
         suggestions.push({
             type: "critical",
@@ -66,37 +65,38 @@ export const AnalysisContent = ({
                 <div className="space-y-6">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Card className="bg-muted/30 border-border/50 shadow-sm py-2">
-                            <CardHeader className="pb-2 px-6">
-                                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
-                                    <Calculator className="h-4 w-4 text-primary" /> Intake Insights
+                            <CardHeader className="pb-2 px-4 sm:px-6">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                    <Calculator className="h-4 w-4 text-primary" /> Consumption Insights
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="px-6 pb-4">
+                            <CardContent className="px-4 sm:px-6 pb-4">
                                 <div className="flex justify-between items-end mb-2">
                                     <div>
-                                        <div className="text-2xl font-bold text-foreground">
+                                        <div className="text-xl sm:text-2xl font-bold text-foreground">
                                             {avgDailyIntake.toFixed(2)} bags
                                         </div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Daily Avg Consumption</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-tight font-medium">Daily Avg Consumption</p>
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium text-foreground">{currentFeedPerBird.toFixed(3)}</div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-tight font-medium">Bags per Bird</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-tight font-medium">Bags per Bird</p>
                                     </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50 italic">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50 italic">
                                     Efficiency calculated on {liveBirds} live birds.
                                 </p>
                             </CardContent>
                         </Card>
 
+                        {/* BENCHMARKING CARD */}
                         <Card className="bg-card border-border/50 shadow-sm py-2">
-                            <CardHeader className="pb-2 px-6">
-                                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                            <CardHeader className="pb-2 px-4 sm:px-6">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
                                     <Scale className="h-4 w-4 text-primary" /> Historical Benchmark
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4 px-6 pb-4">
+                            <CardContent className="space-y-4 px-4 sm:px-6 pb-4">
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-xs">
                                         <span className="text-muted-foreground uppercase tracking-tight text-[10px] font-medium">Mortality Status</span>
@@ -122,49 +122,27 @@ export const AnalysisContent = ({
                         </Card>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <Card className="border-border/10 shadow-sm bg-card">
-                            <CardHeader>
-                                <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Production Summary</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center justify-between py-2 border-b border-border/50">
-                                    <span className="text-muted-foreground text-sm">Start Date</span>
-                                    <span className="font-bold text-foreground">{format(new Date(cycle.createdAt), "dd/MM/yyyy")}</span>
-                                </div>
-                                <div className="flex items-center justify-between py-2 border-b border-border/50">
-                                    <span className="text-muted-foreground text-sm">Initial Stock (DOC)</span>
-                                    <span className="font-bold text-foreground">{cycle.doc} Birds</span>
-                                </div>
-                                <div className="flex items-center justify-between py-2 border-b border-border/50">
-                                    <span className="text-muted-foreground text-sm">Survival Rate</span>
-                                    <span className={`font-bold ${currentMortalityRate < 5 ? 'text-primary' : 'text-destructive'}`}>
-                                        {(100 - currentMortalityRate).toFixed(2)}%
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card className="shadow-sm border-border/50 bg-card overflow-hidden">
-                        <CardHeader className="px-6">
-                            <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                    {/* SUGGESTIONS LIST */}
+                    <Card className="bg-card border-border/50 shadow-sm py-2 overflow-hidden">
+                        <CardHeader className="px-4 sm:px-6">
+                            <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-foreground">
                                 <Lightbulb className="h-5 w-5 text-amber-500" />
                                 Smart Suggestions
                             </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">Automated insights from your data</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4 px-6 pb-6">
+                        <CardContent className="space-y-4 px-4 sm:px-6 pb-6">
                             {suggestions.length === 0 ? (
-                                <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed border-border/50 rounded-lg bg-muted/30">
+                                <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/30 border-border/50">
                                     Everything looks good! No critical alerts at this time.
                                 </div>
                             ) : (suggestions.map((s, i) => (
-                                <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : ''}>
+                                <Alert key={i} variant={s.type === 'critical' ? 'destructive' : 'default'} className={s.type === 'warning' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : ''}>
                                     {s.type === 'critical' ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-                                    <AlertTitle className="text-sm font-bold">
+                                    <AlertTitle className={s.type === 'warning' ? 'text-amber-800 dark:text-amber-400 text-sm' : 'text-sm'}>
                                         {s.title}
                                     </AlertTitle>
-                                    <AlertDescription className="text-xs mt-1">
+                                    <AlertDescription className={s.type === 'warning' ? 'text-amber-700 dark:text-amber-500 text-xs mt-1' : 'text-xs mt-1'}>
                                         {s.text}
                                     </AlertDescription>
                                 </Alert>

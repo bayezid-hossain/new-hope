@@ -21,6 +21,9 @@ export default function StockLedgerPage() {
     const [debouncedSearch] = useDebounce(search, 500);
     const trpc = useTRPC()
 
+    if (!isPro) {
+        return <ProBlocker feature="Stock Ledger" description="Access full stock history and realtime balances for all farmers." />;
+    }
     const {
         data,
         isLoading,
@@ -51,9 +54,6 @@ export default function StockLedgerPage() {
         );
     }
 
-    if (!isPro) {
-        return <ProBlocker feature="Stock Ledger" description="Access full stock history and realtime balances for all farmers." />;
-    }
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/5">

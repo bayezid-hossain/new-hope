@@ -391,7 +391,7 @@ export const officerFarmersRouter = createTRPCRouter({
             });
         }),
 
-    createBulk: protectedProcedure
+    createBulk: proProcedure
         .input(z.object({
             farmers: z.array(z.object({
                 name: z.string().min(2).max(100),

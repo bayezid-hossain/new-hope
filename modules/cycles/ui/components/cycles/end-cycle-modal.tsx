@@ -1,5 +1,6 @@
 "use client";
 
+import { ProAccessModal } from "@/components/pro-access-modal";
 import { useLoading } from "@/components/providers/loading-provider";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
@@ -53,10 +54,11 @@ export const EndCycleModal = ({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { orgId, canEdit } = useCurrentOrg()
+  const { orgId, canEdit, isPro } = useCurrentOrg()
 
   const [intakeStock, setIntake] = useState<string>(intake?.toString() || "0");
   const [showSellModal, setShowSellModal] = useState(false);
+  const [showProModal, setShowProModal] = useState(false);
   const [confirmNoSale, setConfirmNoSale] = useState(false);
 
   // Reset confirmation state when modal opens/closes
@@ -189,6 +191,10 @@ export const EndCycleModal = ({
               <Button
                 variant="default"
                 onClick={() => {
+                  if (!isPro) {
+                    setShowProModal(true);
+                    return;
+                  }
                   onOpenChange(false);
                   setShowSellModal(true);
                 }}
@@ -238,6 +244,13 @@ export const EndCycleModal = ({
         intake={intake}
         open={showSellModal}
         onOpenChange={setShowSellModal}
+      />
+
+      <ProAccessModal
+        open={showProModal}
+        onOpenChange={setShowProModal}
+        feature="Sell Birds"
+        description="Selling birds and managing revenue requires an active Pro subscription."
       />
     </>
   );
