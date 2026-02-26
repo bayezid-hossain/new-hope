@@ -202,12 +202,12 @@ export function matchFarmer(
     // -------------------------
     const fuse = new Fuse(candidates, {
         keys: ["name"],
-        threshold: 0.7, // Very lenient for suggestions
-        distance: 100,
+        threshold: 0.6, // Very lenient for suggestions
+        distance: 40,
         ignoreLocation: true,
         includeScore: true,
         findAllMatches: true,
-        minMatchCharLength: 4,
+        minMatchCharLength: 3,
     });
 
     const suggestions = fuse
