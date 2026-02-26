@@ -733,6 +733,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     birdsSold: 0, // RESET birds sold
                     intake: historyRecord.finalIntake,
                     status: "active",
+                    birdType: historyRecord.birdType,
                     createdAt: historyRecord.startDate,
                     updatedAt: new Date(),
                 }).returning();

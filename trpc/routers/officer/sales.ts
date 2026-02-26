@@ -1794,14 +1794,7 @@ export const officerSalesRouter = createTRPCRouter({
                 ));
 
                 // 3. Update Cycle or History record stats
-                if (input.historyId) {
-                    await tx.update(cycleHistory)
-                        .set({
-                            birdsSold: 0,
-                            mortality: sql`${cycleHistory.mortality} - ${mortalityCount}`,
-                        })
-                        .where(eq(cycleHistory.id, input.historyId));
-                } else if (event.cycleId) {
+                if (event.cycleId) {
                     // Revert active cycle
                     await tx.update(cycles)
                         .set({
