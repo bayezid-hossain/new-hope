@@ -3,7 +3,7 @@ import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetric
 
 
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
@@ -731,6 +731,18 @@ export const officerSalesRouter = createTRPCRouter({
                     }
                 }
 
+                // If the adjustment resulted in a cycle state change (close or reopen),
+                // delete all previous versions of this sale report so only the latest remains.
+                if (reopenedCycleId || autoClosedHistoryId) {
+                    await tx.delete(saleReports)
+                        .where(
+                            and(
+                                eq(saleReports.saleEventId, input.saleEventId),
+                                ne(saleReports.id, report.id)
+                            )
+                        );
+                }
+
                 // Determine the correct references for post-adjustment logs/metrics
                 // Three cases:
                 // 1. History reopen: historyId deleted → use new cycleId
@@ -800,7 +812,6 @@ export const officerSalesRouter = createTRPCRouter({
             historyId: z.string().optional().nullable()
         }))
         .mutation(async ({ ctx, input }) => {
-            console.log("previewSale input:", input);
 
             let cycleIdToUse = input.cycleId;
             let historyIdToUse = input.historyId;
@@ -1656,10 +1667,7 @@ export const officerSalesRouter = createTRPCRouter({
 
                 // Calculate FCR/EPI
                 const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
-                console.log("fcr", fcr);
-                console.log("epi", epi);
-                console.log("effectiveRate", effectiveRate);
-                console.log("formulaRevenue", formulaRevenue);
+
                 // Profit calculation (backend-only)
                 const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
                 const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
@@ -1668,10 +1676,7 @@ export const officerSalesRouter = createTRPCRouter({
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
-                console.log("feedCost", feedCost);
-                console.log("docCost", docCost);
-                console.log("profit", profit);
-                console.log("avgPrice", avgPrice);
+
                 // Calculate the original sale age (not the weighted one)
                 const saleAge = e.age ?? (() => {
                     const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;

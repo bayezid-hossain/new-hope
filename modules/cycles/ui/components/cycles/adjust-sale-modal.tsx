@@ -79,6 +79,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
     const [showFcrEpiModal, setShowFcrEpiModal] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [showReopenWarning, setShowReopenWarning] = useState(false);
+    const [showAutoCloseWarning, setShowAutoCloseWarning] = useState(false);
 
     const defaultValues = {
         birdsSold: latestReport ? latestReport.birdsSold : saleEvent.birdsSold,
@@ -338,11 +339,20 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
     };
 
     const handleConfirmClick = () => {
-        // Check if this adjustment would reopen a history cycle
-        const values = form.getValues();
-        const birdsSold = Number(values.birdsSold) || 0;
-        const totalMortality = Number(values.totalMortality) || 0;
-        if (saleEvent.historyId && (birdsSold + totalMortality < saleEvent.houseBirds)) {
+        // This is called from the PREVIEW step, which only happens if remainingBirds === 0.
+        // If cycle is active, and remaining birds === 0, it will Auto-Close
+        if (!saleEvent.historyId && remainingBirdsAfterAdjustment === 0) {
+            setShowAutoCloseWarning(true);
+            return;
+        }
+
+        form.handleSubmit(onSubmit)();
+    };
+
+    const handleFormConfirm = () => {
+        // This is called from the FORM step when remainingBirds > 0.
+        // If cycle is archived/history, and remaining birds > 0, it will Reopen
+        if (saleEvent.historyId && remainingBirdsAfterAdjustment > 0) {
             setShowReopenWarning(true);
             return;
         }
@@ -351,6 +361,11 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
 
     const handleReopenConfirm = () => {
         setShowReopenWarning(false);
+        form.handleSubmit(onSubmit)();
+    };
+
+    const handleAutoCloseConfirm = () => {
+        setShowAutoCloseWarning(false);
         form.handleSubmit(onSubmit)();
     };
 
@@ -448,26 +463,6 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                             {generateReport.isPending ? "Saving..." : "Confirm & Save"}
                         </Button>
                     </div>
-
-                    {/* Reopen cycle warning dialog */}
-                    <AlertDialog open={showReopenWarning} onOpenChange={setShowReopenWarning}>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle className="text-amber-600">⚠️ This will reopen the cycle</AlertDialogTitle>
-                                <AlertDialogDescription className="space-y-2">
-                                    <p>This adjustment results in <strong>{saleEvent.houseBirds - (form.getValues("birdsSold") + form.getValues("totalMortality"))} remaining birds</strong> that haven't been sold or marked as mortality.</p>
-                                    <p>The ended cycle will be <strong>reopened as active</strong>, farmer's feed stock will be restored, and all metrics will be recalculated.</p>
-                                    <p className="font-semibold">Are you sure you want to proceed?</p>
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleReopenConfirm} className="bg-amber-600 hover:bg-amber-700">
-                                    Reopen Cycle & Save
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
                 </div>
             ) : (
                 <Form {...form}>
@@ -841,7 +836,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                     type="button"
                                     className={`flex-1 ${remainingBirdsAfterAdjustment === 0 ? "" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
                                     variant={remainingBirdsAfterAdjustment === 0 ? "default" : "default"}
-                                    onClick={remainingBirdsAfterAdjustment === 0 ? handlePreview : form.handleSubmit(onSubmit)}
+                                    onClick={remainingBirdsAfterAdjustment === 0 ? handlePreview : handleFormConfirm}
                                     disabled={remainingBirdsAfterAdjustment === 0 ? previewMutation.isPending : generateReport.isPending}
                                 >
                                     {remainingBirdsAfterAdjustment === 0 ? (
@@ -885,10 +880,49 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-
                     </form>
                 </Form>
             )}
+
+            {/* Reopen cycle warning dialog */}
+            <AlertDialog open={showReopenWarning} onOpenChange={setShowReopenWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-amber-600">⚠️ This will reopen the cycle</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2">
+                            <p>This adjustment results in <strong>{remainingBirdsAfterAdjustment} remaining birds</strong> that haven't been sold or marked as mortality.</p>
+                            <p>The ended cycle will be <strong>reopened as active</strong>, farmer's feed stock will be restored, and all metrics will be recalculated.</p>
+                            <p className="font-semibold">Are you sure you want to proceed?</p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleReopenConfirm} className="bg-amber-600 hover:bg-amber-700">
+                            Reopen Cycle & Save
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Auto Close cycle warning dialog */}
+            <AlertDialog open={showAutoCloseWarning} onOpenChange={setShowAutoCloseWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-amber-600">⚠️ This will close the cycle</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2">
+                            <p>This adjustment results in <strong>0 remaining birds</strong>.</p>
+                            <p>The active cycle will be <strong>automatically closed</strong> and moved to history.</p>
+                            <p className="font-semibold">Are you sure you want to proceed?</p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleAutoCloseConfirm} className="bg-amber-600 hover:bg-amber-700">
+                            Close Cycle & Save
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ResponsiveDialog>
     );
 };
