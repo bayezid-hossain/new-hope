@@ -1,6 +1,7 @@
 "use client";
 
 import LoadingState from "@/components/loading-state";
+import { ProAccessModal } from "@/components/pro-access-modal";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 
 export default function MainStockPage() {
-  const { orgId } = useCurrentOrg();
+  const { orgId, isPro } = useCurrentOrg();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -57,6 +58,7 @@ export default function MainStockPage() {
   const [createModal, setCreateModal] = useState(false);
   const [bulkImportModal, setBulkImportModal] = useState(false);
   const [createFeedOrderModal, setCreateFeedOrderModal] = useState(false);
+  const [showProModal, setShowProModal] = useState(false);
 
   const [transferModal, setTransferModal] = useState<{
     open: boolean;
@@ -110,10 +112,22 @@ export default function MainStockPage() {
         </div>
         <div className="flex items-center gap-2">
 
-          <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setBulkImportModal(true)}>
+          <Button variant="secondary" className="border shadow-sm bg-card hover:bg-muted text-emerald-600 dark:text-emerald-400 h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => {
+            if (!isPro) {
+              setShowProModal(true);
+              return;
+            }
+            setBulkImportModal(true);
+          }}>
             <Sparkles className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Bulk Import</span><span className="sm:hidden">Import</span>
           </Button>
-          <Button variant="outline" className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateFeedOrderModal(true)}>
+          <Button variant="outline" className="h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => {
+            if (!isPro) {
+              setShowProModal(true);
+              return;
+            }
+            setCreateFeedOrderModal(true);
+          }}>
             <ShoppingCart className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Feed Order</span><span className="sm:hidden">Order</span>
           </Button>
           <Button className="gap-0 h-8 p-0 has-[svg]:px-1 text-xs sm:h-10 sm:px-4 sm:text-sm" onClick={() => setCreateModal(true)}>
@@ -368,6 +382,12 @@ export default function MainStockPage() {
         onConfirm={() => deleteFarmerMutation.mutate({ id: archivingFarmer?.id || "", orgId: orgId! })}
       />
 
+      <ProAccessModal
+        open={showProModal}
+        onOpenChange={setShowProModal}
+        feature="Bulk Import"
+        description="Import multiple records at once with a Pro subscription."
+      />
     </div>
   );
 }

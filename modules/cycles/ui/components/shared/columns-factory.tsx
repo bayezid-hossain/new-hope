@@ -1,5 +1,6 @@
 "use client";
 
+import { ProAccessModal } from "@/components/pro-access-modal";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
     const [showEditDoc, setShowEditDoc] = useState(false);
     const [showCorrectMortality, setShowCorrectMortality] = useState(false);
     const [showSellModal, setShowSellModal] = useState(false);
+    const [showProModal, setShowProModal] = useState(false);
+    const [proFeature, setProFeature] = useState("");
 
     if (cycle.status === "history") return null;
     if (!canEdit) return null;
@@ -63,15 +66,16 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
 
                     <DropdownMenuItem
                         onClick={() => {
-                            if (isPro) setShowSellModal(true);
-                            else toast.error("Sales tracking is a Pro feature");
+                            if (!isPro) {
+                                setProFeature("Sell Birds");
+                                setShowProModal(true);
+                                return;
+                            }
+                            setShowSellModal(true);
                         }}
-                        disabled={!isPro}
-                        title={!isPro ? "Upgrade to Pro to track sales" : ""}
-                        className={!isPro ? "opacity-50 cursor-not-allowed" : "text-primary focus:text-primary"}
                     >
                         <ShoppingCart className="mr-2 h-4 w-4" />
-                        {isPro ? "Sell" : "Sell (Pro)"}
+                        Sell Birds
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
@@ -82,7 +86,14 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
-                        onClick={() => setShowEditDoc(true)}
+                        onClick={() => {
+                            if (!isPro) {
+                                setProFeature("Edit Initial Birds (DOC)");
+                                setShowProModal(true);
+                                return;
+                            }
+                            setShowEditDoc(true);
+                        }}
                         disabled={cycle.birdsSold > 0}
                         title={cycle.birdsSold > 0 ? "Cannot edit initial birds after sales have started" : ""}
                     >
@@ -91,7 +102,14 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
-                        onClick={() => setShowEditAge(true)}
+                        onClick={() => {
+                            if (!isPro) {
+                                setProFeature("Edit Age");
+                                setShowProModal(true);
+                                return;
+                            }
+                            setShowEditAge(true);
+                        }}
                         disabled={cycle.birdsSold > 0}
                         title={cycle.birdsSold > 0 ? "Cannot edit age after sales have started" : ""}
                     >
@@ -100,7 +118,14 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
-                        onClick={() => setShowCorrectMortality(true)}
+                        onClick={() => {
+                            if (!isPro) {
+                                setProFeature("Correct Total Mortality");
+                                setShowProModal(true);
+                                return;
+                            }
+                            setShowCorrectMortality(true);
+                        }}
                         title={cycle.birdsSold > 0 ? "Cannot correct mortality after sales have started, you can update it in the next sale report or end the cycle" : ""}
                     >
                         <Wrench className="mr-2 h-4 w-4" />
@@ -181,6 +206,13 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 currentMortality={cycle.mortality || 0}
                 open={showCorrectMortality}
                 onOpenChange={setShowCorrectMortality}
+            />
+
+            <ProAccessModal
+                open={showProModal}
+                onOpenChange={setShowProModal}
+                feature={proFeature}
+                description="This advanced cycle action requires an active Pro subscription."
             />
         </>
     );

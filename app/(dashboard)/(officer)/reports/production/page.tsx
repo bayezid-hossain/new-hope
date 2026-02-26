@@ -1,5 +1,6 @@
 "use client";
 
+import { ProBlocker } from "@/components/pro-blocker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
@@ -8,6 +9,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrentOrg } from "@/hooks/use-current-org";
 import { ProductionRecordTable } from "@/modules/reports/ui/components/production-record-table";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -21,11 +24,17 @@ export default function OfficerProductionReportPage() {
     const year = date.getFullYear();
     const month = date.getMonth(); // 0-11
 
-    const { data, isLoading } = useQuery(trpc.officerPerformance.getMonthlyProductionRecord.queryOptions({
+
+
+    const { isPro, isLoading: isOrgLoading } = useCurrentOrg();
+
+    if (!isPro) {
+        return <ProBlocker feature="Monthly Production" description="Gain insights into monthly production records and historical performance." />;
+    }
+    const { data, isLoading: isDataLoading } = useQuery(trpc.officerPerformance.getMonthlyProductionRecord.queryOptions({
         year,
         month,
     }));
-
     const months = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -35,6 +44,16 @@ export default function OfficerProductionReportPage() {
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
 
     const monthName = months[month];
+
+    if (isOrgLoading) {
+        return (
+            <div className="p-4 space-y-4 max-w-2xl mx-auto">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
+    }
+
 
     return (
         <div className="space-y-6">
@@ -101,7 +120,7 @@ export default function OfficerProductionReportPage() {
                 <CardContent className="px-1">
                     <ProductionRecordTable
                         data={data}
-                        isLoading={isLoading}
+                        isLoading={isDataLoading}
                         monthName={monthName}
                         year={year}
                     />
