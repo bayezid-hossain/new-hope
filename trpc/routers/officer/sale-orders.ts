@@ -9,13 +9,13 @@ export const saleOrdersRouter = createTRPCRouter({
         .input(z.object({
             orgId: z.string(),
             orderDate: z.date(),
-            branchName: z.string().optional(),
+            branchName: z.string().min(1, "Branch name is required"),
             items: z.array(z.object({
                 farmerId: z.string(),
-                totalWeight: z.number().min(0),
-                totalDoc: z.number().int().min(0),
-                avgWeight: z.number().optional(),
-                age: z.number().int().min(0).default(0),
+                totalWeight: z.number().positive("Total weight must be greater than 0"),
+                totalDoc: z.number().int().positive("DOC count must be greater than 0"),
+                avgWeight: z.number().positive("Average weight is required"),
+                age: z.number().int().positive("Age is required"),
             })).min(1)
         }))
         .mutation(async ({ ctx, input }) => {

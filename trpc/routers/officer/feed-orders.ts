@@ -207,7 +207,7 @@ export const feedOrdersRouter = createTRPCRouter({
     confirm: proProcedure
         .input(z.object({
             id: z.string(),
-            driverName: z.string().optional()
+            driverName: z.string().min(1, "Driver Name is required")
         }))
         .mutation(async ({ ctx, input }) => {
             const order = await ctx.db.query.feedOrders.findFirst({

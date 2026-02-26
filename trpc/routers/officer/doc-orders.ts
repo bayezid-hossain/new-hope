@@ -10,7 +10,7 @@ export const docOrdersRouter = createTRPCRouter({
         .input(z.object({
             orgId: z.string(),
             orderDate: z.date(),
-            branchName: z.string().optional(),
+            branchName: z.string().min(1, "Branch Name is required"),
             items: z.array(z.object({
                 farmerId: z.string(),
                 birdType: z.string(),
@@ -134,7 +134,7 @@ export const docOrdersRouter = createTRPCRouter({
         .input(z.object({
             id: z.string(),
             orderDate: z.date(),
-            branchName: z.string().optional(),
+            branchName: z.string().min(1, "Branch Name is required"),
             items: z.array(z.object({
                 farmerId: z.string(),
                 birdType: z.string(),
