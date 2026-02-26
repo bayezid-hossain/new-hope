@@ -244,7 +244,7 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
         createMutation.mutate({
             orgId,
             orderDate,
-            branchName: branchName || undefined,
+            branchName: branchName,
             items: validItems
         });
     };

@@ -326,14 +326,14 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
             updateMutation.mutate({
                 id: initialData.id,
                 orderDate,
-                branchName: branchName || undefined,
+                branchName: branchName,
                 items: payloadItems
             });
         } else {
             createMutation.mutate({
                 orgId,
                 orderDate,
-                branchName: branchName || undefined,
+                branchName: branchName,
                 items: payloadItems
             });
         }
