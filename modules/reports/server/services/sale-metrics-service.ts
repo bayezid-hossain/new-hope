@@ -110,14 +110,18 @@ export class SaleMetricsService {
             totalRevenue += isNaN(amount) ? 0 : amount;
             totalMedicineCost += parseFloat(data.medicineCost || "0") || 0;
 
-            // Calculate Price Adjustment
+            // Calculate Price Adjustment (Weighted)
+            // Weight individual sale price delta by its volume (kg)
             const diff = price - basePrice;
             if (diff > 0) {
-                netAdjustment += diff / 2;
+                netAdjustment += (diff / 2) * weight;
             } else {
-                netAdjustment += diff;
+                netAdjustment += diff * weight;
             }
         }
+
+        // Normalize weighted adjustment by total weight
+        netAdjustment = totalWeight > 0 ? netAdjustment / totalWeight : 0;
 
         // Determine Total Feed Consumption
         // Logic:

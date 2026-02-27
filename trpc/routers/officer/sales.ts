@@ -949,8 +949,22 @@ export const officerSalesRouter = createTRPCRouter({
             const docCost = cycle.doc * docPriceUsed;
 
             const basePrice = input.recoveryPrice ?? BASE_SELLING_PRICE;
-            const avgPrice = totalWeight > 0 ? totalRevenue / totalWeight : 0;
-            const netAdjustment = (avgPrice - basePrice) / 2;
+
+            // Calculate weighted net adjustment
+            let weightedSumAdj = 0;
+            for (const sale of previousSales) {
+                if (input.excludeSaleId && sale.id === input.excludeSaleId) continue;
+                const data = sale.selectedReport || sale;
+                const weight = parseFloat(data.totalWeight) || 0;
+                const price = parseFloat(data.pricePerKg) || 0;
+                const diff = price - basePrice;
+                weightedSumAdj += (diff > 0 ? diff / 2 : diff) * weight;
+            }
+            // Add current sale from input
+            const currentDiff = input.pricePerKg - basePrice;
+            weightedSumAdj += (currentDiff > 0 ? currentDiff / 2 : currentDiff) * input.totalWeight;
+
+            const netAdjustment = totalWeight > 0 ? weightedSumAdj / totalWeight : 0;
             const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
             const formulaRevenue = effectiveRate * totalWeight;
             const formulaProfit = formulaRevenue - docCost - feedCost;
