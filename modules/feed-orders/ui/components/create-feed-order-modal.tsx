@@ -20,7 +20,7 @@ import { cn, copyToClipboard, generateId } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Check, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { CalendarIcon, Check, Copy, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -103,7 +103,7 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
             if (item.location) text += `Location: ${item.location}\n`;
             if (item.mobile) text += `Phone: ${item.mobile}\n`;
 
-            activeFeeds.forEach(feed => {
+            activeFeeds.sort((a, b) => a.type.localeCompare(b.type)).forEach(feed => {
                 const qty = feed.quantity || 0;
                 text += `${feed.type}: ${qty} Bags\n`;
 
@@ -117,9 +117,11 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
         });
 
         text += `Total:\n`;
-        Object.entries(totalByType).forEach(([type, qty]) => {
-            text += `${type}: ${qty} Bags\n`;
-        });
+        Object.entries(totalByType)
+            .sort(([typeA], [typeB]) => typeA.localeCompare(typeB))
+            .forEach(([type, qty]) => {
+                text += `${type}: ${qty} Bags\n`;
+            });
 
         text += `\nGrand Total: ${grandTotal} Bags`;
 
@@ -188,6 +190,34 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
         }));
     };
 
+    const handleUpdateFarmerInfo = (itemId: string, field: 'location' | 'mobile', value: string) => {
+        setSelectedItems(prev => prev.map(item => {
+            if (item.id !== itemId) return item;
+            return { ...item, [field]: value };
+        }));
+    };
+
+    const handleDuplicateFarmer = (itemId: string) => {
+        setSelectedItems(prev => {
+            const itemToDuplicate = prev.find(i => i.id === itemId);
+            if (!itemToDuplicate) return prev;
+
+            const duplicatedItem = {
+                ...itemToDuplicate,
+                id: generateId(),
+                feeds: itemToDuplicate.feeds.map(f => ({ ...f }))
+            };
+
+            // Insert the duplicated item right after the original item
+            const index = prev.findIndex(i => i.id === itemId);
+            return [
+                ...prev.slice(0, index + 1),
+                duplicatedItem,
+                ...prev.slice(index + 1)
+            ];
+        });
+    };
+
     const handleAddFeedRow = (itemId: string) => {
         setSelectedItems(prev => prev.map(item => {
             if (item.id !== itemId) return item;
@@ -211,9 +241,11 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
     };
 
     const handleSubmit = () => {
-        // Include all feeds with a type (even if quantity is 0)
         const cleanItems = selectedItems.map(item => ({
+            id: item.id,
             farmerId: item.farmerId,
+            locationOverride: item.location,
+            mobileOverride: item.mobile,
             feeds: item.feeds.filter(f => f.type.trim() !== "")
         })).filter(item => item.feeds.length > 0);
 
@@ -351,9 +383,33 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
                         <div key={item.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
                             <div className="flex items-center justify-between border-b pb-2">
                                 <h4 className="font-semibold">{item.farmerName}</h4>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveFarmer(item.id)} tabIndex={-1}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveFarmer(item.id)} tabIndex={-1} title="Remove">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pb-2">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Location</span>
+                                    <Input
+                                        placeholder="Location"
+                                        className="h-8 text-xs"
+                                        value={item.location || ""}
+                                        onChange={(e) => handleUpdateFarmerInfo(item.id, 'location', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Mobile</span>
+                                    <Input
+                                        placeholder="Mobile"
+                                        className="h-8 text-xs"
+                                        value={item.mobile || ""}
+                                        onChange={(e) => handleUpdateFarmerInfo(item.id, 'mobile', e.target.value)}
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -384,9 +440,13 @@ export function CreateFeedOrderModal({ open, onOpenChange, orgId, initialData }:
                                         )}
                                     </div>
                                 ))}
-                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleAddFeedRow(item.id)} tabIndex={-1}>
+                                <div className="flex flex-row gap-2 justify-between border border-2 items-baseline"> <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleAddFeedRow(item.id)} tabIndex={-1}>
                                     <Plus className="h-3 w-3 mr-1" /> Add Row
                                 </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDuplicateFarmer(item.id)} tabIndex={-1}>
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        Duplicate
+                                    </Button></div>
                             </div>
                         </div>
                     ))}

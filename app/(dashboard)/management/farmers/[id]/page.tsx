@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/components/shared/columns-factory";
+import { EditProblematicFeedModal } from "@/modules/farmers/ui/components/edit-problematic-feed-modal";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { RestoreFarmerModal } from "@/modules/farmers/ui/components/restore-farmer-modal";
@@ -47,6 +48,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
     Activity,
+    AlertCircle,
     Archive,
     ArrowDownLeft,
     ArrowUpRight,
@@ -170,6 +172,7 @@ export default function ManagementFarmerDetailsPage() {
     const [showRestoreModal, setShowRestoreModal] = useState(false);
     const [showEditSecurityMoneyModal, setShowEditSecurityMoneyModal] = useState(false);
     const [showSecurityHistoryModal, setShowSecurityHistoryModal] = useState(false);
+    const [showEditProblematicFeedModal, setShowEditProblematicFeedModal] = useState(false);
 
     const queryClient = useQueryClient();
     const deleteMutation = useMutation(trpc.management.farmers.delete.mutationOptions({
@@ -382,7 +385,41 @@ export default function ManagementFarmerDetailsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border border-border/50 shadow-sm bg-card h-fit">
+                    {(Number(farmerData?.problematicFeed) > 0 || orgId) && (
+                        <Card className="border border-destructive/20 shadow-sm bg-destructive/5 h-fit mt-6">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-destructive uppercase tracking-wider">
+                                    <AlertCircle className="h-4 w-4" />
+                                    Problematic Feed
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-col gap-4">
+                                    <div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-3xl font-bold text-foreground">
+                                                {isHubLoading ? <Skeleton className="h-8 w-24 inline-block align-middle" /> : parseFloat(farmerData?.problematicFeed || "0").toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">Bags or Value amount</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-2 border-t border-destructive/20">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 gap-2 text-xs font-bold h-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                            onClick={() => setShowEditProblematicFeedModal(true)}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                            Update Record
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    <Card className="border border-border/50 shadow-sm bg-card h-fit mt-6">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock Overview</CardTitle>
                         </CardHeader>
@@ -624,6 +661,14 @@ export default function ManagementFarmerDetailsPage() {
                             farmerName={farmerData?.name || "N/A"}
                             open={showSecurityHistoryModal}
                             onOpenChange={setShowSecurityHistoryModal}
+                            variant="management"
+                            orgId={orgId}
+                        />
+                        <EditProblematicFeedModal
+                            farmerId={farmerId}
+                            currentAmount={parseFloat(farmerData?.problematicFeed || "0")}
+                            open={showEditProblematicFeedModal}
+                            onOpenChange={setShowEditProblematicFeedModal}
                             variant="management"
                             orgId={orgId}
                         />

@@ -32,6 +32,9 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
     const mortalityValue = Number(cycle.mortality || 0);
     const soldValue = Number(cycle.birdsSold || 0);
     const liveBirdsValue = Math.max(0, docValue - mortalityValue - soldValue);
+    const mainStockValue = Number(cycle.farmerMainStock ?? 0);
+    const problematicFeed = Number(cycle.farmerProblematicFeed ?? 0);
+    const isActive = cycle.status === 'active';
 
     const createdAt = cycle.startDate || cycle.createdAt;
     const endDate = cycle.endDate;
@@ -105,7 +108,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                 </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-1 py-1 xs:py-1.5 sm:py-2 border-y border-border/50">
+            <div className={cn("grid gap-1 py-1 xs:py-1.5 sm:py-2 border-y border-border/50", isActive ? "grid-cols-5" : "grid-cols-4")}>
                 <div className="flex flex-col justify-center">
                     <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-tight">Age</span>
                     <p className="text-sm font-bold text-foreground leading-none">{cycle.age} <small className="text-[8px] font-normal">d</small></p>
@@ -127,6 +130,23 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                         <p className="text-[12px] xs:text-sm font-bold text-amber-600 dark:text-amber-500 leading-none">{intakeValue.toFixed(1)}</p>
                     </div>
                 </div>
+
+                {isActive && (
+                    <div className="flex flex-col justify-center text-center p-1 rounded bg-black/20 border border-primary/20 w-full relative">
+                        <span className="text-[7px] xs:text-[8px] text-foreground font-bold uppercase tracking-tight leading-tight">Main Stock</span>
+                        <div className="flex items-center gap-0.5 justify-center mt-0.5">
+                            <Wheat className="h-3 w-3 xs:h-4 xs:w-4 text-blue-300" />
+                            <p className="text-[12px] xs:text-sm font-bold text-blue-300 leading-none">{mainStockValue.toFixed(1)}</p>
+                        </div>
+                        {problematicFeed > 0 && (
+                            <div className="mt-1 flex justify-center">
+                                <div className="bg-red-800 flex items-center px-1.5 rounded shadow-sm shadow-red-500/50">
+                                    <span className="text-[8px] xs:text-[10px] text-white font-black tracking-tight text-center">PF - {problematicFeed}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="flex flex-col justify-center text-right">
                     <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-tight leading-tight">Deaths</span>

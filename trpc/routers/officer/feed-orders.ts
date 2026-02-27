@@ -12,7 +12,10 @@ export const feedOrdersRouter = createTRPCRouter({
             orderDate: z.date(),
             deliveryDate: z.date(),
             items: z.array(z.object({
+                id: z.string().optional(),
                 farmerId: z.string(),
+                locationOverride: z.string().nullish(),
+                mobileOverride: z.string().nullish(),
                 feeds: z.array(z.object({
                     type: z.string(),
                     quantity: z.number().min(0)
@@ -52,7 +55,10 @@ export const feedOrdersRouter = createTRPCRouter({
                     feedOrderId: orderId,
                     farmerId: item.farmerId,
                     feedType: feed.type,
-                    quantity: feed.quantity
+                    quantity: feed.quantity,
+                    groupId: item.id || null,
+                    locationOverride: item.locationOverride || null,
+                    mobileOverride: item.mobileOverride || null
                 }))
             );
 
@@ -154,7 +160,10 @@ export const feedOrdersRouter = createTRPCRouter({
             orderDate: z.date(),
             deliveryDate: z.date(),
             items: z.array(z.object({
+                id: z.string().optional(),
                 farmerId: z.string(),
+                locationOverride: z.string().nullish(),
+                mobileOverride: z.string().nullish(),
                 feeds: z.array(z.object({
                     type: z.string(),
                     quantity: z.number().min(0)
@@ -192,7 +201,10 @@ export const feedOrdersRouter = createTRPCRouter({
                         feedOrderId: input.id,
                         farmerId: item.farmerId,
                         feedType: feed.type,
-                        quantity: feed.quantity
+                        quantity: feed.quantity,
+                        groupId: item.id || null,
+                        locationOverride: item.locationOverride || null,
+                        mobileOverride: item.mobileOverride || null
                     }))
                 );
 

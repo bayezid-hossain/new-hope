@@ -163,6 +163,9 @@ export const farmer = pgTable("farmer", {
   // SECURITY MONEY
   securityMoney: decimal("security_money").notNull().default("0"),
 
+  // PROBLEMATIC FEED
+  problematicFeed: decimal("problematic_feed").notNull().default("0"),
+
   status: text("status").notNull().default("active"),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -514,6 +517,11 @@ export const feedOrderItems = pgTable("feed_order_items", {
   feedType: text("feed_type").notNull(),
   // e.g. 10, 20
   quantity: integer("quantity").notNull(),
+
+  // UI rendering metadata to keep duplicated farmers as separate blocks with overrides
+  groupId: text("group_id"),
+  locationOverride: text("location_override"),
+  mobileOverride: text("mobile_override"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
