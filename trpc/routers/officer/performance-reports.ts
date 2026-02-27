@@ -316,4 +316,44 @@ export const performanceReportsRouter = createTRPCRouter({
                 input.month
             );
         }),
+
+    getRangeProductionRecords: proProcedure
+        .input(z.object({
+            startMonth: z.number().min(0).max(11),
+            startYear: z.number().int().min(2000).max(2100),
+            endMonth: z.number().min(0).max(11),
+            endYear: z.number().int().min(2000).max(2100),
+        }))
+        .query(async ({ ctx, input }) => {
+            const { startMonth, startYear, endMonth, endYear } = input;
+            const records = [];
+
+            let currentYear = startYear;
+            let currentMonth = startMonth;
+
+            while (
+                currentYear < endYear ||
+                (currentYear === endYear && currentMonth <= endMonth)
+            ) {
+                const record = await PerformanceAnalyticsService.getMonthlyProductionRecord(
+                    ctx.user.id,
+                    currentYear,
+                    currentMonth
+                );
+                records.push({
+                    month: currentMonth,
+                    year: currentYear,
+                    monthName: new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' }),
+                    ...record
+                });
+
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+            }
+
+            return records;
+        }),
 });
