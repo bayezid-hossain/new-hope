@@ -163,13 +163,32 @@ export const officerFarmersRouter = createTRPCRouter({
                 .from(farmer)
                 .where(whereClause);
 
+            // Fetch latest stock log date per farmer
+            const farmerIds = data.map(f => f.id);
+            let stockDatesMap = new Map<string, Date>();
+
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
+
             return {
                 items: data.map(f => ({
                     ...f,
                     activeCyclesCount: f.cycles.length,
                     activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
                     pastCyclesCount: f.history.length,
-                    officerName: "Me"
+                    officerName: "Me",
+                    mainStockUpdatedAt: stockDatesMap.get(f.id),
                 })),
                 total: Number(total.count),
                 totalPages: Math.ceil(Number(total.count) / pageSize)
