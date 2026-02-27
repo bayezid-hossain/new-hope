@@ -43,6 +43,8 @@ export const officerCyclesRouter = createTRPCRouter({
                 farmerLocation: farmer.location,
                 farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
+                farmerProblematicFeed: farmer.problematicFeed,
+                farmerUpdatedAt: farmer.updatedAt,
             })
                 .from(cycles)
                 .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
@@ -50,6 +52,24 @@ export const officerCyclesRouter = createTRPCRouter({
                 .orderBy(orderByClause)
                 .limit(pageSize)
                 .offset(offset);
+
+            // Fetch latest stock log date per farmer to use as "Last Updated"
+            const farmerIds = [...new Set(data.map(d => d.cycle.farmerId))];
+            let stockDatesMap = new Map<string, Date>();
+
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
 
             const [total] = await ctx.db.select({ count: count() })
                 .from(cycles)
@@ -73,6 +93,9 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerLocation: d.farmerLocation,
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
+                    farmerProblematicFeed: d.farmerProblematicFeed,
+                    farmerUpdatedAt: d.farmerUpdatedAt,
+                    mainStockUpdatedAt: stockDatesMap.get(d.cycle.farmerId),
                     birdsSold: d.cycle.birdsSold,
                     birdType: d.cycle.birdType,
                     endDate: null as Date | null

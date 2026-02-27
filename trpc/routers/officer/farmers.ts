@@ -645,6 +645,57 @@ export const officerFarmersRouter = createTRPCRouter({
             });
         }),
 
+    // Update Problematic Feed
+    updateProblematicFeed: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+            amount: z.number().min(0, "Amount must be positive"),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const currentFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.officerId, ctx.user.id))
+            });
+
+            if (!currentFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (currentFarmer.status === "deleted") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot modify problematic feed for a deleted farmer profile."
+                });
+            }
+
+            const oldAmount = currentFarmer.problematicFeed || "0";
+            if (parseFloat(oldAmount) === input.amount) return currentFarmer;
+
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        problematicFeed: input.amount.toString(),
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.id))
+                    .returning();
+
+                // NOTIFICATION: Problematic Feed Updated
+                if (updated) {
+                    try {
+                        const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                        await NotificationService.sendToOrgManagers({
+                            organizationId: updated.organizationId,
+                            title: "Problematic Feed Updated",
+                            message: `Officer ${ctx.user.name} updated problematic feed for farmer "${updated.name}" from ${oldAmount} to ${input.amount}`,
+                            type: "INFO",
+                            link: `/management/farmers/${updated.id}`
+                        });
+                    } catch (e) {
+                        console.error("Failed to send problematic feed update notification", e);
+                    }
+                }
+
+                return updated;
+            });
+        }),
+
     // PRO FEATURE: Performance Benchmarking
     getBenchmark: proProcedure
         .input(z.object({

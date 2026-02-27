@@ -543,6 +543,69 @@ export const managementFarmersRouter = createTRPCRouter({
             });
         }),
 
+    // Update Problematic Feed
+    updateProblematicFeed: managementProcedure
+        .input(z.object({
+            id: z.string(),
+            amount: z.number().min(0, "Amount must be positive"),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // Access Check: Must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need 'EDIT' access to update problematic feed."
+                });
+            }
+
+            const oldFarmer = await ctx.db.query.farmer.findFirst({
+                where: and(eq(farmer.id, input.id), eq(farmer.organizationId, input.orgId))
+            });
+
+            if (!oldFarmer) throw new TRPCError({ code: "NOT_FOUND" });
+            if (oldFarmer.status === "deleted") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot modify problematic feed for an archived farmer profile."
+                });
+            }
+
+            const oldAmount = oldFarmer.problematicFeed || "0";
+
+            // If no change, return early
+            if (Math.abs(parseFloat(oldAmount) - input.amount) < 0.01) {
+                return oldFarmer;
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(farmer)
+                    .set({
+                        problematicFeed: input.amount.toString(),
+                        updatedAt: new Date()
+                    })
+                    .where(eq(farmer.id, input.id))
+                    .returning();
+
+                // NOTIFICATION: Problematic Feed Updated
+                if (updated) {
+                    try {
+                        const { NotificationService } = await import("@/modules/notifications/server/notification-service");
+                        await NotificationService.sendToOrgManagers({
+                            organizationId: input.orgId,
+                            title: "Problematic Feed Updated",
+                            message: `Manager ${ctx.user.name} updated problematic feed for farmer "${updated.name}" from ${oldAmount} to ${input.amount}`,
+                            type: "INFO",
+                            link: `/management/farmers/${updated.id}`
+                        });
+                    } catch (e) {
+                        console.error("Failed to send problematic feed update notification", e);
+                    }
+                }
+
+                return updated;
+            });
+        }),
+
     // Get Security Money History
     getSecurityMoneyHistory: managementProcedure
         .input(z.object({ farmerId: z.string() }))

@@ -34,17 +34,18 @@ export function FeedOrdersPage({ orgId }: FeedOrdersPageProps) {
         // Group flat items by farmerId for the modal
         const farmerMap = new Map<string, any>();
         order.items.forEach((item: any) => {
-            if (!farmerMap.has(item.farmerId)) {
-                farmerMap.set(item.farmerId, {
-                    id: item.id,
+            const groupKey = item.groupId || item.farmerId;
+            if (!farmerMap.has(groupKey)) {
+                farmerMap.set(groupKey, {
+                    id: groupKey,
                     farmerId: item.farmerId,
                     farmerName: item.farmer.name,
-                    location: item.farmer.location,
-                    mobile: item.farmer.mobile,
+                    location: item.locationOverride ?? item.farmer.location,
+                    mobile: item.mobileOverride ?? item.farmer.mobile,
                     feeds: []
                 });
             }
-            farmerMap.get(item.farmerId).feeds.push({
+            farmerMap.get(groupKey).feeds.push({
                 type: item.feedType,
                 quantity: item.quantity
             });

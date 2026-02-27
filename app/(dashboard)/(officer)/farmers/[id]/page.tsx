@@ -40,6 +40,7 @@ import { getCycleColumns, getHistoryColumns } from "@/modules/cycles/ui/componen
 
 import { ArchiveFarmerDialog } from "@/modules/farmers/ui/components/archive-farmer-dialog";
 import { EditFarmerProfileModal } from "@/modules/farmers/ui/components/edit-farmer-profile-modal";
+import { EditProblematicFeedModal } from "@/modules/farmers/ui/components/edit-problematic-feed-modal";
 import { EditSecurityMoneyModal } from "@/modules/farmers/ui/components/edit-security-money-modal";
 import { FarmerNavigation } from "@/modules/farmers/ui/components/farmer-navigation";
 import { SecurityMoneyHistoryModal } from "@/modules/farmers/ui/components/security-money-history-modal";
@@ -50,6 +51,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Activity,
+  AlertCircle,
   Archive,
   ArrowDownLeft,
   ArrowUpRight,
@@ -175,6 +177,7 @@ export default function FarmerDetails() {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showEditSecurityMoneyModal, setShowEditSecurityMoneyModal] = useState(false);
   const [showSecurityHistoryModal, setShowSecurityHistoryModal] = useState(false);
+  const [showEditProblematicFeedModal, setShowEditProblematicFeedModal] = useState(false);
   const [showEditFarmerModal, setShowEditFarmerModal] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -442,8 +445,52 @@ export default function FarmerDetails() {
             </div>
           )}
         </CardContent>
+        {/* Problematic Feed Card */}
+        {(Number(farmerQuery.data?.problematicFeed) > 0 || canEdit) && (
+          <Card className="border border-destructive/20 shadow-sm bg-destructive/5 overflow-hidden mt-6">
+            <CardContent className="p-6">
+              {farmerQuery.isLoading ? (
+                <div className="flex flex-col gap-4 px-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-8 w-40" />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-bold text-destructive uppercase tracking-wider flex items-center gap-2">
+                        <AlertCircle className="h-3 w-3" />
+                        Problematic Feed
+                      </h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-foreground">
+                          {parseFloat(farmerQuery.data?.problematicFeed || "0").toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Bags or Value amount</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-3 border-t border-destructive/20">
+                    {canEdit && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-xs font-bold h-9 bg-destructive/5 hover:bg-destructive/10 border-destructive/30 text-destructive hover:text-destructive transition-all w-full sm:w-auto"
+                        onClick={() => setShowEditProblematicFeedModal(true)}
+                      >
+                        <Pencil className="h-3 w-3 text-destructive" />
+                        Update Record
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </Card>
-
       {/* Performance Benchmark Card (Pro Feature) */}
       {/* <PerformanceBenchmarkCard farmerId={farmerId} /> */}
 
@@ -600,6 +647,13 @@ export default function FarmerDetails() {
         currentAmount={Number.parseFloat(farmerQuery.data?.securityMoney ?? "0")}
         open={showEditSecurityMoneyModal}
         onOpenChange={setShowEditSecurityMoneyModal}
+      />
+
+      <EditProblematicFeedModal
+        farmerId={farmerId}
+        currentAmount={parseFloat(farmerQuery.data?.problematicFeed || "0")}
+        open={showEditProblematicFeedModal}
+        onOpenChange={setShowEditProblematicFeedModal}
       />
 
       <SecurityMoneyHistoryModal

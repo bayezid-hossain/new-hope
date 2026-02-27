@@ -42,6 +42,10 @@ interface FeedOrderCardProps {
             farmerId: string;
             feedType: string;
             quantity: number;
+            groupId: string | null;
+            locationOverride: string | null;
+            mobileOverride: string | null;
+
             farmer: {
                 name: string;
                 location: string | null;
@@ -100,25 +104,31 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
         const farmerMap = new Map<string, typeof order.items>();
 
         order.items.forEach(item => {
-            if (!farmerMap.has(item.farmerId)) {
-                farmerMap.set(item.farmerId, []);
+            const groupKey = item.groupId || item.farmerId;
+            if (!farmerMap.has(groupKey)) {
+                farmerMap.set(groupKey, []);
             }
-            farmerMap.get(item.farmerId)?.push(item);
+            farmerMap.get(groupKey)?.push(item);
         });
 
         let farmCounter = 1;
         const totalByType: Record<string, number> = {};
         let grandTotal = 0;
 
-        farmerMap.forEach((items, farmerId) => {
-            const farmer = items[0].farmer;
-            const activeItems = items.filter(i => i.quantity > 0);
+        farmerMap.forEach((items, groupKey) => {
+            const firstItem = items[0];
+            const farmer = firstItem.farmer;
+            const activeItems = items.filter(i => i.quantity > 0).sort((a, b) => a.feedType.localeCompare(b.feedType));
             if (activeItems.length === 0) return;
 
             text += `Farm No ${farmCounter.toString().padStart(2, '0')}\n`;
             text += `${farmer.name}\n`; // User example shows name directly, sometimes "Farmer: Name"
-            if (farmer.location) text += `Location: ${farmer.location}\n`;
-            if (farmer.mobile) text += `Phone: ${farmer.mobile}\n`;
+
+            const location = firstItem.locationOverride ?? farmer.location;
+            const mobile = firstItem.mobileOverride ?? farmer.mobile;
+
+            if (location) text += `Location: ${location}\n`;
+            if (mobile) text += `Phone: ${mobile}\n`;
 
             activeItems.forEach(item => {
                 text += `${item.feedType}: ${item.quantity} Bags\n`;
@@ -133,9 +143,11 @@ export function FeedOrderCard({ order, onEdit }: FeedOrderCardProps) {
         });
 
         text += `Total:\n`;
-        Object.entries(totalByType).forEach(([type, qty]) => {
-            text += `${type}: ${qty} Bags\n`;
-        });
+        Object.entries(totalByType)
+            .sort(([typeA], [typeB]) => typeA.localeCompare(typeB))
+            .forEach(([type, qty]) => {
+                text += `${type}: ${qty} Bags\n`;
+            });
 
         text += `\nGrand Total: ${grandTotal} Bags`; // Keeping user's typo "Tota" or maybe valid? formatting matching request exactly just in case, but let's fix to Total if logic suggests, but user request had "Grand Tota:". I will use "Grand Total" to be safe, or stick to request? Request: "Grand Tota: 160 Bags". I'll use "Grand Total".
 
