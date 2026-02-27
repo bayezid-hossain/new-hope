@@ -1,4 +1,5 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
+
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -65,6 +66,24 @@ export const managementFarmersRouter = createTRPCRouter({
                 .leftJoin(officers, eq(farmer.officerId, officers.id))
                 .where(whereClause);
 
+            // Fetch latest stock log date per farmer
+            const farmerIds = data.map(d => d.farmer.id);
+            let stockDatesMap = new Map<string, Date>();
+
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
+
             return {
                 items: await Promise.all(data.map(async d => {
                     const f = d.farmer;
@@ -82,7 +101,8 @@ export const managementFarmersRouter = createTRPCRouter({
                         activeBirdsCount: fCycles.reduce((acc, c) => acc + (c.doc - c.mortality), 0),
                         pastCyclesCount: fHistory.length,
                         cycles: fCycles,
-                        history: fHistory
+                        history: fHistory,
+                        mainStockUpdatedAt: stockDatesMap.get(f.id),
                     };
                 })),
                 total: Number(total.count),

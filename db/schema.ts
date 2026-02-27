@@ -40,13 +40,13 @@ export const user = pgTable("user", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   activeMode: text("active_mode").$type<"ADMIN" | "USER">().notNull().default("USER"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 
   // Custom Field for Global Admin logic
   globalRole: globalRoleEnum("global_role").default("USER").notNull(),
   isPro: boolean("is_pro").default(false).notNull(),
-  proExpiresAt: timestamp("pro_expires_at"), // null = never had Pro or no expiration set
+  proExpiresAt: timestamp("pro_expires_at", { withTimezone: true }), // null = never had Pro or no expiration set
 
   twoFactorEnabled: boolean("two_factor_enabled"),
 });
@@ -56,18 +56,18 @@ export const featureRequest = pgTable("feature_request", {
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   feature: text("feature").notNull(), // e.g., "BULK_IMPORT"
   status: text("status").notNull().default("PENDING"), // PENDING, APPROVED, REJECTED
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_feature_req_user").on(t.userId),
 ]);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   token: text("token").notNull().unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
@@ -81,21 +81,21 @@ export const account = pgTable("account", {
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
   scope: text("scope"),
   password: text("password"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const twoFactor = pgTable("two_factor", {
@@ -116,9 +116,9 @@ export const organization = pgTable("organization", {
   name: text("name").notNull(),
   feedPricePerBag: decimal("feed_price_per_bag").default("3220"), // Default until changed
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const member = pgTable("member", {
@@ -134,8 +134,8 @@ export const member = pgTable("member", {
   // Access Level for Managers (VIEW or EDIT)
   accessLevel: text("access_level").$type<"VIEW" | "EDIT">().notNull().default("VIEW"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   // A user can only join an org once
   uniqueIndex("unique_org_member").on(t.userId, t.organizationId),
@@ -167,9 +167,9 @@ export const farmer = pgTable("farmer", {
   problematicFeed: decimal("problematic_feed").notNull().default("0"),
 
   status: text("status").notNull().default("active"),
-  deletedAt: timestamp("deleted_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_farmer_org_id").on(t.organizationId),
   index("idx_farmer_officer_id").on(t.officerId),
@@ -185,7 +185,7 @@ export const farmerSecurityMoneyLogs = pgTable("farmer_security_money_logs", {
   newAmount: decimal("new_amount").notNull(),
 
   changedBy: text("changed_by").notNull().references(() => user.id),
-  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
   reason: text("reason"),
 }, (t) => [
   index("idx_security_logs_farmer_id").on(t.farmerId),
@@ -208,8 +208,8 @@ export const cycles = pgTable("cycles", {
   status: text("status").notNull().default("active"),
   birdType: text("bird_type"),
 
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_cycles_org_id").on(t.organizationId),
   index("idx_cycles_farmer_id").on(t.farmerId),
@@ -231,8 +231,8 @@ export const cycleHistory = pgTable("cycle_history", {
   age: integer("age").notNull(),
 
   status: text("status").notNull().default("archived"),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").defaultNow().notNull(),
+  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+  endDate: timestamp("end_date", { withTimezone: true }).defaultNow().notNull(),
   birdType: text("bird_type"),
 }, (t) => [
   index("idx_history_org_id").on(t.organizationId),
@@ -257,7 +257,7 @@ export const cycleLogs = pgTable("cycle_logs", {
   newValue: doublePrecision("new_value"),
   note: text("note"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   isReverted: boolean("is_reverted").default(false).notNull(),
 }, (t) => [
   index("idx_logs_cycle_id").on(t.cycleId),
@@ -274,7 +274,7 @@ export const stockLogs = pgTable("stock_logs", {
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
   driverName: text("driver_name"), // Added for bulk imports
   note: text("note"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   index("idx_stock_logs_farmer_id").on(t.farmerId),
 ]);
@@ -294,7 +294,7 @@ export const saleEvents = pgTable("sale_events", {
   party: text("party"), // Buyer/party name
 
   // Sale Data
-  saleDate: timestamp("sale_date").notNull().defaultNow(),
+  saleDate: timestamp("sale_date", { withTimezone: true }).notNull().defaultNow(),
   houseBirds: integer("house_birds").notNull(), // Birds at start of cycle
   birdsSold: integer("birds_sold").notNull(),
   totalMortality: integer("total_mortality").notNull(),
@@ -317,7 +317,7 @@ export const saleEvents = pgTable("sale_events", {
   medicineCost: decimal("medicine_cost").default("0"),
   selectedReportId: text("selected_report_id"),
   createdBy: text("created_by").notNull().references(() => user.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_sale_events_cycle_id").on(t.cycleId),
   index("idx_sale_events_history_id").on(t.historyId),
@@ -349,7 +349,7 @@ export const saleReports = pgTable("sale_reports", {
   recoveryPrice: decimal("recovery_price"),
 
   createdBy: text("created_by").notNull().references(() => user.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_sale_reports_event_id").on(t.saleEventId),
 ]);
@@ -388,8 +388,8 @@ export const saleMetrics = pgTable("sale_metrics", {
   feedPriceUsed: decimal("feed_price_used").notNull().default("3220"),
   docPriceUsed: decimal("doc_price_used").notNull().default("41.5"),
   recoveryPrice: decimal("recovery_price"), // Per-cycle base selling price, nullable (defaults to BASE_SELLING_PRICE when null)
-  calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
-  lastRecalculatedAt: timestamp("last_recalculated_at").notNull().defaultNow(),
+  calculatedAt: timestamp("calculated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastRecalculatedAt: timestamp("last_recalculated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_sale_metrics_cycle").on(t.cycleId),
   index("idx_sale_metrics_history").on(t.historyId),
@@ -481,7 +481,7 @@ export const notification = pgTable("notification", {
   isRead: boolean("is_read").notNull().default(false),
   metadata: text("metadata"), // Storing JSON as text to be safe with all drivers, or use json() if postgres specific
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_notification_user").on(t.userId),
   index("idx_notification_org").on(t.organizationId),
@@ -497,12 +497,12 @@ export const feedOrders = pgTable("feed_orders", {
   orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   officerId: text("officer_id").notNull().references(() => user.id),
 
-  orderDate: timestamp("order_date").notNull(),
-  deliveryDate: timestamp("delivery_date").notNull(),
+  orderDate: timestamp("order_date", { withTimezone: true }).notNull(),
+  deliveryDate: timestamp("delivery_date", { withTimezone: true }).notNull(),
   status: feedOrderStatusEnum("status").notNull().default("PENDING"),
   driverName: text("driver_name"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_feed_order_org").on(t.orgId),
   index("idx_feed_order_officer").on(t.officerId),
@@ -523,7 +523,7 @@ export const feedOrderItems = pgTable("feed_order_items", {
   locationOverride: text("location_override"),
   mobileOverride: text("mobile_override"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_feed_order_item_order").on(t.feedOrderId),
 ]);
@@ -548,7 +548,7 @@ export const docOrderStatusEnum = pgEnum("doc_order_status", ["PENDING", "CONFIR
 export const birdTypes = pgTable("bird_types", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(), // e.g., "Ross A", "EP A"
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const docOrders = pgTable("doc_orders", {
@@ -556,7 +556,7 @@ export const docOrders = pgTable("doc_orders", {
   orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   officerId: text("officer_id").notNull().references(() => user.id),
 
-  orderDate: timestamp("order_date").notNull(),
+  orderDate: timestamp("order_date", { withTimezone: true }).notNull(),
   status: docOrderStatusEnum("status").notNull().default("PENDING"),
 
   // Optional metadata if needed, like "Branch Name" could be stored or just used for message generation.
@@ -564,7 +564,7 @@ export const docOrders = pgTable("doc_orders", {
   // but better to store it if they want to edit it later.
   branchName: text("branch_name"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_doc_order_org").on(t.orgId),
   index("idx_doc_order_officer").on(t.officerId),
@@ -579,7 +579,7 @@ export const docOrderItems = pgTable("doc_order_items", {
   docCount: integer("doc_count").notNull(),
   isContract: boolean("is_contract").default(false).notNull(),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_doc_order_item_order").on(t.docOrderId),
 ]);
@@ -604,10 +604,10 @@ export const saleOrders = pgTable("sale_orders", {
   orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   officerId: text("officer_id").notNull().references(() => user.id),
 
-  orderDate: timestamp("order_date").notNull(),
+  orderDate: timestamp("order_date", { withTimezone: true }).notNull(),
   branchName: text("branch_name"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_sale_order_org").on(t.orgId),
   index("idx_sale_order_officer").on(t.officerId),
@@ -623,7 +623,7 @@ export const saleOrderItems = pgTable("sale_order_items", {
   avgWeight: text("avg_weight"), // Stored as text for ranges like "1.70-1.80"
   age: integer("age").notNull().default(0),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_sale_order_item_order").on(t.saleOrderId),
 ]);
