@@ -2,6 +2,7 @@ import { saleEvents, saleReports } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProProcedure } from "../../init";
+import { appendCycleContextToSales } from "../officer/sales";
 
 export const managementSalesRouter = createTRPCRouter({
     getRecentSales: managementProProcedure
@@ -25,10 +26,19 @@ export const managementSalesRouter = createTRPCRouter({
                         orderBy: desc(saleReports.createdAt),
                         columns: {
                             id: true,
-                            createdAt: true,
-                            pricePerKg: true,
+                            birdsSold: true,
                             totalWeight: true,
+                            pricePerKg: true,
                             totalAmount: true,
+                            avgWeight: true,
+                            totalMortality: true,
+                            cashReceived: true,
+                            depositReceived: true,
+                            medicineCost: true,
+                            adjustmentNote: true,
+                            feedConsumed: true,
+                            feedStock: true,
+                            createdAt: true,
                         }
                     }
                 }
@@ -41,16 +51,6 @@ export const managementSalesRouter = createTRPCRouter({
                 return f?.organizationId === orgId;
             });
 
-            // If searching, filter by farmer name
-            if (input.search) {
-                const s = input.search.toLowerCase();
-                const filtered = orgFiltered.filter(e => {
-                    const f = e.cycle?.farmer ?? e.history?.farmer;
-                    return f?.name?.toLowerCase().includes(s);
-                });
-                return filtered.slice(0, input.limit);
-            }
-
-            return orgFiltered;
+            return await appendCycleContextToSales(ctx, orgFiltered, input.search, input.limit);
         }),
 });

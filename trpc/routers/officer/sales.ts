@@ -1604,187 +1604,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            // Fetch cumulative data for these cycles to calculate correct metrics
-            const cycleIds = [...new Set(events.map(e => e.cycleId).filter(Boolean))] as string[];
-            const historyIds = [...new Set(events.map(e => e.historyId).filter(Boolean))] as string[];
-
-            const allCycleEvents = await ctx.db.query.saleEvents.findMany({
-                where: or(
-                    cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
-                    historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
-                )
-            });
-
-            // Fetch per-cycle recovery prices from saleMetrics
-            const allGroupKeysForMetrics = [...new Set([...cycleIds, ...historyIds])];
-            const metricsRows = allGroupKeysForMetrics.length > 0 ? await ctx.db.query.saleMetrics.findMany({
-                where: or(
-                    ...allGroupKeysForMetrics.map(k => or(eq(saleMetrics.cycleId, k), eq(saleMetrics.historyId, k)))
-                ),
-                columns: { cycleId: true, historyId: true, recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
-            }) : [];
-            const recoveryPriceMap = new Map<string, number>();
-            const feedPriceUsedMap = new Map<string, number>();
-            const docPriceUsedMap = new Map<string, number>();
-            for (const m of metricsRows) {
-                const key = m.cycleId || m.historyId || "";
-                if (key && m.recoveryPrice) recoveryPriceMap.set(key, Number(m.recoveryPrice));
-                if (key && m.feedPriceUsed) feedPriceUsedMap.set(key, Number(m.feedPriceUsed));
-                if (key && m.docPriceUsed) docPriceUsedMap.set(key, Number(m.docPriceUsed));
-            }
-
-            const { revenueMap, weightMap, birdsSoldMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
-
-            // Pre-calculate LATEST feed intake for each History Group from ALL related events
-            const historyFeedMap = new Map<string, number>();
-            // Sort all events to ensure we find the latest one correctly
-            const sortedAllEvents = [...allCycleEvents].sort((a, b) =>
-                new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()
-            );
-
-            const latestSaleIds = new Set<string>();
-            const seenGroupsForLatest = new Set<string>();
-
-            for (const ev of sortedAllEvents) {
-                const groupKey = ev.cycleId || ev.historyId || "unknown";
-                if (!seenGroupsForLatest.has(groupKey)) {
-                    latestSaleIds.add(ev.id);
-                    seenGroupsForLatest.add(groupKey);
-                }
-
-                if (ev.historyId && !historyFeedMap.has(ev.historyId)) {
-                    const bags = getFeedFromEvent(ev);
-                    historyFeedMap.set(ev.historyId, bags);
-                }
-            }
-
-            // Compute per-sale cumulative birds sold (for remainingBirds)
-            const perSaleCumulativeMap = new Map<string, number>();
-            const groupedForCumulative: Record<string, typeof allCycleEvents> = {};
-            for (const ev of allCycleEvents) {
-                const gk = ev.cycleId || ev.historyId || "unknown";
-                if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
-                groupedForCumulative[gk].push(ev);
-            }
-            for (const gk of Object.keys(groupedForCumulative)) {
-                const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
-                    new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
-                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                );
-                let running = 0;
-                for (const ev of sorted) {
-                    running += ev.birdsSold || 0;
-                    perSaleCumulativeMap.set(ev.id, running);
-                }
-            }
-
-            let formattedEvents = events.map(e => {
-                const cycleOrHistory = e.cycle || e.history;
-                const isEnded = !e.cycleId && !!e.historyId;
-                const groupKey = e.cycleId || e.historyId || "unknown";
-                const isLatestInGroup = latestSaleIds.has(e.id);
-
-                const doc = cycleOrHistory?.doc || 0;
-                // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
-                const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
-
-                let age = cycleOrHistory?.age || 0;
-                if (isEnded && isLatestInGroup) {
-                    const weightedAge = ageMap.get(groupKey);
-                    if (weightedAge && weightedAge > 0) {
-                        age = weightedAge;
-                    }
-                } else if (e.age) {
-                    age = e.age;
-                }
-                // FIX: Use the feed from the LATEST sale event
-                const feedConsumed = isEnded
-                    ? (historyFeedMap.get(e.historyId!) ?? e.history?.finalIntake ?? 0)
-                    : (e.cycle?.intake || 0);
-
-                // Get cumulative totals
-                const cumulativeRevenue = revenueMap.get(groupKey) || 0;
-                const cumulativeWeight = weightMap.get(groupKey) || 0;
-                const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
-                const basePrice = recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
-                const netAdjustment = ((cumulativeRevenue / cumulativeWeight) - basePrice) / 2;
-
-                // Effective Rate = max(basePrice, basePrice + Net Adjustment)
-                const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
-                const formulaRevenue = effectiveRate * cumulativeWeight;
-
-                // Calculate FCR/EPI
-                const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
-
-                // Profit calculation (backend-only)
-                const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
-                const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
-                const feedCost = isEnded ? feedConsumed * feedPrice : 0;
-                const docCost = isEnded ? doc * docPrice : 0;
-                const profit = formulaRevenue - feedCost - docCost;
-                const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
-
-
-                // Calculate the original sale age (not the weighted one)
-                const saleAge = e.age ?? (() => {
-                    const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
-                    if (cycleStartDate) {
-                        const saleDateOnly = new Date(e.saleDate);
-                        const cycleStartOnly = new Date(cycleStartDate);
-                        saleDateOnly.setHours(0, 0, 0, 0);
-                        cycleStartOnly.setHours(0, 0, 0, 0);
-                        const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
-                        const MS_PER_DAY = 1000 * 60 * 60 * 24;
-                        return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
-                    }
-                    return cycleOrHistory?.age || 0;
-                })();
-
-                return {
-                    ...e,
-                    saleAge,
-                    feedConsumed: JSON.parse(e.feedConsumed) as { type: string; bags: number }[],
-                    feedStock: JSON.parse(e.feedStock) as { type: string; bags: number }[],
-                    cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
-                    farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
-                    farmerMobile: e.cycle?.farmer?.mobile || e.history?.farmer?.mobile || "",
-                    cycleContext: {
-                        doc,
-                        mortality,
-                        age,
-                        feedConsumed,
-                        isEnded,
-                        fcr,
-                        epi,
-                        revenue: formulaRevenue,
-                        actualRevenue: cumulativeRevenue,
-                        totalWeight: cumulativeWeight,
-                        cumulativeBirdsSold,
-                        effectiveRate,
-                        netAdjustment,
-                        feedCost,
-                        docCost,
-                        profit,
-                        avgPrice: parseFloat(avgPrice.toFixed(2)),
-                        recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
-                        birdType: cycleOrHistory?.birdType
-                    },
-                    remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
-                };
-            });
-
-            // In-memory Filter for Search
-            if (input.search) {
-                const searchLower = input.search.toLowerCase();
-                formattedEvents = formattedEvents.filter(e =>
-                    e.farmerName.toLowerCase().includes(searchLower) ||
-                    e.location.toLowerCase().includes(searchLower) ||
-                    (e.party && e.party.toLowerCase().includes(searchLower))
-                );
-            }
-
-            // Apply limit after filtering
-            return formattedEvents.slice(0, input.limit);
+            return await appendCycleContextToSales(ctx, events, input.search, input.limit);
         }),
 
     delete: proProcedure
@@ -1874,3 +1694,189 @@ export const officerSalesRouter = createTRPCRouter({
             return result;
         }),
 });
+
+export const appendCycleContextToSales = async (
+    ctx: any,
+    events: any[],
+    search?: string,
+    limit: number = 20
+) => {
+    // Fetch cumulative data for these cycles to calculate correct metrics
+    const cycleIds = [...new Set(events.map(e => e.cycleId).filter(Boolean))] as string[];
+    const historyIds = [...new Set(events.map(e => e.historyId).filter(Boolean))] as string[];
+
+    const allCycleEvents = await ctx.db.query.saleEvents.findMany({
+        where: or(
+            cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
+            historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
+        )
+    });
+
+    // Fetch per-cycle recovery prices from saleMetrics
+    const allGroupKeysForMetrics = [...new Set([...cycleIds, ...historyIds])];
+    const metricsRows = allGroupKeysForMetrics.length > 0 ? await ctx.db.query.saleMetrics.findMany({
+        where: or(
+            ...allGroupKeysForMetrics.map(k => or(eq(saleMetrics.cycleId, k), eq(saleMetrics.historyId, k)))
+        ),
+        columns: { cycleId: true, historyId: true, recoveryPrice: true, feedPriceUsed: true, docPriceUsed: true }
+    }) : [];
+    const recoveryPriceMap = new Map<string, number>();
+    const feedPriceUsedMap = new Map<string, number>();
+    const docPriceUsedMap = new Map<string, number>();
+    for (const m of metricsRows) {
+        const key = m.cycleId || m.historyId || "";
+        if (key && m.recoveryPrice) recoveryPriceMap.set(key, Number(m.recoveryPrice));
+        if (key && m.feedPriceUsed) feedPriceUsedMap.set(key, Number(m.feedPriceUsed));
+        if (key && m.docPriceUsed) docPriceUsedMap.set(key, Number(m.docPriceUsed));
+    }
+
+    const { revenueMap, weightMap, birdsSoldMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
+
+    // Pre-calculate LATEST feed intake for each History Group from ALL related events
+    const historyFeedMap = new Map<string, number>();
+    // Sort all events to ensure we find the latest one correctly
+    const sortedAllEvents = [...allCycleEvents].sort((a, b) =>
+        new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()
+    );
+
+    const latestSaleIds = new Set<string>();
+    const seenGroupsForLatest = new Set<string>();
+
+    for (const ev of sortedAllEvents) {
+        const groupKey = ev.cycleId || ev.historyId || "unknown";
+        if (!seenGroupsForLatest.has(groupKey)) {
+            latestSaleIds.add(ev.id);
+            seenGroupsForLatest.add(groupKey);
+        }
+
+        if (ev.historyId && !historyFeedMap.has(ev.historyId)) {
+            const bags = getFeedFromEvent(ev);
+            historyFeedMap.set(ev.historyId, bags);
+        }
+    }
+
+    // Compute per-sale cumulative birds sold (for remainingBirds)
+    const perSaleCumulativeMap = new Map<string, number>();
+    const groupedForCumulative: Record<string, typeof allCycleEvents> = {};
+    for (const ev of allCycleEvents) {
+        const gk = ev.cycleId || ev.historyId || "unknown";
+        if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
+        groupedForCumulative[gk].push(ev);
+    }
+    for (const gk of Object.keys(groupedForCumulative)) {
+        const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
+            new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        let running = 0;
+        for (const ev of sorted) {
+            running += ev.birdsSold || 0;
+            perSaleCumulativeMap.set(ev.id, running);
+        }
+    }
+
+    let formattedEvents = events.map(e => {
+        const cycleOrHistory = e.cycle || e.history;
+        const isEnded = !e.cycleId && !!e.historyId;
+        const groupKey = e.cycleId || e.historyId || "unknown";
+        const isLatestInGroup = latestSaleIds.has(e.id);
+
+        const doc = cycleOrHistory?.doc || 0;
+        // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
+        const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
+
+        let age = cycleOrHistory?.age || 0;
+        if (isEnded && isLatestInGroup) {
+            const weightedAge = ageMap.get(groupKey);
+            if (weightedAge && weightedAge > 0) {
+                age = weightedAge;
+            }
+        } else if (e.age) {
+            age = e.age;
+        }
+        // FIX: Use the feed from the LATEST sale event
+        const feedConsumed = isEnded
+            ? (historyFeedMap.get(e.historyId!) ?? e.history?.finalIntake ?? 0)
+            : (e.cycle?.intake || 0);
+
+        // Get cumulative totals
+        const cumulativeRevenue = revenueMap.get(groupKey) || 0;
+        const cumulativeWeight = weightMap.get(groupKey) || 0;
+        const cumulativeBirdsSold = birdsSoldMap.get(groupKey) || 0;
+        const basePrice = recoveryPriceMap.get(groupKey) ?? BASE_SELLING_PRICE;
+        const netAdjustment = ((cumulativeRevenue / cumulativeWeight) - basePrice) / 2;
+
+        // Effective Rate = max(basePrice, basePrice + Net Adjustment)
+        const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
+        const formulaRevenue = effectiveRate * cumulativeWeight;
+
+        // Calculate FCR/EPI
+        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
+
+        // Profit calculation (backend-only)
+        const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
+        const docPrice = docPriceUsedMap.get(groupKey) ?? DOC_PRICE_PER_BIRD;
+        const feedCost = isEnded ? feedConsumed * feedPrice : 0;
+        const docCost = isEnded ? doc * docPrice : 0;
+        const profit = formulaRevenue - feedCost - docCost;
+        const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
+
+        // Calculate the original sale age (not the weighted one)
+        const saleAge = e.age ?? (() => {
+            const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
+            if (cycleStartDate) {
+                const saleDateOnly = new Date(e.saleDate);
+                const cycleStartOnly = new Date(cycleStartDate);
+                saleDateOnly.setHours(0, 0, 0, 0);
+                cycleStartOnly.setHours(0, 0, 0, 0);
+                const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
+                const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
+            }
+            return cycleOrHistory?.age || 0;
+        })();
+
+        return {
+            ...e,
+            saleAge,
+            feedConsumed: typeof e.feedConsumed === "string" ? JSON.parse(e.feedConsumed) : e.feedConsumed,
+            feedStock: typeof e.feedStock === "string" ? JSON.parse(e.feedStock) : e.feedStock,
+            cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
+            farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
+            farmerMobile: e.cycle?.farmer?.mobile || e.history?.farmer?.mobile || "",
+            cycleContext: {
+                doc,
+                mortality,
+                age,
+                feedConsumed,
+                isEnded,
+                fcr,
+                epi,
+                revenue: formulaRevenue,
+                actualRevenue: cumulativeRevenue,
+                totalWeight: cumulativeWeight,
+                cumulativeBirdsSold,
+                effectiveRate,
+                netAdjustment,
+                feedCost,
+                docCost,
+                profit,
+                avgPrice: parseFloat(avgPrice.toFixed(2)),
+                recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
+                birdType: cycleOrHistory?.birdType
+            },
+            remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
+        };
+    });
+
+    if (search) {
+        const searchLower = search.toLowerCase();
+        formattedEvents = formattedEvents.filter(e =>
+            e.farmerName.toLowerCase().includes(searchLower) ||
+            (e.location && e.location.toLowerCase().includes(searchLower)) ||
+            (e.party && e.party.toLowerCase().includes(searchLower))
+        );
+    }
+
+    return formattedEvents.slice(0, limit);
+};

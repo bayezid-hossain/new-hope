@@ -1,7 +1,7 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
 
 import { TRPCError } from "@trpc/server";
-import { aliasedTable, and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -666,18 +666,39 @@ export const managementFarmersRouter = createTRPCRouter({
 
     // Get Problematic Feeds List
     getProblematicFeeds: managementProcedure
-        .input(z.object({ orgId: z.string() }))
+        .input(z.object({ orgId: z.string(), officerId: z.string().optional() }))
         .query(async ({ ctx, input }) => {
+            const conditions = [
+                eq(farmer.organizationId, input.orgId),
+                eq(farmer.status, "active"),
+                sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
+            ];
+
+            if (input.officerId) {
+                conditions.push(eq(farmer.officerId, input.officerId));
+            }
+
             const farmersData = await ctx.db.query.farmer.findMany({
-                where: and(
-                    eq(farmer.organizationId, input.orgId),
-                    eq(farmer.status, "active"),
-                    sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
-                ),
+                where: and(...conditions),
                 orderBy: [asc(farmer.name)]
             });
 
+            const farmerIds = farmersData.map(f => f.id);
+            const stockDatesMap = new Map<string, Date>();
 
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(inArray(stockLogs.farmerId, farmerIds))
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
 
             return farmersData.map(f => ({
                 id: f.id,
@@ -685,6 +706,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 mainStock: f.mainStock,
                 problematicFeed: f.problematicFeed,
                 problematicFeedUpdatedAt: f.problematicFeedUpdatedAt,
+                mainStockUpdatedAt: stockDatesMap.get(f.id) || f.updatedAt || f.createdAt
             }));
         }),
 
