@@ -245,7 +245,7 @@ export default function ManagementFarmerDetailsPage() {
                             )}
                             <div className="flex flex-col gap-1 flex-1 min-w-0">
                                 <h1 className={cn(
-                                    "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
+                                    "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out line-clamp-3 break-words whitespace-normal",
                                     isSticky ? "text-xl md:text-2xl" : "text-2xl md:text-3xl"
                                 )}>
                                     {isHubLoading ? <Skeleton className="h-8 w-48" /> : (farmerData?.name || "N/A")}
@@ -274,7 +274,21 @@ export default function ManagementFarmerDetailsPage() {
                                             ) : activeCycles.items && activeCycles.items.length > 0 ? (
                                                 <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
                                             ) : (
-                                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">Idle</Badge>
+                                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">
+                                                    {farmerData.lastCycleEndDate ? (
+                                                        ((endDateInput) => {
+                                                            const today = new Date();
+                                                            today.setHours(0, 0, 0, 0);
+                                                            const end = new Date(endDateInput as Date | string);
+                                                            end.setHours(0, 0, 0, 0);
+                                                            const diffTime = Math.abs(today.getTime() - end.getTime());
+                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                            return `Idle · ${diffDays}d`;
+                                                        })(farmerData.lastCycleEndDate)
+                                                    ) : (
+                                                        "Idle · New"
+                                                    )}
+                                                </Badge>
                                             )}
                                         </div>
                                     </div>

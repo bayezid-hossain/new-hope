@@ -84,14 +84,21 @@ export const generateReportText = (sale: SaleEvent, report: SaleReport | null, i
     const fcr = sale.cycleContext?.fcr || 0;
     const epi = sale.cycleContext?.epi || 0;
     const isEnded = sale.cycleContext?.isEnded || false;
+    const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
+    const cumulativeSold = sale.cycleContext?.cumulativeBirdsSold || birdsSold;
+    // House birds = live birds before this sale = DOC - mortality - birds sold in previous sales
+    const previouslySold = cumulativeSold - birdsSold;
+    // Remaining birds after this sale
+    const remainingBirds = doc - (totalMortality || 0) - cumulativeSold;
+
     return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
 Location: ${sale.location}
-House bird : ${sale.houseBirds}pcs
+House bird : ${doc || 0}pcs
 Total Sold : ${birdsSold}pcs
 Total Mortality: ${totalMortality} pcs
-${(!isEnded || !isLatest) ? `\nRemaining Birds: ${sale.cycleContext?.doc! - totalMortality - birdsSold} pcs` : ""}
+${(!isEnded || !isLatest) ? `\nRemaining Birds: ${remainingBirds} pcs` : ""}
 
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg

@@ -55,6 +55,7 @@ import {
   Archive,
   ArrowDownLeft,
   ArrowUpRight,
+  Badge,
   Coins,
   History,
   MoreVertical,
@@ -251,12 +252,39 @@ export default function FarmerDetails() {
         <div className="flex flex-col gap-1 w-full">
           <div className="flex items-center gap-3 w-full justify-between">
             <div className="flex flex-col items-start gap-y-2 w-full"><h1 className={cn(
-              "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out truncate",
+              "font-bold tracking-tight text-foreground transition-[font-size,transform,opacity] duration-200 ease-in-out line-clamp-3 break-words whitespace-normal",
               isSticky ? "text-lg md:text-xl" : "text-xl md:text-2xl"
             )}>
               {farmerQuery.isLoading ? <Skeleton className="h-6 w-32 inline-block" /> : (farmerQuery.data?.name || "N/A")}
             </h1>
-              {farmerQuery.isLoading ? <Skeleton className="h-4 w-24 inline-block" /> : (<p className="text-sm text-muted-foreground">{farmerQuery.data?.location || "N/A"}</p>)}
+              {farmerQuery.isLoading ? <Skeleton className="h-4 w-24 inline-block" /> : (
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-muted-foreground">{farmerQuery.data?.location || "N/A"}</p>
+                  {farmerQuery.isLoading || activeQuery.isLoading ? (
+                    <Skeleton className="h-5 w-16" />
+                  ) : farmerQuery.data && (
+                    farmerQuery.data.status === "deleted" ? (
+                      <Badge className="font-bold text-[10px] uppercase tracking-wider">Archived</Badge>
+                    ) : (activeQuery.data?.items && activeQuery.data.items.length > 0) ? (
+                      <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-none font-bold text-[10px] uppercase tracking-wider">Active</Badge>
+                    ) : (
+                      <p className="bg-muted text-muted-foreground border-none font-bold text-[10px] uppercase tracking-wider">{farmerQuery.data.lastCycleEndDate ? (
+                        ((endDateInput) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const end = new Date(endDateInput as Date | string);
+                          end.setHours(0, 0, 0, 0);
+                          const diffTime = Math.abs(today.getTime() - end.getTime());
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return `Idle · ${diffDays}d`;
+                        })(farmerQuery.data.lastCycleEndDate)
+                      ) : (
+                        "Idle · New"
+                      )}</p>
+                    )
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <DropdownMenu>
