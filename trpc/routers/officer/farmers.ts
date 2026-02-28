@@ -757,6 +757,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 const [updated] = await tx.update(farmer)
                     .set({
                         problematicFeed: input.amount.toString(),
+                        problematicFeedUpdatedAt: new Date(),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.id))
@@ -780,6 +781,32 @@ export const officerFarmersRouter = createTRPCRouter({
 
                 return updated;
             });
+        }),
+
+    // Get Problematic Feeds List
+    getProblematicFeeds: protectedProcedure
+        .input(z.object({ orgId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const farmersData = await ctx.db.query.farmer.findMany({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
+                    // SQLite/Postgres cast depending on db, but assuming Postgres since there's numeric
+                    // Note: Drizzle can use sql injection
+                    sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
+                ),
+                orderBy: [asc(farmer.name)]
+            });
+
+            return farmersData.map(f => ({
+                id: f.id,
+                name: f.name,
+                mainStock: f.mainStock,
+                problematicFeed: f.problematicFeed,
+                problematicFeedUpdatedAt: f.problematicFeedUpdatedAt,
+                officerName: ctx.user.name || "Unknown"
+            }));
         }),
 
     // PRO FEATURE: Performance Benchmarking

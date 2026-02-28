@@ -638,6 +638,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 const [updated] = await tx.update(farmer)
                     .set({
                         problematicFeed: input.amount.toString(),
+                        problematicFeedUpdatedAt: new Date(),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.id))
@@ -661,6 +662,39 @@ export const managementFarmersRouter = createTRPCRouter({
 
                 return updated;
             });
+        }),
+
+    // Get Problematic Feeds List
+    getProblematicFeeds: managementProcedure
+        .input(z.object({ orgId: z.string(), officerId: z.string().optional() }))
+        .query(async ({ ctx, input }) => {
+            const conditions = [
+                eq(farmer.organizationId, input.orgId),
+                eq(farmer.status, "active"),
+                sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
+            ];
+
+            if (input.officerId) {
+                conditions.push(eq(farmer.officerId, input.officerId));
+            }
+
+            const farmersData = await ctx.db.select({
+                farmer: farmer,
+                officerName: user.name
+            })
+                .from(farmer)
+                .leftJoin(user, eq(farmer.officerId, user.id))
+                .where(and(...conditions))
+                .orderBy(asc(farmer.name));
+
+            return farmersData.map(d => ({
+                id: d.farmer.id,
+                name: d.farmer.name,
+                mainStock: d.farmer.mainStock,
+                problematicFeed: d.farmer.problematicFeed,
+                problematicFeedUpdatedAt: d.farmer.problematicFeedUpdatedAt,
+                officerName: d.officerName || "Unknown"
+            }));
         }),
 
     // Get Security Money History

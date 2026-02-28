@@ -20,9 +20,7 @@ export const officerReportsRouter = createTRPCRouter({
             // Schema has `createdAt` for active, and `startDate` for history.
 
             const startDate = new Date(year, month - 1, 1);
-            const nextMonth = month === 12 ? 1 : month + 1;
-            const nextYear = month === 12 ? year + 1 : year;
-            const endDate = new Date(nextYear, nextMonth - 1, 1);
+            const endDate = new Date(year, month, 0, 23, 59, 59);
 
             // Fetch Active Cycles started in this range
             const activeCycles = await ctx.db.select({
