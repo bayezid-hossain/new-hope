@@ -799,30 +799,13 @@ export const officerFarmersRouter = createTRPCRouter({
                 orderBy: [asc(farmer.name)]
             });
 
-            const farmerIds = farmersData.map(f => f.id);
-            const stockDatesMap = new Map<string, Date>();
-
-            if (farmerIds.length > 0) {
-                const latestLogs = await ctx.db.select({
-                    farmerId: stockLogs.farmerId,
-                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
-                })
-                    .from(stockLogs)
-                    .where(inArray(stockLogs.farmerId, farmerIds))
-                    .groupBy(stockLogs.farmerId);
-
-                latestLogs.forEach(log => {
-                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
-                });
-            }
-
             return farmersData.map(f => ({
                 id: f.id,
                 name: f.name,
                 mainStock: f.mainStock,
                 problematicFeed: f.problematicFeed,
                 problematicFeedUpdatedAt: f.problematicFeedUpdatedAt,
-                mainStockUpdatedAt: stockDatesMap.get(f.id) || f.updatedAt || f.createdAt
+                officerName: ctx.user.name || "Unknown"
             }));
         }),
 
