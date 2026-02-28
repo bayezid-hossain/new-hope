@@ -344,6 +344,8 @@ export const saleReports = pgTable("sale_reports", {
   feedConsumed: text("feed_consumed"), // JSON stringified array
   feedStock: text("feed_stock"),       // JSON stringified array
 
+  age: integer("age"), // Snapshot of bird age at the time of report generation
+
   // Historical Pricing Context
   feedPriceUsed: decimal("feed_price_used"),
   docPriceUsed: decimal("doc_price_used"),

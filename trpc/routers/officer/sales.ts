@@ -164,6 +164,7 @@ const generateReportSchema = z.object({
     recoveryPrice: z.number().positive().optional(),
     feedPricePerBag: z.number().positive().optional(),
     docPricePerBird: z.number().positive().optional(),
+    saleAge: z.number().int().positive().optional(),
 });
 
 // Helper to count bags from feed JSON
@@ -553,6 +554,7 @@ export const officerSalesRouter = createTRPCRouter({
                     feedPriceUsed: input.feedPricePerBag?.toString(),
                     docPriceUsed: input.docPricePerBird?.toString(),
                     recoveryPrice: input.recoveryPrice?.toString(),
+                    age: input.saleAge,
                     createdBy: ctx.user.id,
                     createdAt: new Date(), // Ensure adjustment is always newer than original
                 }).returning();
@@ -575,6 +577,7 @@ export const officerSalesRouter = createTRPCRouter({
                         feedStock: JSON.stringify(input.feedStock),
                         party: input.party,
                         location: input.location,
+                        ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
                     })
                     .where(eq(saleEvents.id, input.saleEventId));
 
@@ -809,7 +812,8 @@ export const officerSalesRouter = createTRPCRouter({
     previewSale: proProcedure
         .input(createSaleEventSchema.extend({
             excludeSaleId: z.string().optional(),
-            historyId: z.string().optional().nullable()
+            historyId: z.string().optional().nullable(),
+            saleAge: z.number().int().positive().optional()
         }))
         .mutation(async ({ ctx, input }) => {
 
@@ -969,7 +973,7 @@ export const officerSalesRouter = createTRPCRouter({
             cycleStartDate.setHours(0, 0, 0, 0);
             const MS_PER_DAY = 1000 * 60 * 60 * 24;
             const diffTimeLocal = saleDateLocal.getTime() - cycleStartDate.getTime();
-            let age = Math.max(1, Math.round(diffTimeLocal / MS_PER_DAY) + 1);
+            let age = input.saleAge ?? Math.max(1, Math.round(diffTimeLocal / MS_PER_DAY) + 1);
             const originalSaleAge = age;
 
             if (isEnded) {
@@ -1081,6 +1085,7 @@ export const officerSalesRouter = createTRPCRouter({
                                                 feedPriceUsed: true,
                                                 docPriceUsed: true,
                                                 recoveryPrice: true,
+                                                age: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -1119,6 +1124,7 @@ export const officerSalesRouter = createTRPCRouter({
                                                 feedPriceUsed: true,
                                                 docPriceUsed: true,
                                                 recoveryPrice: true,
+                                                age: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -1180,6 +1186,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 feedPriceUsed: true,
                                 docPriceUsed: true,
                                 recoveryPrice: true,
+                                age: true,
                                 createdAt: true,
                             }
                         },
@@ -1262,6 +1269,10 @@ export const officerSalesRouter = createTRPCRouter({
                 const isLatestInGroup = !seenGroups.has(groupKey);
                 seenGroups.add(groupKey);
 
+                const selectedReportForE = e.reports?.find(
+                    (r: any) => r.id === e.selectedReportId
+                );
+
                 // Get cycle context
                 const doc = cycleOrHistory?.doc || 0;
 
@@ -1271,8 +1282,8 @@ export const officerSalesRouter = createTRPCRouter({
                     if (weightedAge && weightedAge > 0) {
                         age = weightedAge;
                     }
-                } else if (e.age) {
-                    age = e.age;
+                } else {
+                    age = selectedReportForE?.age ?? e.age ?? age;
                 }
                 // FIX: Use the feed from the LATEST sale event for this history (version-aware),
                 // fallback to database snapshot if needed.
@@ -1369,7 +1380,7 @@ export const officerSalesRouter = createTRPCRouter({
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
                 // Calculate the original sale age (not the weighted one)
-                const saleAge = e.age ?? (() => {
+                const saleAge = selectedReportForE?.age ?? e.age ?? (() => {
                     const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
                     if (cycleStartDate) {
                         const saleDateOnly = new Date(e.saleDate);
@@ -1478,6 +1489,7 @@ export const officerSalesRouter = createTRPCRouter({
                         medicineCost: report.medicineCost,
                         feedConsumed: report.feedConsumed || "[]",
                         feedStock: report.feedStock || "[]",
+                        age: report.age,
                     })
                     .where(eq(saleEvents.id, event.id));
 
@@ -1553,6 +1565,7 @@ export const officerSalesRouter = createTRPCRouter({
                     adjustmentNote: true,
                     feedConsumed: true,
                     feedStock: true,
+                    age: true,
                     createdAt: true,
                     createdBy: true,
                     saleEventId: true,
@@ -1598,6 +1611,7 @@ export const officerSalesRouter = createTRPCRouter({
                             adjustmentNote: true,
                             feedConsumed: true,
                             feedStock: true,
+                            age: true,
                             createdAt: true,
                         }
                     }
@@ -1781,6 +1795,10 @@ export const appendCycleContextToSales = async (
         const groupKey = e.cycleId || e.historyId || "unknown";
         const isLatestInGroup = latestSaleIds.has(e.id);
 
+        const selectedReportForE = e.reports?.find(
+            (r: any) => r.id === e.selectedReportId
+        );
+
         const doc = cycleOrHistory?.doc || 0;
         // Use latest mortality from the last sale (synced with selected report) if available, else fallback to cycle mortality
         const mortality = latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0);
@@ -1791,8 +1809,8 @@ export const appendCycleContextToSales = async (
             if (weightedAge && weightedAge > 0) {
                 age = weightedAge;
             }
-        } else if (e.age) {
-            age = e.age;
+        } else {
+            age = selectedReportForE?.age ?? e.age ?? age;
         }
         // FIX: Use the feed from the LATEST sale event
         const feedConsumed = isEnded
@@ -1822,7 +1840,7 @@ export const appendCycleContextToSales = async (
         const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
         // Calculate the original sale age (not the weighted one)
-        const saleAge = e.age ?? (() => {
+        const saleAge = selectedReportForE?.age ?? e.age ?? (() => {
             const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
             if (cycleStartDate) {
                 const saleDateOnly = new Date(e.saleDate);
