@@ -165,6 +165,7 @@ export const farmer = pgTable("farmer", {
 
   // PROBLEMATIC FEED
   problematicFeed: decimal("problematic_feed").notNull().default("0"),
+  problematicFeedUpdatedAt: timestamp("problematic_feed_updated_at", { withTimezone: true }),
 
   status: text("status").notNull().default("active"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),

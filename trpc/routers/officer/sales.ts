@@ -1032,7 +1032,8 @@ export const officerSalesRouter = createTRPCRouter({
                     age,
                     recoveryPrice: basePrice,
                     feedPriceUsed: orgFeedPrice,
-                    docPriceUsed: docPriceUsed
+                    docPriceUsed: docPriceUsed,
+                    birdType: cycle.birdType
                 }
             };
         }),
@@ -1413,6 +1414,7 @@ export const officerSalesRouter = createTRPCRouter({
                         recoveryPrice: finalRecoveryPrice ?? recoveryPriceMap.get(groupKey) ?? null,
                         feedPriceUsed: finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? null,
                         docPriceUsed: finalDocPrice ?? docPriceUsedMap.get(groupKey) ?? null,
+                        birdType: cycleOrHistory?.birdType
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };
@@ -1765,6 +1767,7 @@ export const officerSalesRouter = createTRPCRouter({
                         profit,
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
                         recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
+                        birdType: cycleOrHistory?.birdType
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };

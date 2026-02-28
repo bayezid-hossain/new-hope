@@ -638,6 +638,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 const [updated] = await tx.update(farmer)
                     .set({
                         problematicFeed: input.amount.toString(),
+                        problematicFeedUpdatedAt: new Date(),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.id))
@@ -661,6 +662,30 @@ export const managementFarmersRouter = createTRPCRouter({
 
                 return updated;
             });
+        }),
+
+    // Get Problematic Feeds List
+    getProblematicFeeds: managementProcedure
+        .input(z.object({ orgId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const farmersData = await ctx.db.query.farmer.findMany({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.status, "active"),
+                    sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
+                ),
+                orderBy: [asc(farmer.name)]
+            });
+
+
+
+            return farmersData.map(f => ({
+                id: f.id,
+                name: f.name,
+                mainStock: f.mainStock,
+                problematicFeed: f.problematicFeed,
+                problematicFeedUpdatedAt: f.problematicFeedUpdatedAt,
+            }));
         }),
 
     // Get Security Money History

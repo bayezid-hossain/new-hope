@@ -757,6 +757,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 const [updated] = await tx.update(farmer)
                     .set({
                         problematicFeed: input.amount.toString(),
+                        problematicFeedUpdatedAt: new Date(),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.id))
@@ -780,6 +781,49 @@ export const officerFarmersRouter = createTRPCRouter({
 
                 return updated;
             });
+        }),
+
+    // Get Problematic Feeds List
+    getProblematicFeeds: protectedProcedure
+        .input(z.object({ orgId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const farmersData = await ctx.db.query.farmer.findMany({
+                where: and(
+                    eq(farmer.organizationId, input.orgId),
+                    eq(farmer.officerId, ctx.user.id),
+                    eq(farmer.status, "active"),
+                    // SQLite/Postgres cast depending on db, but assuming Postgres since there's numeric
+                    // Note: Drizzle can use sql injection
+                    sql`${farmer.problematicFeed} IS NOT NULL AND CAST(${farmer.problematicFeed} AS NUMERIC) > 0`
+                ),
+                orderBy: [asc(farmer.name)]
+            });
+
+            const farmerIds = farmersData.map(f => f.id);
+            const stockDatesMap = new Map<string, Date>();
+
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(inArray(stockLogs.farmerId, farmerIds))
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
+
+            return farmersData.map(f => ({
+                id: f.id,
+                name: f.name,
+                mainStock: f.mainStock,
+                problematicFeed: f.problematicFeed,
+                problematicFeedUpdatedAt: f.problematicFeedUpdatedAt,
+                mainStockUpdatedAt: stockDatesMap.get(f.id) || f.updatedAt || f.createdAt
+            }));
         }),
 
     // PRO FEATURE: Performance Benchmarking
