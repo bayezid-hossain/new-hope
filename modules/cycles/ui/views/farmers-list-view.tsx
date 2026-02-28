@@ -155,7 +155,21 @@ export const FarmersListView = () => {
                                                 {farmer.activeCyclesCount > 0 ? (
                                                     <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Active</Badge>
                                                 ) : (
-                                                    <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted/80 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">Idle</Badge>
+                                                    <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted/80 border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 whitespace-nowrap">
+                                                        {farmer.lastCycleEndDate ? (
+                                                            ((endDateInput) => {
+                                                                const today = new Date();
+                                                                today.setHours(0, 0, 0, 0);
+                                                                const end = new Date(endDateInput as Date | string);
+                                                                end.setHours(0, 0, 0, 0);
+                                                                const diffTime = Math.abs(today.getTime() - end.getTime());
+                                                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                                return `Idle · ${diffDays}d`;
+                                                            })(farmer.lastCycleEndDate)
+                                                        ) : (
+                                                            "Idle · New Entry"
+                                                        )}
+                                                    </Badge>
                                                 )}
                                             </TableCell>
 

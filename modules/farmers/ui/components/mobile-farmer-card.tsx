@@ -44,65 +44,81 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
             )}
         >
             {/* Header: Name, Status, Officer */}
-            <div className="flex justify-between items-start mb-2">
-                <div className="space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-1.5 xs:gap-2">
+            <div className="flex justify-between items-center mb-2">
+                <div className="space-y-0.5 flex-1 pr-2">
+                    <div className="flex items-center justify-between gap-1.5 xs:gap-2 w-full">
                         <Link
                             href={detailLink}
-                            className="font-bold text-foreground hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base leading-none"
+                            className="font-bold text-foreground hover:text-primary hover:underline underline-offset-2 text-[12px] xs:text-sm sm:text-base leading-tight max-w-[48%] line-clamp-4 break-words"
+                            title={farmer.name}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {farmer.name}
                         </Link>
-                        {(!farmer.location || !farmer.mobile) && (
-                            <div onClick={(e) => e.stopPropagation()}>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            title="Missing location or mobile"
-                                            className="text-destructive cursor-help outline-none p-1 hover:bg-destructive/10 rounded-full transition-colors"
-                                        >
-                                            <AlertCircle className="h-4 w-4" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent side="top" align="center" className="w-auto p-2 text-[10px] font-medium shadow-lg">
-                                        Missing location or mobile
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        )}
-                        {onEdit && (
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onEdit();
-                                }}
-                                className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors inline-flex"
-                            >
-                                <Wrench className="h-4 w-4" />
-                            </button>
-                        )}
-                        {onDelete && (
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onDelete();
-                                }}
-                                className="p-1.5 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors inline-flex"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </button>
-                        )}
-                        {farmer.status === "deleted" ? (
-                            <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">DELETED</Badge>
-                        ) : farmer.activeCyclesCount > 0 ? (
-                            <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">ACTIVE</Badge>
-
-                        ) : (
-                            <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">IDLE</Badge>
-                        )}
+                        <div className="flex  justify-end items-center gap-1.5 xs:gap-2 max-w-[50%]">
+                            {(!farmer.location || !farmer.mobile) && (
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <button
+                                                title="Missing location or mobile"
+                                                className="text-destructive cursor-help outline-none p-1 hover:bg-destructive/10 rounded-full transition-colors"
+                                            >
+                                                <AlertCircle className="h-4 w-4" />
+                                            </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent side="top" align="center" className="w-auto p-2 text-[10px] font-medium shadow-lg">
+                                            Missing location or mobile
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            )}
+                            {onEdit && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onEdit();
+                                    }}
+                                    className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors inline-flex"
+                                >
+                                    <Wrench className="h-4 w-4" />
+                                </button>
+                            )}
+                            {onDelete && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onDelete();
+                                    }}
+                                    className="p-1.5 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors inline-flex"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            )}
+                            {farmer.status === "deleted" ? (
+                                <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">DELETED</Badge>
+                            ) : farmer.activeCyclesCount > 0 ? (
+                                <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none">ACTIVE</Badge>
+                            ) : (
+                                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold text-[9px] xs:text-[10px] px-1 xs:px-1.5 h-4 xs:h-5 flex items-center shadow-none whitespace-nowrap">
+                                    {farmer.lastCycleEndDate ? (
+                                        ((endDateInput) => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const end = new Date(endDateInput as Date | string);
+                                            end.setHours(0, 0, 0, 0);
+                                            const diffTime = Math.abs(today.getTime() - end.getTime());
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                            return `IDLE · ${diffDays}d`;
+                                        })(farmer.lastCycleEndDate)
+                                    ) : (
+                                        "IDLE · NEW"
+                                    )}
+                                </Badge>
+                            )}
+                        </div>
                     </div>
 
                     {farmer.officerName && (
@@ -113,7 +129,7 @@ export const MobileFarmerCard = memo(({ farmer, prefix, variant = "elevated", cl
                 </div>
 
 
-                <div className="flex items-center gap-1.5 font-bold text-primary text-[10px] uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 font-bold text-primary text-[10px] uppercase tracking-wider justify-center">
                     <Bird className="h-3 w-3" /> {farmer.activeCyclesCount} / {farmer.pastCyclesCount}
 
                 </div>

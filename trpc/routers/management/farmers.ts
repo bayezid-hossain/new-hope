@@ -1,7 +1,7 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
 
 import { TRPCError } from "@trpc/server";
-import { aliasedTable, and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -66,21 +66,42 @@ export const managementFarmersRouter = createTRPCRouter({
                 .leftJoin(officers, eq(farmer.officerId, officers.id))
                 .where(whereClause);
 
-            // Fetch latest stock log date per farmer
+            // Fetch latest stock log date per farmer and latest cycle end date
             const farmerIds = data.map(d => d.farmer.id);
             let stockDatesMap = new Map<string, Date>();
+            let latestHistoryMap = new Map<string, { latestEndDate: Date, pastCyclesCount: number }>();
 
             if (farmerIds.length > 0) {
-                const latestLogs = await ctx.db.select({
-                    farmerId: stockLogs.farmerId,
-                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
-                })
-                    .from(stockLogs)
-                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
-                    .groupBy(stockLogs.farmerId);
+                const [latestLogs, latestEndDates] = await Promise.all([
+                    ctx.db.select({
+                        farmerId: stockLogs.farmerId,
+                        latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                    })
+                        .from(stockLogs)
+                        .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
+                        .groupBy(stockLogs.farmerId),
+
+                    ctx.db.select({
+                        farmerId: cycleHistory.farmerId,
+                        latestEndDate: sql<Date>`max(${cycleHistory.endDate})`,
+                        count: sql<number>`count(*)::int`
+                    })
+                        .from(cycleHistory)
+                        .where(sql`${cycleHistory.farmerId} IN ${farmerIds}`)
+                        .groupBy(cycleHistory.farmerId)
+                ]);
 
                 latestLogs.forEach(log => {
                     if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+
+                latestEndDates.forEach(log => {
+                    if (log.farmerId) {
+                        latestHistoryMap.set(log.farmerId, {
+                            latestEndDate: log.latestEndDate ? new Date(log.latestEndDate) : new Date(0),
+                            pastCyclesCount: Number(log.count) || 0
+                        });
+                    }
                 });
             }
 
@@ -89,20 +110,19 @@ export const managementFarmersRouter = createTRPCRouter({
                     const f = d.farmer;
                     const off = d.officer;
 
-                    const [fCycles, fHistory] = await Promise.all([
-                        ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) }),
-                        ctx.db.query.cycleHistory.findMany({ where: eq(cycleHistory.farmerId, f.id) })
-                    ]);
+                    const fCycles = await ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) });
+
+                    const historyData = latestHistoryMap.get(f.id);
 
                     return {
                         ...f,
                         officerName: off?.name || "Unknown",
                         activeCyclesCount: fCycles.length,
                         activeBirdsCount: fCycles.reduce((acc, c) => acc + (c.doc - c.mortality), 0),
-                        pastCyclesCount: fHistory.length,
+                        pastCyclesCount: historyData?.pastCyclesCount || 0,
                         cycles: fCycles,
-                        history: fHistory,
                         mainStockUpdatedAt: stockDatesMap.get(f.id),
+                        lastCycleEndDate: historyData?.latestEndDate || null,
                     };
                 })),
                 total: Number(total.count),
@@ -170,7 +190,9 @@ export const managementFarmersRouter = createTRPCRouter({
                 where: eq(farmer.id, input.farmerId),
                 with: {
                     cycles: { where: eq(cycles.status, 'active') },
-                    history: true,
+                    history: {
+                        where: ne(cycleHistory.status, "deleted")
+                    },
                     officer: true
                 }
             });
@@ -188,7 +210,21 @@ export const managementFarmersRouter = createTRPCRouter({
                 throw new TRPCError({ code: "FORBIDDEN", message: "Farmer belongs to a different organization" });
             }
 
-            return data;
+            const [latestEndDateResult] = await ctx.db.select({
+                latestEndDate: sql<Date>`max(${cycleHistory.endDate})`
+            })
+                .from(cycleHistory)
+                .where(and(
+                    eq(cycleHistory.farmerId, input.farmerId),
+                    ne(cycleHistory.status, "deleted")
+                ));
+
+            const lastCycleEndDate = latestEndDateResult?.latestEndDate ? new Date(latestEndDateResult.latestEndDate) : null;
+
+            return {
+                ...data,
+                lastCycleEndDate
+            };
         }),
 
     getCycles: managementProcedure
@@ -323,6 +359,7 @@ export const managementFarmersRouter = createTRPCRouter({
                 farmer: {
                     ...farmerData,
                     officerName: farmerData.officer.name,
+                    lastCycleEndDate: historyData[0]?.endDate || null,
                 },
                 activeCycles: {
                     items: activeCyclesData.map(c => ({ ...c, farmerName: farmerData.name }))

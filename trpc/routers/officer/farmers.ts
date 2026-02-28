@@ -79,9 +79,6 @@ export const officerFarmersRouter = createTRPCRouter({
                     cycles: {
                         where: eq(cycles.status, "active"),
                         orderBy: [desc(cycles.createdAt)]
-                    },
-                    history: {
-                        where: ne(cycleHistory.status, "deleted")
                     }
                 }
             });
@@ -94,6 +91,33 @@ export const officerFarmersRouter = createTRPCRouter({
                     search ? ilike(farmer.name, `%${search}%`) : undefined
                 ));
 
+            // Fetch latest cycle end date per farmer
+            const farmerIds = farmersData.map(f => f.id);
+            const latestHistoryMap = new Map<string, { latestEndDate: Date, pastCyclesCount: number }>();
+
+            if (farmerIds.length > 0) {
+                const latestEndDates = await ctx.db.select({
+                    farmerId: cycleHistory.farmerId,
+                    latestEndDate: sql<Date>`max(${cycleHistory.endDate})`,
+                    count: sql<number>`count(*)::int`
+                })
+                    .from(cycleHistory)
+                    .where(and(
+                        inArray(cycleHistory.farmerId, farmerIds),
+                        ne(cycleHistory.status, "deleted")
+                    ))
+                    .groupBy(cycleHistory.farmerId);
+
+                latestEndDates.forEach(log => {
+                    if (log.farmerId) {
+                        latestHistoryMap.set(log.farmerId, {
+                            latestEndDate: log.latestEndDate ? new Date(log.latestEndDate) : new Date(0),
+                            pastCyclesCount: Number(log.count) || 0
+                        });
+                    }
+                });
+            }
+
             return {
                 items: farmersData.map(f => {
                     // 1. Active Consumption: Feed eaten by cycles that are currently OPEN
@@ -101,17 +125,20 @@ export const officerFarmersRouter = createTRPCRouter({
                     // 2. Real Available Stock: Book Balance - Active Consumption
                     const remainingStock = f.mainStock - activeConsumption;
 
+                    const historyData = latestHistoryMap.get(f.id);
+
                     return {
                         ...f,
                         activeCycles: f.cycles,
                         activeCyclesCount: f.cycles.length,
                         activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
-                        pastCyclesCount: f.history.length,
+                        pastCyclesCount: historyData?.pastCyclesCount || 0,
                         mainStock: f.mainStock,
                         totalConsumed: f.totalConsumed,
                         activeConsumption: activeConsumption,
                         remainingStock: remainingStock,
-                        isLowStock: remainingStock < 5
+                        isLowStock: remainingStock < 5,
+                        lastCycleEndDate: historyData?.latestEndDate || null,
                     };
                 }),
                 total: Number(total.count),
@@ -152,10 +179,7 @@ export const officerFarmersRouter = createTRPCRouter({
                 offset: (page - 1) * pageSize,
                 orderBy: orderBy,
                 with: {
-                    cycles: { where: eq(cycles.status, 'active') },
-                    history: {
-                        where: ne(cycleHistory.status, "deleted")
-                    }
+                    cycles: { where: eq(cycles.status, 'active') }
                 }
             });
 
@@ -163,33 +187,62 @@ export const officerFarmersRouter = createTRPCRouter({
                 .from(farmer)
                 .where(whereClause);
 
-            // Fetch latest stock log date per farmer
+            // Fetch latest stock log date per farmer and latest cycle end date
             const farmerIds = data.map(f => f.id);
             let stockDatesMap = new Map<string, Date>();
+            let latestHistoryMap = new Map<string, { latestEndDate: Date, pastCyclesCount: number }>();
 
             if (farmerIds.length > 0) {
-                const latestLogs = await ctx.db.select({
-                    farmerId: stockLogs.farmerId,
-                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
-                })
-                    .from(stockLogs)
-                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
-                    .groupBy(stockLogs.farmerId);
+                const [latestLogs, latestEndDates] = await Promise.all([
+                    ctx.db.select({
+                        farmerId: stockLogs.farmerId,
+                        latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                    })
+                        .from(stockLogs)
+                        .where(inArray(stockLogs.farmerId, farmerIds))
+                        .groupBy(stockLogs.farmerId),
+
+                    ctx.db.select({
+                        farmerId: cycleHistory.farmerId,
+                        latestEndDate: sql<Date>`max(${cycleHistory.endDate})`,
+                        count: sql<number>`count(*)::int`
+                    })
+                        .from(cycleHistory)
+                        .where(and(
+                            inArray(cycleHistory.farmerId, farmerIds),
+                            ne(cycleHistory.status, "deleted")
+                        ))
+                        .groupBy(cycleHistory.farmerId)
+                ]);
 
                 latestLogs.forEach(log => {
                     if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
                 });
+
+                latestEndDates.forEach(log => {
+                    if (log.farmerId) {
+                        latestHistoryMap.set(log.farmerId, {
+                            latestEndDate: log.latestEndDate ? new Date(log.latestEndDate) : new Date(0),
+                            pastCyclesCount: Number(log.count) || 0
+                        });
+                    }
+                });
             }
 
             return {
-                items: data.map(f => ({
-                    ...f,
-                    activeCyclesCount: f.cycles.length,
-                    activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
-                    pastCyclesCount: f.history.length,
-                    officerName: "Me",
-                    mainStockUpdatedAt: stockDatesMap.get(f.id),
-                })),
+                items: data.map(f => {
+                    const historyData = latestHistoryMap.get(f.id);
+
+                    return {
+                        ...f,
+                        activeCyclesCount: f.cycles.length,
+                        activeBirdsCount: f.cycles.reduce((sum, c) => sum + (c.doc - c.mortality), 0),
+                        pastCyclesCount: historyData?.pastCyclesCount || 0,
+                        officerName: "Me",
+                        mainStockUpdatedAt: stockDatesMap.get(f.id),
+                        lastCycleEndDate: historyData?.latestEndDate || null,
+                    };
+                }),
                 total: Number(total.count),
                 totalPages: Math.ceil(Number(total.count) / pageSize)
             };
@@ -590,7 +643,21 @@ export const officerFarmersRouter = createTRPCRouter({
                 }
             });
 
-            return data!;
+            const [latestEndDateResult] = await ctx.db.select({
+                latestEndDate: sql<Date>`max(${cycleHistory.endDate})`
+            })
+                .from(cycleHistory)
+                .where(and(
+                    eq(cycleHistory.farmerId, input.farmerId),
+                    ne(cycleHistory.status, "deleted")
+                ));
+
+            const lastCycleEndDate = latestEndDateResult?.latestEndDate ? new Date(latestEndDateResult.latestEndDate) : null;
+
+            return {
+                ...data!,
+                lastCycleEndDate
+            };
         }),
 
     getSecurityMoneyHistory: protectedProcedure
