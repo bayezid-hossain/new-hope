@@ -1238,6 +1238,27 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             }
 
+            // Compute per-sale cumulative birds sold (for remainingBirds)
+            // Group events by cycle/history, sort chronologically, accumulate
+            const perSaleCumulativeMap = new Map<string, number>();
+            const groupedForCumulative: Record<string, typeof events> = {};
+            for (const ev of events) {
+                const gk = ev.cycleId || ev.historyId || "unknown";
+                if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
+                groupedForCumulative[gk].push(ev);
+            }
+            for (const gk of Object.keys(groupedForCumulative)) {
+                const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
+                    new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                let running = 0;
+                for (const ev of sorted) {
+                    running += ev.birdsSold || 0;
+                    perSaleCumulativeMap.set(ev.id, running);
+                }
+            }
+
             const seenGroups = new Set<string>();
 
             return events.map((e) => {
@@ -1402,7 +1423,8 @@ export const officerSalesRouter = createTRPCRouter({
                         recoveryPrice: finalRecoveryPrice ?? recoveryPriceMap.get(groupKey) ?? null,
                         feedPriceUsed: finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? null,
                         docPriceUsed: finalDocPrice ?? docPriceUsedMap.get(groupKey) ?? null,
-                    }
+                    },
+                    remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };
             });
         }),
@@ -1644,6 +1666,26 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             }
 
+            // Compute per-sale cumulative birds sold (for remainingBirds)
+            const perSaleCumulativeMap = new Map<string, number>();
+            const groupedForCumulative: Record<string, typeof allCycleEvents> = {};
+            for (const ev of allCycleEvents) {
+                const gk = ev.cycleId || ev.historyId || "unknown";
+                if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
+                groupedForCumulative[gk].push(ev);
+            }
+            for (const gk of Object.keys(groupedForCumulative)) {
+                const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
+                    new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                let running = 0;
+                for (const ev of sorted) {
+                    running += ev.birdsSold || 0;
+                    perSaleCumulativeMap.set(ev.id, running);
+                }
+            }
+
             let formattedEvents = events.map(e => {
                 const cycleOrHistory = e.cycle || e.history;
                 const isEnded = !e.cycleId && !!e.historyId;
@@ -1733,7 +1775,8 @@ export const officerSalesRouter = createTRPCRouter({
                         profit,
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
                         recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
-                    }
+                    },
+                    remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };
             });
 

@@ -125,6 +125,10 @@ export const SaleDetailsContent = ({
                             <span className="font-semibold">{sale.cycleContext?.doc || sale.houseBirds}</span>
                         </div>
                         <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground text-xs uppercase tracking-tight">Remaining</span>
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">{sale.remainingBirds ?? "—"}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
                             <span className="text-muted-foreground text-xs uppercase tracking-tight">Birds Sold</span>
                             <span className="font-semibold">{displayBirdsSold}</span>
                         </div>
@@ -308,6 +312,13 @@ export const SaleDetailsContent = ({
                                 <span className="text-sm text-muted-foreground">Main Stock (DOC)</span>
                             </div>
                             <span className="text-sm font-semibold text-foreground">{sale.cycleContext?.doc?.toLocaleString() || sale.houseBirds?.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-3.5 w-3.5 text-blue-500/70" />
+                                <span className="text-sm text-muted-foreground">Remaining Birds</span>
+                            </div>
+                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{sale.remainingBirds ?? "—"}</span>
                         </div>
                         <div className="flex justify-between items-center group">
                             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">

@@ -85,4 +85,5 @@ export interface SaleEvent {
         docPriceUsed?: number | null;
     };
     isLatestInCycle?: boolean;
+    remainingBirds?: number;
 }
