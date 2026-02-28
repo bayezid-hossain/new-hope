@@ -486,15 +486,15 @@ export const SaleDetailsContent = ({
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-8 pr-4">
+                            <div className="flex flex-wrap items-center gap-4 sm:gap-8">
                                 <div className="text-right space-y-0.5">
                                     <div className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest">Est. Revenue</div>
                                     <div className="text-lg font-bold">৳{formulaRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                                 </div>
-                                <div className="h-10 w-px bg-border/50"></div>
+                                <div className="hidden sm:block h-10 w-px bg-border/50"></div>
                                 <div className="text-right space-y-0.5">
                                     <div className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest">Est. Profit</div>
-                                    <div className={cn("text-3xl font-black tabular-nums tracking-tighter", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600")}>
+                                    <div className={cn("text-2xl sm:text-3xl font-black tabular-nums tracking-tighter", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600")}>
                                         ৳{formulaProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                     </div>
                                 </div>
