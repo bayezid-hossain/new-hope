@@ -31,7 +31,7 @@ const callAiWithFallback = async (groq: Groq, messages: any[]) => {
             // Log Token Usage
             const usage = completion.usage;
             if (usage) {
-                console.log(`[AI Usage] Model: ${model} | Prompt: ${usage.prompt_tokens} | Completion: ${usage.completion_tokens} | Total: ${usage.total_tokens}`);
+                //console.log`[AI Usage] Model: ${model} | Prompt: ${usage.prompt_tokens} | Completion: ${usage.completion_tokens} | Total: ${usage.total_tokens}`);
             }
 
             return completion.choices[0]?.message?.content;
@@ -90,12 +90,12 @@ const sanitizeInput = (text: string) => {
 
     const cleanText = kept.join("\n").trim();
 
-    console.log(`--- [AI Sanitization] ---`);
-    console.log(`Original lines: ${lines.length} | Kept: ${kept.length} | Removed: ${removed.length}`);
+    //console.log`--- [AI Sanitization] ---`);
+    //console.log`Original lines: ${lines.length} | Kept: ${kept.length} | Removed: ${removed.length}`);
     if (removed.length > 0) {
-        console.log(`Removed lines:`, removed.map(l => l.trim()));
+        //console.log`Removed lines:`, removed.map(l => l.trim()));
     }
-    console.log(`-------------------------`);
+    //console.log`-------------------------`);
 
     return cleanText;
 };
@@ -133,8 +133,8 @@ const sanitizeOrderInput = (text: string) => {
 
     const result = cleanedLines.join("\n").trim();
     // Debug Log
-    console.log(`[AI Sanitization] Input length: ${text.length} -> Output length: ${result.length}`);
-    // console.log(result); 
+    //console.log`[AI Sanitization] Input length: ${text.length} -> Output length: ${result.length}`);
+    // //console.logresult); 
 
     return result;
 };
@@ -422,7 +422,7 @@ export const aiRouter = createTRPCRouter({
             });
             const aiInputText = aiInputLines.join("\n");
 
-            console.log(`[AI Optimization] Original Len: ${baseCleanText.length} -> AI Input Len: ${aiInputText.length}`);
+            //console.log`[AI Optimization] Original Len: ${baseCleanText.length} -> AI Input Len: ${aiInputText.length}`);
 
             const systemPrompt = `
 You extract poultry order data from raw text.
@@ -759,7 +759,7 @@ FORMAT:
             officerId: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            // console.log("OFFICER:" + input.officerId)
+            // //console.log"OFFICER:" + input.officerId)
             // Security Check
             if (!input.officerId) {
                 // ORG-WIDE SCAN: Requires Global Admin or Org Admin/Owner

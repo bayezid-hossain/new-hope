@@ -18,6 +18,42 @@ interface SendNotificationParams {
 }
 
 export class NotificationService {
+    private static async sendExpoPush(tokens: string[], title: string, message: string, data?: any) {
+        if (!tokens.length) return;
+        try {
+            const chunks = [];
+            for (let i = 0; i < tokens.length; i += 100) {
+                chunks.push(tokens.slice(i, i + 100));
+            }
+
+            for (const chunk of chunks) {
+                const messages = chunk.map(token => ({
+                    to: token,
+                    sound: 'default',
+                    title,
+                    body: message,
+                    data,
+                    channelId: 'alerts',
+                    priority: 'high',
+                }));
+
+                const res = await fetch('https://exp.host/--/api/v2/push/send', {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Accept-encoding': 'gzip, deflate',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(messages),
+                });
+                const resText = await res.text();
+                //console.log`[NotificationService] Expo API Response (${res.status}): ${resText}`);
+            }
+        } catch (error) {
+            console.error("Failed to send Expo push notification:", error);
+        }
+    }
+
     /**
      * Send a single notification to a specific user
      */
@@ -42,6 +78,17 @@ export class NotificationService {
                 link,
                 metadata: metadata ? JSON.stringify(metadata) : undefined,
             });
+
+            const { user: userTable } = await import("@/db/schema");
+            const targetUser = await db.query.user.findFirst({
+                where: eq(userTable.id, userId),
+                columns: { expoPushToken: true }
+            });
+
+            if (targetUser?.expoPushToken) {
+                await this.sendExpoPush([targetUser.expoPushToken], title, message, { link, type, metadata });
+            }
+
             return true;
         } catch (error) {
             console.error("Failed to send notification:", error);
@@ -71,42 +118,51 @@ export class NotificationService {
             const eligibleMembers = await db
                 .select({
                     userId: member.userId,
-                    role: member.role
+                    role: member.role,
+                    expoPushToken: userTable.expoPushToken
                 })
                 .from(member)
+                .innerJoin(userTable, eq(member.userId, userTable.id))
                 .where(
                     and(
                         eq(member.organizationId, organizationId!),
+                        eq(member.activeMode, "MANAGEMENT"), // Only send to active managers
                         or(
                             eq(member.role, "OWNER"),
                             eq(member.role, "MANAGER")
                         )
                     )
                 );
+            //console.log`[NotificationService] Found ${eligibleMembers.length} eligible members with activeMode=MANAGEMENT: ${eligibleMembers.map(m => m.userId).join(', ')}`);
 
             // 2. Find all global Admins
             const globalAdmins = await db
                 .select({
                     userId: userTable.id,
-                    globalRole: userTable.globalRole
+                    globalRole: userTable.globalRole,
+                    expoPushToken: userTable.expoPushToken
                 })
                 .from(userTable)
-                .where(eq(userTable.globalRole, "ADMIN"));
+                .where(
+                    and(
+                        eq(userTable.globalRole, "ADMIN"),
+                        eq(userTable.activeMode, "ADMIN") // Only send to active admins
+                    )
+                );
+            //console.log`[NotificationService] Found ${globalAdmins.length} global admins with activeMode=ADMIN`);
 
             // 3. Create list of recipients with their "best" link
-            const recipients = new Map<string, string | undefined>();
+            const recipients = new Map<string, { link: string | undefined, token: string | null }>();
 
             // Global Admins get adminLink (or link as fallback)
             globalAdmins.forEach(a => {
-                recipients.set(a.userId, adminLink || link);
+                recipients.set(a.userId, { link: adminLink || link, token: a.expoPushToken });
             });
 
             // Managers get managementLink (or link as fallback)
-            // Note: If they are also Global Admins, the adminLink preference from above sticks 
-            // OR we can decide preference. Usually Admin view is more powerful.
             eligibleMembers.forEach(m => {
                 if (!recipients.has(m.userId)) {
-                    recipients.set(m.userId, managementLink || link);
+                    recipients.set(m.userId, { link: managementLink || link, token: m.expoPushToken });
                 }
             });
 
@@ -120,11 +176,20 @@ export class NotificationService {
                 message,
                 details,
                 type,
-                link: userLink,
+                link: userLink.link,
                 metadata: metadata ? JSON.stringify(metadata) : undefined,
             }));
 
             await db.insert(notification).values(values);
+
+            // 5. Send Expo push
+            const pushTargets = [...new Set(Array.from(recipients.values())
+                .filter(r => r.token)
+                .map(r => r.token as string))];
+
+            if (pushTargets.length > 0) {
+                await this.sendExpoPush(pushTargets, title, message, { type, link: managementLink || adminLink || link, metadata });
+            }
 
             return recipients.size;
         } catch (error) {

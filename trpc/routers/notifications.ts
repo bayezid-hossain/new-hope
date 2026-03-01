@@ -117,4 +117,17 @@ export const notificationsRouter = createTRPCRouter({
             });
             return item;
         }),
+
+    // Lightweight query for foreground polling - returns only the latest unread notification
+    latestUnread: protectedProcedure
+        .query(async ({ ctx }) => {
+            const item = await db.query.notification.findFirst({
+                where: and(
+                    eq(notification.userId, ctx.user.id),
+                    eq(notification.isRead, false)
+                ),
+                orderBy: [desc(notification.createdAt)],
+            });
+            return item ?? null;
+        }),
 });

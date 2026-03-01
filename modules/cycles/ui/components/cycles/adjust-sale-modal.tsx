@@ -69,7 +69,7 @@ interface AdjustSaleModalProps {
 
 
 export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: AdjustSaleModalProps) => {
-    // console.log("AdjustSaleModal saleEvent:", saleEvent);
+    // //console.log"AdjustSaleModal saleEvent:", saleEvent);
     const trpc = useTRPC();
     const queryClient = useQueryClient();
     const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
