@@ -1,6 +1,6 @@
-import { cycleHistory, cycleLogs, cycles, farmer, member, user } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, stockLogs, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
+import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -56,6 +56,7 @@ export const managementCyclesRouter = createTRPCRouter({
                 farmerLocation: farmer.location,
                 farmerMobile: farmer.mobile,
                 farmerMainStock: farmer.mainStock,
+                farmerUpdatedAt: farmer.updatedAt,
                 officerName: users.name
             })
                 .from(cycles)
@@ -65,6 +66,24 @@ export const managementCyclesRouter = createTRPCRouter({
                 .orderBy(...orderByClause)
                 .limit(pageSize)
                 .offset(offset);
+
+            // Fetch latest stock log date per farmer to use as "Last Updated"
+            const farmerIds = [...new Set(data.map(d => d.cycle.farmerId))];
+            let stockDatesMap = new Map<string, Date>();
+
+            if (farmerIds.length > 0) {
+                const latestLogs = await ctx.db.select({
+                    farmerId: stockLogs.farmerId,
+                    latestDate: sql<Date>`max(${stockLogs.createdAt})`
+                })
+                    .from(stockLogs)
+                    .where(sql`${stockLogs.farmerId} IN ${farmerIds}`)
+                    .groupBy(stockLogs.farmerId);
+
+                latestLogs.forEach(log => {
+                    if (log.farmerId) stockDatesMap.set(log.farmerId, log.latestDate);
+                });
+            }
 
             const [total] = await ctx.db.select({ count: count() })
                 .from(cycles)
@@ -90,6 +109,8 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerLocation: d.farmerLocation,
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
+                    farmerUpdatedAt: d.farmerUpdatedAt,
+                    mainStockUpdatedAt: stockDatesMap.get(d.cycle.farmerId),
                     officerName: d.officerName || null,
                     birdType: d.cycle.birdType,
                     endDate: null as Date | null
