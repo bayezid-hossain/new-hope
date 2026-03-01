@@ -174,7 +174,7 @@ export class SaleMetricsService {
         // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
         const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
         const averageAge = Number(rawAverageAge.toFixed(2));
-        // console.log(averageAge)
+        // //console.logaverageAge)
         // Calculate Average Weight using SURVIVORS (DOC - Mortality) to match frontend logic
         // This accounts for missing birds/theft which reduces the effective average weight of the flock
         const survivors = cycle.doc - (cycle.mortality || 0);

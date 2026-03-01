@@ -8,7 +8,7 @@ export default function AdminOfficerDetailPage() {
     const params = useParams();
     const id = params.id as string; // OrgId
     const userId = params.userId as string;
-    // console.log("OFFICER:" + userId)
+    // //console.log"OFFICER:" + userId)
     return (
         <AdminGuard>
             <div className="p-4 sm:p-8 bg-background min-h-screen">

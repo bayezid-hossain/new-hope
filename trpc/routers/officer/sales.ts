@@ -91,7 +91,7 @@ const getCycleStats = (events: any[]) => {
         const birdDays = totalBirdDaysMap.get(key) || 0;
         ageMap.set(key, totalBirds > 0 ? Number((birdDays / totalBirds).toFixed(2)) : 0);
     });
-    // console.log(ageMap)
+    // //console.logageMap)
     return { revenueMap, weightMap, birdsSoldMap, ageMap };
 };
 
@@ -1402,7 +1402,7 @@ export const officerSalesRouter = createTRPCRouter({
                     cycleName: e.cycle?.name || e.history?.cycleName || "Unknown Batch",
                     farmerName: e.cycle?.farmer?.name || e.history?.farmer?.name || "Unknown Farmer",
                     // Log to debug
-                    // console.log("Mapping event:", e.id, "Farmer:", e.cycle?.farmer, e.history?.farmer);
+                    // //console.log"Mapping event:", e.id, "Farmer:", e.cycle?.farmer, e.history?.farmer);
                     farmerMobile: e.cycle?.farmer?.mobile || e.history?.farmer?.mobile || "",
                     cycleContext: {
                         doc,

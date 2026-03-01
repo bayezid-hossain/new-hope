@@ -49,6 +49,7 @@ export const user = pgTable("user", {
   proExpiresAt: timestamp("pro_expires_at", { withTimezone: true }), // null = never had Pro or no expiration set
 
   twoFactorEnabled: boolean("two_factor_enabled"),
+  expoPushToken: text("expo_push_token"),
 });
 
 export const featureRequest = pgTable("feature_request", {

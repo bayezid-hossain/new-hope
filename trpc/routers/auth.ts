@@ -111,4 +111,15 @@ export const authRouter = createTRPCRouter({
         .where(eq(member.userId, ctx.user.id)); // Assumes one org for now as per getMyMembership
       return { success: true };
     }),
+
+  registerPushToken: protectedProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { user } = await import("@/db/schema");
+      await ctx.db.update(user)
+        .set({ expoPushToken: input.token })
+        .where(eq(user.id, ctx.user.id));
+      //console.log`[Auth] Registered push token for user ${ctx.user.id}: ${input.token}`);
+      return { success: true };
+    }),
 });
