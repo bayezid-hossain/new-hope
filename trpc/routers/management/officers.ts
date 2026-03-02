@@ -21,7 +21,9 @@ export const managementOfficersRouter = createTRPCRouter({
             return officers.map(o => ({
                 id: o.userId, // Use userId as the identifier for filtering
                 name: o.user.name,
-                role: o.role
+                role: o.role,
+                branchName: o.user.branchName,
+                mobile: o.user.mobile,
             }));
         }),
 

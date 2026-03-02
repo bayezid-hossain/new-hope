@@ -80,6 +80,8 @@ export const managementPerformanceReportsRouter = createTRPCRouter({
                     id: user.id,
                     name: user.name,
                     role: member.role,
+                    branchName: user.branchName,
+                    mobile: user.mobile,
                 })
                 .from(member)
                 .innerJoin(user, eq(member.userId, user.id))
