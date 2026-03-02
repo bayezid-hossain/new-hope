@@ -1,7 +1,7 @@
 import { farmer, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerStockRouter = createTRPCRouter({
@@ -338,7 +338,10 @@ export const officerStockRouter = createTRPCRouter({
 
                 // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.status, "active"))
+                    where: and(
+                        eq(farmer.id, originalLog.farmerId!),
+                        ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
+                    )
                 });
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
@@ -443,7 +446,10 @@ export const officerStockRouter = createTRPCRouter({
 
                 // 2. Access Check
                 const farmerData = await tx.query.farmer.findFirst({
-                    where: and(eq(farmer.id, originalLog.farmerId!), eq(farmer.status, "active"))
+                    where: and(
+                        eq(farmer.id, originalLog.farmerId!),
+                        ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
+                    )
                 });
 
                 if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
@@ -555,7 +561,10 @@ export const officerStockRouter = createTRPCRouter({
 
                     // Check Access
                     const farmerData = await tx.query.farmer.findFirst({
-                        where: eq(farmer.id, log.farmerId!)
+                        where: and(
+                            eq(farmer.id, log.farmerId!),
+                            ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
+                        )
                     });
 
                     if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
@@ -635,7 +644,7 @@ export const officerStockRouter = createTRPCRouter({
             const items = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.officerId, ctx.user.id),
-                    eq(farmer.status, "active"),
+                    ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined,
                     input.search ? sql`${farmer.name} ILIKE ${`%${input.search}%`}` : undefined
                 ),
                 columns: {
@@ -710,7 +719,11 @@ export const officerStockRouter = createTRPCRouter({
                 FROM ${stockLogs}
                 WHERE type = 'RESTOCK' 
                 AND reference_id IS NOT NULL
-                AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${ctx.user.id})
+                AND farmer_id IN (
+                    SELECT id FROM ${farmer} 
+                    WHERE officer_id = ${ctx.user.id}
+                    AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`})
+                )
                 ${searchCondition}
                 GROUP BY reference_id
                 ORDER BY MIN(created_at) DESC
@@ -761,7 +774,8 @@ export const officerStockRouter = createTRPCRouter({
                 .innerJoin(farmer, eq(stockLogs.farmerId, farmer.id))
                 .where(and(
                     eq(stockLogs.referenceId, input.batchId),
-                    eq(farmer.officerId, ctx.user.id)
+                    eq(farmer.officerId, ctx.user.id),
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
                 ))
                 .orderBy(desc(stockLogs.createdAt));
 

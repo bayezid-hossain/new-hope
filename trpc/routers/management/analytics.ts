@@ -1,5 +1,5 @@
 import { cycles, farmer, member } from "@/db/schema";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 import { createTRPCRouter, managementProcedure } from "../../init";
 import { fetchOfficerAnalytics } from "../utils";
 
@@ -8,8 +8,9 @@ export const managementAnalyticsRouter = createTRPCRouter({
         // orgId is inherited
         .query(async ({ ctx, input }) => {
             const { orgId } = input;
+            const includeDeleted = ctx.user.globalRole === "ADMIN";
 
-            return await fetchOfficerAnalytics(ctx.db, input.orgId);
+            return await fetchOfficerAnalytics(ctx.db, input.orgId, includeDeleted);
         }),
 
     getDashboardStats: managementProcedure
@@ -23,7 +24,10 @@ export const managementAnalyticsRouter = createTRPCRouter({
 
             const [farmerCount] = await ctx.db.select({ count: count() })
                 .from(farmer)
-                .where(and(eq(farmer.organizationId, input.orgId), eq(farmer.status, "active")));
+                .where(and(
+                    eq(farmer.organizationId, input.orgId),
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                ));
 
             const [activeCycles] = await ctx.db.select({ count: count() })
                 .from(cycles)
@@ -31,7 +35,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 .where(and(
                     eq(cycles.organizationId, input.orgId),
                     eq(cycles.status, "active"),
-                    eq(farmer.status, "active")
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
                 ));
 
             return {
@@ -53,7 +57,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, orgId),
-                    eq(farmer.status, "active")
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
                 ));
 
             const totalMainStock = activeFarmers.reduce((sum, f) => sum + (f.mainStock || 0), 0);

@@ -1,6 +1,6 @@
 import { farmer, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -21,7 +21,7 @@ export const managementStockRouter = createTRPCRouter({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     officerFilter,
-                    eq(farmer.status, "active"),
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined,
                     input.search ? sql`${farmer.name} ILIKE ${`%${input.search}%`}` : undefined
                 ),
                 columns: {
@@ -53,8 +53,8 @@ export const managementStockRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const officerFilter = input.officerId
-                ? sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${input.officerId} AND organization_id = ${input.orgId})`
-                : sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE organization_id = ${input.orgId})`;
+                ? sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${input.officerId} AND organization_id = ${input.orgId} AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`}))`
+                : sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE organization_id = ${input.orgId} AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`}))`;
 
             const searchPattern = input.search ? `%${input.search}%` : null;
             const searchCondition = searchPattern ? sql`AND (driver_name ILIKE ${searchPattern} OR farmer_id IN (SELECT id FROM ${farmer} WHERE name ILIKE ${searchPattern}))` : sql``;
@@ -108,9 +108,8 @@ export const managementStockRouter = createTRPCRouter({
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
-            // Visibility Restriction: Non-admins/managers don't see deleted farmers' history
-            const isOrgAdmin = ctx.membership?.role === "OWNER" || ctx.membership?.role === "MANAGER";
-            if (ctx.user.globalRole !== "ADMIN" && !isOrgAdmin && f.status === "deleted") {
+            // Visibility Restriction: Non-admins don't see deleted farmers' history
+            if (ctx.user.globalRole !== "ADMIN" && f.status === "deleted") {
                 throw new TRPCError({ code: "NOT_FOUND" });
             }
 
@@ -136,7 +135,8 @@ export const managementStockRouter = createTRPCRouter({
                 .innerJoin(farmer, eq(stockLogs.farmerId, farmer.id))
                 .where(and(
                     eq(stockLogs.referenceId, input.batchId),
-                    eq(farmer.organizationId, input.orgId)
+                    eq(farmer.organizationId, input.orgId),
+                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
                 ))
                 .orderBy(desc(stockLogs.createdAt));
 

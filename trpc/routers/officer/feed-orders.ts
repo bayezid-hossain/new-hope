@@ -1,7 +1,7 @@
 import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { format } from "date-fns";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../../init";
 
@@ -62,6 +62,19 @@ export const feedOrdersRouter = createTRPCRouter({
                 }))
             );
 
+            // Validate Farmers: Ensure they are active (for non-admins)
+            if (ctx.user.globalRole !== "ADMIN") {
+                const farmers = await ctx.db.query.farmer.findMany({
+                    where: and(
+                        inArray(farmer.id, input.items.map(i => i.farmerId)),
+                        eq(farmer.status, "deleted")
+                    )
+                });
+                if (farmers.length > 0) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot create order for deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                }
+            }
+
             if (itemsToInsert.length > 0) {
                 await ctx.db.insert(feedOrderItems).values(itemsToInsert);
             }
@@ -92,7 +105,13 @@ export const feedOrdersRouter = createTRPCRouter({
                 limit: input.limit
             });
 
-            return orders;
+            return orders.map(order => ({
+                ...order,
+                items: order.items.filter(item => {
+                    if (ctx.user.globalRole === "ADMIN") return true;
+                    return item.farmer?.status !== "deleted";
+                })
+            }));
         }),
 
     get: proProcedure
@@ -110,6 +129,9 @@ export const feedOrdersRouter = createTRPCRouter({
                     }
                 }
             });
+            if (order && ctx.user.globalRole !== "ADMIN") {
+                order.items = order.items.filter(item => item.farmer?.status !== "deleted");
+            }
             return order;
         }),
 
@@ -208,6 +230,19 @@ export const feedOrdersRouter = createTRPCRouter({
                     }))
                 );
 
+                // Validate Farmers: Ensure they are active (for non-admins)
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const farmers = await tx.query.farmer.findMany({
+                        where: and(
+                            inArray(farmer.id, input.items.map(i => i.farmerId)),
+                            eq(farmer.status, "deleted")
+                        )
+                    });
+                    if (farmers.length > 0) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot update order with deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                    }
+                }
+
                 if (itemsToInsert.length > 0) {
                     await tx.insert(feedOrderItems).values(itemsToInsert);
                 }
@@ -249,6 +284,14 @@ export const feedOrdersRouter = createTRPCRouter({
 
                 // Update each farmer's mainStock and prepare logs
                 for (const [farmerId, quantity] of farmerUpdates.entries()) {
+                    // Visibility Restriction: Block confirmation if farmer is deleted (for non-admins)
+                    if (ctx.user.globalRole !== "ADMIN") {
+                        const f = await ctx.db.query.farmer.findFirst({
+                            where: and(eq(farmer.id, farmerId), eq(farmer.status, "deleted"))
+                        });
+                        if (f) throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot confirm order for deleted farmer: ${f.name}` });
+                    }
+
                     await tx.update(farmer)
                         .set({
                             mainStock: sql`${farmer.mainStock} + ${quantity}`,

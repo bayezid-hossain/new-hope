@@ -486,6 +486,11 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
             }
 
+            // Visibility Restriction: Non-admins don't see deleted farmers' data
+            if (ctx.user.globalRole !== "ADMIN" && farmerData.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
+            }
+
             // ACCESS LEVEL CHECK
             if (ctx.user.globalRole !== "ADMIN") {
                 const membership = await ctx.db.query.member.findFirst({
@@ -866,6 +871,11 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to sell from this cycle" });
             }
 
+            // Visibility Restriction: Non-admins don't see deleted farmers' data
+            if (ctx.user.globalRole !== "ADMIN" && cycle.farmer.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
+            }
+
             // Fetch previous sales to calculate cumulative stats
             const previousSales = await ctx.db.query.saleEvents.findMany({
                 where: historyIdToUse ? eq(saleEvents.historyId, historyIdToUse) : eq(saleEvents.cycleId, cycleIdToUse),
@@ -1059,7 +1069,10 @@ export const officerSalesRouter = createTRPCRouter({
             if (input.farmerId) {
                 // Fetch farmer with all its linked sales via cycles and history using Relation API
                 const farmerData = await ctx.db.query.farmer.findFirst({
-                    where: eq(farmer.id, input.farmerId),
+                    where: and(
+                        eq(farmer.id, input.farmerId),
+                        ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    ),
                     with: {
                         cycles: {
                             with: {
@@ -1091,10 +1104,10 @@ export const officerSalesRouter = createTRPCRouter({
                                         },
                                         createdByUser: { columns: { name: true } },
                                         cycle: {
-                                            with: { farmer: { columns: { name: true, mobile: true } } }
+                                            with: { farmer: { columns: { name: true, mobile: true, status: true } } }
                                         },
                                         history: {
-                                            with: { farmer: { columns: { name: true, mobile: true } } }
+                                            with: { farmer: { columns: { name: true, mobile: true, status: true } } }
                                         }
                                     }
                                 }
@@ -1429,6 +1442,11 @@ export const officerSalesRouter = createTRPCRouter({
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };
+            }).filter(e => {
+                // Filter out deleted farmers for non-admins if not already filtered at DB level
+                if (ctx.user.globalRole === "ADMIN") return true;
+                const f = e.cycle?.farmer || e.history?.farmer;
+                return f?.status !== "deleted";
             });
         }),
 
@@ -1543,6 +1561,21 @@ export const officerSalesRouter = createTRPCRouter({
     getReports: proProcedure
         .input(z.object({ saleEventId: z.string() }))
         .query(async ({ ctx, input }) => {
+            const event = await ctx.db.query.saleEvents.findFirst({
+                where: eq(saleEvents.id, input.saleEventId),
+                with: {
+                    cycle: { with: { farmer: true } },
+                    history: { with: { farmer: true } },
+                }
+            });
+
+            if (!event) throw new TRPCError({ code: "NOT_FOUND" });
+
+            const farmerData = event.cycle?.farmer || event.history?.farmer;
+            if (ctx.user.globalRole !== "ADMIN" && farmerData?.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
+
             return await ctx.db.query.saleReports.findMany({
                 where: eq(saleReports.saleEventId, input.saleEventId),
                 orderBy: desc(saleReports.createdAt),
@@ -1618,7 +1651,14 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            return await appendCycleContextToSales(ctx, events, input.search, input.limit);
+            // Filter out deleted farmers for non-admins before appending context
+            const filteredEvents = events.filter(e => {
+                if (ctx.user.globalRole === "ADMIN") return true;
+                const f = e.cycle?.farmer || e.history?.farmer;
+                return f?.status !== "deleted";
+            });
+
+            return await appendCycleContextToSales(ctx, filteredEvents, input.search, input.limit);
         }),
 
     delete: proProcedure

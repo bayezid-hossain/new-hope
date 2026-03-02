@@ -1,7 +1,7 @@
-import { birdTypes, cycleLogs, cycles, docOrderItems, docOrders, member } from "@/db/schema";
+import { birdTypes, cycleLogs, cycles, docOrderItems, docOrders, farmer, member } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure, protectedProcedure } from "../../init";
 
@@ -65,6 +65,19 @@ export const docOrdersRouter = createTRPCRouter({
                 isContract: item.isContract
             }));
 
+            // Validate Farmers: Ensure they are active (for non-admins)
+            if (ctx.user.globalRole !== "ADMIN") {
+                const farmers = await ctx.db.query.farmer.findMany({
+                    where: and(
+                        inArray(farmer.id, input.items.map(i => i.farmerId)),
+                        eq(farmer.status, "deleted")
+                    )
+                });
+                if (farmers.length > 0) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot create order for deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                }
+            }
+
             if (itemsToInsert.length > 0) {
                 await ctx.db.insert(docOrderItems).values(itemsToInsert);
             }
@@ -94,7 +107,13 @@ export const docOrdersRouter = createTRPCRouter({
                 limit: input.limit
             });
 
-            return orders;
+            return orders.map(order => ({
+                ...order,
+                items: order.items.filter(item => {
+                    if (ctx.user.globalRole === "ADMIN") return true;
+                    return item.farmer?.status !== "deleted";
+                })
+            }));
         }),
 
     delete: proProcedure
@@ -171,6 +190,19 @@ export const docOrdersRouter = createTRPCRouter({
                     docCount: item.docCount,
                     isContract: item.isContract
                 }));
+
+                // Validate Farmers: Ensure they are active (for non-admins)
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const farmers = await tx.query.farmer.findMany({
+                        where: and(
+                            inArray(farmer.id, input.items.map(i => i.farmerId)),
+                            eq(farmer.status, "deleted")
+                        )
+                    });
+                    if (farmers.length > 0) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot update order with deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                    }
+                }
 
                 if (itemsToInsert.length > 0) {
                     await tx.insert(docOrderItems).values(itemsToInsert);
@@ -249,6 +281,11 @@ export const docOrdersRouter = createTRPCRouter({
 
                     if (cycleDate < fortyDaysAgo) {
                         throw new TRPCError({ code: "BAD_REQUEST", message: `Date older than 40 days not allowed for farmer ${item.farmer.name}` });
+                    }
+
+                    // Visibility Restriction: Block confirmation if farmer is deleted (for non-admins)
+                    if (ctx.user.globalRole !== "ADMIN" && item.farmer.status === "deleted") {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot confirm order for deleted farmer: ${item.farmer.name}` });
                     }
 
                     // Create Cycle

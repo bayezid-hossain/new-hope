@@ -48,7 +48,10 @@ export const managementSalesRouter = createTRPCRouter({
             const orgId = input.orgId;
             const orgFiltered = events.filter(e => {
                 const f = e.cycle?.farmer ?? e.history?.farmer;
-                return f?.organizationId === orgId;
+                if (!f) return false;
+                if (f.organizationId !== orgId) return false;
+                if (ctx.user.globalRole !== "ADMIN" && f.status === "deleted") return false;
+                return true;
             });
 
             return await appendCycleContextToSales(ctx, orgFiltered, input.search, input.limit);

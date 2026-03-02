@@ -39,7 +39,13 @@ export const managementFeedOrdersRouter = createTRPCRouter({
                 limit: input.limit
             });
 
-            return orders;
+            return orders.map(order => ({
+                ...order,
+                items: order.items.filter(item => {
+                    if (ctx.user.globalRole === "ADMIN") return true;
+                    return item.farmer?.status !== "deleted";
+                })
+            }));
         }),
 
     // Get single feed order details
@@ -67,6 +73,9 @@ export const managementFeedOrdersRouter = createTRPCRouter({
                     }
                 }
             });
+            if (order && ctx.user.globalRole !== "ADMIN") {
+                order.items = order.items.filter(item => item.farmer?.status !== "deleted");
+            }
             return order;
         }),
 
