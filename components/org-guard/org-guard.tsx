@@ -1,9 +1,9 @@
 "use client";
 
-import ErrorState from "@/components/error-state";
 import LoadingState from "@/components/loading-state";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query"; // Import useQuery directly
+import { useRouter } from "next/navigation";
 import { InactiveState } from "./inactive-view";
 import { NoOrgState } from "./no-org-state";
 import { PendingState } from "./pending-state";
@@ -15,6 +15,7 @@ interface OrgGuardProps {
 
 export const OrgGuard = ({ children }: OrgGuardProps) => {
   const trpc = useTRPC();
+  const router = useRouter();
 
   // FIXED: Use standard useQuery + queryOptions
   const { data: statusData, isPending, error } = useQuery(
@@ -28,7 +29,8 @@ export const OrgGuard = ({ children }: OrgGuardProps) => {
   }
 
   if (error || !statusData) {
-    return <ErrorState title="Authentication Error" description="Could not verify your access status." />;
+    router.push("/sign-in");
+    return null;
   }
 
   switch (statusData.status) {
