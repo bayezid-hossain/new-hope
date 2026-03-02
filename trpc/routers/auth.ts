@@ -56,34 +56,45 @@ export const authRouter = createTRPCRouter({
   // 2. Get Current User's Status
   getMyMembership: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
+    try {
+      const membership = await ctx.db.query.member.findFirst({
+        where: eq(member.userId, userId),
+        with: {
+          organization: true
+        }
+      });
 
-    const membership = await ctx.db.query.member.findFirst({
-      where: eq(member.userId, userId),
-      with: {
-        organization: true
+      if (!membership) {
+        // console.log(`[getMyMembership] No membership found for user ${userId}`);
+        return {
+          status: "NO_ORG" as const,
+          orgId: null,
+          role: null,
+          isPro: ctx.user.isPro,
+          proExpiresAt: ctx.user.proExpiresAt,
+          activeMode: undefined,
+          accessLevel: undefined
+        };
       }
-    });
 
-    if (!membership) return {
-      status: "NO_ORG" as const,
-      orgId: null,
-      role: null,
-      isPro: ctx.user.isPro,
-      proExpiresAt: ctx.user.proExpiresAt,
-      activeMode: undefined,
-      accessLevel: undefined
-    };
-
-    return {
-      status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
-      orgName: membership.organization.name,
-      orgId: membership.organizationId,
-      role: membership.role,
-      activeMode: membership.activeMode,
-      accessLevel: membership.accessLevel,
-      isPro: ctx.user.isPro,
-      proExpiresAt: ctx.user.proExpiresAt
-    };
+      return {
+        status: membership.status, // "PENDING" | "ACTIVE" | "REJECTED"
+        orgName: membership.organization.name,
+        orgId: membership.organizationId,
+        role: membership.role,
+        activeMode: membership.activeMode,
+        accessLevel: membership.accessLevel,
+        isPro: ctx.user.isPro,
+        proExpiresAt: ctx.user.proExpiresAt
+      };
+    } catch (error) {
+      console.error(`[getMyMembership] CRITICAL ERROR for user ${userId}:`, error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch membership details. Please check server logs.",
+        cause: error
+      });
+    }
   }),
 
   // 3. List all organizations (for joining)
