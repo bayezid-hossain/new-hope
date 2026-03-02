@@ -21,7 +21,9 @@ export interface OfficerAnalyticsData {
     totalMainStock: number;
 }
 
-export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<OfficerAnalyticsData[]> {
+export async function fetchOfficerAnalytics(db: any, orgId: string, includeDeleted: boolean = false): Promise<OfficerAnalyticsData[]> {
+    const statusFilter = includeDeleted ? undefined : ne(farmer.status, "deleted");
+
     const farmersStats = db.$with('farmers_stats').as(
         db.select({
             officerId: farmer.officerId,
@@ -29,7 +31,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             totalMainStock: sql<number>`sum(${farmer.mainStock})`.as('totalMainStock'),
         })
             .from(farmer)
-            .where(and(eq(farmer.status, "active"), eq(farmer.organizationId, orgId)))
+            .where(and(statusFilter, eq(farmer.organizationId, orgId)))
             .groupBy(farmer.officerId)
     );
 
@@ -46,7 +48,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             .where(and(
                 eq(cycles.organizationId, orgId),
                 eq(cycles.status, 'active'),
-                eq(farmer.status, 'active')
+                statusFilter
             ))
             .groupBy(farmer.officerId)
     );
@@ -64,7 +66,7 @@ export async function fetchOfficerAnalytics(db: any, orgId: string): Promise<Off
             .where(and(
                 eq(cycleHistory.organizationId, orgId),
                 ne(cycleHistory.status, "deleted"),
-                eq(farmer.status, "active")
+                statusFilter
             ))
             .groupBy(farmer.officerId)
     );

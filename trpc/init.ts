@@ -18,11 +18,10 @@ export const createTRPCContext = cache(async () => {
 
   if (!sessionData) {
     const authHeader = heads.get("authorization");
-    if (authHeader) {
+    const isInvalidToken = !authHeader || authHeader === "undefined" || authHeader === "null" || authHeader === "Bearer undefined" || authHeader === "Bearer null";
+
+    if (authHeader && !isInvalidToken) {
       console.error(`[auth] ❌ SESSION REJECTED: Authorization header present but getSession returned null. Token starts with: ${authHeader.substring(0, 15)}...`);
-    } else {
-      // Useful for debugging if requests are missing headers entirely
-      // console.log("[auth] No session found (No Authorization header)");
     }
   }
 

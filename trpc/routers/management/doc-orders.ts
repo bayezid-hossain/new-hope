@@ -26,6 +26,12 @@ export const managementDocOrdersRouter = createTRPCRouter({
                 limit: input.limit
             });
 
-            return orders;
+            return orders.map(order => ({
+                ...order,
+                items: order.items.filter(item => {
+                    if (ctx.user.globalRole === "ADMIN") return true;
+                    return item.farmer?.status !== "deleted";
+                })
+            }));
         }),
 });

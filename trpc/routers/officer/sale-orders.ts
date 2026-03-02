@@ -1,6 +1,6 @@
-import { member, saleOrderItems, saleOrders } from "@/db/schema";
+import { farmer, member, saleOrderItems, saleOrders } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, proProcedure } from "../../init";
 
@@ -55,6 +55,19 @@ export const saleOrdersRouter = createTRPCRouter({
                 age: item.age,
             }));
 
+            // Validate Farmers: Ensure they are active (for non-admins)
+            if (ctx.user.globalRole !== "ADMIN") {
+                const farmers = await ctx.db.query.farmer.findMany({
+                    where: and(
+                        inArray(farmer.id, input.items.map(i => i.farmerId)),
+                        eq(farmer.status, "deleted")
+                    )
+                });
+                if (farmers.length > 0) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot create order for deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                }
+            }
+
             if (itemsToInsert.length > 0) {
                 await ctx.db.insert(saleOrderItems).values(itemsToInsert);
             }
@@ -84,7 +97,13 @@ export const saleOrdersRouter = createTRPCRouter({
                 limit: input.limit
             });
 
-            return orders;
+            return orders.map(order => ({
+                ...order,
+                items: order.items.filter(item => {
+                    if (ctx.user.globalRole === "ADMIN") return true;
+                    return item.farmer?.status !== "deleted";
+                })
+            }));
         }),
 
     delete: proProcedure
