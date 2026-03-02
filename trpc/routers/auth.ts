@@ -13,7 +13,9 @@ export const authRouter = createTRPCRouter({
       session: ctx.session,
       user: {
         ...ctx.user,
-        activeMode: ctx?.user?.activeMode
+        activeMode: ctx?.user?.activeMode,
+        branchName: ctx?.user?.branchName,
+        mobile: ctx?.user?.mobile,
       }
     };
   }),
@@ -120,6 +122,27 @@ export const authRouter = createTRPCRouter({
         .set({ expoPushToken: input.token })
         .where(eq(user.id, ctx.user.id));
       //console.log`[Auth] Registered push token for user ${ctx.user.id}: ${input.token}`);
+      return { success: true };
+    }),
+
+  // Update Profile Info
+  updateProfile: protectedProcedure
+    .input(z.object({
+      name: z.string().min(1, "Name is required"),
+      branchName: z.string().optional(),
+      mobile: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { user } = await import("@/db/schema");
+
+      await ctx.db.update(user)
+        .set({
+          name: input.name,
+          branchName: input.branchName || null,
+          mobile: input.mobile || null,
+        })
+        .where(eq(user.id, ctx.user.id));
+
       return { success: true };
     }),
 });

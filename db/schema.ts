@@ -48,6 +48,10 @@ export const user = pgTable("user", {
   isPro: boolean("is_pro").default(false).notNull(),
   proExpiresAt: timestamp("pro_expires_at", { withTimezone: true }), // null = never had Pro or no expiration set
 
+  // Profile Details
+  branchName: text("branch_name"),
+  mobile: text("mobile"),
+
   twoFactorEnabled: boolean("two_factor_enabled"),
   expoPushToken: text("expo_push_token"),
 });
