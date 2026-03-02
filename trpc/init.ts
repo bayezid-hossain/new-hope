@@ -16,6 +16,16 @@ export const createTRPCContext = cache(async () => {
     headers: heads
   });
 
+  if (!sessionData) {
+    const authHeader = heads.get("authorization");
+    if (authHeader) {
+      console.error(`[auth] ❌ SESSION REJECTED: Authorization header present but getSession returned null. Token starts with: ${authHeader.substring(0, 15)}...`);
+    } else {
+      // Useful for debugging if requests are missing headers entirely
+      // console.log("[auth] No session found (No Authorization header)");
+    }
+  }
+
   // 2. FETCH FULL USER FROM DB (Fixes the type error & ensures fresh data)
   // We do this because the session token might not have 'globalRole' inside it
   const fullUser = sessionData?.user
