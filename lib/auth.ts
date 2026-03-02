@@ -190,5 +190,6 @@ export const auth = betterAuth({
         "exp://",
         "exp://**",
         "exp://192.168.*.*:*/**",
+        "null"
     ]
 })
