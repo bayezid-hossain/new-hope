@@ -221,7 +221,7 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
                         </div>
 
                         <div className="flex flex-col gap-2 w-full sm:w-auto">
-                            <div className={`grid ${isConfirmed ? "grid-cols-1" : "grid-cols-2"} sm:flex sm:items-center gap-2 w-full`}>
+                            <div className={`grid ${isConfirmed ? "grid-cols-2" : "grid-cols-3"} sm:flex sm:items-center gap-2 w-full`}>
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -311,6 +311,16 @@ export function DocOrderCard({ order, onEdit }: DocOrderCardProps) {
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 )}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    className="h-9 rounded-lg px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none shadow-sm transition-all active:scale-95 text-xs sm:text-sm font-medium w-full sm:w-auto"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                    Delete
+                                </Button>
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
