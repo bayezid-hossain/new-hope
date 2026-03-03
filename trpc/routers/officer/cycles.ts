@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports, stockLogs } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, ne, sql } from "drizzle-orm";
@@ -1546,6 +1546,125 @@ export const officerCyclesRouter = createTRPCRouter({
                 }
 
                 return { success: true };
+            });
+        }),
+
+    // BACKDATE CYCLE (Shift all dates backward for an archived cycle)
+    backdateCycle: proProcedure
+        .input(z.object({
+            historyId: z.string(),
+            days: z.number().int().positive().max(730, "Maximum 730 days (2 years)"),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                // 1. Fetch History Record
+                const historyRecord = await tx.query.cycleHistory.findFirst({
+                    where: eq(cycleHistory.id, input.historyId),
+                    with: { farmer: true }
+                });
+
+                if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND", message: "Cycle history not found." });
+                if (!historyRecord.farmer || historyRecord.farmer.status !== "active") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "Farmer not found or archived." });
+                }
+
+                // Access Check: Officer ownership
+                if (ctx.user.globalRole !== "ADMIN" && historyRecord.farmer.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, historyRecord.organizationId!),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                    if (membership.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot backdate cycles." });
+                    }
+                } else if (ctx.user.globalRole !== "ADMIN") {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, historyRecord.organizationId!),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot backdate cycles." });
+                    }
+                }
+
+                const intervalExpr = sql`interval '${sql.raw(String(input.days))} days'`;
+
+                // 1. Shift cycle_history startDate and endDate
+                await tx.update(cycleHistory)
+                    .set({
+                        startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
+                        endDate: sql`${cycleHistory.endDate} - ${intervalExpr}`,
+                    })
+                    .where(eq(cycleHistory.id, input.historyId));
+
+                // 2. Shift cycle_logs createdAt
+                await tx.update(cycleLogs)
+                    .set({
+                        createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}`,
+                    })
+                    .where(eq(cycleLogs.historyId, input.historyId));
+
+                // 3. Shift sale_events saleDate and createdAt
+                const affectedSaleEvents = await tx.select({ id: saleEvents.id })
+                    .from(saleEvents)
+                    .where(eq(saleEvents.historyId, input.historyId));
+
+                if (affectedSaleEvents.length > 0) {
+                    await tx.update(saleEvents)
+                        .set({
+                            saleDate: sql`${saleEvents.saleDate} - ${intervalExpr}`,
+                            createdAt: sql`${saleEvents.createdAt} - ${intervalExpr}`,
+                        })
+                        .where(eq(saleEvents.historyId, input.historyId));
+
+                    // 4. Shift sale_reports createdAt (linked via sale events)
+                    const saleEventIds = affectedSaleEvents.map(e => e.id);
+                    if (saleEventIds.length > 0) {
+                        await tx.update(saleReports)
+                            .set({
+                                createdAt: sql`${saleReports.createdAt} - ${intervalExpr}`,
+                            })
+                            .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                    }
+                }
+
+                // 5. Shift sale_metrics calculatedAt and lastRecalculatedAt
+                await tx.update(saleMetrics)
+                    .set({
+                        calculatedAt: sql`${saleMetrics.calculatedAt} - ${intervalExpr}`,
+                        lastRecalculatedAt: sql`${saleMetrics.lastRecalculatedAt} - ${intervalExpr}`,
+                    })
+                    .where(eq(saleMetrics.historyId, input.historyId));
+
+                // 6. Shift stock_logs createdAt (linked via referenceId = historyId)
+                await tx.update(stockLogs)
+                    .set({
+                        createdAt: sql`${stockLogs.createdAt} - ${intervalExpr}`,
+                    })
+                    .where(eq(stockLogs.referenceId, input.historyId));
+
+                // 7. Insert a SYSTEM log noting the backdate
+                await tx.insert(cycleLogs).values({
+                    historyId: input.historyId,
+                    userId: ctx.user.id,
+                    type: "SYSTEM",
+                    valueChange: 0,
+                    note: `Cycle backdated by ${input.days} day(s). All related dates shifted.`,
+                });
+
+                // Fetch the updated record to return
+                const updated = await tx.query.cycleHistory.findFirst({
+                    where: eq(cycleHistory.id, input.historyId)
+                });
+
+                return { success: true, startDate: updated?.startDate, endDate: updated?.endDate };
             });
         }),
 
