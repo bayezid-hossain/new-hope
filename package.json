@@ -9,7 +9,9 @@
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "tsx scripts/reset-db.ts"
+    "db:reset": "tsx scripts/reset-db.ts",
+    "db:backup": "node scripts/db-backup.js",
+    "db:restore": "node scripts/db-restore.js"
   },
   "dependencies": {
     "@better-auth/expo": "^1.4.18",
