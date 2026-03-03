@@ -21,7 +21,7 @@ import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon, Check, Loader2, Plus, Search, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface SaleBatch {
@@ -48,16 +48,24 @@ interface CreateSaleOrderModalProps {
 }
 
 export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOrderModalProps) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
     const [orderDate, setOrderDate] = useState<Date>(new Date());
     const [branchName, setBranchName] = useState("");
     const [selectedItems, setSelectedItems] = useState<SaleItem[]>([]);
 
+    const { data: session } = useQuery(trpc.auth.getSession.queryOptions());
+
+    useEffect(() => {
+        if (open && !branchName && session?.user?.branchName) {
+            setBranchName(session.user.branchName);
+        }
+    }, [open, session, branchName]);
+
     // Search State
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-    const trpc = useTRPC();
-    const queryClient = useQueryClient();
 
     const { data: farmers, isPending: isLoadingFarmers } = useQuery({
         ...trpc.officer.farmers.listWithStock.queryOptions({

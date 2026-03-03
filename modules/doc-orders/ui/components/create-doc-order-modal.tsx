@@ -110,6 +110,8 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
         trpc.officer.docOrders.getBirdTypes.queryOptions()
     );
 
+    const { data: session } = useQuery(trpc.auth.getSession.queryOptions());
+
     // Reset/Initialize state when modal opens or initialData changes
     useEffect(() => {
         if (open) {
@@ -148,11 +150,11 @@ export function CreateDocOrderModal({ open, onOpenChange, orgId, initialData }: 
                 setSelectedItems(grouped);
             } else {
                 setOrderDate(new Date());
-                setBranchName("");
+                setBranchName(session?.user?.branchName || "");
                 setSelectedItems([]);
             }
         }
-    }, [open, initialData]);
+    }, [open, initialData, session]);
 
     const createMutation = useMutation(
         trpc.officer.docOrders.create.mutationOptions({
