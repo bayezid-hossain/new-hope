@@ -49,9 +49,22 @@ const filePath = path.join(backupDir, fileName);
 console.log(`🚀 Starting backup to ${fileName}...`);
 
 try {
-    // pg_dump is expected to be in PATH
-    // Adding --clean and --if-exists ensures the restore script drops existing objects first
-    execSync(`${pgDumpPath} --clean --if-exists "${databaseUrl}" > "${filePath}"`, { stdio: 'inherit' });
+    // pg_dump flags:
+    // --clean --if-exists: Drop objects before creating them (handles FK dependency ordering)
+    // --no-owner: Skip ownership commands (not needed for Neon.tech)
+    // --no-privileges: Skip GRANT/REVOKE/ALTER DEFAULT PRIVILEGES (fail on Neon.tech)
+    execSync(`${pgDumpPath} --clean --if-exists --no-owner --no-privileges "${databaseUrl}" > "${filePath}"`, { stdio: 'inherit' });
+
+    // Post-process: fix search_path that pg_dump sets to empty (breaks Drizzle ORM)
+    let sql = fs.readFileSync(filePath, 'utf-8');
+    sql = sql.replace(
+        "SELECT pg_catalog.set_config('search_path', '', false);",
+        "SELECT pg_catalog.set_config('search_path', 'public', false);"
+    );
+    // Append search_path reset at end of dump to ensure it's always correct
+    sql += "\n-- Fix search_path after restore\nSET search_path TO public;\nALTER ROLE CURRENT_USER SET search_path TO public;\n";
+    fs.writeFileSync(filePath, sql, 'utf-8');
+
     console.log(`✅ Backup completed successfully: ${fileName}`);
 
     // Create a symlink or a reference for "latest" if needed, 

@@ -79,11 +79,24 @@ console.log(`⚠️  WARNING: This will replace the current data in the database
 rl.question('Are you sure you want to proceed with the restore? (yes/no): ', (answer) => {
     if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
         try {
-            console.log(`🚀 Starting restore from ${targetFile}...`);
+            // Step 1: Clear existing data to avoid duplicate key errors
 
-            // Neon / PG restore usually works by piped psql
-            // Note: On Windows, we need to ensure the connection string is correctly handled in the shell
-            execSync(`${psqlPath} "${databaseUrl}" < "${filePath}"`, { stdio: 'inherit' });
+
+            // Step 2: Restore data from backup
+            console.log(`\n🚀 Restoring data from ${targetFile}...`);
+
+            // Using --set ON_ERROR_STOP=1 to fail fast on errors
+            execSync(`${psqlPath} --set ON_ERROR_STOP=0 -f "${filePath}" "${databaseUrl}"`, {
+                stdio: 'inherit',
+                env: process.env
+            });
+
+            // Step 3: Reset search_path (old backups may set it to empty, breaking Drizzle ORM)
+            console.log('\n🔧 Resetting search_path...');
+            execSync(`${psqlPath} -c "ALTER ROLE CURRENT_USER SET search_path TO public;" "${databaseUrl}"`, {
+                stdio: 'inherit',
+                env: process.env
+            });
 
             console.log(`\n✅ Restore completed successfully!`);
         } catch (error) {
