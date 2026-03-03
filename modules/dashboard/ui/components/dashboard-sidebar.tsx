@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { getUserPasswordStatus } from "@/modules/settings/actions/security-actions";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Bird, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, LayoutDashboard, Package, ShoppingBag, StarIcon, TrendingUp, UserCog, UsersIcon, Wheat, WheatIcon } from "lucide-react";
+import { BarChart3, Bird, BookOpen, ChevronRight, ClipboardList, FileSpreadsheet, HomeIcon, LayoutDashboard, Package, ShoppingBag, StarIcon, TrendingUp, UserCog, UsersIcon, Wheat, WheatIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -104,6 +104,11 @@ const reportsSection = [
 ];
 
 const secondSection = [
+  {
+    icon: BookOpen,
+    label: "Tutorial",
+    href: "/tutorial",
+  },
   {
     icon: StarIcon,
     label: "Security",
