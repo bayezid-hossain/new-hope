@@ -51,6 +51,7 @@ export const managementMembersRouter = createTRPCRouter({
             // Managers (even in VIEW mode) can approve members
             if (actorMember?.role === "OWNER") isAuthorized = true;
             else if (actorMember?.role === "MANAGER" && targetMember.role === "OFFICER") isAuthorized = true;
+            else if (actorMember?.role === "MANAGER" && targetMember.role === "MANAGER") isAuthorized = true;
             else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
 
             if (!isAuthorized) {
@@ -87,13 +88,14 @@ export const managementMembersRouter = createTRPCRouter({
                 });
             }
 
-            // Authorization
+            // Authorization: Owners and Managers can change roles
             let isAuthorized = false;
             if (actorMember?.role === "OWNER") isAuthorized = true;
+            else if (actorMember?.role === "MANAGER" && targetMember.role !== "OWNER") isAuthorized = true;
             else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
 
             if (!isAuthorized) {
-                throw new TRPCError({ code: "FORBIDDEN", message: "Only Owners can change roles." });
+                throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to change roles." });
             }
 
             await ctx.db.update(member)
@@ -134,10 +136,11 @@ export const managementMembersRouter = createTRPCRouter({
 
             let isAuthorized = false;
             if (actorMember?.role === "OWNER") isAuthorized = true;
+            else if (actorMember?.role === "MANAGER" && targetMember.role !== "OWNER") isAuthorized = true;
             else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
 
             if (!isAuthorized) {
-                throw new TRPCError({ code: "FORBIDDEN", message: "Only Owners can change access levels." });
+                throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to change access levels." });
             }
 
             await ctx.db.update(member)
