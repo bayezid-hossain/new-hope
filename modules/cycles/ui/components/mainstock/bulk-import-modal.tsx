@@ -393,11 +393,16 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                     amount: p.amount,
                     note: `Bulk Import: ${p.matchedName || p.cleanName}`
                 })),
-            driverName: driverName || undefined
+            driverName: driverName
         };
 
         if (payload.items.length === 0) {
             toast.error("No valid matches found to import.");
+            return;
+        }
+
+        if (!payload.driverName.trim()) {
+            toast.error("Driver name is required.");
             return;
         }
 
@@ -1082,7 +1087,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                                 <div className="flex items-center gap-2">
                                                     <Truck className="h-4 w-4 text-primary" />
                                                     <Label className="text-sm font-bold uppercase tracking-wider text-foreground/80">
-                                                        Driver Name (Optional)
+                                                        Driver Name <span className="text-red-500">*</span>
                                                     </Label>
                                                 </div>
                                                 <Input
@@ -1119,7 +1124,8 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                                             }}
                                             disabled={
                                                 bulkAddMutation.isPending ||
-                                                parsedData.some(p => p.isDuplicate || !p.matchedFarmerId)
+                                                parsedData.some(p => p.isDuplicate || !p.matchedFarmerId) ||
+                                                !driverName.trim()
                                             }
                                             className="bg-primary hover:opacity-90 text-primary-foreground min-w-[140px] shadow-primary/20 shadow-lg w-full sm:w-auto"
                                             size="lg"
