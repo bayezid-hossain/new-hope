@@ -51,6 +51,7 @@ export const managementMembersRouter = createTRPCRouter({
             // Managers (even in VIEW mode) can approve members
             if (actorMember?.role === "OWNER") isAuthorized = true;
             else if (actorMember?.role === "MANAGER" && targetMember.role === "OFFICER") isAuthorized = true;
+            else if (actorMember?.role === "MANAGER" && targetMember.role === "MANAGER") isAuthorized = true;
             else if (ctx.user.globalRole === "ADMIN") isAuthorized = true;
 
             if (!isAuthorized) {
