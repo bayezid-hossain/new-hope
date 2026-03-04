@@ -135,7 +135,7 @@ export const officerStockRouter = createTRPCRouter({
                 amount: z.number().positive().max(1000),
                 note: z.string().max(500).optional()
             })).max(50),
-            driverName: z.string().max(100).optional()
+            driverName: z.string().min(1, "Driver name is required").max(100)
         }))
         .mutation(async ({ ctx, input }) => {
             const { items, driverName } = input;
@@ -220,7 +220,7 @@ export const officerStockRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             // 1. Validate Input
             if (input.sourceFarmerId === input.targetFarmerId) {
-                throw new Error("Cannot transfer to the same farmer.");
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot transfer to the same farmer." });
             }
 
             return await ctx.db.transaction(async (tx) => {
@@ -240,7 +240,7 @@ export const officerStockRouter = createTRPCRouter({
                 });
 
                 if (!sourceFarmer || !targetFarmer) {
-                    throw new Error("One or both farmers not found.");
+                    throw new TRPCError({ code: "NOT_FOUND", message: "One or both farmers not found or archived." });
                 }
 
                 // 2.1 Permission Check
@@ -268,7 +268,10 @@ export const officerStockRouter = createTRPCRouter({
 
                 // 3. Check Funds
                 if (sourceFarmer.mainStock < input.amount) {
-                    throw new Error(`Insufficient funds. Source has ${sourceFarmer.mainStock}, trying to send ${input.amount}.`);
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Insufficient stock. ${sourceFarmer.name} has ${sourceFarmer.mainStock} bags.`,
+                    });
                 }
 
                 // 4. Execute Transfer (Source -> Target)
