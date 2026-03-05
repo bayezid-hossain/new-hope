@@ -158,7 +158,8 @@ export class SaleMetricsService {
             const data = sale.selectedReport || sale;
             const birdsSold = Number(data.birdsSold) || 0;
 
-            const ageAtSale = sale.age ?? (() => {
+            // Prefer report-level age (set via "Edit Sale Age") over the raw event age
+            const ageAtSale = data.age ?? sale.age ?? (() => {
                 const saleDate = new Date(sale.saleDate);
                 const cycleStart = new Date(cycleStartDate);
                 saleDate.setHours(0, 0, 0, 0);
