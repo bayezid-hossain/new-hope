@@ -273,6 +273,14 @@ export const SalesHistoryCard = ({
         if (!reportId) return;
 
         setSelectedReports(prev => ({ ...prev, [saleId]: reportId }));
+
+        // If the user is a MANAGER or OWNER in MANAGEMENT mode (or explicitly not allowed to edit as officer),
+        // we just change the selected report in the UI for viewing, but DO NOT save it to the DB.
+        const isManager = role === "MANAGER" || role === "OWNER";
+        if (isManager) {
+            return;
+        }
+
         setIsVersionChanging(true);
 
         try {
@@ -280,6 +288,11 @@ export const SalesHistoryCard = ({
                 await setActiveVersionMutation.mutateAsync({
                     saleEventId: saleId,
                     saleReportId: reportId
+                }).catch(err => {
+                    toast.error(err.message || "Failed to set active version");
+                    // Revert the local selection on error
+                    eventsQuery.refetch();
+                    throw err;
                 });
             }
             // Await refetch so backend recalculates all metrics (EPI, FCR, profit)

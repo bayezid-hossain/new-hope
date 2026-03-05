@@ -1523,6 +1523,37 @@ export const officerSalesRouter = createTRPCRouter({
                     });
                 }
 
+                if (ctx.user.globalRole !== "ADMIN") {
+                    // Fetch the organization ID to check the user's role
+                    const eventWithContext = await tx.query.saleEvents.findFirst({
+                        where: eq(saleEvents.id, input.saleEventId),
+                        with: {
+                            cycle: { with: { farmer: true } },
+                            history: { with: { farmer: true } }
+                        }
+                    });
+
+                    const organizationId = eventWithContext?.cycle?.farmer?.organizationId || eventWithContext?.history?.farmer?.organizationId;
+
+                    if (organizationId) {
+                        const membership = await tx.query.member.findFirst({
+                            where: and(
+                                eq(member.userId, ctx.user.id),
+                                eq(member.organizationId, organizationId),
+                                eq(member.status, "ACTIVE")
+                            )
+                        });
+
+                        // Prevent managers from setting the version directly
+                        if (membership && (membership.role === "MANAGER" || membership.role === "OWNER")) {
+                            throw new TRPCError({
+                                code: "FORBIDDEN",
+                                message: "Managers are not allowed to set the active version. Only officers can."
+                            });
+                        }
+                    }
+                }
+
                 // Safeguard: Ensure only the latest sale can have its active version changed
                 const latestEvent = await tx.query.saleEvents.findFirst({
                     where: event.historyId
