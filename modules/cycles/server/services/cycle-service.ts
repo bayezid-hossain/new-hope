@@ -8,7 +8,9 @@ export const endCycleLogic = async (
     cycleId: string,
     intake: number,
     userId: string,
-    userName: string
+    userName: string,
+    endDate?: Date,
+    endAge?: number
 ) => {
     const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId));
     if (!activeCycle) throw new TRPCError({ code: "NOT_FOUND" });
@@ -34,9 +36,9 @@ export const endCycleLogic = async (
         birdsSold: activeCycle.birdsSold, // Note: caller must ensure this is up to date if modifying before call
         finalIntake: intake || 0,
         mortality: activeCycle.mortality,
-        age: activeCycle.age,
+        age: endAge ?? activeCycle.age,
         startDate: activeCycle.createdAt,
-        endDate: new Date(),
+        endDate: endDate || new Date(),
         status: "archived",
         birdType: activeCycle.birdType
     }).returning();

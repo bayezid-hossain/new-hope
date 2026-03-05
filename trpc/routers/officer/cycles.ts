@@ -1260,12 +1260,23 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
-                // 3. VALIDATION: Cannot edit age if sales have occurred
-                if (cycle.birdsSold > 0 && cycle.age > input.newAge) {
-                    throw new TRPCError({
-                        code: "BAD_REQUEST",
-                        message: "Cannot edit age after birds have been sold. Adjustments are locked."
-                    });
+                // 3. VALIDATION: Cannot edit age if it conflicts with existing sales
+                if (cycle.birdsSold > 0) {
+                    const [maxSaleEvent] = await tx
+                        .select({ maxAge: saleEvents.age })
+                        .from(saleEvents)
+                        .where(eq(saleEvents.cycleId, input.cycleId))
+                        .orderBy(desc(saleEvents.age))
+                        .limit(1);
+
+                    const maxSaleAge = maxSaleEvent?.maxAge || 0;
+
+                    if (input.newAge < maxSaleAge) {
+                        throw new TRPCError({
+                            code: "BAD_REQUEST",
+                            message: `Cannot reduce age to ${input.newAge}. The cycle has a recorded sale at age ${maxSaleAge}.`
+                        });
+                    }
                 }
 
                 const oldAge = cycle.age;

@@ -213,20 +213,24 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot sell from an archived farmer" });
             }
 
-            // DATE VALIDATION: Cannot sell before cycle started
+            // DATE VALIDATION: Check if implied start date is before actual start date
             const effectiveSaleDate = input.saleDate || new Date();
-            // Reset time components for comparison (compare dates only)
             const saleDateOnly = new Date(effectiveSaleDate);
             saleDateOnly.setHours(0, 0, 0, 0);
 
             const cycleStartDate = new Date(cycle.createdAt);
             cycleStartDate.setHours(0, 0, 0, 0);
 
-            if (saleDateOnly < cycleStartDate) {
-                throw new TRPCError({
-                    code: "BAD_REQUEST",
-                    message: `Sale date cannot be before cycle start date (${cycle.createdAt.toLocaleDateString()}).`
-                });
+            const MS_PER_DAY = 1000 * 60 * 60 * 24;
+            const saleAgeToUse = cycle.age;
+            const impliedStartMs = saleDateOnly.getTime() - ((saleAgeToUse - 1) * MS_PER_DAY);
+            const impliedStartDate = new Date(impliedStartMs);
+            impliedStartDate.setHours(0, 0, 0, 0);
+
+            let daysToBackdate = 0;
+            if (impliedStartDate < cycleStartDate) {
+                const diffMs = cycleStartDate.getTime() - impliedStartDate.getTime();
+                daysToBackdate = Math.round(diffMs / MS_PER_DAY);
             }
 
             // ACCESS LEVEL CHECK
@@ -270,6 +274,55 @@ export const officerSalesRouter = createTRPCRouter({
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             const result = await ctx.db.transaction(async (tx) => {
+                // AUTO-BACKDATE CYCLE AND ALL RELATED LOGS
+                if (daysToBackdate > 0) {
+                    const intervalExpr = sql`interval '${sql.raw(String(daysToBackdate))} days'`;
+
+                    // Shift active cycle createdAt and increment age
+                    await tx.update(cycles)
+                        .set({
+                            createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
+                            age: sql`${cycles.age} + ${daysToBackdate}`
+                        })
+                        .where(eq(cycles.id, input.cycleId));
+
+                    // Shift cycle_logs createdAt
+                    await tx.update(cycleLogs)
+                        .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
+                        .where(eq(cycleLogs.cycleId, input.cycleId));
+
+                    // Shift sale_events saleDate and createdAt
+                    const affectedSaleEvents = await tx.select({ id: saleEvents.id })
+                        .from(saleEvents)
+                        .where(eq(saleEvents.cycleId, input.cycleId));
+
+                    if (affectedSaleEvents.length > 0) {
+                        await tx.update(saleEvents)
+                            .set({
+                                saleDate: sql`${saleEvents.saleDate} - ${intervalExpr}`,
+                                createdAt: sql`${saleEvents.createdAt} - ${intervalExpr}`,
+                            })
+                            .where(eq(saleEvents.cycleId, input.cycleId));
+
+                        // Shift sale_reports createdAt
+                        const saleEventIds = affectedSaleEvents.map(e => e.id);
+                        if (saleEventIds.length > 0) {
+                            await tx.update(saleReports)
+                                .set({ createdAt: sql`${saleReports.createdAt} - ${intervalExpr}` })
+                                .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                        }
+                    }
+
+                    // Insert a SYSTEM log noting the backdate
+                    await tx.insert(cycleLogs).values({
+                        cycleId: input.cycleId,
+                        userId: ctx.user.id,
+                        type: "SYSTEM",
+                        valueChange: 0,
+                        note: `Cycle auto-backdated by ${daysToBackdate} day(s) to match sale age. History shifted.`,
+                    });
+                }
+
                 // 0. Auto-update farmer profile if location/mobile are missing
                 const updates: Record<string, any> = {};
                 if (!cycle.farmer.location && input.location) {
@@ -323,7 +376,7 @@ export const officerSalesRouter = createTRPCRouter({
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     avgWeight: avgWeight.toFixed(2),
-                    age: cycle.age,
+                    age: saleAgeToUse,
                     pricePerKg: input.pricePerKg.toString(),
                     totalAmount: totalAmount.toFixed(2),
                     cashReceived: input.cashReceived.toString(),
@@ -349,7 +402,7 @@ export const officerSalesRouter = createTRPCRouter({
                     medicineCost: input.medicineCost.toString(),
                     feedConsumed: JSON.stringify(input.feedConsumed),
                     feedStock: JSON.stringify(input.feedStock),
-                    age: cycle.age,
+                    age: saleAgeToUse,
                     createdBy: ctx.user.id,
                     createdAt: input.saleDate || new Date(),
                 }).returning();
@@ -397,7 +450,8 @@ export const officerSalesRouter = createTRPCRouter({
 
                     // Call shared end logic
                     const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                    const endResult = await endCycleLogic(tx, input.cycleId, manualTotalBags, ctx.user.id, ctx.user.name);
+                    // If a specific saleDate is specified and we close the cycle because of this sale, the cycle effectively ended on that saleDate.
+                    const endResult = await endCycleLogic(tx, input.cycleId, manualTotalBags, ctx.user.id, ctx.user.name, input.saleDate, saleAgeToUse);
 
                     // Move sale events to history
                     await tx.update(saleEvents)
