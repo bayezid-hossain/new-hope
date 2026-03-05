@@ -59,14 +59,15 @@ const getCycleStats = (events: any[]) => {
         const currentBirdsSold = birdsSoldMap.get(key) || 0;
         const currentBirdDays = totalBirdDaysMap.get(key) || 0;
 
-        const price = parseFloat(ev.pricePerKg);
-        revenueMap.set(key, currentRevenue + (parseFloat(ev.totalAmount) || 0));
-        weightMap.set(key, currentWeight + (parseFloat(ev.totalWeight) || 0));
-        birdsSoldMap.set(key, currentBirdsSold + (ev.birdsSold || 0));
+        const selectedData = ev.selectedReport || ev;
+        revenueMap.set(key, currentRevenue + (parseFloat(selectedData.totalAmount) || 0));
+        weightMap.set(key, currentWeight + (parseFloat(selectedData.totalWeight) || 0));
+        birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0));
 
         // Use the explicitly locked sale age if available, otherwise fallback dynamically
-        const ageAtSale = ev.age ?? (() => {
-            const cycleStartDate = ev.cycle?.createdAt || ev.history?.startDate;
+        // Prefer report-level age (selectedReport.age) over raw event age
+        const ageAtSale = selectedData.age ?? ev.age ?? (() => {
+            const cycleStartDate = ev.cycle?.createdAt || ev.history?.startDate || ev.history?.createdAt;
             if (cycleStartDate) {
                 const saleDate = new Date(ev.saleDate);
                 const cycleStart = new Date(cycleStartDate);
@@ -79,11 +80,9 @@ const getCycleStats = (events: any[]) => {
         })();
 
         if (ageAtSale > 0) {
-            totalBirdDaysMap.set(key, currentBirdDays + ((ev.birdsSold || 0) * ageAtSale));
+            totalBirdDaysMap.set(key, currentBirdDays + ((selectedData.birdsSold || 0) * ageAtSale));
         }
 
-        // Independent Price Adjustment Logic (Sum of all per-kg surpluses/deficits)
-        const diff = price - BASE_SELLING_PRICE;
     });
 
     const ageMap = new Map<string, number>();
@@ -313,7 +312,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
 
-                // Create sale event
+                // Create sale event — age is the cycle's current age, NOT derived from dates
                 const [saleEvent] = await tx.insert(saleEvents).values({
                     cycleId: input.cycleId,
                     location: input.location,
@@ -350,6 +349,7 @@ export const officerSalesRouter = createTRPCRouter({
                     medicineCost: input.medicineCost.toString(),
                     feedConsumed: JSON.stringify(input.feedConsumed),
                     feedStock: JSON.stringify(input.feedStock),
+                    age: cycle.age,
                     createdBy: ctx.user.id,
                     createdAt: input.saleDate || new Date(),
                 }).returning();
@@ -976,14 +976,15 @@ export const officerSalesRouter = createTRPCRouter({
             const avgWeight = totalBirdsSold > 0 ? totalWeight / totalBirdsSold : 0;
 
             // FCR/EPI
-            // Age: use input date diff from start
-            const saleDateLocal = new Date(input.saleDate || new Date());
-            const cycleStartDate = new Date(cycle.startDate || cycle.createdAt);
-            saleDateLocal.setHours(0, 0, 0, 0);
-            cycleStartDate.setHours(0, 0, 0, 0);
-            const MS_PER_DAY = 1000 * 60 * 60 * 24;
-            const diffTimeLocal = saleDateLocal.getTime() - cycleStartDate.getTime();
-            let age = input.saleAge ?? Math.max(1, Math.round(diffTimeLocal / MS_PER_DAY) + 1);
+            // Age: use adjusted input age, or fall back to original sale event age (if adjusting), or current cycle age
+            let originalAge = cycle.age || 0;
+            if (input.excludeSaleId && previousSales) {
+                const adjustingSale = previousSales.find((s: typeof previousSales[0]) => s.id === input.excludeSaleId);
+                if (adjustingSale && adjustingSale.age != null) {
+                    originalAge = adjustingSale.age;
+                }
+            }
+            let age = input.saleAge ?? originalAge;
             const originalSaleAge = age;
 
             if (isEnded) {
@@ -995,12 +996,15 @@ export const officerSalesRouter = createTRPCRouter({
                     const data = sale.selectedReport || sale;
                     const bSold = Number(data.birdsSold) || 0;
 
-                    const ageAtSale = sale.age ?? (() => {
+                    // Prefer report-level age over raw event age
+                    const ageAtSale = data.age ?? sale.age ?? (() => {
+                        const cycleStartDate = cycle.createdAt || cycle.startDate || sale.createdAt;
                         const sDate = new Date(sale.saleDate);
                         const cStart = new Date(cycleStartDate);
                         sDate.setHours(0, 0, 0, 0);
                         cStart.setHours(0, 0, 0, 0);
                         const diffTime = sDate.getTime() - cStart.getTime();
+                        const MS_PER_DAY = 1000 * 60 * 60 * 24;
                         return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
                     })();
 
@@ -1392,20 +1396,8 @@ export const officerSalesRouter = createTRPCRouter({
                 const profit = formulaRevenue - feedCost - docCost;
                 const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
-                // Calculate the original sale age (not the weighted one)
-                const saleAge = selectedReportForE?.age ?? e.age ?? (() => {
-                    const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
-                    if (cycleStartDate) {
-                        const saleDateOnly = new Date(e.saleDate);
-                        const cycleStartOnly = new Date(cycleStartDate);
-                        saleDateOnly.setHours(0, 0, 0, 0);
-                        cycleStartOnly.setHours(0, 0, 0, 0);
-                        const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
-                        const MS_PER_DAY = 1000 * 60 * 60 * 24;
-                        return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
-                    }
-                    return cycleOrHistory?.age || 0;
-                })();
+                // Sale age is fixed at sell/adjust time — just read from DB
+                const saleAge = selectedReportForE?.age ?? e.age ?? cycleOrHistory?.age ?? 0;
 
                 return {
                     ...e,
@@ -1763,7 +1755,8 @@ export const appendCycleContextToSales = async (
         where: or(
             cycleIds.length > 0 ? inArray(saleEvents.cycleId, cycleIds) : undefined,
             historyIds.length > 0 ? inArray(saleEvents.historyId, historyIds) : undefined
-        )
+        ),
+        with: { selectedReport: true } // Need selectedReport to get report-level age adjustments
     });
 
     // Fetch per-cycle recovery prices from saleMetrics
@@ -1879,20 +1872,8 @@ export const appendCycleContextToSales = async (
         const profit = formulaRevenue - feedCost - docCost;
         const avgPrice = cumulativeWeight > 0 ? cumulativeRevenue / cumulativeWeight : 0;
 
-        // Calculate the original sale age (not the weighted one)
-        const saleAge = selectedReportForE?.age ?? e.age ?? (() => {
-            const cycleStartDate = e.cycle?.createdAt || (e.history as any)?.startDate || (e.history as any)?.createdAt;
-            if (cycleStartDate) {
-                const saleDateOnly = new Date(e.saleDate);
-                const cycleStartOnly = new Date(cycleStartDate);
-                saleDateOnly.setHours(0, 0, 0, 0);
-                cycleStartOnly.setHours(0, 0, 0, 0);
-                const diffTime = saleDateOnly.getTime() - cycleStartOnly.getTime();
-                const MS_PER_DAY = 1000 * 60 * 60 * 24;
-                return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
-            }
-            return cycleOrHistory?.age || 0;
-        })();
+        // Sale age is fixed at sell/adjust time — just read from DB
+        const saleAge = selectedReportForE?.age ?? e.age ?? cycleOrHistory?.age ?? 0;
 
         return {
             ...e,
