@@ -66,7 +66,8 @@ export const managementStockRouter = createTRPCRouter({
                     COUNT(DISTINCT farmer_id) as "count",
                     SUM(amount) as "totalAmount",
                     -- Get the driver_name from the first log in each batch that has one
-                    MAX(driver_name) as "driverName"
+                    MAX(driver_name) as "driverName",
+                    MIN(created_at) as "createdAt"
                 FROM ${stockLogs}
                 WHERE type = 'RESTOCK' 
                 AND reference_id IS NOT NULL
