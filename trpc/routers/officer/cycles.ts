@@ -98,6 +98,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     mainStockUpdatedAt: stockDatesMap.get(d.cycle.farmerId),
                     birdsSold: d.cycle.birdsSold,
                     birdType: d.cycle.birdType,
+                    officialInputDate: d.cycle.officialInputDate,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -158,6 +159,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerMainStock: d.farmerMainStock,
                     birdsSold: d.history.birdsSold,
                     birdType: d.history.birdType,
+                    officialInputDate: d.history.officialInputDate,
                     endDate: d.history.endDate
                 })),
                 total: total.count,
@@ -173,6 +175,7 @@ export const officerCyclesRouter = createTRPCRouter({
             doc: z.number().int().positive().max(200000, "Maximum 200,000 birds allowed per cycle"),
             age: z.number().int().min(0).max(40, "Maximum age is 40 days for new cycles").default(0),
             birdType: z.string().optional(),
+            officialInputDate: z.string().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
             const farmerData = await ctx.db.query.farmer.findFirst({
@@ -225,6 +228,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 doc: input.doc,
                 age: input.age,
                 birdType: input.birdType,
+                officialInputDate: input.officialInputDate ? new Date(input.officialInputDate) : null,
                 createdAt: input.age > 1
                     ? new Date(new Date().setDate(new Date().getDate() - (input.age - 1)))
                     : new Date()
@@ -661,6 +665,53 @@ export const officerCyclesRouter = createTRPCRouter({
             updatedCount: results.filter(r => r !== null).length,
         };
     }),
+
+    updateOfficialInputDate: officerProcedure
+        .input(z.object({
+            id: z.string(),
+            officialInputDate: z.date().nullable(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+            let [cycle] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
+            if (cycle) {
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, cycle.organizationId)
+                        )
+                    });
+                    if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
+                        throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot update cycles." });
+                    }
+                }
+                await ctx.db.update(cycles)
+                    .set({ officialInputDate: input.officialInputDate, updatedAt: new Date() })
+                    .where(eq(cycles.id, input.id));
+                return { success: true };
+            }
+
+            const [historyCycle] = await ctx.db.select().from(cycleHistory).where(eq(cycleHistory.id, input.id));
+            if (!historyCycle) throw new TRPCError({ code: "NOT_FOUND" });
+
+            if (ctx.user.globalRole !== "ADMIN") {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, historyCycle.organizationId || "")
+                    )
+                });
+                if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot update cycles." });
+                }
+            }
+
+            await ctx.db.update(cycleHistory)
+                .set({ officialInputDate: input.officialInputDate })
+                .where(eq(cycleHistory.id, input.id));
+
+            return { success: true };
+        }),
 
     deleteHistory: officerProcedure
         .input(z.object({ id: z.string() }))
@@ -1290,15 +1341,20 @@ export const officerCyclesRouter = createTRPCRouter({
                 const now = new Date();
                 const newCreationDate = new Date(now);
                 newCreationDate.setDate(now.getDate() - (input.newAge - 1)); // -1 because age 1 = today (0 days diff implies < 24h, logic in feed service considers days diff + 1)
-                // Actually, feed service does: max(1, diffDays + 1). So if diff is 0, age is 1.
-                // If we want age 5: diff must be 4 days.
-                // So createdAt = Today - (Age - 1).
+
+                // Keep officialInputDate in sync by shifting it by the exact same amount of days
+                const daysDiff = (newCreationDate.getTime() - cycle.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+                let newOfficialInputDate = cycle.officialInputDate;
+                if (newOfficialInputDate) {
+                    newOfficialInputDate = new Date(newOfficialInputDate.getTime() + (daysDiff * 1000 * 60 * 60 * 24));
+                }
 
                 // Update Cycle
                 await tx.update(cycles)
                     .set({
                         age: input.newAge,
                         createdAt: newCreationDate,
+                        officialInputDate: newOfficialInputDate,
                         updatedAt: new Date()
                     })
                     .where(eq(cycles.id, input.cycleId));
@@ -1612,6 +1668,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     .set({
                         startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
                         endDate: sql`${cycleHistory.endDate} - ${intervalExpr}`,
+                        officialInputDate: sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
                     })
                     .where(eq(cycleHistory.id, input.historyId));
 

@@ -164,6 +164,8 @@ const generateReportSchema = z.object({
     feedPricePerBag: z.number().positive().optional(),
     docPricePerBird: z.number().positive().optional(),
     saleAge: z.number().int().positive().optional(),
+    saleDate: z.date().optional(),
+    officialInputDate: z.date().optional(),
 });
 
 // Helper to count bags from feed JSON
@@ -278,10 +280,11 @@ export const officerSalesRouter = createTRPCRouter({
                 if (daysToBackdate > 0) {
                     const intervalExpr = sql`interval '${sql.raw(String(daysToBackdate))} days'`;
 
-                    // Shift active cycle createdAt and increment age
+                    // Shift active cycle createdAt, officialInputDate and increment age
                     await tx.update(cycles)
                         .set({
                             createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
+                            officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
                             age: sql`${cycles.age} + ${daysToBackdate}`
                         })
                         .where(eq(cycles.id, input.cycleId));
@@ -578,7 +581,115 @@ export const officerSalesRouter = createTRPCRouter({
             const avgWeight = input.totalWeight / input.birdsSold;
             const totalAmount = input.totalWeight * input.pricePerKg;
 
+            // BACKDATE LOGIC: Same as createSaleEvent — if saleDate implies cycle started earlier, shift everything back
+            let daysToBackdate = 0;
+            if (input.saleDate && (event.cycleId || event.historyId)) {
+                let cycleStartDate: Date | null = null;
+                let currentAge = 0;
+
+                if (event.cycleId) {
+                    const activeCycle = await ctx.db.query.cycles.findFirst({
+                        where: eq(cycles.id, event.cycleId),
+                    });
+                    if (activeCycle) {
+                        cycleStartDate = activeCycle.createdAt;
+                        currentAge = activeCycle.age;
+                    }
+                } else if (event.historyId) {
+                    const archaicCycle = await ctx.db.query.cycleHistory.findFirst({
+                        where: eq(cycleHistory.id, event.historyId),
+                    });
+                    if (archaicCycle) {
+                        cycleStartDate = archaicCycle.startDate;
+                        currentAge = archaicCycle.age;
+                    }
+                }
+
+                if (cycleStartDate) {
+                    const saleDateOnly = new Date(input.saleDate);
+                    saleDateOnly.setHours(0, 0, 0, 0);
+
+                    const cycleStartDateOnly = new Date(cycleStartDate);
+                    cycleStartDateOnly.setHours(0, 0, 0, 0);
+
+                    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                    const saleAgeToUse = input.saleAge || currentAge;
+                    let impliedStartDate: Date;
+
+                    if (input.officialInputDate) {
+                        impliedStartDate = new Date(input.officialInputDate);
+                    } else {
+                        const impliedStartMs = saleDateOnly.getTime() - ((saleAgeToUse - 1) * MS_PER_DAY);
+                        impliedStartDate = new Date(impliedStartMs);
+                    }
+                    impliedStartDate.setHours(0, 0, 0, 0);
+
+                    if (impliedStartDate.getTime() !== cycleStartDateOnly.getTime()) {
+                        const diffMs = cycleStartDateOnly.getTime() - impliedStartDate.getTime();
+                        daysToBackdate = Math.round(diffMs / MS_PER_DAY);
+                    }
+                }
+            }
+
             const result = await ctx.db.transaction(async (tx) => {
+                // AUTO-BACKDATE if needed (same logic as createSaleEvent)
+                if (daysToBackdate !== 0 && (event.cycleId || event.historyId)) {
+                    const intervalExpr = sql`interval '${sql.raw(String(daysToBackdate))} days'`;
+
+                    if (event.cycleId) {
+                        await tx.update(cycles)
+                            .set({
+                                createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
+                                officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
+                                age: sql`${cycles.age} + ${daysToBackdate}`
+                            })
+                            .where(eq(cycles.id, event.cycleId));
+
+                        await tx.update(cycleLogs)
+                            .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
+                            .where(eq(cycleLogs.cycleId, event.cycleId));
+                    } else if (event.historyId) {
+                        await tx.update(cycleHistory)
+                            .set({
+                                startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
+                                officialInputDate: sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
+                                age: sql`${cycleHistory.age} + ${daysToBackdate}`
+                            })
+                            .where(eq(cycleHistory.id, event.historyId));
+
+                        await tx.update(cycleLogs)
+                            .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
+                            .where(eq(cycleLogs.historyId, event.historyId));
+                    }
+
+                    const affectedSaleEvents = await tx.select({ id: saleEvents.id })
+                        .from(saleEvents)
+                        .where(event.cycleId ? eq(saleEvents.cycleId, event.cycleId) : eq(saleEvents.historyId, event.historyId!));
+
+                    if (affectedSaleEvents.length > 0) {
+                        await tx.update(saleEvents)
+                            .set({
+                                saleDate: sql`${saleEvents.saleDate} - ${intervalExpr}`,
+                                createdAt: sql`${saleEvents.createdAt} - ${intervalExpr}`,
+                            })
+                            .where(event.cycleId ? eq(saleEvents.cycleId, event.cycleId) : eq(saleEvents.historyId, event.historyId!));
+
+                        const saleEventIds = affectedSaleEvents.map(e => e.id);
+                        if (saleEventIds.length > 0) {
+                            await tx.update(saleReports)
+                                .set({ createdAt: sql`${saleReports.createdAt} - ${intervalExpr}` })
+                                .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                        }
+                    }
+
+                    await tx.insert(cycleLogs).values({
+                        cycleId: event.cycleId,
+                        userId: ctx.user.id,
+                        type: "SYSTEM",
+                        valueChange: 0,
+                        note: `Cycle auto-backdated by ${daysToBackdate} day(s) during sale adjustment to match sale age.`,
+                    });
+                }
                 // BACKFILL: Before overwriting the parent event, ensure existing reports
                 // that lack feedConsumed/feedStock get the CURRENT parent event values.
                 // This preserves Version 1's original data for older sales created before this fix.
@@ -614,6 +725,8 @@ export const officerSalesRouter = createTRPCRouter({
                     docPriceUsed: input.docPricePerBird?.toString(),
                     recoveryPrice: input.recoveryPrice?.toString(),
                     age: input.saleAge,
+                    saleDate: input.saleDate || event.saleDate,
+                    officialInputDate: input.officialInputDate || (event.cycle?.officialInputDate || event.history?.officialInputDate),
                     createdBy: ctx.user.id,
                     createdAt: new Date(), // Ensure adjustment is always newer than original
                 }).returning();
@@ -637,6 +750,7 @@ export const officerSalesRouter = createTRPCRouter({
                         party: input.party,
                         location: input.location,
                         ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
+                        ...(input.saleDate ? { saleDate: input.saleDate } : {}),
                     })
                     .where(eq(saleEvents.id, input.saleEventId));
 
@@ -676,7 +790,6 @@ export const officerSalesRouter = createTRPCRouter({
                             });
                         }
 
-                        // Update cycle counts
                         await tx.update(cycles)
                             .set({
                                 mortality: newMortality,
@@ -688,6 +801,7 @@ export const officerSalesRouter = createTRPCRouter({
                         // Recalculate Feed Intake based on adjusted population
                         const [freshCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
                         if (freshCycle) {
+                            const { updateCycleFeed } = await import("@/modules/cycles/server/services/feed-service");
                             await updateCycleFeed(
                                 freshCycle,
                                 ctx.user.id,
@@ -722,11 +836,10 @@ export const officerSalesRouter = createTRPCRouter({
                         }
 
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
-                        const [refetchedCycle] = await tx.select().from(cycles).where(eq(cycles.id, event.cycleId)).limit(1);
-                        const remaining = (refetchedCycle?.doc || 0) - (refetchedCycle?.mortality || 0) - (refetchedCycle?.birdsSold || 0);
+                        const remaining = (activeCycle.doc || 0) - newMortality - newBirdsSold;
                         if (remaining <= 0) {
                             const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                            const endResult = await endCycleLogic(tx, event.cycleId, refetchedCycle?.intake || 0, ctx.user.id, ctx.user.name);
+                            const endResult = await endCycleLogic(tx, event.cycleId, activeCycle.intake || 0, ctx.user.id, ctx.user.name, input.saleDate, input.saleAge);
                             autoClosedHistoryId = endResult.historyId;
                         }
                     }
@@ -1484,7 +1597,9 @@ export const officerSalesRouter = createTRPCRouter({
                         recoveryPrice: finalRecoveryPrice ?? recoveryPriceMap.get(groupKey) ?? null,
                         feedPriceUsed: finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? null,
                         docPriceUsed: finalDocPrice ?? docPriceUsedMap.get(groupKey) ?? null,
-                        birdType: cycleOrHistory?.birdType
+                        birdType: cycleOrHistory?.birdType,
+                        createdAt: cycleOrHistory ? ((cycleOrHistory as any).startDate || (cycleOrHistory as any).createdAt) : null,
+                        officialInputDate: cycleOrHistory?.officialInputDate ?? null
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
                 };
@@ -1504,11 +1619,13 @@ export const officerSalesRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const result = await ctx.db.transaction(async (tx) => {
 
-                const [event] = await tx
-                    .select()
-                    .from(saleEvents)
-                    .where(eq(saleEvents.id, input.saleEventId))
-                    .limit(1);
+                const event = await tx.query.saleEvents.findFirst({
+                    where: eq(saleEvents.id, input.saleEventId),
+                    with: {
+                        cycle: true,
+                        history: true
+                    }
+                });
 
                 const [report] = await tx
                     .select()
@@ -1569,6 +1686,10 @@ export const officerSalesRouter = createTRPCRouter({
                     });
                 }
 
+                const mortalityDiff = (report.totalMortality || 0) - (event.totalMortality || 0);
+                const birdsSoldDiff = (report.birdsSold || 0) - (event.birdsSold || 0);
+                const ageDiff = (report.age || 0) - (event.age || 0);
+
                 // 🔁 Update parent sale event with selected version
                 await tx.update(saleEvents)
                     .set({
@@ -1585,8 +1706,125 @@ export const officerSalesRouter = createTRPCRouter({
                         feedConsumed: report.feedConsumed || "[]",
                         feedStock: report.feedStock || "[]",
                         age: report.age,
+                        saleDate: report.saleDate || event.saleDate,
                     })
                     .where(eq(saleEvents.id, event.id));
+
+                // Synchronize Cycle / CycleHistory Inventory and Dates based on the version toggle
+                const currentOfficialDate = event.cycle?.officialInputDate || event.history?.officialInputDate;
+                const reportOfficialDate = report.officialInputDate;
+
+                // Priority: Use officialInputDate difference for shifting, fall back to ageDiff
+                let effectiveShift = ageDiff;
+                if (reportOfficialDate && currentOfficialDate) {
+                    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                    const diffMs = currentOfficialDate.getTime() - reportOfficialDate.getTime();
+                    effectiveShift = Math.round(diffMs / MS_PER_DAY);
+                }
+
+                if (mortalityDiff !== 0 || birdsSoldDiff !== 0 || effectiveShift !== 0) {
+                    const intervalExpr = sql`interval '${sql.raw(String(effectiveShift))} days'`;
+
+                    if (event.cycleId) {
+                        const [activeCycle] = await tx.select({ doc: cycles.doc }).from(cycles).where(eq(cycles.id, event.cycleId));
+                        if (activeCycle) {
+                            // Optionally add a sanity check here to ensure we don't exceed doc
+                            await tx.update(cycles)
+                                .set({
+                                    updatedAt: new Date(),
+                                    ...(effectiveShift !== 0 ? {
+                                        age: sql`${cycles.age} + ${effectiveShift}`,
+                                        createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
+                                        officialInputDate: report.officialInputDate || sql`${cycles.officialInputDate} - ${intervalExpr}`,
+                                    } : {})
+                                })
+                                .where(eq(cycles.id, event.cycleId));
+
+                            if (effectiveShift !== 0) {
+                                await tx.update(cycleLogs)
+                                    .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
+                                    .where(eq(cycleLogs.cycleId, event.cycleId));
+
+                                await tx.update(saleEvents)
+                                    .set({
+                                        saleDate: sql`${saleEvents.saleDate} - ${intervalExpr}`,
+                                        createdAt: sql`${saleEvents.createdAt} - ${intervalExpr}`,
+                                    })
+                                    .where(
+                                        and(
+                                            eq(saleEvents.cycleId, event.cycleId),
+                                            ne(saleEvents.id, event.id)
+                                        )
+                                    );
+
+                                const affectedSaleEvents = await tx.select({ id: saleEvents.id })
+                                    .from(saleEvents)
+                                    .where(
+                                        and(
+                                            eq(saleEvents.cycleId, event.cycleId),
+                                            ne(saleEvents.id, event.id)
+                                        )
+                                    );
+                                const saleEventIds = affectedSaleEvents.map(e => e.id);
+                                if (saleEventIds.length > 0) {
+                                    await tx.update(saleReports)
+                                        .set({ createdAt: sql`${saleReports.createdAt} - ${intervalExpr}` })
+                                        .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                                }
+                            }
+                        }
+                    } else if (event.historyId) {
+                        // For archived cycles, the age is fixed to the final sale's age. 
+                        // If the version changes the age, we must shift the start dates exactly by the age difference.
+                        // (If ageDiff is positive -> birds are older -> hatched earlier -> subtract days from startDate)
+                        await tx.update(cycleHistory)
+                            .set({
+                                mortality: sql`${cycleHistory.mortality} + ${mortalityDiff}`,
+                                birdsSold: sql`${cycleHistory.birdsSold} + ${birdsSoldDiff}`,
+                                // updatedAt: new Date(),
+                                ...(effectiveShift !== 0 ? {
+                                    age: sql`${cycleHistory.age} + ${effectiveShift}`,
+                                    startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
+                                    officialInputDate: report.officialInputDate || sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
+                                } : {})
+                            })
+                            .where(eq(cycleHistory.id, event.historyId));
+
+                        // Shift dates on logs and reports within this history if age changed
+                        if (effectiveShift !== 0) {
+                            await tx.update(cycleLogs)
+                                .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
+                                .where(eq(cycleLogs.historyId, event.historyId));
+
+                            await tx.update(saleEvents)
+                                .set({
+                                    saleDate: sql`${saleEvents.saleDate} - ${intervalExpr}`,
+                                    createdAt: sql`${saleEvents.createdAt} - ${intervalExpr}`,
+                                })
+                                .where(
+                                    and(
+                                        eq(saleEvents.historyId, event.historyId),
+                                        ne(saleEvents.id, event.id)
+                                    )
+                                );
+
+                            const affectedSaleEvents = await tx.select({ id: saleEvents.id })
+                                .from(saleEvents)
+                                .where(
+                                    and(
+                                        eq(saleEvents.historyId, event.historyId),
+                                        ne(saleEvents.id, event.id)
+                                    )
+                                );
+                            const saleEventIds = affectedSaleEvents.map(e => e.id);
+                            if (saleEventIds.length > 0) {
+                                await tx.update(saleReports)
+                                    .set({ createdAt: sql`${saleReports.createdAt} - ${intervalExpr}` })
+                                    .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                            }
+                        }
+                    }
+                }
 
                 // 🔥 FORCE FEED RECALCULATION (THIS FIXES FCR)
                 if (event.cycleId) {
@@ -1987,7 +2225,9 @@ export const appendCycleContextToSales = async (
                 profit,
                 avgPrice: parseFloat(avgPrice.toFixed(2)),
                 recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
-                birdType: cycleOrHistory?.birdType
+                birdType: cycleOrHistory?.birdType,
+                createdAt: cycleOrHistory ? ((cycleOrHistory as any).startDate || (cycleOrHistory as any).createdAt) : null,
+                officialInputDate: cycleOrHistory?.officialInputDate ?? null
             },
             remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
         };

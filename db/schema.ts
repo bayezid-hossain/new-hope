@@ -213,6 +213,7 @@ export const cycles = pgTable("cycles", {
   age: integer("age").notNull().default(0),
   status: text("status").notNull().default("active"),
   birdType: text("bird_type"),
+  officialInputDate: timestamp("official_input_date", { withTimezone: true }),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -240,6 +241,7 @@ export const cycleHistory = pgTable("cycle_history", {
   startDate: timestamp("start_date", { withTimezone: true }).notNull(),
   endDate: timestamp("end_date", { withTimezone: true }).defaultNow().notNull(),
   birdType: text("bird_type"),
+  officialInputDate: timestamp("official_input_date", { withTimezone: true }),
 }, (t) => [
   index("idx_history_org_id").on(t.organizationId),
   index("idx_history_farmer_id").on(t.farmerId),
@@ -355,6 +357,8 @@ export const saleReports = pgTable("sale_reports", {
   feedPriceUsed: decimal("feed_price_used"),
   docPriceUsed: decimal("doc_price_used"),
   recoveryPrice: decimal("recovery_price"),
+  saleDate: timestamp("sale_date", { withTimezone: true }),
+  officialInputDate: timestamp("official_input_date", { withTimezone: true }),
 
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

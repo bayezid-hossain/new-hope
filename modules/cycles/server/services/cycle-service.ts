@@ -40,7 +40,8 @@ export const endCycleLogic = async (
         startDate: activeCycle.createdAt,
         endDate: endDate || new Date(),
         status: "archived",
-        birdType: activeCycle.birdType
+        birdType: activeCycle.birdType,
+        officialInputDate: activeCycle.officialInputDate,
     }).returning();
 
     await tx.update(cycleLogs)

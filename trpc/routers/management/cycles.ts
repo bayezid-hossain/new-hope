@@ -113,6 +113,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     mainStockUpdatedAt: stockDatesMap.get(d.cycle.farmerId),
                     officerName: d.officerName || null,
                     birdType: d.cycle.birdType,
+                    officialInputDate: d.cycle.officialInputDate,
                     endDate: null as Date | null
                 })),
                 total: total.count,
@@ -332,6 +333,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     farmerMainStock: d.farmerMainStock,
                     officerName: d.officerName || null,
                     birdType: d.history.birdType,
+                    officialInputDate: d.history.officialInputDate,
                     endDate: d.history.endDate
                 })),
                 total: total.count,
