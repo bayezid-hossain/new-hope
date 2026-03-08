@@ -249,33 +249,44 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             }
 
-            // Calculate remaining birds (Initial - Mortality - Already Sold)
-            const remainingBirds = cycle.doc - cycle.mortality - cycle.birdsSold;
-            // Note: If mortalityChange is negative (resurrection), remaining birds technically increases.
-            // But we check if BIRDS SOLD > AVAILABLE. 
-            // Available = Current Remaining. The mortality change happens "simultaneously" or we trust the user's manual "House Birds" context?
-            // "House Birds" input is usually what the user counts. 
-            // If user says 100 birds in house, but system thinks 90.
-            // If user enters mortalityChange = -10 (restoring 10 birds), then system matches 100.
-            // For safety, let's stick to system's current count for validation.
-
-            if (input.birdsSold > remainingBirds) {
-                // Special case: If mortalityChange is negative, maybe we have enough?
-                // Effective Remaining = Remaining + (-mortalityChange)
-                const effectiveRemaining = remainingBirds - (input.mortalityChange < 0 ? input.mortalityChange : 0);
-                if (input.birdsSold > effectiveRemaining) {
-                    throw new TRPCError({
-                        code: "BAD_REQUEST",
-                        message: `Cannot sell ${input.birdsSold} birds. Only ${effectiveRemaining} birds calculated as available.`,
-                    });
-                }
-            }
+            // (Validation moved inside transaction with lock to prevent race conditions)
 
             // Calculate averages and totals
             const avgWeight = input.totalWeight / input.birdsSold;
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             const result = await ctx.db.transaction(async (tx) => {
+                // LOCK THE CYCLE RECORD to prevent race conditions during concurrent sales
+                const [lockedCycle] = await tx
+                    .select()
+                    .from(cycles)
+                    .where(eq(cycles.id, input.cycleId))
+                    .for("update");
+
+                if (!lockedCycle) {
+                    throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found during transaction" });
+                }
+
+                // RE-VALIDATE BIRD COUNT INSIDE LOCK
+                const currentRemaining = lockedCycle.doc - lockedCycle.mortality - lockedCycle.birdsSold;
+                const effectiveRemaining = currentRemaining - (input.mortalityChange < 0 ? input.mortalityChange : 0);
+
+                if (input.birdsSold > effectiveRemaining) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Cannot sell ${input.birdsSold} birds. Only ${effectiveRemaining} birds available based on latest records.`,
+                    });
+                }
+
+                // Final safety check: Total birds accounted for cannot exceed initial intake
+                const totalAccounted = (lockedCycle.birdsSold + input.birdsSold) + (lockedCycle.mortality + input.mortalityChange);
+                if (totalAccounted > lockedCycle.doc) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Invalid transaction: Total birds (${totalAccounted}) would exceed initial intake (${lockedCycle.doc}).`,
+                    });
+                }
+
                 // AUTO-BACKDATE CYCLE AND ALL RELATED LOGS
                 if (daysToBackdate > 0) {
                     const intervalExpr = sql`interval '${sql.raw(String(daysToBackdate))} days'`;
@@ -284,7 +295,7 @@ export const officerSalesRouter = createTRPCRouter({
                     await tx.update(cycles)
                         .set({
                             createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
-                            officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
+                            // officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
                             age: sql`${cycles.age} + ${daysToBackdate}`
                         })
                         .where(eq(cycles.id, input.cycleId));
@@ -342,7 +353,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // 1. Validate Mortality Floor
-                const newMortality = cycle.mortality + input.mortalityChange;
+                const newMortality = lockedCycle.mortality + input.mortalityChange;
 
                 // Get Max Mortality from PREVIOUS Sale Events
                 const [maxPrevSale] = await tx
@@ -640,7 +651,7 @@ export const officerSalesRouter = createTRPCRouter({
                         await tx.update(cycles)
                             .set({
                                 createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
-                                officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
+                                // officialInputDate: sql`${cycles.officialInputDate} - ${intervalExpr}`,
                                 age: sql`${cycles.age} + ${daysToBackdate}`
                             })
                             .where(eq(cycles.id, event.cycleId));
@@ -1270,6 +1281,8 @@ export const officerSalesRouter = createTRPCRouter({
                                                 docPriceUsed: true,
                                                 recoveryPrice: true,
                                                 age: true,
+                                                saleDate: true,
+                                                officialInputDate: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -1309,6 +1322,8 @@ export const officerSalesRouter = createTRPCRouter({
                                                 docPriceUsed: true,
                                                 recoveryPrice: true,
                                                 age: true,
+                                                saleDate: true,
+                                                officialInputDate: true,
                                                 createdAt: true,
                                             }
                                         },
@@ -1371,6 +1386,8 @@ export const officerSalesRouter = createTRPCRouter({
                                 docPriceUsed: true,
                                 recoveryPrice: true,
                                 age: true,
+                                saleDate: true,
+                                officialInputDate: true,
                                 createdAt: true,
                             }
                         },
@@ -1718,8 +1735,17 @@ export const officerSalesRouter = createTRPCRouter({
                 let effectiveShift = ageDiff;
                 if (reportOfficialDate && currentOfficialDate) {
                     const MS_PER_DAY = 1000 * 60 * 60 * 24;
-                    const diffMs = currentOfficialDate.getTime() - reportOfficialDate.getTime();
+                    // Ensure we compare dates at midnight to avoid hour-based rounding errors
+                    const d1 = new Date(currentOfficialDate);
+                    const d2 = new Date(reportOfficialDate);
+                    d1.setHours(0, 0, 0, 0);
+                    d2.setHours(0, 0, 0, 0);
+
+                    const diffMs = d1.getTime() - d2.getTime();
                     effectiveShift = Math.round(diffMs / MS_PER_DAY);
+                } else if (effectiveShift === 0 && ageDiff !== 0) {
+                    // Safety for legacy reports missing officialInputDate
+                    effectiveShift = ageDiff;
                 }
 
                 if (mortalityDiff !== 0 || birdsSoldDiff !== 0 || effectiveShift !== 0) {
@@ -1735,7 +1761,7 @@ export const officerSalesRouter = createTRPCRouter({
                                     ...(effectiveShift !== 0 ? {
                                         age: sql`${cycles.age} + ${effectiveShift}`,
                                         createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
-                                        officialInputDate: report.officialInputDate || sql`${cycles.officialInputDate} - ${intervalExpr}`,
+                                        officialInputDate: report.officialInputDate,
                                     } : {})
                                 })
                                 .where(eq(cycles.id, event.cycleId));
