@@ -141,6 +141,7 @@ const createSaleEventSchema = z.object({
     recoveryPrice: z.number().positive().optional(),
     feedPricePerBag: z.number().positive().optional(),
     docPricePerBird: z.number().positive().optional(),
+    officialInputDate: z.date().optional(),
 });
 
 // ... (omitted unrelated implementations)
@@ -417,8 +418,10 @@ export const officerSalesRouter = createTRPCRouter({
                     feedConsumed: JSON.stringify(input.feedConsumed),
                     feedStock: JSON.stringify(input.feedStock),
                     age: saleAgeToUse,
+                    saleDate: input.saleDate || new Date(),
+                    officialInputDate: input.officialInputDate || cycle.officialInputDate || cycle.createdAt,
                     createdBy: ctx.user.id,
-                    createdAt: input.saleDate || new Date(),
+                    createdAt: new Date(),
                 }).returning();
 
                 // Set selectedReportId on the parent event
@@ -625,14 +628,9 @@ export const officerSalesRouter = createTRPCRouter({
 
                     const MS_PER_DAY = 1000 * 60 * 60 * 24;
                     const saleAgeToUse = input.saleAge || currentAge;
-                    let impliedStartDate: Date;
 
-                    if (input.officialInputDate) {
-                        impliedStartDate = new Date(input.officialInputDate);
-                    } else {
-                        const impliedStartMs = saleDateOnly.getTime() - ((saleAgeToUse - 1) * MS_PER_DAY);
-                        impliedStartDate = new Date(impliedStartMs);
-                    }
+                    const impliedStartMs = saleDateOnly.getTime() - ((saleAgeToUse - 1) * MS_PER_DAY);
+                    let impliedStartDate = new Date(impliedStartMs);
                     impliedStartDate.setHours(0, 0, 0, 0);
 
                     if (impliedStartDate.getTime() !== cycleStartDateOnly.getTime()) {
@@ -708,14 +706,14 @@ export const officerSalesRouter = createTRPCRouter({
                     where: eq(saleReports.saleEventId, event.id),
                 });
                 for (const existingReport of existingReports) {
-                    if (!existingReport.feedConsumed || !existingReport.feedStock) {
-                        await tx.update(saleReports)
-                            .set({
-                                feedConsumed: existingReport.feedConsumed || event.feedConsumed,
-                                feedStock: existingReport.feedStock || event.feedStock,
-                            })
-                            .where(eq(saleReports.id, existingReport.id));
-                    }
+                    await tx.update(saleReports)
+                        .set({
+                            feedConsumed: existingReport.feedConsumed || event.feedConsumed,
+                            feedStock: existingReport.feedStock || event.feedStock,
+                            saleDate: existingReport.saleDate || event.saleDate,
+                            officialInputDate: existingReport.officialInputDate || (event.cycle?.officialInputDate || event.history?.officialInputDate || event.cycle?.createdAt || event.history?.startDate),
+                        })
+                        .where(eq(saleReports.id, existingReport.id));
                 }
 
                 const [report] = await tx.insert(saleReports).values({
@@ -764,6 +762,25 @@ export const officerSalesRouter = createTRPCRouter({
                         ...(input.saleDate ? { saleDate: input.saleDate } : {}),
                     })
                     .where(eq(saleEvents.id, input.saleEventId));
+
+                // SYNC cycle officialInputDate if it changed
+                if (input.officialInputDate) {
+                    if (event.cycleId) {
+                        const currentDoc = event.cycle?.officialInputDate;
+                        if (!currentDoc || input.officialInputDate.getTime() !== currentDoc.getTime()) {
+                            await tx.update(cycles)
+                                .set({ officialInputDate: input.officialInputDate, updatedAt: new Date() })
+                                .where(eq(cycles.id, event.cycleId));
+                        }
+                    } else if (event.historyId) {
+                        const currentDoc = event.history?.officialInputDate;
+                        if (!currentDoc || input.officialInputDate.getTime() !== currentDoc.getTime()) {
+                            await tx.update(cycleHistory)
+                                .set({ officialInputDate: input.officialInputDate })
+                                .where(eq(cycleHistory.id, event.historyId));
+                        }
+                    }
+                }
 
                 // 2. INVENTORY SYNC LOGIC (Cycles Table)
                 const latestReports = await tx.query.saleReports.findMany({
@@ -1207,6 +1224,8 @@ export const officerSalesRouter = createTRPCRouter({
                 totalAmount: (input.totalWeight * input.pricePerKg).toFixed(2),
                 avgWeight: (input.birdsSold > 0 ? input.totalWeight / input.birdsSold : 0).toFixed(2),
                 totalMortality: newMortality,
+                remainingBirds: currentHouseBirds,
+                officialInputDate: input.officialInputDate || cycle.officialInputDate || (cycle as any).startDate || cycle.createdAt,
                 // Match SaleEvent structure expected by UI
                 cycleContext: {
                     isEnded,
@@ -1679,7 +1698,7 @@ export const officerSalesRouter = createTRPCRouter({
                         });
 
                         // Prevent managers from setting the version directly
-                        if (membership && (membership.role === "MANAGER" || membership.role === "OWNER")) {
+                        if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
                             throw new TRPCError({
                                 code: "FORBIDDEN",
                                 message: "Managers are not allowed to set the active version. Only officers can."
@@ -1705,8 +1724,20 @@ export const officerSalesRouter = createTRPCRouter({
 
                 const mortalityDiff = (report.totalMortality || 0) - (event.totalMortality || 0);
                 const birdsSoldDiff = (report.birdsSold || 0) - (event.birdsSold || 0);
-                const ageDiff = (report.age || 0) - (event.age || 0);
 
+                // Calculate Timeline Shift: (Old Implied Hatch Date) - (New Implied Hatch Date)
+                // This ensures that switching to a version where saleAge was changed ALSO moves the cycle timeline.
+                const MS_PER_DAY = 1000 * 60 * 60 * 24;
+                const oldSaleDate = new Date(event.saleDate);
+                oldSaleDate.setHours(0, 0, 0, 0);
+                const oldImpliedStart = oldSaleDate.getTime() - (((event.age || 1) - 1) * MS_PER_DAY);
+
+                const newSaleDate = new Date(report.saleDate || report.createdAt);
+                newSaleDate.setHours(0, 0, 0, 0);
+                const newImpliedStart = newSaleDate.getTime() - (((report.age || 1) - 1) * MS_PER_DAY);
+
+                const shiftDays = Math.round((oldImpliedStart - newImpliedStart) / MS_PER_DAY);
+                // console.log(shiftDays)
                 // 🔁 Update parent sale event with selected version
                 await tx.update(saleEvents)
                     .set({
@@ -1723,31 +1754,34 @@ export const officerSalesRouter = createTRPCRouter({
                         feedConsumed: report.feedConsumed || "[]",
                         feedStock: report.feedStock || "[]",
                         age: report.age,
-                        saleDate: report.saleDate || event.saleDate,
+                        saleDate: report.saleDate || report.createdAt,
                     })
                     .where(eq(saleEvents.id, event.id));
 
-                // Synchronize Cycle / CycleHistory Inventory and Dates based on the version toggle
-                const currentOfficialDate = event.cycle?.officialInputDate || event.history?.officialInputDate;
-                const reportOfficialDate = report.officialInputDate;
-
-                // Priority: Use officialInputDate difference for shifting, fall back to ageDiff
-                let effectiveShift = ageDiff;
-                if (reportOfficialDate && currentOfficialDate) {
-                    const MS_PER_DAY = 1000 * 60 * 60 * 24;
-                    // Ensure we compare dates at midnight to avoid hour-based rounding errors
-                    const d1 = new Date(currentOfficialDate);
-                    const d2 = new Date(reportOfficialDate);
-                    d1.setHours(0, 0, 0, 0);
-                    d2.setHours(0, 0, 0, 0);
-
-                    const diffMs = d1.getTime() - d2.getTime();
-                    effectiveShift = Math.round(diffMs / MS_PER_DAY);
-                } else if (effectiveShift === 0 && ageDiff !== 0) {
-                    // Safety for legacy reports missing officialInputDate
-                    effectiveShift = ageDiff;
+                // Synchronize Parent Cycle / CycleHistory officialInputDate independently
+                const targetDocDate = report.officialInputDate || event.cycle?.createdAt || event.history?.startDate;
+                if (targetDocDate) {
+                    if (event.cycleId) {
+                        const currentDoc = event.cycle?.officialInputDate;
+                        if (!currentDoc || targetDocDate.getTime() !== currentDoc.getTime()) {
+                            await tx.update(cycles)
+                                .set({ officialInputDate: targetDocDate, updatedAt: new Date() })
+                                .where(eq(cycles.id, event.cycleId));
+                        }
+                    } else if (event.historyId) {
+                        const currentDoc = event.history?.officialInputDate;
+                        if (!currentDoc || targetDocDate.getTime() !== currentDoc.getTime()) {
+                            await tx.update(cycleHistory)
+                                .set({ officialInputDate: targetDocDate })
+                                .where(eq(cycleHistory.id, event.historyId));
+                        }
+                    }
                 }
 
+                // Synchronize Cycle / CycleHistory Inventory and Dates based on the version toggle
+
+                // Synchronize Cycle / CycleHistory Inventory and Dates based on the version toggle
+                let effectiveShift = shiftDays;
                 if (mortalityDiff !== 0 || birdsSoldDiff !== 0 || effectiveShift !== 0) {
                     const intervalExpr = sql`interval '${sql.raw(String(effectiveShift))} days'`;
 
@@ -1757,11 +1791,12 @@ export const officerSalesRouter = createTRPCRouter({
                             // Optionally add a sanity check here to ensure we don't exceed doc
                             await tx.update(cycles)
                                 .set({
+                                    mortality: sql`${cycles.mortality} + ${mortalityDiff}`,
+                                    birdsSold: sql`${cycles.birdsSold} + ${birdsSoldDiff}`,
                                     updatedAt: new Date(),
                                     ...(effectiveShift !== 0 ? {
                                         age: sql`${cycles.age} + ${effectiveShift}`,
                                         createdAt: sql`${cycles.createdAt} - ${intervalExpr}`,
-                                        officialInputDate: report.officialInputDate,
                                     } : {})
                                 })
                                 .where(eq(cycles.id, event.cycleId));
@@ -1811,7 +1846,6 @@ export const officerSalesRouter = createTRPCRouter({
                                 ...(effectiveShift !== 0 ? {
                                     age: sql`${cycleHistory.age} + ${effectiveShift}`,
                                     startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
-                                    officialInputDate: report.officialInputDate,
                                 } : {})
                             })
                             .where(eq(cycleHistory.id, event.historyId));
@@ -1987,6 +2021,8 @@ export const officerSalesRouter = createTRPCRouter({
                             feedStock: true,
                             age: true,
                             createdAt: true,
+                            officialInputDate: true,
+                            saleDate: true,
                         }
                     }
                 }

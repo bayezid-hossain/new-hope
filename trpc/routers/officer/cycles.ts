@@ -1342,19 +1342,13 @@ export const officerCyclesRouter = createTRPCRouter({
                 const newCreationDate = new Date(now);
                 newCreationDate.setDate(now.getDate() - (input.newAge - 1)); // -1 because age 1 = today (0 days diff implies < 24h, logic in feed service considers days diff + 1)
 
-                // Keep officialInputDate in sync by shifting it by the exact same amount of days
-                const daysDiff = (newCreationDate.getTime() - cycle.createdAt.getTime()) / (1000 * 60 * 60 * 24);
-                let newOfficialInputDate = cycle.officialInputDate;
-                if (newOfficialInputDate) {
-                    newOfficialInputDate = new Date(newOfficialInputDate.getTime() + (daysDiff * 1000 * 60 * 60 * 24));
-                }
+
 
                 // Update Cycle
                 await tx.update(cycles)
                     .set({
                         age: input.newAge,
                         createdAt: newCreationDate,
-                        officialInputDate: newOfficialInputDate,
                         updatedAt: new Date()
                     })
                     .where(eq(cycles.id, input.cycleId));

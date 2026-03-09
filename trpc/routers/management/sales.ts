@@ -38,7 +38,13 @@ export const managementSalesRouter = createTRPCRouter({
                             adjustmentNote: true,
                             feedConsumed: true,
                             feedStock: true,
+                            feedPriceUsed: true,
+                            docPriceUsed: true,
+                            recoveryPrice: true,
+                            age: true,
                             createdAt: true,
+                            officialInputDate: true,
+                            saleDate: true,
                         }
                     }
                 }
