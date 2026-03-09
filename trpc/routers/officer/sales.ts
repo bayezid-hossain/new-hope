@@ -1718,7 +1718,7 @@ export const officerSalesRouter = createTRPCRouter({
                 if (latestEvent?.id !== event.id) {
                     throw new TRPCError({
                         code: "FORBIDDEN",
-                        message: "Persistent version selection is only allowed for the latest sale."
+                        message: "Version selection is only allowed for the latest sale in a cycle to ensure timeline consistency."
                     });
                 }
 
