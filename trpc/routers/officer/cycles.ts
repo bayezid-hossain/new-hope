@@ -181,7 +181,7 @@ export const officerCyclesRouter = createTRPCRouter({
             const farmerData = await ctx.db.query.farmer.findFirst({
                 where: and(eq(farmer.id, input.farmerId), eq(farmer.status, "active"))
             });
-
+            console.log(input)
             if (!farmerData) {
                 throw new TRPCError({
                     code: "BAD_REQUEST",
@@ -672,6 +672,7 @@ export const officerCyclesRouter = createTRPCRouter({
             officialInputDate: z.date().nullable(),
         }))
         .mutation(async ({ input, ctx }) => {
+            console.log(input)
             let [cycle] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
             if (cycle) {
                 if (ctx.user.globalRole !== "ADMIN") {
