@@ -167,6 +167,7 @@ const generateReportSchema = z.object({
     saleAge: z.number().int().positive().optional(),
     saleDate: z.date().optional(),
     officialInputDate: z.date().optional(),
+    historyId: z.string().optional().nullable(),
 });
 
 // Helper to count bags from feed JSON
@@ -596,8 +597,9 @@ export const officerSalesRouter = createTRPCRouter({
             const totalAmount = input.totalWeight * input.pricePerKg;
 
             // BACKDATE LOGIC: Same as createSaleEvent — if saleDate implies cycle started earlier, shift everything back
+            // EXCEPTION: Disable backdating for archived cycles (historical adjustments) as per user request
             let daysToBackdate = 0;
-            if (input.saleDate && (event.cycleId || event.historyId)) {
+            if (input.saleDate && event.cycleId) {
                 let cycleStartDate: Date | null = null;
                 let currentAge = 0;
 
@@ -898,6 +900,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 mortality: newMortality,
                                 birdsSold: newBirdsSold,
                                 finalIntake: adjustedIntake,
+                                ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
                             })
                             .where(eq(cycleHistory.id, event.historyId));
 
