@@ -663,7 +663,7 @@ export const officerSalesRouter = createTRPCRouter({
                         await tx.update(cycleHistory)
                             .set({
                                 startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
-                                officialInputDate: sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
+                                // officialInputDate: sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
                                 age: sql`${cycleHistory.age} + ${daysToBackdate}`
                             })
                             .where(eq(cycleHistory.id, event.historyId));
@@ -1811,7 +1811,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 ...(effectiveShift !== 0 ? {
                                     age: sql`${cycleHistory.age} + ${effectiveShift}`,
                                     startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
-                                    officialInputDate: report.officialInputDate || sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
+                                    officialInputDate: report.officialInputDate,
                                 } : {})
                             })
                             .where(eq(cycleHistory.id, event.historyId));
