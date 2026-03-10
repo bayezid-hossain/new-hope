@@ -45,7 +45,7 @@ const LogItem = ({ log, isLast, isActive }: { log: TimelineLog; isLast: boolean;
     } else if (normalizedType === "CORRECTION") {
         icon = <Wrench className="h-4 w-4" />;
         colorClass = "bg-orange-500";
-        title = "Correction";
+        title = "Adjustment";
     } else if (normalizedType === "SYSTEM" || (normalizedType === "NOTE" && !isConsumption)) {
         icon = <Settings className="h-4 w-4" />;
         colorClass = "bg-purple-500";
