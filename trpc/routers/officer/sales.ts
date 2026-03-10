@@ -1,5 +1,5 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
-import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports, stockLogs } from "@/db/schema";
 
 
 import { TRPCError } from "@trpc/server";
@@ -896,6 +896,8 @@ export const officerSalesRouter = createTRPCRouter({
                             ? input.feedConsumed.reduce((sum, item) => sum + (Number(item.bags) || 0), 0)
                             : historyRecord.finalIntake;
 
+                        const intakeDifference = adjustedIntake - (historyRecord.finalIntake || 0);
+
                         // Update the history record with all adjusted stats
                         await tx.update(cycleHistory)
                             .set({
@@ -906,6 +908,30 @@ export const officerSalesRouter = createTRPCRouter({
                                 ...(input.saleDate ? { endDate: input.saleDate } : {}),
                             })
                             .where(eq(cycleHistory.id, event.historyId));
+
+                        // Adjust farmer's main stock if intake changed
+                        if (intakeDifference !== 0) {
+                            await tx.update(farmer).set({
+                                mainStock: sql`${farmer.mainStock} - ${intakeDifference}`,
+                                totalConsumed: sql`${farmer.totalConsumed} + ${intakeDifference}`,
+                                updatedAt: new Date(),
+                            }).where(eq(farmer.id, historyRecord.farmerId));
+
+                            const [originalStockLog] = await tx.select().from(stockLogs).where(
+                                and(
+                                    eq(stockLogs.referenceId, event.historyId!),
+                                    eq(stockLogs.type, "CYCLE_CLOSE")
+                                )
+                            ).limit(1);
+
+                            await tx.insert(stockLogs).values({
+                                farmerId: historyRecord.farmerId,
+                                amount: (-intakeDifference).toString(),
+                                type: "CORRECTION",
+                                referenceId: originalStockLog ? originalStockLog.id : report.id,
+                                note: `Ended Cycle "${historyRecord.cycleName}" feed adjustment. Difference: ${intakeDifference} bags.`
+                            });
+                        }
 
                         // Log the system adjustment
                         if (mortalityDifference !== 0) {
@@ -1909,6 +1935,50 @@ export const officerSalesRouter = createTRPCRouter({
                                 await tx.update(saleReports)
                                     .set({ createdAt: sql`${saleReports.createdAt} - ${intervalExpr}` })
                                     .where(sql`${saleReports.saleEventId} IN ${saleEventIds}`);
+                            }
+                        }
+
+                        // Adjust farmer's main stock if intake changed between versions
+                        const newIntake = report.feedConsumed
+                            ? (typeof report.feedConsumed === 'string' ? JSON.parse(report.feedConsumed) : report.feedConsumed).reduce((sum: number, item: any) => sum + (Number(item.bags) || 0), 0)
+                            : 0;
+                        const oldIntake = event.feedConsumed
+                            ? (typeof event.feedConsumed === 'string' ? JSON.parse(event.feedConsumed) : event.feedConsumed).reduce((sum: number, item: any) => sum + (Number(item.bags) || 0), 0)
+                            : 0;
+
+                        const intakeDifference = newIntake - oldIntake;
+
+                        if (intakeDifference !== 0 && event.history?.farmerId) {
+                            // Fetch history record to get farmer and update the final intake tracking
+                            const [historyRecord] = await tx.select().from(cycleHistory).where(eq(cycleHistory.id, event.historyId));
+                            
+                            if (historyRecord) {
+                                await tx.update(cycleHistory)
+                                    .set({
+                                        finalIntake: sql`${cycleHistory.finalIntake} + ${intakeDifference}`
+                                    })
+                                    .where(eq(cycleHistory.id, event.historyId));
+
+                                await tx.update(farmer).set({
+                                    mainStock: sql`${farmer.mainStock} - ${intakeDifference}`,
+                                    totalConsumed: sql`${farmer.totalConsumed} + ${intakeDifference}`,
+                                    updatedAt: new Date(),
+                                }).where(eq(farmer.id, historyRecord.farmerId));
+
+                                const [originalStockLog] = await tx.select().from(stockLogs).where(
+                                    and(
+                                        eq(stockLogs.referenceId, event.historyId),
+                                        eq(stockLogs.type, "CYCLE_CLOSE")
+                                    )
+                                ).limit(1);
+
+                                await tx.insert(stockLogs).values({
+                                    farmerId: historyRecord.farmerId,
+                                    amount: (-intakeDifference).toString(),
+                                    type: "CORRECTION",
+                                    referenceId: originalStockLog ? originalStockLog.id : report.id,
+                                    note: `Active version changed on ended Cycle "${historyRecord.cycleName}". Feed adjustment: ${intakeDifference} bags.`
+                                });
                             }
                         }
                     }
