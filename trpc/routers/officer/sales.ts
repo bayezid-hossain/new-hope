@@ -660,11 +660,13 @@ export const officerSalesRouter = createTRPCRouter({
                             .set({ createdAt: sql`${cycleLogs.createdAt} - ${intervalExpr}` })
                             .where(eq(cycleLogs.cycleId, event.cycleId));
                     } else if (event.historyId) {
+                        // For ended cycles: shift dates but preserve age as historical truth
                         await tx.update(cycleHistory)
                             .set({
                                 startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
                                 // officialInputDate: sql`${cycleHistory.officialInputDate} - ${intervalExpr}`,
-                                age: sql`${cycleHistory.age} + ${daysToBackdate}`
+                                // age intentionally NOT shifted for ended cycles
+                                endDate: sql`${cycleHistory.endDate} - ${intervalExpr}`,
                             })
                             .where(eq(cycleHistory.id, event.historyId));
 
@@ -901,6 +903,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 birdsSold: newBirdsSold,
                                 finalIntake: adjustedIntake,
                                 ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
+                                ...(input.saleDate ? { endDate: input.saleDate } : {}),
                             })
                             .where(eq(cycleHistory.id, event.historyId));
 
@@ -1468,15 +1471,33 @@ export const officerSalesRouter = createTRPCRouter({
                 if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
                 groupedForCumulative[gk].push(ev);
             }
+            // Maps for prev/next sale navigation and previous sale date constraint
+            const previousSaleDateMap = new Map<string, Date>();
+            const previousSaleIdMap = new Map<string, string>();
+            const nextSaleIdMap = new Map<string, string>();
+
             for (const gk of Object.keys(groupedForCumulative)) {
                 const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
                     new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
                 let running = 0;
-                for (const ev of sorted) {
+                for (let i = 0; i < sorted.length; i++) {
+                    const ev = sorted[i];
                     running += ev.birdsSold || 0;
                     perSaleCumulativeMap.set(ev.id, running);
+
+                    if (i > 0) {
+                        const prev = sorted[i - 1];
+                        previousSaleIdMap.set(ev.id, prev.id);
+                        // Use selected report's saleDate for the previous sale date constraint
+                        const prevSelectedReport = prev.reports?.find((r: any) => r.id === prev.selectedReportId);
+                        const prevDate = prevSelectedReport?.saleDate || prev.saleDate;
+                        if (prevDate) previousSaleDateMap.set(ev.id, new Date(prevDate));
+                    }
+                    if (i < sorted.length - 1) {
+                        nextSaleIdMap.set(ev.id, sorted[i + 1].id);
+                    }
                 }
             }
 
@@ -1641,6 +1662,9 @@ export const officerSalesRouter = createTRPCRouter({
                         officialInputDate: cycleOrHistory?.officialInputDate ?? null
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
+                    previousSaleDate: previousSaleDateMap.get(e.id) ?? null,
+                    previousSaleId: previousSaleIdMap.get(e.id) ?? null,
+                    nextSaleId: nextSaleIdMap.get(e.id) ?? null,
                 };
             }).filter(e => {
                 // Filter out deleted farmers for non-admins if not already filtered at DB level
@@ -1846,8 +1870,9 @@ export const officerSalesRouter = createTRPCRouter({
                                 mortality: sql`${cycleHistory.mortality} + ${mortalityDiff}`,
                                 birdsSold: sql`${cycleHistory.birdsSold} + ${birdsSoldDiff}`,
                                 // updatedAt: new Date(),
+                                age: report.age || cycleHistory.age,
+                                endDate: report.saleDate || report.createdAt,
                                 ...(effectiveShift !== 0 ? {
-                                    age: sql`${cycleHistory.age} + ${effectiveShift}`,
                                     startDate: sql`${cycleHistory.startDate} - ${intervalExpr}`,
                                 } : {})
                             })
@@ -2198,15 +2223,33 @@ export const appendCycleContextToSales = async (
         if (!groupedForCumulative[gk]) groupedForCumulative[gk] = [];
         groupedForCumulative[gk].push(ev);
     }
+    // Maps for prev/next sale navigation and previous sale date constraint
+    const previousSaleDateMap = new Map<string, Date>();
+    const previousSaleIdMap = new Map<string, string>();
+    const nextSaleIdMap = new Map<string, string>();
+
     for (const gk of Object.keys(groupedForCumulative)) {
         const sorted = [...groupedForCumulative[gk]].sort((a, b) =>
             new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime() ||
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
         let running = 0;
-        for (const ev of sorted) {
+        for (let i = 0; i < sorted.length; i++) {
+            const ev = sorted[i];
             running += ev.birdsSold || 0;
             perSaleCumulativeMap.set(ev.id, running);
+
+            if (i > 0) {
+                const prev = sorted[i - 1];
+                previousSaleIdMap.set(ev.id, prev.id);
+                // Use selected report's saleDate for the previous sale date constraint
+                const prevSelectedReport = prev.selectedReport;
+                const prevDate = prevSelectedReport?.saleDate || prev.saleDate;
+                if (prevDate) previousSaleDateMap.set(ev.id, new Date(prevDate));
+            }
+            if (i < sorted.length - 1) {
+                nextSaleIdMap.set(ev.id, sorted[i + 1].id);
+            }
         }
     }
 
@@ -2295,6 +2338,9 @@ export const appendCycleContextToSales = async (
                 officialInputDate: cycleOrHistory?.officialInputDate ?? null
             },
             remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
+            previousSaleDate: previousSaleDateMap.get(e.id) ?? null,
+            previousSaleId: previousSaleIdMap.get(e.id) ?? null,
+            nextSaleId: nextSaleIdMap.get(e.id) ?? null,
         };
     });
 
