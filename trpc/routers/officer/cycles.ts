@@ -282,7 +282,7 @@ export const officerCyclesRouter = createTRPCRouter({
         }))
         .mutation(async ({ input, ctx }) => {
             const results = [];
-            const errors = [];
+            const errors: any[] = [];
 
             // Pre-fetch all farmer data for validation to avoid N+1 queries
             const farmerIds = [...new Set(input.cycles.map(c => c.farmerId))];
@@ -394,8 +394,25 @@ export const officerCyclesRouter = createTRPCRouter({
             });
 
             if (activeCycle) {
-                // Verify ownership: Record must belong to a farmer managed by this officer
-                if (!activeCycle.farmer || activeCycle.farmer.officerId !== ctx.user.id || activeCycle.farmer.status !== "active") {
+                // Verify ownership: Record must belong to a farmer managed by this officer, or user is a manager
+                let hasPermission = false;
+                if (ctx.user.globalRole === "ADMIN") {
+                    hasPermission = true;
+                } else if (activeCycle.farmer && activeCycle.farmer.officerId === ctx.user.id && activeCycle.farmer.status === "active") {
+                    hasPermission = true;
+                } else if (activeCycle.farmer) {
+                    const membership = await ctx.db.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, activeCycle.farmer.organizationId)
+                        )
+                    });
+                    if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
+                        hasPermission = true;
+                    }
+                }
+
+                if (!hasPermission) {
                     throw new TRPCError({
                         code: "FORBIDDEN",
                         message: "You do not have permission to view this cycle's details."
@@ -455,7 +472,24 @@ export const officerCyclesRouter = createTRPCRouter({
             if (!historyRecord) throw new TRPCError({ code: "NOT_FOUND" });
 
             // Verify ownership for history record as well
-            if (!historyRecord.farmer || historyRecord.farmer.officerId !== ctx.user.id || historyRecord.farmer.status !== "active") {
+            let hasHistoryPermission = false;
+            if (ctx.user.globalRole === "ADMIN") {
+                hasHistoryPermission = true;
+            } else if (historyRecord.farmer && historyRecord.farmer.officerId === ctx.user.id && historyRecord.farmer.status === "active") {
+                hasHistoryPermission = true;
+            } else if (historyRecord.farmer) {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, historyRecord.farmer.organizationId)
+                    )
+                });
+                if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
+                    hasHistoryPermission = true;
+                }
+            }
+
+            if (!hasHistoryPermission) {
                 throw new TRPCError({
                     code: "FORBIDDEN",
                     message: "You do not have permission to view this history record."

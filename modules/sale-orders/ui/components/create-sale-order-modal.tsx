@@ -224,8 +224,8 @@ export function CreateSaleOrderModal({ open, onOpenChange, orgId }: CreateSaleOr
             });
         });
 
-        text += `\nTotal: ${grandTotalWeight} kg  \n`;
-        text += `Total Kg : ${grandTotalDoc} PCs \n`;
+        text += `\nTotal Weight: ${grandTotalWeight} kg  \n`;
+        text += `Total Birds : ${grandTotalDoc} PCs \n`;
         text += `\nThanks`;
 
         return text;

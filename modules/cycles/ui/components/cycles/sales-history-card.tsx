@@ -86,7 +86,7 @@ export const generateReportText = (sale: SaleEvent, report: SaleReport | null, i
     const isEnded = sale.cycleContext?.isEnded || false;
     const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
 
-    return `Date: ${format(new Date(sale.saleDate), "dd/MM/yyyy")}
+    return `Date: ${format(new Date(sale.saleDate), "dd MMM yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
 Location: ${sale.location}

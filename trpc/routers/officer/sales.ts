@@ -209,7 +209,25 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found" });
             }
 
-            if (!cycle.farmer || cycle.farmer.officerId !== ctx.user.id) {
+            // Permission Check
+            const isOfficer = cycle.farmer?.officerId === ctx.user.id;
+
+            let isAuthorizedManager = false;
+            if (ctx.user.globalRole === "ADMIN") {
+                isAuthorizedManager = true;
+            } else if (cycle.farmer) {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, cycle.farmer.organizationId)
+                    )
+                });
+                if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
+                    isAuthorizedManager = true;
+                }
+            }
+
+            if (!cycle.farmer || (!isOfficer && !isAuthorizedManager)) {
                 throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to sell from this cycle" });
             }
 
@@ -554,27 +572,35 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Check ownership via cycle or history
             const farmerData = event.cycle?.farmer || event.history?.farmer;
-            if (!farmerData || farmerData.officerId !== ctx.user.id) {
-                throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
-            }
 
-            // Visibility Restriction: Non-admins don't see deleted farmers' data
-            if (ctx.user.globalRole !== "ADMIN" && farmerData.status === "deleted") {
-                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
-            }
+            const isOfficer = farmerData?.officerId === ctx.user.id;
 
-            // ACCESS LEVEL CHECK
-            if (ctx.user.globalRole !== "ADMIN") {
+            let isAuthorizedManager = false;
+            if (ctx.user.globalRole === "ADMIN") {
+                isAuthorizedManager = true;
+            } else if (farmerData) {
                 const membership = await ctx.db.query.member.findFirst({
                     where: and(
                         eq(member.userId, ctx.user.id),
                         eq(member.organizationId, farmerData.organizationId)
                     )
                 });
+                if (membership && (((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER") && membership.accessLevel !== "VIEW")) {
+                    isAuthorizedManager = true;
+                }
 
                 if (membership?.role === "MANAGER" && membership.accessLevel === "VIEW" && membership.activeMode == "MANAGEMENT") {
                     throw new TRPCError({ code: "FORBIDDEN", message: "View-only Managers cannot adjust sales." });
                 }
+            }
+
+            if (!farmerData || (!isOfficer && !isAuthorizedManager)) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+            }
+
+            // Visibility Restriction: Non-admins don't see deleted farmers' data
+            if (ctx.user.globalRole !== "ADMIN" && farmerData.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
             }
 
             // Safeguard: Ensure only the latest sale event can be adjusted
@@ -1094,7 +1120,25 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found" });
             }
 
-            if (!cycle.farmer || cycle.farmer.officerId !== ctx.user.id) {
+            // Permission Check
+            const isOfficer = cycle.farmer?.officerId === ctx.user.id;
+
+            let isAuthorizedManager = false;
+            if (ctx.user.globalRole === "ADMIN") {
+                isAuthorizedManager = true;
+            } else if (cycle.farmer) {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, cycle.farmer.organizationId)
+                    )
+                });
+                if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
+                    isAuthorizedManager = true;
+                }
+            }
+
+            if (!cycle.farmer || (!isOfficer && !isAuthorizedManager)) {
                 throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to sell from this cycle" });
             }
 
@@ -2128,9 +2172,8 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            // Filter out deleted farmers for non-admins before appending context
+            // Filter out deleted farmers
             const filteredEvents = events.filter(e => {
-                if (ctx.user.globalRole === "ADMIN") return true;
                 const f = e.cycle?.farmer || e.history?.farmer;
                 return f?.status !== "deleted";
             });

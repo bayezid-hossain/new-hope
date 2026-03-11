@@ -56,7 +56,7 @@ export const managementSalesRouter = createTRPCRouter({
                 const f = e.cycle?.farmer ?? e.history?.farmer;
                 if (!f) return false;
                 if (f.organizationId !== orgId) return false;
-                if (ctx.user.globalRole !== "ADMIN" && f.status === "deleted") return false;
+                if (f.status === "deleted") return false;
                 return true;
             });
 
