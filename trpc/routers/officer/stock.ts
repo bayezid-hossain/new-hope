@@ -375,10 +375,10 @@ export const officerStockRouter = createTRPCRouter({
                 }
 
                 // 3. Preventive Checks
-                if (originalLog.type === "CORRECTION") {
+                if (originalLog.type === "ADJUSTMENT" || originalLog.type === "CYCLE_CONSUMPTION" || originalLog.type === "CORRECTION") {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: "This is already a correction log and cannot be reverted again."
+                        message: "This type of log entry (Adjustment/Consumption) cannot be reverted."
                     });
                 }
 
@@ -391,10 +391,10 @@ export const officerStockRouter = createTRPCRouter({
                     });
                 }
 
-                // Check if this log has already been reverted (exists as a reference for another correction)
+                // Check if this log has already been reverted (exists as a reference for another adjustment)
                 const [existingCorrection] = await tx.select()
                     .from(stockLogs)
-                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "CORRECTION")));
+                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "ADJUSTMENT")));
 
                 if (existingCorrection) {
                     throw new TRPCError({
@@ -486,14 +486,14 @@ export const officerStockRouter = createTRPCRouter({
                 }
 
                 // 3. Preventive Checks
-                if (originalLog.type === "CORRECTION") {
-                    throw new TRPCError({ code: "BAD_REQUEST", message: "Correction logs cannot be edited." });
+                if (originalLog.type === "ADJUSTMENT" || originalLog.type === "CYCLE_CONSUMPTION" || originalLog.type === "CORRECTION") {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: "Adjustment or Consumption logs cannot be edited." });
                 }
 
                 // Check if this log has been reverted
                 const [reversion] = await tx.select()
                     .from(stockLogs)
-                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "CORRECTION")));
+                    .where(and(eq(stockLogs.referenceId, input.logId), eq(stockLogs.type, "ADJUSTMENT")));
 
                 if (reversion) {
                     throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot edit a log that has already been reverted." });
@@ -573,13 +573,13 @@ export const officerStockRouter = createTRPCRouter({
                         throw new TRPCError({ code: "BAD_REQUEST", message: "Found non-transfer logs linked to this reference ID. Cannot revert." });
                     }
 
-                    // Check if *any* of the logs in this transfer have already been reverted/corrected
+                    // Check if *any* of the logs in this transfer have already been reverted/adjusted
                     const [alreadyReverted] = await tx.select()
                         .from(stockLogs)
-                        .where(and(eq(stockLogs.referenceId, log.id), eq(stockLogs.type, "CORRECTION")));
+                        .where(and(eq(stockLogs.referenceId, log.id), eq(stockLogs.type, "ADJUSTMENT")));
 
                     if (alreadyReverted) {
-                        throw new TRPCError({ code: "BAD_REQUEST", message: `A part of this transfer (Log: ${log.id}) has already been reverted.` });
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `A part of this transfer has already been reverted.` });
                     }
 
                     // Check Access
@@ -641,7 +641,7 @@ export const officerStockRouter = createTRPCRouter({
                         amount: reverseAmount.toString(),
                         type: "ADJUSTMENT",
                         referenceId: log.id,
-                        note: input.note || `Reverted ${log.type.replace(/_/g, ' ')}`,
+                        note: input.note || `Reverted ${log.type.replace(/_/g, ' ')} (Ref: ${input.referenceId.substring(0, 8)})`,
                         balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
                     });
                 }
