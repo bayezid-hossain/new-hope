@@ -282,6 +282,7 @@ export const stockLogs = pgTable("stock_logs", {
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
   driverName: text("driver_name"), // Added for bulk imports
   note: text("note"),
+  balanceAfter: decimal("balance_after"), // Running balance snapshot after this transaction
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   index("idx_stock_logs_farmer_id").on(t.farmerId),

@@ -943,6 +943,12 @@ export const officerSalesRouter = createTRPCRouter({
                                 updatedAt: new Date(),
                             }).where(eq(farmer.id, historyRecord.farmerId));
 
+                            // Re-read updated balance
+                            const updatedFarmerData = await tx.query.farmer.findFirst({
+                                where: eq(farmer.id, historyRecord.farmerId),
+                                columns: { mainStock: true }
+                            });
+
                             const [originalStockLog] = await tx.select().from(stockLogs).where(
                                 and(
                                     eq(stockLogs.referenceId, event.historyId!),
@@ -953,9 +959,10 @@ export const officerSalesRouter = createTRPCRouter({
                             await tx.insert(stockLogs).values({
                                 farmerId: historyRecord.farmerId,
                                 amount: (-intakeDifference).toString(),
-                                type: "CORRECTION",
+                                type: "ADJUSTMENT",
                                 referenceId: originalStockLog ? originalStockLog.id : report.id,
-                                note: `Ended Cycle "${historyRecord.cycleName}" feed adjustment. Difference: ${intakeDifference} bags.`
+                                note: `Adjustment for ${historyRecord.cycleName}: ${intakeDifference > 0 ? 'Increased' : 'Decreased'} final consumption by ${Math.abs(intakeDifference)} bags.`,
+                                balanceAfter: updatedFarmerData?.mainStock?.toString() ?? null,
                             });
                         }
 
@@ -2012,6 +2019,12 @@ export const officerSalesRouter = createTRPCRouter({
                                 updatedAt: new Date(),
                             }).where(eq(farmer.id, farmerIdToUpdate));
 
+                            // Re-read updated balance
+                            const updatedFarmerData = await tx.query.farmer.findFirst({
+                                where: eq(farmer.id, farmerIdToUpdate),
+                                columns: { mainStock: true }
+                            });
+
                             const [originalStockLog] = await tx.select().from(stockLogs).where(
                                 and(
                                     eq(stockLogs.referenceId, event.historyId),
@@ -2022,9 +2035,10 @@ export const officerSalesRouter = createTRPCRouter({
                             await tx.insert(stockLogs).values({
                                 farmerId: farmerIdToUpdate,
                                 amount: (-intakeDifference).toString(),
-                                type: "CORRECTION",
+                                type: "ADJUSTMENT",
                                 referenceId: originalStockLog ? originalStockLog.id : report.id,
-                                note: `Ended Cycle "${cycleNameToLog}" feed adjustment. Difference: ${intakeDifference} bags.`
+                                note: `Adjustment for ${cycleNameToLog}: ${intakeDifference > 0 ? 'Increased' : 'Decreased'} final consumption by ${Math.abs(intakeDifference)} bags.`,
+                                balanceAfter: updatedFarmerData?.mainStock?.toString() ?? null,
                             });
                         }
                     }

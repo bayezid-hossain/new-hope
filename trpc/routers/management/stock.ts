@@ -201,12 +201,15 @@ export const managementStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.sourceFarmerId));
 
+                const sourceNewBalance = Number(sourceFarmer.mainStock) - input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.sourceFarmerId,
                     amount: (-input.amount).toString(),
                     type: "TRANSFER_OUT",
                     referenceId: transferId,
-                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Transferred to ${targetFarmer.name}`,
+                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
+                    balanceAfter: sourceNewBalance.toString(),
                 });
 
                 await tx.update(farmer)
@@ -216,12 +219,15 @@ export const managementStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
 
+                const targetNewBalance = Number(targetFarmer.mainStock) + input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.targetFarmerId,
                     amount: input.amount.toString(),
                     type: "TRANSFER_IN",
                     referenceId: transferId,
-                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Received from ${sourceFarmer.name}`,
+                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
+                    balanceAfter: targetNewBalance.toString(),
                 });
 
                 try {
@@ -265,11 +271,14 @@ export const managementStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.farmerId));
 
+                const newBalance = f.mainStock + input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.farmerId,
                     amount: input.amount.toString(),
-                    type: "RESTOCK",
-                    note: input.note || "Manual Restock",
+                    type: "STOCK_ADDED",
+                    note: input.note || "Standard stock replenishment",
+                    balanceAfter: newBalance.toString(),
                 });
 
                 try {
@@ -311,11 +320,14 @@ export const managementStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.farmerId));
 
+                const newBalance = f.mainStock - input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.farmerId,
                     amount: (-input.amount).toString(),
-                    type: "CORRECTION",
-                    note: input.note || "Manual Deduction",
+                    type: "STOCK_DEDUCTED",
+                    note: input.note || "Manual stock removal",
+                    balanceAfter: newBalance.toString(),
                 });
 
                 try {

@@ -68,12 +68,15 @@ export const endCycleLogic = async (
     }).where(eq(farmer.id, activeCycle.farmerId));
 
     if (intake > 0) {
+        const newBalance = farmerData.mainStock - intake;
+
         await tx.insert(stockLogs).values({
             farmerId: activeCycle.farmerId,
             amount: (-intake).toString(),
-            type: "CYCLE_CLOSE",
+            type: "CYCLE_CONSUMPTION",
             referenceId: history.id,
-            note: `Cycle "${activeCycle.name}" Ended. Consumed: ${intake} bags.`
+            note: `Cycle Consumption: Finished "${activeCycle.name}"`,
+            balanceAfter: newBalance.toString(),
         });
     }
 

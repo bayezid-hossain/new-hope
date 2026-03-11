@@ -52,12 +52,15 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.farmerId));
 
+                const newBalance = f.mainStock + input.amount;
+
                 // B. Add Ledger Entry
                 await tx.insert(stockLogs).values({
                     farmerId: input.farmerId,
-                    amount: input.amount.toString(), // Stored as string or decimal
-                    type: "RESTOCK",
-                    note: input.note || "Manual Restock",
+                    amount: input.amount.toString(),
+                    type: "STOCK_ADDED",
+                    note: input.note || "Standard stock replenishment",
+                    balanceAfter: newBalance.toString(),
                 });
 
                 // C. NOTIFICATION
@@ -103,12 +106,15 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.farmerId));
 
+                const newBalance = f.mainStock - input.amount;
+
                 // B. Add Ledger Entry (Negative Amount)
                 await tx.insert(stockLogs).values({
                     farmerId: input.farmerId,
-                    amount: (-input.amount).toString(), // Negative for deduction
-                    type: "CORRECTION",
-                    note: input.note || "Manual Deduction",
+                    amount: (-input.amount).toString(),
+                    type: "STOCK_DEDUCTED",
+                    note: input.note || "Manual stock removal",
+                    balanceAfter: newBalance.toString(),
                 });
 
                 // C. NOTIFICATION
@@ -160,25 +166,10 @@ export const officerStockRouter = createTRPCRouter({
                 const validInputs = items.filter(item => validFarmerIds.has(item.farmerId));
                 if (validInputs.length === 0) return { success: true, count: 0, orgId };
 
-                // 3. Prepare Bulk Stock Logs
-                const batchId = crypto.randomUUID();
-                const logsToInsert = validInputs.map(item => ({
-                    farmerId: item.farmerId,
-                    amount: item.amount.toString(),
-                    type: "RESTOCK",
-                    referenceId: batchId,
-                    driverName: driverName,
-                    note: item.note || "Bulk Import Restock",
-                }));
-
-                await tx.insert(stockLogs).values(logsToInsert);
+                // 3. Build a map of current stock for balance calculation
+                const farmerStockMap = new Map(validFarmers.map(f => [f.id, f.mainStock]));
 
                 // 4. Bulk Update Farmer Stock
-                // We'll use a CASE statement to update different farmers with different amounts in one query
-                // or just loop the updates if CASE is too complex, but for performance, CASE is better.
-                // However, since we are using Drizzle and the number of items is small (max 50), 
-                // we'll build a SQL expression for the update.
-
                 for (const item of validInputs) {
                     await tx.update(farmer)
                         .set({
@@ -187,6 +178,23 @@ export const officerStockRouter = createTRPCRouter({
                         })
                         .where(eq(farmer.id, item.farmerId));
                 }
+
+                // 5. Prepare Bulk Stock Logs with balanceAfter
+                const batchId = crypto.randomUUID();
+                const logsToInsert = validInputs.map(item => {
+                    const currentStock = farmerStockMap.get(item.farmerId) ?? 0;
+                    return {
+                        farmerId: item.farmerId,
+                        amount: item.amount.toString(),
+                        type: "STOCK_ADDED",
+                        referenceId: batchId,
+                        driverName: driverName,
+                        note: item.note || `Bulk Restock (Driver: ${driverName})`,
+                        balanceAfter: (currentStock + item.amount).toString(),
+                    };
+                });
+
+                await tx.insert(stockLogs).values(logsToInsert);
 
                 return { success: true, count: validInputs.length, orgId };
             });
@@ -285,12 +293,15 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.sourceFarmerId));
 
+                const sourceNewBalance = sourceFarmer.mainStock - input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.sourceFarmerId,
                     amount: (-input.amount).toString(),
                     type: "TRANSFER_OUT",
                     referenceId: transferId,
-                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Transferred to ${targetFarmer.name}`,
+                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
+                    balanceAfter: sourceNewBalance.toString(),
                 });
 
                 // B. Add to Target
@@ -301,12 +312,15 @@ export const officerStockRouter = createTRPCRouter({
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
 
+                const targetNewBalance = targetFarmer.mainStock + input.amount;
+
                 await tx.insert(stockLogs).values({
                     farmerId: input.targetFarmerId,
                     amount: input.amount.toString(),
                     type: "TRANSFER_IN",
                     referenceId: transferId,
-                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Received from ${sourceFarmer.name}`,
+                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
+                    balanceAfter: targetNewBalance.toString(),
                 });
 
                 // C. NOTIFICATION
@@ -400,14 +414,6 @@ export const officerStockRouter = createTRPCRouter({
                 const originalAmount = typeof originalLog.amount === 'string' ? parseFloat(originalLog.amount) : originalLog.amount;
                 const correctionAmount = -originalAmount;
 
-                await tx.insert(stockLogs).values({
-                    farmerId: originalLog.farmerId,
-                    amount: correctionAmount.toString(),
-                    type: "CORRECTION",
-                    referenceId: originalLog.id,
-                    note: input.note || `Revert: ${originalLog.note || "Original Entry"}`,
-                });
-
                 // 5. Update Farmer Stock
                 await tx.update(farmer)
                     .set({
@@ -415,6 +421,17 @@ export const officerStockRouter = createTRPCRouter({
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
+
+                const newBalance = farmerData.mainStock + correctionAmount;
+
+                await tx.insert(stockLogs).values({
+                    farmerId: originalLog.farmerId,
+                    amount: correctionAmount.toString(),
+                    type: "ADJUSTMENT",
+                    referenceId: originalLog.id,
+                    note: input.note || `Revert of previous ${originalLog.type.replace(/_/g, ' ')}`,
+                    balanceAfter: newBalance.toString(),
+                });
 
                 // 6. NOTIFICATION
                 try {
@@ -498,22 +515,25 @@ export const officerStockRouter = createTRPCRouter({
                     });
                 }
 
-                // 4. Insert CORRECTION Log with delta
-                await tx.insert(stockLogs).values({
-                    farmerId: originalLog.farmerId,
-                    amount: delta.toString(),
-                    type: "CORRECTION",
-                    referenceId: originalLog.id,
-                    note: input.note || `Correction: ${originalLog.note || "Original Entry"}`,
-                });
-
-                // 5. Update Farmer Stock by Delta
+                // 4. Update Farmer Stock by Delta
                 await tx.update(farmer)
                     .set({
                         mainStock: sql`${farmer.mainStock} + ${delta}`,
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
+
+                const newBalance = farmerData.mainStock + delta;
+
+                // 5. Insert ADJUSTMENT Log with delta
+                await tx.insert(stockLogs).values({
+                    farmerId: originalLog.farmerId,
+                    amount: delta.toString(),
+                    type: "ADJUSTMENT",
+                    referenceId: originalLog.id,
+                    note: input.note || `Amount adjustment for previous ${originalLog.type.replace(/_/g, ' ')}`,
+                    balanceAfter: newBalance.toString(),
+                });
 
                 // 6. NOTIFICATION
                 try {
@@ -609,13 +629,20 @@ export const officerStockRouter = createTRPCRouter({
                         })
                         .where(eq(farmer.id, log.farmerId!));
 
-                    // B. Add Correction Log
+                    // Re-read updated balance
+                    const updatedFarmer = await tx.query.farmer.findFirst({
+                        where: eq(farmer.id, log.farmerId!),
+                        columns: { mainStock: true }
+                    });
+
+                    // B. Add Adjustment Log
                     await tx.insert(stockLogs).values({
                         farmerId: log.farmerId,
                         amount: reverseAmount.toString(),
-                        type: "CORRECTION",
-                        referenceId: log.id, // LINK TO ROW ID
-                        note: input.note || `Revert Transfer: ${log.note || "Original Entry"}`,
+                        type: "ADJUSTMENT",
+                        referenceId: log.id,
+                        note: input.note || `Reverted ${log.type.replace(/_/g, ' ')}`,
+                        balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
                     });
                 }
 

@@ -869,11 +869,18 @@ export const officerCyclesRouter = createTRPCRouter({
 
                 // 6. Log the Stock Correction
                 if (amountToRestore > 0) {
+                    // Re-read updated balance
+                    const updatedFarmer = await tx.query.farmer.findFirst({
+                        where: eq(farmer.id, historyRecord.farmerId),
+                        columns: { mainStock: true }
+                    });
+
                     await tx.insert(stockLogs).values({
                         farmerId: historyRecord.farmerId,
                         amount: amountToRestore.toString(),
-                        type: "CORRECTION",
-                        note: `Cycle "${historyRecord.cycleName}" Reopened. Restored ${amountToRestore} bags.`,
+                        type: "ADJUSTMENT",
+                        note: `Cycle Reopened: Added back ${amountToRestore} bags from "${historyRecord.cycleName}"`,
+                        balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
                     });
                 }
 

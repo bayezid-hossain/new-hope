@@ -54,12 +54,19 @@ export const reopenCycleFromHistory = async (
             updatedAt: new Date(),
         }).where(eq(farmer.id, history.farmerId));
 
+        // Re-read updated balance
+        const updatedFarmer = await tx.query.farmer.findFirst({
+            where: eq(farmer.id, history.farmerId),
+            columns: { mainStock: true }
+        });
+
         await tx.insert(stockLogs).values({
             farmerId: history.farmerId,
             amount: feedToRestore.toString(),
-            type: "CYCLE_REOPEN",
+            type: "ADJUSTMENT",
             referenceId: newCycle.id,
-            note: `Cycle "${history.cycleName}" Reopened via sale adjustment. Stock restored: ${feedToRestore} bags.`
+            note: `Adjustment: Added back ${feedToRestore} bags after reopening "${history.cycleName}"`,
+            balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
         });
     }
 

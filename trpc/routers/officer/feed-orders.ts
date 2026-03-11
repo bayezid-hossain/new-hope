@@ -299,13 +299,20 @@ export const feedOrdersRouter = createTRPCRouter({
                         })
                         .where(eq(farmer.id, farmerId));
 
+                    // Re-read updated balance
+                    const updatedFarmer = await tx.query.farmer.findFirst({
+                        where: eq(farmer.id, farmerId),
+                        columns: { mainStock: true }
+                    });
+
                     logsToInsert.push({
                         farmerId,
                         amount: quantity.toString(),
-                        type: "RESTOCK",
-                        referenceId: input.id, // Group by Feed Order ID
+                        type: "STOCK_ADDED",
+                        referenceId: input.id,
                         driverName: input.driverName || null,
-                        note: `Feed Order Confirmed (${format(new Date(), 'dd/MM/yyyy')})`,
+                        note: `Feed Order #${input.id.substring(0, 8)} confirmed (Driver: ${input.driverName || 'N/A'})`,
+                        balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
                     });
                 }
 

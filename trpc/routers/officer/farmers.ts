@@ -305,8 +305,9 @@ export const officerFarmersRouter = createTRPCRouter({
                     await tx.insert(stockLogs).values({
                         farmerId: newFarmer.id,
                         amount: input.initialStock.toString(),
-                        type: "INITIAL",
-                        note: "Initial Stock Assignment"
+                        type: "STOCK_ADDED",
+                        note: "Initial Stock Assignment",
+                        balanceAfter: input.initialStock.toString(),
                     });
                 }
 
@@ -518,11 +519,13 @@ export const officerFarmersRouter = createTRPCRouter({
                 const stockLogsToInsert = createdFarmers
                     .map(f => {
                         const original = uniqueToCreate.find(u => u.name.toUpperCase() === f.name.toUpperCase());
+                        const initialStock = original?.initialStock || 0;
                         return {
                             farmerId: f.id,
-                            amount: (original?.initialStock || 0).toString(),
-                            type: "INITIAL",
-                            note: "Initial Stock Assignment"
+                            amount: initialStock.toString(),
+                            type: "STOCK_ADDED",
+                            note: "Initial Stock Assignment",
+                            balanceAfter: initialStock.toString(),
                         };
                     })
                     .filter(log => parseFloat(log.amount) > 0);
