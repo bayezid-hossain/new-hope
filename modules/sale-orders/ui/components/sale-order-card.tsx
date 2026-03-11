@@ -62,7 +62,7 @@ export function SaleOrderCard({ order }: SaleOrderCardProps) {
             if (item.farmer.location) text += `Location: ${item.farmer.location} \n`;
             text += `Total: ${item.totalWeight} kg.\n`;
             text += `Total: ${item.totalDoc} PCs \n`;
-            if (item.avgWeight) text += `Avg: ${item.avgWeight}kg \n`;
+            if (item.avgWeight) text += `Avg: ${item.avgWeight} (+-) kg \n`;
             if (item.age > 0) text += `Age: ${item.age} days\n`;
             if (item.farmer.mobile) {
                 let formattedMobile = item.farmer.mobile;
