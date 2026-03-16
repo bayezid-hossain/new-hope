@@ -36,6 +36,7 @@ export const managementSalesRouter = createTRPCRouter({
                             depositReceived: true,
                             medicineCost: true,
                             adjustmentNote: true,
+                            party: true,
                             feedConsumed: true,
                             feedStock: true,
                             feedPriceUsed: true,

@@ -349,6 +349,7 @@ export const saleReports = pgTable("sale_reports", {
   medicineCost: decimal("medicine_cost").default("0"),
 
   adjustmentNote: text("adjustment_note"),
+  party: text("party"),
   feedConsumed: text("feed_consumed"), // JSON stringified array
   feedStock: text("feed_stock"),       // JSON stringified array
 
