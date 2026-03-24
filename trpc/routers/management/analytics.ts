@@ -18,25 +18,28 @@ export const managementAnalyticsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { orgId } = input;
 
-            const [memberCount] = await ctx.db.select({ count: count() })
-                .from(member)
-                .where(and(eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE")));
-
-            const [farmerCount] = await ctx.db.select({ count: count() })
-                .from(farmer)
-                .where(and(
-                    eq(farmer.organizationId, input.orgId),
-                    eq(farmer.status, "active")
-                ));
-
-            const [activeCycles] = await ctx.db.select({ count: count() })
-                .from(cycles)
-                .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
-                .where(and(
-                    eq(cycles.organizationId, input.orgId),
-                    eq(cycles.status, "active"),
-                    eq(farmer.status, "active")
-                ));
+            const [memberCount, farmerCount, activeCycles] = await Promise.all([
+                ctx.db.select({ count: count() })
+                    .from(member)
+                    .where(and(eq(member.organizationId, input.orgId), eq(member.status, "ACTIVE")))
+                    .then(r => r[0]),
+                ctx.db.select({ count: count() })
+                    .from(farmer)
+                    .where(and(
+                        eq(farmer.organizationId, input.orgId),
+                        eq(farmer.status, "active")
+                    ))
+                    .then(r => r[0]),
+                ctx.db.select({ count: count() })
+                    .from(cycles)
+                    .innerJoin(farmer, eq(cycles.farmerId, farmer.id))
+                    .where(and(
+                        eq(cycles.organizationId, input.orgId),
+                        eq(cycles.status, "active"),
+                        eq(farmer.status, "active")
+                    ))
+                    .then(r => r[0])
+            ]);
 
             return {
                 members: memberCount.count,
