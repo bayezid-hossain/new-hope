@@ -1,7 +1,7 @@
 import { cycleHistory, cycles, farmer, farmerSecurityMoneyLogs, stockLogs, user } from "@/db/schema";
 
 import { TRPCError } from "@trpc/server";
-import { aliasedTable, and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -105,12 +105,28 @@ export const managementFarmersRouter = createTRPCRouter({
                 });
             }
 
+            // Batch-fetch active cycles for all farmers on this page (avoids N+1)
+            let cyclesMap = new Map<string, typeof cycles.$inferSelect[]>();
+
+            if (farmerIds.length > 0) {
+                const allCycles = await ctx.db.query.cycles.findMany({
+                    where: and(
+                        inArray(cycles.farmerId, farmerIds),
+                        eq(cycles.status, 'active')
+                    )
+                });
+                allCycles.forEach(c => {
+                    const existing = cyclesMap.get(c.farmerId) || [];
+                    existing.push(c);
+                    cyclesMap.set(c.farmerId, existing);
+                });
+            }
+
             return {
-                items: await Promise.all(data.map(async d => {
+                items: data.map(d => {
                     const f = d.farmer;
                     const off = d.officer;
-
-                    const fCycles = await ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) });
+                    const fCycles = cyclesMap.get(f.id) || [];
 
                     const historyData = latestHistoryMap.get(f.id);
 
@@ -124,7 +140,7 @@ export const managementFarmersRouter = createTRPCRouter({
                         mainStockUpdatedAt: stockDatesMap.get(f.id),
                         lastCycleEndDate: historyData?.latestEndDate || null,
                     };
-                })),
+                }),
                 total: Number(total.count),
                 totalPages: Math.ceil(Number(total.count) / pageSize)
             };
@@ -162,14 +178,42 @@ export const managementFarmersRouter = createTRPCRouter({
                 ))
                 .orderBy(desc(farmer.createdAt));
 
-            return await Promise.all(data.map(async d => {
+            // Batch-fetch active cycles and history for all farmers (avoids N+1)
+            const farmerIds = data.map(d => d.farmer.id);
+            let cyclesMap = new Map<string, typeof cycles.$inferSelect[]>();
+            let historyMap = new Map<string, typeof cycleHistory.$inferSelect[]>();
+
+            if (farmerIds.length > 0) {
+                const [allCycles, allHistory] = await Promise.all([
+                    ctx.db.query.cycles.findMany({
+                        where: and(
+                            inArray(cycles.farmerId, farmerIds),
+                            eq(cycles.status, 'active')
+                        )
+                    }),
+                    ctx.db.query.cycleHistory.findMany({
+                        where: inArray(cycleHistory.farmerId, farmerIds)
+                    })
+                ]);
+
+                allCycles.forEach(c => {
+                    const existing = cyclesMap.get(c.farmerId) || [];
+                    existing.push(c);
+                    cyclesMap.set(c.farmerId, existing);
+                });
+
+                allHistory.forEach(h => {
+                    const existing = historyMap.get(h.farmerId) || [];
+                    existing.push(h);
+                    historyMap.set(h.farmerId, existing);
+                });
+            }
+
+            return data.map(d => {
                 const f = d.farmer;
                 const off = d.officer;
-
-                const [fCycles, fHistory] = await Promise.all([
-                    ctx.db.query.cycles.findMany({ where: and(eq(cycles.farmerId, f.id), eq(cycles.status, 'active')) }),
-                    ctx.db.query.cycleHistory.findMany({ where: eq(cycleHistory.farmerId, f.id) })
-                ]);
+                const fCycles = cyclesMap.get(f.id) || [];
+                const fHistory = historyMap.get(f.id) || [];
 
                 return {
                     ...f,
@@ -180,7 +224,7 @@ export const managementFarmersRouter = createTRPCRouter({
                     cycles: fCycles,
                     history: fHistory
                 };
-            }));
+            });
         }),
 
     getDetails: managementProcedure
