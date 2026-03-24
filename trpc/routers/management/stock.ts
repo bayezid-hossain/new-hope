@@ -21,7 +21,7 @@ export const managementStockRouter = createTRPCRouter({
                 where: and(
                     eq(farmer.organizationId, input.orgId),
                     officerFilter,
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined,
+                    eq(farmer.status, "active"),
                     input.search ? sql`${farmer.name} ILIKE ${`%${input.search}%`}` : undefined
                 ),
                 columns: {
@@ -53,8 +53,8 @@ export const managementStockRouter = createTRPCRouter({
         }))
         .query(async ({ ctx, input }) => {
             const officerFilter = input.officerId
-                ? sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${input.officerId} AND organization_id = ${input.orgId} AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`}))`
-                : sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE organization_id = ${input.orgId} AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`}))`;
+                ? sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE officer_id = ${input.officerId} AND organization_id = ${input.orgId} AND status = 'active')`
+                : sql`AND farmer_id IN (SELECT id FROM ${farmer} WHERE organization_id = ${input.orgId} AND status = 'active')`;
 
             const searchPattern = input.search ? `%${input.search}%` : null;
             const searchCondition = searchPattern ? sql`AND (driver_name ILIKE ${searchPattern} OR farmer_id IN (SELECT id FROM ${farmer} WHERE name ILIKE ${searchPattern}))` : sql``;
@@ -110,7 +110,7 @@ export const managementStockRouter = createTRPCRouter({
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
             // Visibility Restriction: Non-admins don't see deleted farmers' history
-            if (ctx.user.globalRole !== "ADMIN" && f.status === "deleted") {
+            if (f.status === "deleted") {
                 throw new TRPCError({ code: "NOT_FOUND" });
             }
 
@@ -137,7 +137,7 @@ export const managementStockRouter = createTRPCRouter({
                 .where(and(
                     eq(stockLogs.referenceId, input.batchId),
                     eq(farmer.organizationId, input.orgId),
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    eq(farmer.status, "active")
                 ))
                 .orderBy(desc(stockLogs.createdAt));
 

@@ -674,7 +674,7 @@ export const officerStockRouter = createTRPCRouter({
             const items = await ctx.db.query.farmer.findMany({
                 where: and(
                     eq(farmer.officerId, ctx.user.id),
-                    ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined,
+                    eq(farmer.status, "active"),
                     input.search ? sql`${farmer.name} ILIKE ${`%${input.search}%`}` : undefined
                 ),
                 columns: {
@@ -752,7 +752,7 @@ export const officerStockRouter = createTRPCRouter({
                 AND farmer_id IN (
                     SELECT id FROM ${farmer} 
                     WHERE officer_id = ${ctx.user.id}
-                    AND (${ctx.user.globalRole === 'ADMIN' ? sql`TRUE` : sql`status != 'deleted'`})
+                    AND status = 'active'
                 )
                 ${searchCondition}
                 GROUP BY reference_id
@@ -805,7 +805,7 @@ export const officerStockRouter = createTRPCRouter({
                 .where(and(
                     eq(stockLogs.referenceId, input.batchId),
                     eq(farmer.officerId, ctx.user.id),
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    eq(farmer.status, 'active')
                 ))
                 .orderBy(desc(stockLogs.createdAt));
 

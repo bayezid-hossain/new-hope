@@ -26,7 +26,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, input.orgId),
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    eq(farmer.status, "active")
                 ));
 
             const [activeCycles] = await ctx.db.select({ count: count() })
@@ -35,7 +35,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 .where(and(
                     eq(cycles.organizationId, input.orgId),
                     eq(cycles.status, "active"),
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    eq(farmer.status, "active")
                 ));
 
             return {
@@ -57,7 +57,7 @@ export const managementAnalyticsRouter = createTRPCRouter({
                 .from(farmer)
                 .where(and(
                     eq(farmer.organizationId, orgId),
-                    ctx.user.globalRole !== "ADMIN" ? ne(farmer.status, "deleted") : undefined
+                    eq(farmer.status, "active")
                 ));
 
             const totalMainStock = activeFarmers.reduce((sum, f) => sum + (f.mainStock || 0), 0);
