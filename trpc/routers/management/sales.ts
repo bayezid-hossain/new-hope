@@ -27,6 +27,7 @@ export const managementSalesRouter = createTRPCRouter({
                         columns: {
                             id: true,
                             birdsSold: true,
+                            birdsRejected: true,
                             totalWeight: true,
                             pricePerKg: true,
                             totalAmount: true,

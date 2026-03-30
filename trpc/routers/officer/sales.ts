@@ -62,7 +62,7 @@ const getCycleStats = (events: any[]) => {
         const selectedData = ev.selectedReport || ev;
         revenueMap.set(key, currentRevenue + (parseFloat(selectedData.totalAmount) || 0));
         weightMap.set(key, currentWeight + (parseFloat(selectedData.totalWeight) || 0));
-        birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0));
+        birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0) + (selectedData.birdsRejected || 0));
 
         // Use the explicitly locked sale age if available, otherwise fallback dynamically
         // Prefer report-level age (selectedReport.age) over raw event age
@@ -128,6 +128,7 @@ const createSaleEventSchema = z.object({
     saleDate: z.date().optional(),
     houseBirds: z.number().int().positive(),
     birdsSold: z.number().int().positive(),
+    birdsRejected: z.number().int().min(0).default(0),
     mortalityChange: z.number().int().default(0), // Removed .min(0) to allow corrections
     totalMortality: z.number().int().min(0),
     totalWeight: z.number().positive("Total weight must be greater than 0"),
@@ -150,6 +151,7 @@ const createSaleEventSchema = z.object({
 const generateReportSchema = z.object({
     saleEventId: z.string(),
     birdsSold: z.number().int().positive(),
+    birdsRejected: z.number().int().min(0).default(0),
     totalMortality: z.number().int().min(0).default(0),
     totalWeight: z.number().positive(),
     pricePerKg: z.number().positive(),
@@ -290,16 +292,17 @@ export const officerSalesRouter = createTRPCRouter({
                 // RE-VALIDATE BIRD COUNT INSIDE LOCK
                 const currentRemaining = lockedCycle.doc - lockedCycle.mortality - lockedCycle.birdsSold;
                 const effectiveRemaining = currentRemaining - (input.mortalityChange < 0 ? input.mortalityChange : 0);
+                const totalOutgoing = input.birdsSold + (input.birdsRejected || 0);
 
-                if (input.birdsSold > effectiveRemaining) {
+                if (totalOutgoing > effectiveRemaining) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: `Cannot sell ${input.birdsSold} birds. Only ${effectiveRemaining} birds available based on latest records.`,
+                        message: `Cannot remove ${totalOutgoing} birds (${input.birdsSold} sold + ${input.birdsRejected || 0} rejected). Only ${effectiveRemaining} birds available based on latest records.`,
                     });
                 }
 
                 // Final safety check: Total birds accounted for cannot exceed initial intake
-                const totalAccounted = (lockedCycle.birdsSold + input.birdsSold) + (lockedCycle.mortality + input.mortalityChange);
+                const totalAccounted = (lockedCycle.birdsSold + input.birdsSold + (input.birdsRejected || 0)) + (lockedCycle.mortality + input.mortalityChange);
                 if (totalAccounted > lockedCycle.doc) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
@@ -407,6 +410,7 @@ export const officerSalesRouter = createTRPCRouter({
                     saleDate: input.saleDate || new Date(),
                     houseBirds: input.houseBirds,
                     birdsSold: input.birdsSold,
+                    birdsRejected: input.birdsRejected || 0,
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     avgWeight: avgWeight.toFixed(2),
@@ -426,6 +430,7 @@ export const officerSalesRouter = createTRPCRouter({
                 const [firstReport] = await tx.insert(saleReports).values({
                     saleEventId: saleEvent.id,
                     birdsSold: input.birdsSold,
+                    birdsRejected: input.birdsRejected || 0,
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     pricePerKg: input.pricePerKg.toString(),
@@ -449,9 +454,9 @@ export const officerSalesRouter = createTRPCRouter({
                     .set({ selectedReportId: firstReport.id })
                     .where(eq(saleEvents.id, saleEvent.id));
 
-                // Update cycle: add any new mortality and increment birdsSold
+                // Update cycle: add any new mortality and increment birdsSold (rejected birds also leave the house)
                 // const newMortality calculated above
-                const newBirdsSold = cycle.birdsSold + input.birdsSold;
+                const newBirdsSold = cycle.birdsSold + input.birdsSold + (input.birdsRejected || 0);
                 const currentIntake = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
 
                 await tx.update(cycles)
@@ -751,6 +756,7 @@ export const officerSalesRouter = createTRPCRouter({
                 const [report] = await tx.insert(saleReports).values({
                     saleEventId: event.id,
                     birdsSold: input.birdsSold,
+                    birdsRejected: input.birdsRejected || 0,
                     totalMortality: input.totalMortality,
                     totalWeight: input.totalWeight.toString(),
                     pricePerKg: input.pricePerKg.toString(),
@@ -779,6 +785,7 @@ export const officerSalesRouter = createTRPCRouter({
                     .set({
                         selectedReportId: report.id,
                         birdsSold: input.birdsSold,
+                        birdsRejected: input.birdsRejected || 0,
                         totalMortality: input.totalMortality,
                         totalWeight: input.totalWeight.toString(),
                         avgWeight: avgWeight.toFixed(2),
@@ -825,14 +832,17 @@ export const officerSalesRouter = createTRPCRouter({
                 // Determine differences
                 let previousMortality = event.totalMortality;
                 let previousBirdsSold = event.birdsSold;
+                let previousBirdsRejected = event.birdsRejected || 0;
 
                 if (latestReports.length > 1) {
                     previousMortality = latestReports[1].totalMortality || 0;
                     previousBirdsSold = latestReports[1].birdsSold || 0;
+                    previousBirdsRejected = latestReports[1].birdsRejected || 0;
                 }
 
                 const mortalityDifference = input.totalMortality - previousMortality;
-                const birdsSoldDifference = input.birdsSold - previousBirdsSold;
+                // birdsSoldDifference accounts for both sold and rejected bird changes (both leave the house)
+                const birdsSoldDifference = (input.birdsSold - previousBirdsSold) + ((input.birdsRejected || 0) - previousBirdsRejected);
                 let reopenedCycleId: string | null = null;
                 let autoClosedHistoryId: string | null = null;
 
@@ -1221,7 +1231,10 @@ export const officerSalesRouter = createTRPCRouter({
             const totalBirds = (cycle.doc || 0);
             const birdsSoldTotal = totalBirdsSold;
             const mortalityTotal = newMortality;
-            const currentHouseBirds = Math.max(0, totalBirds - mortalityTotal - birdsSoldTotal);
+            const totalBirdsRejected = (input.birdsRejected || 0) + previousSales
+                .filter(s => !input.excludeSaleId || s.id !== input.excludeSaleId)
+                .reduce((sum, s) => sum + ((s.selectedReport as any)?.birdsRejected || s.birdsRejected || 0), 0);
+            const currentHouseBirds = Math.max(0, totalBirds - mortalityTotal - birdsSoldTotal - totalBirdsRejected);
             // Survival Rate for EPI is usually based on birds sold? Or total survival at end?
             // If cycle is ending, survival = (birdsSold / doc) * 100 ?
             // If running, survival = ((doc - mortality) / doc) * 100
@@ -1310,6 +1323,7 @@ export const officerSalesRouter = createTRPCRouter({
                 totalAmount: (input.totalWeight * input.pricePerKg).toFixed(2),
                 avgWeight: (input.birdsSold > 0 ? input.totalWeight / input.birdsSold : 0).toFixed(2),
                 totalMortality: newMortality,
+                birdsRejected: input.birdsRejected || 0,
                 remainingBirds: currentHouseBirds,
                 officialInputDate: input.officialInputDate || cycle.officialInputDate || (cycle as any).startDate || cycle.createdAt,
                 // Match SaleEvent structure expected by UI
@@ -1371,6 +1385,7 @@ export const officerSalesRouter = createTRPCRouter({
                                             columns: {
                                                 id: true,
                                                 birdsSold: true,
+                                                birdsRejected: true,
                                                 totalWeight: true,
                                                 pricePerKg: true,
                                                 totalAmount: true,
@@ -1413,6 +1428,7 @@ export const officerSalesRouter = createTRPCRouter({
                                             columns: {
                                                 id: true,
                                                 birdsSold: true,
+                                                birdsRejected: true,
                                                 totalWeight: true,
                                                 pricePerKg: true,
                                                 totalAmount: true,
@@ -1478,6 +1494,7 @@ export const officerSalesRouter = createTRPCRouter({
                             columns: {
                                 id: true,
                                 birdsSold: true,
+                                birdsRejected: true,
                                 totalWeight: true,
                                 pricePerKg: true,
                                 totalAmount: true,
@@ -2126,6 +2143,7 @@ export const officerSalesRouter = createTRPCRouter({
                 columns: {
                     id: true,
                     birdsSold: true,
+                    birdsRejected: true,
                     totalWeight: true,
                     pricePerKg: true,
                     totalAmount: true,
@@ -2173,6 +2191,7 @@ export const officerSalesRouter = createTRPCRouter({
                         columns: {
                             id: true,
                             birdsSold: true,
+                            birdsRejected: true,
                             totalWeight: true,
                             pricePerKg: true,
                             totalAmount: true,
@@ -2373,7 +2392,8 @@ export const appendCycleContextToSales = async (
         let running = 0;
         for (let i = 0; i < sorted.length; i++) {
             const ev = sorted[i];
-            running += ev.birdsSold || 0;
+            const data = ev.selectedReport || ev;
+            running += (data.birdsSold || 0) + (data.birdsRejected || 0);
             perSaleCumulativeMap.set(ev.id, running);
 
             if (i > 0) {

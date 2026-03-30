@@ -306,6 +306,7 @@ export const saleEvents = pgTable("sale_events", {
   saleDate: timestamp("sale_date", { withTimezone: true }).notNull().defaultNow(),
   houseBirds: integer("house_birds").notNull(), // Birds at start of cycle
   birdsSold: integer("birds_sold").notNull(),
+  birdsRejected: integer("birds_rejected").notNull().default(0),
   totalMortality: integer("total_mortality").notNull(),
 
   age: integer("age"), // Snapshot of bird age at the time of sale
@@ -338,6 +339,7 @@ export const saleReports = pgTable("sale_reports", {
   saleEventId: text("sale_event_id").notNull().references(() => saleEvents.id, { onDelete: "cascade" }),
 
   birdsSold: integer("birds_sold").notNull(),
+  birdsRejected: integer("birds_rejected").notNull().default(0),
   totalMortality: integer("total_mortality").default(0),
   totalWeight: decimal("total_weight").notNull(),
   pricePerKg: decimal("price_per_kg").notNull(),
