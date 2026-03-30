@@ -108,6 +108,11 @@ export const authRouter = createTRPCRouter({
   updateGlobalMode: protectedProcedure
     .input(z.object({ mode: z.enum(["ADMIN", "USER"]) }))
     .mutation(async ({ ctx, input }) => {
+      // Only system admins can change global mode
+      if (ctx.user.globalRole !== "ADMIN") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only system administrators can change global mode." });
+      }
+
       const { user: userTable } = await import("@/db/schema");
       await ctx.db.update(userTable)
         .set({ activeMode: input.mode })
@@ -119,9 +124,26 @@ export const authRouter = createTRPCRouter({
   updateOrgMode: protectedProcedure
     .input(z.object({ mode: z.enum(["MANAGEMENT", "OFFICER"]) }))
     .mutation(async ({ ctx, input }) => {
+      // If switching to MANAGEMENT mode, verify user has a MANAGER or OWNER role
+      if (input.mode === "MANAGEMENT") {
+        const membership = await ctx.db.query.member.findFirst({
+          where: and(
+            eq(member.userId, ctx.user.id),
+            eq(member.status, "ACTIVE")
+          )
+        });
+
+        if (!membership || (membership.role !== "OWNER" && membership.role !== "MANAGER")) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only Managers and Owners can switch to Management mode."
+          });
+        }
+      }
+
       await ctx.db.update(member)
         .set({ activeMode: input.mode })
-        .where(eq(member.userId, ctx.user.id)); // Assumes one org for now as per getMyMembership
+        .where(eq(member.userId, ctx.user.id));
       return { success: true };
     }),
 

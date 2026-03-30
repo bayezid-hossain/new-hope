@@ -256,7 +256,7 @@ export const officerStockRouter = createTRPCRouter({
                     if (f.officerId === ctx.user.id) return true; // Owns the farmer
                     if (ctx.user.globalRole === "ADMIN") return true; // Super Admin
 
-                    // Check Organization Membership (Manager/Owner)
+                    // Check Organization Membership — only MANAGER/OWNER can transfer across officers
                     const membership = await tx.query.member.findFirst({
                         where: and(
                             eq(member.userId, ctx.user.id),
@@ -265,9 +265,7 @@ export const officerStockRouter = createTRPCRouter({
                         )
                     });
 
-                    return !!membership; // Simplified: Any active member can acting as simpler guard, 
-                    // ideally should check role but 'listing' implies access. 
-                    // Sticking to pattern in other mutations.
+                    return membership?.role === "OWNER" || membership?.role === "MANAGER";
                 };
 
                 if (!await checkPermission(sourceFarmer) || !await checkPermission(targetFarmer)) {

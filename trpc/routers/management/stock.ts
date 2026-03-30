@@ -254,6 +254,11 @@ export const managementStockRouter = createTRPCRouter({
             note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access check: User must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT" && ctx.user.globalRole !== "ADMIN") {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You need 'EDIT' access to add stock." });
+            }
+
             const f = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.id, input.farmerId),
@@ -303,6 +308,11 @@ export const managementStockRouter = createTRPCRouter({
             note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
+            // Access check: User must have EDIT permissions
+            if (ctx.membership?.accessLevel !== "EDIT" && ctx.user.globalRole !== "ADMIN") {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You need 'EDIT' access to deduct stock." });
+            }
+
             const f = await ctx.db.query.farmer.findFirst({
                 where: and(
                     eq(farmer.id, input.farmerId),
