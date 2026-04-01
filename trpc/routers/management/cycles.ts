@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, member, stockLogs, user } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, stockLogs, user, saleEvents } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -143,7 +143,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
-                const [logs, history, otherActiveCycles] = await Promise.all([
+                const [logs, history, otherActiveCycles, rejectedResult] = await Promise.all([
                     ctx.db.select().from(cycleLogs)
                         .where(eq(cycleLogs.cycleId, activeCycle.id))
                         .orderBy(desc(cycleLogs.createdAt)),
@@ -156,7 +156,12 @@ export const managementCyclesRouter = createTRPCRouter({
                             ne(cycles.id, activeCycle.id),
                             eq(cycles.status, "active")
                         ))
-                        .orderBy(desc(cycles.createdAt))
+                        .orderBy(desc(cycles.createdAt)),
+                    ctx.db.select({ total: saleEvents.birdsRejected })
+                        .from(saleEvents)
+                        .where(eq(saleEvents.cycleId, activeCycle.id))
+                        .orderBy(desc(saleEvents.saleDate))
+                        .limit(1)
                 ]);
 
                 const combinedHistory = [
@@ -181,6 +186,7 @@ export const managementCyclesRouter = createTRPCRouter({
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
                         birdType: activeCycle.birdType,
+                        totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                     },
                     logs,
                     history: combinedHistory,
@@ -211,7 +217,7 @@ export const managementCyclesRouter = createTRPCRouter({
                 if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
             }
 
-            const [logs, otherHistory, activeCycles] = await Promise.all([
+            const [logs, otherHistory, activeCycles, rejectedResult] = await Promise.all([
                 ctx.db.select().from(cycleLogs)
                     .where(eq(cycleLogs.historyId, historyRecord.id))
                     .orderBy(desc(cycleLogs.createdAt)),
@@ -223,7 +229,12 @@ export const managementCyclesRouter = createTRPCRouter({
                         eq(cycles.farmerId, historyRecord.farmerId),
                         eq(cycles.status, "active")
                     ))
-                    .orderBy(desc(cycles.createdAt))
+                    .orderBy(desc(cycles.createdAt)),
+                ctx.db.select({ total: saleEvents.birdsRejected })
+                    .from(saleEvents)
+                    .where(eq(saleEvents.historyId, historyRecord.id))
+                    .orderBy(desc(saleEvents.saleDate))
+                    .limit(1)
             ]);
 
             const combinedHistory = [
@@ -248,6 +259,7 @@ export const managementCyclesRouter = createTRPCRouter({
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
                     birdType: historyRecord.birdType,
+                    totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                 },
                 logs,
                 history: combinedHistory,

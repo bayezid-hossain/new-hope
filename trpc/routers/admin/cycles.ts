@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, user } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, user, saleEvents } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { aliasedTable, and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 import { z } from "zod";
@@ -132,6 +132,13 @@ export const adminCyclesRouter = createTRPCRouter({
                     ))
                     .orderBy(desc(cycles.createdAt));
 
+                const rejectedResult = await ctx.db.select({
+                    total: saleEvents.birdsRejected
+                }).from(saleEvents)
+                    .where(eq(saleEvents.cycleId, activeCycle.id))
+                    .orderBy(desc(saleEvents.saleDate))
+                    .limit(1);
+
                 const combinedHistory = [
                     ...otherActiveCycles.map(c => ({
                         ...c,
@@ -154,6 +161,7 @@ export const adminCyclesRouter = createTRPCRouter({
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
                         birdType: activeCycle.birdType,
+                        totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                     },
                     logs,
                     history: combinedHistory,
@@ -184,6 +192,13 @@ export const adminCyclesRouter = createTRPCRouter({
                 ))
                 .orderBy(desc(cycles.createdAt));
 
+            const rejectedResult = await ctx.db.select({
+                total: saleEvents.birdsRejected
+            }).from(saleEvents)
+                .where(eq(saleEvents.historyId, historyRecord.id))
+                .orderBy(desc(saleEvents.saleDate))
+                .limit(1);
+
             const combinedHistory = [
                 ...activeCycles.map(c => ({
                     ...c,
@@ -206,6 +221,7 @@ export const adminCyclesRouter = createTRPCRouter({
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
                     birdType: historyRecord.birdType,
+                    totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                 },
                 logs,
                 history: combinedHistory,
