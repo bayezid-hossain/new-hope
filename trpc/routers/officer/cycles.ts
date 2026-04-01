@@ -418,7 +418,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         message: "You do not have permission to view this cycle's details."
                     });
                 }
-                const [logs, history, otherActiveCycles] = await Promise.all([
+                const [logs, history, otherActiveCycles, rejectedResult] = await Promise.all([
                     ctx.db.select().from(cycleLogs)
                         .where(eq(cycleLogs.cycleId, activeCycle.id))
                         .orderBy(desc(cycleLogs.createdAt)),
@@ -431,7 +431,13 @@ export const officerCyclesRouter = createTRPCRouter({
                             ne(cycles.id, activeCycle.id),
                             eq(cycles.status, "active")
                         ))
-                        .orderBy(desc(cycles.createdAt))
+                        .orderBy(desc(cycles.createdAt)),
+                    ctx.db.select({
+                        total: saleEvents.birdsRejected
+                    }).from(saleEvents)
+                        .where(eq(saleEvents.cycleId, activeCycle.id))
+                        .orderBy(desc(saleEvents.saleDate))
+                        .limit(1)
                 ]);
 
                 const combinedHistory = [
@@ -456,6 +462,7 @@ export const officerCyclesRouter = createTRPCRouter({
                         endDate: null as Date | null,
                         organizationId: activeCycle.organizationId || null,
                         birdType: activeCycle.birdType,
+                        totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                     },
                     logs,
                     history: combinedHistory,
@@ -496,7 +503,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 });
             }
 
-            const [logs, otherHistory, activeCycles] = await Promise.all([
+            const [logs, otherHistory, activeCycles, rejectedResult] = await Promise.all([
                 ctx.db.select().from(cycleLogs)
                     .where(eq(cycleLogs.historyId, historyRecord.id))
                     .orderBy(desc(cycleLogs.createdAt)),
@@ -508,7 +515,13 @@ export const officerCyclesRouter = createTRPCRouter({
                         eq(cycles.farmerId, historyRecord.farmerId),
                         eq(cycles.status, "active")
                     ))
-                    .orderBy(desc(cycles.createdAt))
+                    .orderBy(desc(cycles.createdAt)),
+                ctx.db.select({
+                    total: saleEvents.birdsRejected
+                }).from(saleEvents)
+                    .where(eq(saleEvents.historyId, historyRecord.id))
+                    .orderBy(desc(saleEvents.saleDate))
+                    .limit(1)
             ]);
 
             const combinedHistory = [
@@ -532,6 +545,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
                     birdType: historyRecord.birdType,
+                    totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
                 },
                 logs,
                 history: combinedHistory,

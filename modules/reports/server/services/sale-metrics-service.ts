@@ -157,6 +157,7 @@ export class SaleMetricsService {
         for (const sale of sales) {
             const data = sale.selectedReport || sale;
             const birdsSold = Number(data.birdsSold) || 0;
+            const birdsRejected = Number(data.birdsRejected) || 0;
 
             // Prefer report-level age (set via "Edit Sale Age") over the raw event age
             const ageAtSale = data.age ?? sale.age ?? (() => {
@@ -169,21 +170,24 @@ export class SaleMetricsService {
                 return Math.max(1, Math.round(diffTime / MS_PER_DAY) + 1);
             })();
 
-            totalBirdDays += birdsSold * ageAtSale;
+            totalBirdDays += (birdsSold + birdsRejected) * ageAtSale;
         }
 
         // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
         const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
         const averageAge = Number(rawAverageAge.toFixed(2));
-        // //console.logaverageAge)
-        // Calculate Average Weight using SURVIVORS (DOC - Mortality) to match frontend logic
+        // Get rejected birds from the latest sale (matches how totalMortality is sourced)
+        const latestSaleData = latestSale?.selectedReport || latestSale;
+        const totalBirdsRejected = Number(latestSaleData?.birdsRejected) || 0;
+
+        // Calculate Average Weight using SURVIVORS (DOC - Mortality - Rejected) to match frontend logic
         // This accounts for missing birds/theft which reduces the effective average weight of the flock
-        const survivors = cycle.doc - (cycle.mortality || 0);
+        const survivors = cycle.doc - (cycle.mortality || 0) - totalBirdsRejected;
         const averageWeight = survivors > 0 ? totalWeight / survivors : 0;
 
         // 3. Calculate metrics
         const fcr = this.calculateFCR(totalFeedBags, totalWeight);
-        const survivalRate = this.calculateSR(cycle.doc, cycle.mortality || 0);
+        const survivalRate = this.calculateSR(cycle.doc, cycle.mortality || 0, totalBirdsRejected);
         const epi = this.calculateEPI(survivalRate, averageWeight, fcr, averageAge);
 
         // 4. Calculate costs and profit
@@ -247,9 +251,9 @@ export class SaleMetricsService {
         return (feedBags * 50) / totalWeightKg;
     }
 
-    private static calculateSR(doc: number, mortality: number): number {
+    private static calculateSR(doc: number, mortality: number, rejected: number = 0): number {
         if (doc <= 0) return 0;
-        return ((doc - mortality) / doc) * 100;
+        return ((doc - mortality - rejected) / doc) * 100;
     }
 
     private static calculateEPI(

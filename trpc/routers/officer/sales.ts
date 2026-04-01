@@ -19,13 +19,14 @@ const calculateMetrics = (
     totalWeight: number,
     feedConsumed: number, // in bags
     age: number,
-    isEnded: boolean
+    isEnded: boolean,
+    birdsRejected: number = 0
 ) => {
     if (!isEnded) {
         return { fcr: 0, epi: 0 };
     }
 
-    const survivors = doc - mortality;
+    const survivors = doc - mortality - birdsRejected;
     const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
     const totalWeightKg = totalWeight;
     const feedKg = feedConsumed * 50; // 50kg per bag
@@ -80,7 +81,7 @@ const getCycleStats = (events: any[]) => {
         })();
 
         if (ageAtSale > 0) {
-            totalBirdDaysMap.set(key, currentBirdDays + ((selectedData.birdsSold || 0) * ageAtSale));
+            totalBirdDaysMap.set(key, currentBirdDays + (((selectedData.birdsSold || 0) + (selectedData.birdsRejected || 0)) * ageAtSale));
         }
 
     });
@@ -1239,7 +1240,7 @@ export const officerSalesRouter = createTRPCRouter({
             // If cycle is ending, survival = (birdsSold / doc) * 100 ?
             // If running, survival = ((doc - mortality) / doc) * 100
             const survivalRate = totalBirds > 0
-                ? ((totalBirds - mortalityTotal) / totalBirds) * 100
+                ? ((totalBirds - mortalityTotal - totalBirdsRejected) / totalBirds) * 100
                 : 0;
 
             const totalWt = totalWeight;

@@ -289,12 +289,18 @@ export const managementReportsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { orgId, officerId, month, year } = input;
 
-            // Verify the officer belongs to this org (optional but good practice)
-            // We can just rely on the join with farmer->orgId, but if an officer has no farmers, we might show empty.
-            // That's fine.
+            const prevMonth = month - 1 === 0 ? 12 : month - 1;
+            const prevYear = month - 1 === 0 ? year - 1 : year;
+            
+            const prevMonthDays = new Date(prevYear, prevMonth, 0).getDate();
+            const startDate = prevMonthDays === 31 
+                ? new Date(prevYear, prevMonth - 1, 31, 0, 0, 0)
+                : new Date(year, month - 1, 1, 0, 0, 0);
 
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0, 23, 59, 59);
+            const currentMonthDays = new Date(year, month, 0).getDate();
+            const endDate = currentMonthDays === 31
+                ? new Date(year, month - 1, 30, 23, 59, 59, 999)
+                : new Date(year, month, 0, 23, 59, 59, 999);
 
             // Fetch Active + History Cycles in parallel
             const [activeCycles, historicalCycles] = await Promise.all([
@@ -359,10 +365,16 @@ export const managementReportsRouter = createTRPCRouter({
                 }
 
                 groupedByFarmer[c.farmerId].totalDoc += c.doc;
+                // Shift 31st dates to 1st of next month for display
+                const displayDate = new Date(c.created);
+                if (displayDate.getDate() === 31) {
+                    displayDate.setMonth(displayDate.getMonth() + 1, 1);
+                    displayDate.setHours(0, 0, 0, 0);
+                }
                 groupedByFarmer[c.farmerId].cycles.push({
                     name: c.cycleName,
                     doc: c.doc,
-                    date: c.created,
+                    date: displayDate,
                     status: c.status
                 });
 
@@ -395,8 +407,17 @@ export const managementReportsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { orgId, officerId, startMonth, startYear, endMonth, endYear } = input;
 
-            const startDate = new Date(startYear, startMonth - 1, 1);
-            const endDate = new Date(endYear, endMonth, 0, 23, 59, 59);
+            const prevStartMonth = startMonth - 1 === 0 ? 12 : startMonth - 1;
+            const prevStartYear = startMonth - 1 === 0 ? startYear - 1 : startYear;
+            const prevStartMonthDays = new Date(prevStartYear, prevStartMonth, 0).getDate();
+            const startDate = prevStartMonthDays === 31 
+                ? new Date(prevStartYear, prevStartMonth - 1, 31, 0, 0, 0)
+                : new Date(startYear, startMonth - 1, 1, 0, 0, 0);
+
+            const currentEndMonthDays = new Date(endYear, endMonth, 0).getDate();
+            const endDate = currentEndMonthDays === 31
+                ? new Date(endYear, endMonth - 1, 30, 23, 59, 59, 999)
+                : new Date(endYear, endMonth, 0, 23, 59, 59, 999);
 
             const officerFilter = officerId ? eq(farmer.officerId, officerId) : undefined;
 
@@ -462,10 +483,16 @@ export const managementReportsRouter = createTRPCRouter({
                 }
 
                 groupedByFarmer[c.farmerId].totalDoc += c.doc;
+                // Shift 31st dates to 1st of next month for display
+                const displayDate = new Date(c.created);
+                if (displayDate.getDate() === 31) {
+                    displayDate.setMonth(displayDate.getMonth() + 1, 1);
+                    displayDate.setHours(0, 0, 0, 0);
+                }
                 groupedByFarmer[c.farmerId].cycles.push({
                     name: c.cycleName,
                     doc: c.doc,
-                    date: c.created,
+                    date: displayDate,
                     status: c.status
                 });
 

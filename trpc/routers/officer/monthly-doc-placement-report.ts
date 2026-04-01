@@ -13,14 +13,19 @@ export const officerReportsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { month, year } = input;
 
-            // Start and end dates for the month (careful with JS dates vs UTC)
-            // We want cycles created in this month.
-            // Cycle createdAt or startDate? Usually DOC placement happens at cycle creation (or doc field is set then).
-            // Let's use `createdAt` for active cycles and `startDate` for history (or `startDate` for both if available).
-            // Schema has `createdAt` for active, and `startDate` for history.
+            // Helper to get date ranges safely without JS date overflow
+            const prevMonth = month - 1 === 0 ? 12 : month - 1;
+            const prevYear = month - 1 === 0 ? year - 1 : year;
+            
+            const prevMonthDays = new Date(prevYear, prevMonth, 0).getDate();
+            const startDate = prevMonthDays === 31 
+                ? new Date(prevYear, prevMonth - 1, 31, 0, 0, 0)
+                : new Date(year, month - 1, 1, 0, 0, 0);
 
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0, 23, 59, 59);
+            const currentMonthDays = new Date(year, month, 0).getDate();
+            const endDate = currentMonthDays === 31
+                ? new Date(year, month - 1, 30, 23, 59, 59, 999)
+                : new Date(year, month, 0, 23, 59, 59, 999);
 
             // Fetch Active Cycles started in this range
             const activeCycles = await ctx.db.select({
@@ -83,10 +88,16 @@ export const officerReportsRouter = createTRPCRouter({
                 }
 
                 groupedByFarmer[c.farmerId].totalDoc += c.doc;
+                // Shift 31st dates to 1st of next month for display
+                const displayDate = new Date(c.created);
+                if (displayDate.getDate() === 31) {
+                    displayDate.setMonth(displayDate.getMonth() + 1, 1);
+                    displayDate.setHours(0, 0, 0, 0);
+                }
                 groupedByFarmer[c.farmerId].cycles.push({
                     name: c.cycleName,
                     doc: c.doc,
-                    date: c.created,
+                    date: displayDate,
                     status: c.status
                 });
 
@@ -118,8 +129,17 @@ export const officerReportsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { startMonth, startYear, endMonth, endYear } = input;
 
-            const startDate = new Date(startYear, startMonth - 1, 1);
-            const endDate = new Date(endYear, endMonth, 0, 23, 59, 59); // Last day of end month
+            const prevStartMonth = startMonth - 1 === 0 ? 12 : startMonth - 1;
+            const prevStartYear = startMonth - 1 === 0 ? startYear - 1 : startYear;
+            const prevStartMonthDays = new Date(prevStartYear, prevStartMonth, 0).getDate();
+            const startDate = prevStartMonthDays === 31 
+                ? new Date(prevStartYear, prevStartMonth - 1, 31, 0, 0, 0)
+                : new Date(startYear, startMonth - 1, 1, 0, 0, 0);
+
+            const currentEndMonthDays = new Date(endYear, endMonth, 0).getDate();
+            const endDate = currentEndMonthDays === 31
+                ? new Date(endYear, endMonth - 1, 30, 23, 59, 59, 999)
+                : new Date(endYear, endMonth, 0, 23, 59, 59, 999);
 
             // Fetch Active Cycles started in this range
             const activeCycles = await ctx.db.select({
@@ -181,10 +201,16 @@ export const officerReportsRouter = createTRPCRouter({
                 }
 
                 groupedByFarmer[c.farmerId].totalDoc += c.doc;
+                // Shift 31st dates to 1st of next month for display
+                const displayDate = new Date(c.created);
+                if (displayDate.getDate() === 31) {
+                    displayDate.setMonth(displayDate.getMonth() + 1, 1);
+                    displayDate.setHours(0, 0, 0, 0);
+                }
                 groupedByFarmer[c.farmerId].cycles.push({
                     name: c.cycleName,
                     doc: c.doc,
-                    date: c.created,
+                    date: displayDate,
                     status: c.status
                 });
 

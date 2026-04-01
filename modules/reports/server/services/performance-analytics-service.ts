@@ -149,6 +149,7 @@ export class PerformanceAnalyticsService {
         const salesData = await db
             .select({
                 birds_sold: saleEvents.birdsSold,
+                birds_rejected: saleEvents.birdsRejected,
                 total_weight: saleEvents.totalWeight,
                 price_per_kg: saleEvents.pricePerKg,
                 total_amount: saleEvents.totalAmount,
@@ -156,6 +157,7 @@ export class PerformanceAnalyticsService {
                 house_birds: saleEvents.houseBirds,
                 feed_consumed: saleEvents.feedConsumed,
                 report_feed_consumed: saleReports.feedConsumed,
+                report_birds_rejected: saleReports.birdsRejected,
                 history_age: cycleHistory.age,
                 history_id: saleEvents.historyId,
                 sale_date: saleEvents.saleDate
@@ -176,9 +178,18 @@ export class PerformanceAnalyticsService {
 
         // Distribute data into months
         for (let month = 0; month < 12; month++) {
+            // For DOC monthly bucketing, shift 31st placements to the next month
+            const getEffectiveMonth = (date: Date): number => {
+                const d = new Date(date);
+                if (d.getDate() === 31) {
+                    d.setMonth(d.getMonth() + 1, 1);
+                }
+                return d.getMonth();
+            };
+
             const chicksInThisMonth =
-                activeCycles.filter(c => c.createdAt && new Date(c.createdAt).getMonth() === month).reduce((sum, c) => sum + Number(c.count || 0), 0) +
-                pastCycles.filter(c => c.createdAt && new Date(c.createdAt).getMonth() === month).reduce((sum, c) => sum + Number(c.count || 0), 0);
+                activeCycles.filter(c => c.createdAt && getEffectiveMonth(new Date(c.createdAt)) === month).reduce((sum, c) => sum + Number(c.count || 0), 0) +
+                pastCycles.filter(c => c.createdAt && getEffectiveMonth(new Date(c.createdAt)) === month).reduce((sum, c) => sum + Number(c.count || 0), 0);
 
             const monthSales = salesData.filter(s => s.sale_date && new Date(s.sale_date).getMonth() === month);
 
@@ -214,9 +225,11 @@ export class PerformanceAnalyticsService {
                     totalAge += age;
                     totalFeedBags += feedBags;
 
+                    const rejected = Number(latest.report_birds_rejected ?? latest.birds_rejected) || 0;
+
                     let survivalRate = 0;
                     if (houseBirds > 0) {
-                        survivalRate = ((houseBirds - mortality) / houseBirds) * 100;
+                        survivalRate = ((houseBirds - mortality - rejected) / houseBirds) * 100;
                         survivalRates.push(survivalRate);
                     }
 
@@ -286,9 +299,19 @@ export class PerformanceAnalyticsService {
             "July", "August", "September", "October", "November", "December"
         ];
 
-        // Date range for the month
-        const startOfMonth = new Date(year, month, 1);
-        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        // Helper to get date ranges safely without JS date overflow (month is 0-indexed)
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const prevYear = month === 0 ? year - 1 : year;
+        
+        const prevMonthDays = new Date(prevYear, prevMonth + 1, 0).getDate();
+        const startOfMonth = prevMonthDays === 31
+            ? new Date(prevYear, prevMonth, 31, 0, 0, 0)
+            : new Date(year, month, 1, 0, 0, 0);
+
+        const currentMonthDays = new Date(year, month + 1, 0).getDate();
+        const endOfMonth = currentMonthDays === 31
+            ? new Date(year, month, 30, 23, 59, 59, 999)
+            : new Date(year, month + 1, 0, 23, 59, 59, 999); // last day of month
 
         // 1. CHICKS IN: Get DOC from cycles STARTED in this month
         const chicksIn = await this.getChicksInForMonth(officerId, startOfMonth, endOfMonth);
@@ -365,6 +388,7 @@ export class PerformanceAnalyticsService {
         const sales = await db
             .select({
                 birds_sold: saleEvents.birdsSold,
+                birds_rejected: saleEvents.birdsRejected,
                 total_weight: saleEvents.totalWeight,
                 price_per_kg: saleEvents.pricePerKg,
                 total_amount: saleEvents.totalAmount,
@@ -372,6 +396,7 @@ export class PerformanceAnalyticsService {
                 house_birds: saleEvents.houseBirds,
                 feed_consumed: saleEvents.feedConsumed,
                 report_feed_consumed: saleReports.feedConsumed,
+                report_birds_rejected: saleReports.birdsRejected,
                 history_age: cycleHistory.age,
                 history_id: saleEvents.historyId,
                 sale_date: saleEvents.saleDate
@@ -483,9 +508,10 @@ export class PerformanceAnalyticsService {
 
             // Survival Rate
             let survivalRate = 0;
+            const rejected = Number(latest.report_birds_rejected ?? latest.birds_rejected) || 0;
             if (houseBirds > 0) {
                 survivalRate =
-                    ((houseBirds - mortality) / houseBirds) * 100;
+                    ((houseBirds - mortality - rejected) / houseBirds) * 100;
                 survivalRates.push(survivalRate);
             }
 

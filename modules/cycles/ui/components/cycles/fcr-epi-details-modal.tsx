@@ -12,6 +12,7 @@ interface FcrEpiDetailsModalProps {
     epi: number;
     doc: number;
     mortality: number;
+    birdsRejected?: number;
     age: number;
     totalWeight: number;
     feedBags: number;
@@ -25,12 +26,13 @@ export const FcrEpiDetailsModal = ({
     epi,
     doc,
     mortality,
+    birdsRejected = 0,
     age,
     totalWeight,
     feedBags,
     isEnded,
 }: FcrEpiDetailsModalProps) => {
-    const survivors = doc - mortality;
+    const survivors = doc - mortality - birdsRejected;
     const survivalRate = doc > 0 ? (survivors / doc) * 100 : 0;
     const feedKg = feedBags * 50;
     const avgWeightKg = survivors > 0 ? totalWeight / survivors : 0;
@@ -95,6 +97,7 @@ export const FcrEpiDetailsModal = ({
                                 <span className="text-muted-foreground text-xs font-medium">Survival Rate</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
                                     ({survivors.toLocaleString()} / {doc.toLocaleString()}) × 100
+                                    {birdsRejected > 0 && <span className="block text-[9px]">DOC - Mortality({mortality}) - Rejected({birdsRejected})</span>}
                                 </span>
                             </div>
                             <span className="font-mono">{survivalRate.toFixed(1)}%</span>
