@@ -176,6 +176,7 @@ export class SaleMetricsService {
         // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
         const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
         const averageAge = Number(rawAverageAge.toFixed(2));
+        
         // Get rejected birds from the latest sale (matches how totalMortality is sourced)
         const latestSaleData = latestSale?.selectedReport || latestSale;
         const totalBirdsRejected = Number(latestSaleData?.birdsRejected) || 0;

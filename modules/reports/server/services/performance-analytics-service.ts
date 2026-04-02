@@ -299,25 +299,25 @@ export class PerformanceAnalyticsService {
             "July", "August", "September", "October", "November", "December"
         ];
 
-        // Helper to get date ranges safely without JS date overflow (month is 0-indexed)
+        // 1. CHICKS IN: Get DOC from cycles STARTED in this month (31st-shifted)
         const prevMonth = month === 0 ? 11 : month - 1;
         const prevYear = month === 0 ? year - 1 : year;
-        
         const prevMonthDays = new Date(prevYear, prevMonth + 1, 0).getDate();
-        const startOfMonth = prevMonthDays === 31
+        const startOfDocMonth = prevMonthDays === 31
             ? new Date(prevYear, prevMonth, 31, 0, 0, 0)
             : new Date(year, month, 1, 0, 0, 0);
 
         const currentMonthDays = new Date(year, month + 1, 0).getDate();
-        const endOfMonth = currentMonthDays === 31
+        const endOfDocMonth = currentMonthDays === 31
             ? new Date(year, month, 30, 23, 59, 59, 999)
-            : new Date(year, month + 1, 0, 23, 59, 59, 999); // last day of month
+            : new Date(year, month + 1, 0, 23, 59, 59, 999);
 
-        // 1. CHICKS IN: Get DOC from cycles STARTED in this month
-        const chicksIn = await this.getChicksInForMonth(officerId, startOfMonth, endOfMonth);
+        const chicksIn = await this.getChicksInForMonth(officerId, startOfDocMonth, endOfDocMonth);
 
-        // 2. ALL OTHER METRICS: Get from sale events dated in this month
-        const salesMetrics = await this.getSalesMetricsForMonth(officerId, startOfMonth, endOfMonth);
+        // 2. ALL OTHER METRICS: Get from sale events dated in this month (Standard boundaries)
+        const startOfSaleMonth = new Date(year, month, 1, 0, 0, 0);
+        const endOfSaleMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        const salesMetrics = await this.getSalesMetricsForMonth(officerId, startOfSaleMonth, endOfSaleMonth);
 
         return {
             month: monthNames[month],
@@ -568,6 +568,7 @@ export class PerformanceAnalyticsService {
         year: number,
         month: number
     ): Promise<FarmerProductionRecord[]> {
+        // Standard month boundaries (no 31st-shift for production records)
         const startOfMonth = new Date(year, month, 1);
         const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
 

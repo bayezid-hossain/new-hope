@@ -3,6 +3,7 @@ import type { FeedItem } from "./feed";
 export interface SaleReport {
     id: string;
     birdsSold: number;
+    birdsRejected?: number | null;
     totalMortality?: number | null;
     totalWeight: string;
     avgWeight: string;
@@ -29,6 +30,7 @@ export interface SaleEvent {
     saleDate: Date;
     houseBirds: number;
     birdsSold: number;
+    birdsRejected?: number | null;
     totalMortality: number;
     totalWeight: string;
     avgWeight: string;
@@ -70,6 +72,7 @@ export interface SaleEvent {
         isEnded: boolean;
         fcr: number;
         epi: number;
+        totalBirdsRejected?: number;
         revenue?: number;
         actualRevenue?: number;
         totalWeight?: number;

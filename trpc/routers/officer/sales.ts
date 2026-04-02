@@ -51,6 +51,7 @@ const getCycleStats = (events: any[]) => {
     const weightMap = new Map<string, number>();
     const birdsSoldMap = new Map<string, number>();
     const totalBirdDaysMap = new Map<string, number>();
+    const rejectedMap = new Map<string, number>();
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     events.forEach(ev => {
@@ -1703,8 +1704,12 @@ export const officerSalesRouter = createTRPCRouter({
                 const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
                 const formulaRevenue = effectiveRate * cumulativeWeight;
 
-                // Use latest mortality from selected reports across all sales in this cycle
+                // Use latest values from selected reports
                 const mortality = latestMortality || (latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0));
+
+                const latestEventInGroup = groupEvents.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                const latestSelectedReport = latestEventInGroup?.reports?.find((r: any) => r.id === latestEventInGroup.selectedReportId);
+                const latestRejected = Number(latestSelectedReport ? latestSelectedReport.birdsRejected : latestEventInGroup?.birdsRejected) || 0;
 
                 // Calculate FCR/EPI using version-specific data
                 // Only calculate if this is the LATEST sale in the group (User Request)
@@ -1714,7 +1719,8 @@ export const officerSalesRouter = createTRPCRouter({
                     cumulativeWeight,    // 🔥 SUM OF SELECTED WEIGHTS
                     feedConsumed,        // 🔥 RECALCULATED FEED
                     age,
-                    isLatestInGroup && isEnded      // Replaced isEnded
+                    isLatestInGroup && isEnded,      // Replaced isEnded
+                    latestRejected   // 🔥 NEW: Pass latest rejected
                 );
                 // Profit calculation (backend-only)
                 const feedPrice = finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
@@ -1747,6 +1753,7 @@ export const officerSalesRouter = createTRPCRouter({
                         epi,
                         revenue: formulaRevenue,
                         actualRevenue: cumulativeRevenue,
+                        totalBirdsRejected: latestRejected,
                         totalWeight: cumulativeWeight,
                         cumulativeBirdsSold,
                         effectiveRate,
@@ -2450,8 +2457,12 @@ export const appendCycleContextToSales = async (
         const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
         const formulaRevenue = effectiveRate * cumulativeWeight;
 
+        const latestEventInGroup = groupedForCumulative[groupKey]?.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        const latestSelectedReport = latestEventInGroup?.reports?.find((r: any) => r.id === latestEventInGroup.selectedReportId);
+        const latestRejected = Number(latestSelectedReport ? latestSelectedReport.birdsRejected : latestEventInGroup?.birdsRejected) || 0;
+
         // Calculate FCR/EPI
-        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded);
+        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded, latestRejected);
 
         // Profit calculation (backend-only)
         const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
@@ -2482,6 +2493,7 @@ export const appendCycleContextToSales = async (
                 epi,
                 revenue: formulaRevenue,
                 actualRevenue: cumulativeRevenue,
+                totalBirdsRejected: latestRejected,
                 totalWeight: cumulativeWeight,
                 cumulativeBirdsSold,
                 effectiveRate,
