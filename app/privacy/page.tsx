@@ -13,7 +13,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold text-slate-900 border-b-2 border-emerald-100 pb-2 mb-4">1. Introduction</h2>
             <p>
-              Welcome to <strong>Feed Reminder Up</strong>. We are committed to protecting your personal information and your right to privacy. 
+              Welcome to <strong>Poultry Solution</strong>. We are committed to protecting your personal information and your right to privacy. 
               This Privacy Policy explains how we collect, use, and safeguard your data when you use our mobile application and related services.
             </p>
           </section>
@@ -22,7 +22,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-slate-900 border-b-2 border-emerald-100 pb-2 mb-4">2. Data We Collect</h2>
             <p>We may collect limited information to provide you with a better experience:</p>
             <ul className="list-disc ml-6 mt-4 space-y-2 text-slate-600">
-              <li><strong>Poultry Management Data:</strong> Information about your bird counts, feed schedules, and performance metrics.</li>
+              <li><strong>Poultry Management Data:</strong> Information about your bird counts, feed schedules, mortality rates, and performance metrics.</li>
               <li><strong>Device Information:</strong> Basic analytics about the device you use to access the app.</li>
               <li><strong>Local Storage:</strong> Some data may be stored locally on your device for offline access.</li>
             </ul>
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-slate-900 border-b-2 border-emerald-100 pb-2 mb-4">3. How We Use Your Information</h2>
             <p>Your information is used solely for:</p>
             <ul className="list-disc ml-6 mt-4 space-y-2 text-slate-600">
-              <li>Providing and maintaining the Feed Reminder Up service.</li>
+              <li>Providing and maintaining the Poultry Solution service.</li>
               <li>Calculating feed requirements and performance reports.</li>
               <li>Improving app functionality and user experience.</li>
             </ul>
@@ -66,9 +66,10 @@ export default function PrivacyPolicy() {
         </div>
         
         <div className="bg-slate-50 px-8 py-6 border-t border-slate-200 text-center text-slate-500 text-sm">
-          &copy; 2026 Feed Reminder Up. All rights reserved.
+          &copy; 2026 Poultry Solution. All rights reserved.
         </div>
       </div>
     </div>
   );
 }
+
