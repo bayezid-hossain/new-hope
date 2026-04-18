@@ -331,4 +331,62 @@ export const feedOrdersRouter = createTRPCRouter({
                 return { success: true };
             });
         }),
+
+    revert: proProcedure
+        .input(z.object({
+            id: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const order = await ctx.db.query.feedOrders.findFirst({
+                where: eq(feedOrders.id, input.id),
+                with: {
+                    items: true
+                }
+            });
+
+            if (!order) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+            }
+
+            if (order.status !== "CONFIRMED") {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Only confirmed orders can be reverted" });
+            }
+
+            // Group quantities by farmer
+            const farmerUpdates = new Map<string, number>();
+            for (const item of order.items) {
+                const current = farmerUpdates.get(item.farmerId) || 0;
+                farmerUpdates.set(item.farmerId, current + item.quantity);
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                // Subtract each farmer's mainStock
+                for (const [farmerId, quantity] of farmerUpdates.entries()) {
+                    await tx.update(farmer)
+                        .set({
+                            mainStock: sql`${farmer.mainStock} - ${quantity}`,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(farmer.id, farmerId));
+                }
+
+                // Delete associated stock logs
+                await tx.delete(stockLogs).where(
+                    and(
+                        eq(stockLogs.referenceId, input.id),
+                        eq(stockLogs.type, "STOCK_ADDED")
+                    )
+                );
+
+                // Mark order back as PENDING
+                await tx.update(feedOrders)
+                    .set({
+                        status: "PENDING",
+                        driverName: null
+                    })
+                    .where(eq(feedOrders.id, input.id));
+
+                return { success: true };
+            });
+        }),
 });

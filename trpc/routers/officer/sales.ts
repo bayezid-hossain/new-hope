@@ -1204,7 +1204,7 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Check if cycle would end
             const totalBirdsAfterMortality = cycle.doc - newMortality;
-            const isEnded = totalBirdsSold >= totalBirdsAfterMortality;
+            const isEnded = (totalBirdsSold + input.birdsRejected) >= totalBirdsAfterMortality;
 
             let totalFeedBags = 0;
             if (isEnded) {
