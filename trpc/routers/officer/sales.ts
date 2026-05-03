@@ -1236,9 +1236,8 @@ export const officerSalesRouter = createTRPCRouter({
             const totalBirds = (cycle.doc || 0);
             const birdsSoldTotal = totalBirdsSold;
             const mortalityTotal = newMortality;
-            const totalBirdsRejected = (input.birdsRejected || 0) + previousSales
-                .filter(s => !input.excludeSaleId || s.id !== input.excludeSaleId)
-                .reduce((sum, s) => sum + ((s.selectedReport as any)?.birdsRejected || s.birdsRejected || 0), 0);
+            // birdsRejected is like totalMortality — the latest input value IS the cycle total
+            const totalBirdsRejected = input.birdsRejected || 0;
             const currentHouseBirds = Math.max(0, totalBirds - mortalityTotal - birdsSoldTotal - totalBirdsRejected);
             // Survival Rate for EPI is usually based on birds sold? Or total survival at end?
             // If cycle is ending, survival = (birdsSold / doc) * 100 ?
