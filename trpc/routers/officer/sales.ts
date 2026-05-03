@@ -20,7 +20,8 @@ const calculateMetrics = (
     feedConsumed: number, // in bags
     age: number,
     isEnded: boolean,
-    birdsRejected: number = 0
+    birdsRejected: number = 0,
+    cumulativeBirdsSold?: number
 ) => {
     if (!isEnded) {
         return { fcr: 0, epi: 0 };
@@ -35,7 +36,9 @@ const calculateMetrics = (
     const fcr = totalWeightKg > 0 ? feedKg / totalWeightKg : 0;
 
     // EPI = (Survival % × Avg Weight kg) / (FCR × Age) × 100
-    const avgWeightKg = survivors > 0 ? totalWeightKg / survivors : 0;
+    // Avg Weight = Total Weight / Total Birds Sold (excluding rejected)
+    const totalSold = cumulativeBirdsSold ?? survivors;
+    const avgWeightKg = totalSold > 0 ? totalWeightKg / totalSold : 0;
     const epi = (fcr > 0 && age > 0)
         ? (survivalRate * avgWeightKg) / (fcr * age) * 100
         : 0;
@@ -64,7 +67,7 @@ const getCycleStats = (events: any[]) => {
         const selectedData = ev.selectedReport || ev;
         revenueMap.set(key, currentRevenue + (parseFloat(selectedData.totalAmount) || 0));
         weightMap.set(key, currentWeight + (parseFloat(selectedData.totalWeight) || 0));
-        birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0) + (selectedData.birdsRejected || 0));
+        birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0));
 
         // Use the explicitly locked sale age if available, otherwise fallback dynamically
         // Prefer report-level age (selectedReport.age) over raw event age
@@ -82,7 +85,7 @@ const getCycleStats = (events: any[]) => {
         })();
 
         if (ageAtSale > 0) {
-            totalBirdDaysMap.set(key, currentBirdDays + (((selectedData.birdsSold || 0) + (selectedData.birdsRejected || 0)) * ageAtSale));
+            totalBirdDaysMap.set(key, currentBirdDays + ((selectedData.birdsSold || 0) * ageAtSale));
         }
 
     });
@@ -1720,7 +1723,8 @@ export const officerSalesRouter = createTRPCRouter({
                     feedConsumed,        // 🔥 RECALCULATED FEED
                     age,
                     isLatestInGroup && isEnded,      // Replaced isEnded
-                    latestRejected   // 🔥 NEW: Pass latest rejected
+                    latestRejected,   // 🔥 NEW: Pass latest rejected
+                    cumulativeBirdsSold  // 🔥 Total birds sold (excluding rejected)
                 );
                 // Profit calculation (backend-only)
                 const feedPrice = finalFeedPrice ?? feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
@@ -2462,7 +2466,7 @@ export const appendCycleContextToSales = async (
         const latestRejected = Number(latestSelectedReport ? latestSelectedReport.birdsRejected : latestEventInGroup?.birdsRejected) || 0;
 
         // Calculate FCR/EPI
-        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded, latestRejected);
+        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded, latestRejected, cumulativeBirdsSold);
 
         // Profit calculation (backend-only)
         const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
