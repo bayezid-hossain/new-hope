@@ -32,6 +32,6 @@ export const getCumulativeFeedForDay = (day: number): number => {
 };
 
 // Profit Calculation Constants
-export const FEED_PRICE_PER_BAG = 3220;
+export const FEED_PRICE_PER_BAG = 3325;
 export const DOC_PRICE_PER_BIRD = 41.5;
-export const BASE_SELLING_PRICE = 141;
+export const BASE_SELLING_PRICE = 145;
