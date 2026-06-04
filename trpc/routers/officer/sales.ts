@@ -1257,9 +1257,9 @@ export const officerSalesRouter = createTRPCRouter({
             // (Survival% * (AvgWeight / Age) * 100) / FCR? No that's huge.
             // (Survival% * AvgWeight / FCR / Age) * 100
 
-            const docPriceUsed = input.docPricePerBird ?? DOC_PRICE_PER_BIRD;
+            const docPriceUsed = input.docPricePerBird ?? (Number(cycle.farmer?.organization?.docPricePerBird) || DOC_PRICE_PER_BIRD);
 
-            const basePrice = input.recoveryPrice ?? BASE_SELLING_PRICE;
+            const basePrice = input.recoveryPrice ?? (Number(cycle.farmer?.organization?.baseSellPrice) || BASE_SELLING_PRICE);
 
             const avgPrice = totalWeight > 0 ? totalRevenue / totalWeight : 0;
             const netAdjustment = (avgPrice - basePrice) / 2;
