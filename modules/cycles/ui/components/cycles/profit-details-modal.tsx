@@ -21,6 +21,8 @@ interface ProfitDetailsModalProps {
     docCost: number;
     profit: number;
     baseRate?: number; // Per-cycle recovery price, defaults to BASE_SELLING_PRICE
+    feedPricePerBag?: number; // Actual feed price used in calculation, defaults to FEED_PRICE_PER_BAG
+    docPricePerBird?: number; // Actual DOC price used in calculation, defaults to DOC_PRICE_PER_BIRD
 }
 
 export const ProfitDetailsModal = ({
@@ -38,8 +40,12 @@ export const ProfitDetailsModal = ({
     docCost,
     profit,
     baseRate: baseRateProp,
+    feedPricePerBag: feedPricePerBagProp,
+    docPricePerBird: docPricePerBirdProp,
 }: ProfitDetailsModalProps) => {
     const baseRate = baseRateProp ?? BASE_SELLING_PRICE;
+    const feedPricePerBag = feedPricePerBagProp ?? FEED_PRICE_PER_BAG;
+    const docPricePerBird = docPricePerBirdProp ?? DOC_PRICE_PER_BIRD;
     // Check if there is a discrepancy between actual revenue and formula revenue
     const adjustmentType = netAdjustment > 0 ? "surplus" : netAdjustment < 0 ? "deficit" : "neutral";
     const baseRevenue = totalWeight * baseRate;
@@ -164,7 +170,7 @@ export const ProfitDetailsModal = ({
                             <div className="flex flex-col">
                                 <span className="text-muted-foreground text-xs">Feed Cost</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    {feedBags.toLocaleString()} bags × {FEED_PRICE_PER_BAG}
+                                    {feedBags.toLocaleString()} bags × {feedPricePerBag}
                                 </span>
                             </div>
                             <span className="font-mono text-red-600/80">
@@ -175,7 +181,7 @@ export const ProfitDetailsModal = ({
                             <div className="flex flex-col">
                                 <span className="text-muted-foreground text-xs">DOC Cost</span>
                                 <span className="text-[10px] text-muted-foreground opacity-70">
-                                    {docCount.toLocaleString()} birds × {DOC_PRICE_PER_BIRD}
+                                    {docCount.toLocaleString()} birds × {docPricePerBird}
                                 </span>
                             </div>
                             <span className="font-mono text-red-600/80">
