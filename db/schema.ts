@@ -119,7 +119,9 @@ export const twoFactor = pgTable("two_factor", {
 export const organization = pgTable("organization", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  feedPricePerBag: decimal("feed_price_per_bag").default("3220"), // Default until changed
+  feedPricePerBag: decimal("feed_price_per_bag").default("3325"), // Default until changed
+  docPricePerBird: decimal("doc_price_per_bird").default("41.5"),
+  baseSellPrice: decimal("base_sell_price").default("145"),
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 
