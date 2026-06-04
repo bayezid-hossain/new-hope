@@ -80,7 +80,7 @@ export class SaleMetricsService {
         // Note: We use the CURRENT feed price. Ideally this should be snapshot at cycle creation,
         // but for now this is better than a hardcoded constant.
         const orgFeedPrice = feedPriceOverride ?? (Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG);
-        const docPriceUsed = docPriceOverride ?? DOC_PRICE_PER_BIRD;
+        const docPriceUsed = docPriceOverride ?? (Number(cycle.farmer?.organization?.docPricePerBird) || DOC_PRICE_PER_BIRD);
 
         // Sort sales to find the latest one (Logic matches sales.ts)
         const sortedSales = [...sales].sort((a, b) => {
@@ -92,7 +92,7 @@ export class SaleMetricsService {
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
         // Use per-cycle recovery price if provided, otherwise fallback to global constant
-        const basePrice = recoveryPrice ?? BASE_SELLING_PRICE;
+        const basePrice = recoveryPrice ?? (Number(cycle.farmer?.organization?.baseSellPrice) || BASE_SELLING_PRICE);
 
         let netAdjustment = 0;
 
