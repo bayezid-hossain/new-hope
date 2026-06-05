@@ -126,6 +126,7 @@ export class NotificationService {
                 .where(
                     and(
                         eq(member.organizationId, organizationId!),
+                        eq(member.status, "ACTIVE"),
                         eq(member.activeMode, "MANAGEMENT"), // Only send to active managers
                         or(
                             eq(member.role, "OWNER"),

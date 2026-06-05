@@ -143,7 +143,7 @@ export const authRouter = createTRPCRouter({
 
       await ctx.db.update(member)
         .set({ activeMode: input.mode })
-        .where(eq(member.userId, ctx.user.id));
+        .where(and(eq(member.userId, ctx.user.id), eq(member.status, "ACTIVE")));
       return { success: true };
     }),
 
