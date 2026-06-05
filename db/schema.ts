@@ -151,6 +151,20 @@ export const member = pgTable("member", {
 ]);
 
 
+export const pricePolicies = pgTable("price_policies", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+  feedPricePerBag: decimal("feed_price_per_bag").notNull(),
+  docPricePerBird: decimal("doc_price_per_bird").notNull(),
+  baseSellPrice: decimal("base_sell_price").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_price_policies_org_id").on(t.organizationId),
+  unique("uq_price_policies_org_effective").on(t.organizationId, t.effectiveFrom),
+]);
+
+
 // =========================================================
 // 4. DOMAIN (Farmers, Cycles, History, Logs)
 // =========================================================
@@ -428,6 +442,11 @@ export const userRelations = relations(user, ({ many }) => ({
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   farmers: many(farmer),
+  pricePolicies: many(pricePolicies),
+}));
+
+export const pricePoliciesRelations = relations(pricePolicies, ({ one }) => ({
+  organization: one(organization, { fields: [pricePolicies.organizationId], references: [organization.id] }),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
