@@ -3,26 +3,39 @@ import { db } from "@/db";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 
 async function main() {
-    console.log("Starting historical sale metrics fix...");
-    console.log("This uses policy-based price lookup — cycles before 2026-06-05 will use 3220/141, after will use 3325/145.");
+    console.log("Recalculating sale metrics for ALL cycles (active + ended)...");
 
-    const allHistory = await db.query.cycleHistory.findMany({
-        columns: { id: true, endDate: true, organizationId: true, cycleName: true }
+    const [allHistory, allActive] = await Promise.all([
+        db.query.cycleHistory.findMany({ columns: { id: true, cycleName: true } }),
+        db.query.cycles.findMany({ columns: { id: true, name: true } }),
+    ]);
+
+    console.log(`Ended cycles: ${allHistory.length}, Active cycles: ${allActive.length}`);
+
+    const [endedResults, activeResults] = await Promise.all([
+        Promise.allSettled(
+            allHistory.map(c => SaleMetricsService.recalculateForCycle(undefined, c.id))
+        ),
+        Promise.allSettled(
+            allActive.map(c => SaleMetricsService.recalculateForCycle(c.id, undefined))
+        ),
+    ]);
+
+    const endedErrors = endedResults.filter(r => r.status === "rejected");
+    const activeErrors = activeResults.filter(r => r.status === "rejected");
+
+    endedErrors.forEach((r) => {
+        const c = allHistory[endedResults.indexOf(r)];
+        console.error(`[ended] ${c?.id} (${c?.cycleName}):`, (r as PromiseRejectedResult).reason);
+    });
+    activeErrors.forEach((r) => {
+        const c = allActive[activeResults.indexOf(r)];
+        console.error(`[active] ${c?.id} (${c?.name}):`, (r as PromiseRejectedResult).reason);
     });
 
-    console.log(`Found ${allHistory.length} archived cycles — running all in parallel...`);
-
-    const results = await Promise.allSettled(
-        allHistory.map(cycle => SaleMetricsService.recalculateForCycle(undefined, cycle.id))
-    );
-
-    const errors = results.filter(r => r.status === "rejected");
-    errors.forEach((r) => {
-        const cycle = allHistory[results.indexOf(r)];
-        console.error(`Error processing cycle ${cycle?.id} (${cycle?.cycleName}):`, (r as PromiseRejectedResult).reason);
-    });
-
-    console.log(`\nFix complete! Processed: ${results.length - errors.length}, Errors: ${errors.length}`);
+    console.log(`\nDone.`);
+    console.log(`  Ended  — OK: ${endedResults.length - endedErrors.length}, Errors: ${endedErrors.length}`);
+    console.log(`  Active — OK: ${activeResults.length - activeErrors.length}, Errors: ${activeErrors.length}`);
     process.exit(0);
 }
 
