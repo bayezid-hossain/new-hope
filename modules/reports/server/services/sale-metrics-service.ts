@@ -80,7 +80,7 @@ export class SaleMetricsService {
         // Determine the reference date for price policy lookup
         const priceDate = historyId
             ? (cycle as typeof cycleHistory.$inferSelect).endDate  // ended cycle: use end date
-            : new Date();  // active cycle: use current date (latest policy)
+            : cycle.createdAt;  // active cycle: use cycle start date (lock prices to when cycle began)
 
         const orgId = cycle.organizationId ?? cycle.farmer?.organization?.id ?? "";
 
