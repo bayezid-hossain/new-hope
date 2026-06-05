@@ -77,10 +77,22 @@ export class SaleMetricsService {
 
         const cycleStartDate = cycleId ? cycle.createdAt : cycle.startDate;
 
-        // Determine the reference date for price policy lookup
+        // Sort sales first — needed to find latest sale date for price policy lookup
+        const sortedSales = [...sales].sort((a, b) => {
+            const dateDiff = new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
+
+        // Determine the reference date for price policy lookup.
+        // Use the date of the most recent sale so prices reflect when the sale activity occurred.
+        // Ended cycles: use cycleHistory.endDate (set at archive time, matches last sale).
+        // Active cycles: use the latest sale's saleDate, or cycle.createdAt if no sales yet.
         const priceDate = historyId
-            ? (cycle as typeof cycleHistory.$inferSelect).endDate  // ended cycle: use end date
-            : cycle.createdAt;  // active cycle: use cycle start date (lock prices to when cycle began)
+            ? (cycle as typeof cycleHistory.$inferSelect).endDate
+            : (latestSale ? new Date(latestSale.saleDate) : cycle.createdAt);
 
         const orgId = cycle.organizationId ?? cycle.farmer?.organization?.id ?? "";
 
@@ -92,15 +104,6 @@ export class SaleMetricsService {
         const policyPrices = await SaleMetricsService.getPriceForDate(orgId, priceDate, tx);
         const orgFeedPrice = feedPriceOverride ?? policyPrices.feedPrice;
         const docPriceUsed = docPriceOverride ?? policyPrices.docPrice;
-
-        // Sort sales to find the latest one (Logic matches sales.ts)
-        const sortedSales = [...sales].sort((a, b) => {
-            const dateDiff = new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
-            if (dateDiff !== 0) return dateDiff;
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-
-        const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
         // Use per-cycle recovery price if provided, otherwise fallback to policy price
         const basePrice = recoveryPrice ?? policyPrices.basePrice;
