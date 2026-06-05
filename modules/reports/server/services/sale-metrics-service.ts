@@ -84,6 +84,10 @@ export class SaleMetricsService {
 
         const orgId = cycle.organizationId ?? cycle.farmer?.organization?.id ?? "";
 
+        if (!orgId) {
+            console.warn(`[recalculateForCycle] No orgId found for ${historyId ? `history ${historyId}` : `cycle ${cycleId}`} — price policy lookup will use defaults`);
+        }
+
         // Look up price policy effective at priceDate (or use explicit overrides)
         const policyPrices = await SaleMetricsService.getPriceForDate(orgId, priceDate, tx);
         const orgFeedPrice = feedPriceOverride ?? policyPrices.feedPrice;
@@ -260,6 +264,9 @@ export class SaleMetricsService {
         date: Date,
         tx?: any
     ): Promise<{ feedPrice: number; docPrice: number; basePrice: number }> {
+        if (!orgId) {
+            console.warn("[getPriceForDate] orgId is empty — falling back to default constants");
+        }
         const dbConn = tx ?? db;
         const policy = await dbConn.query.pricePolicies.findFirst({
             where: and(
