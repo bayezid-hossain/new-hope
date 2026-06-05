@@ -7,6 +7,7 @@ import { managementFeedOrdersRouter } from "./feed-orders";
 import { managementMembersRouter } from "./members";
 import { managementOfficersRouter } from "./officers";
 import { managementPerformanceReportsRouter } from "./performance-reports";
+import { managementPricePoliciesRouter } from "./price-policies";
 import { managementReportsRouter } from "./reports";
 import { managementSaleOrdersRouter } from "./sale-orders";
 import { managementSalesRouter } from "./sales";
@@ -26,4 +27,5 @@ export const managementRouter = createTRPCRouter({
     saleOrders: managementSaleOrdersRouter,
     sales: managementSalesRouter,
     stock: managementStockRouter,
+    pricePolicies: managementPricePoliciesRouter,
 });
