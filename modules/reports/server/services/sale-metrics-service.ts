@@ -1,7 +1,7 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { db } from "@/db";
-import { cycleHistory, cycles, saleEvents, saleMetrics } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { cycleHistory, cycles, pricePolicies, saleEvents, saleMetrics } from "@/db/schema";
+import { and, desc, eq, lte } from "drizzle-orm";
 
 export class SaleMetricsService {
     /**
@@ -76,11 +76,18 @@ export class SaleMetricsService {
         if (!cycle) return;
 
         const cycleStartDate = cycleId ? cycle.createdAt : cycle.startDate;
-        // Use organization's feed price if available, otherwise fallback to constant
-        // Note: We use the CURRENT feed price. Ideally this should be snapshot at cycle creation,
-        // but for now this is better than a hardcoded constant.
-        const orgFeedPrice = feedPriceOverride ?? (Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG);
-        const docPriceUsed = docPriceOverride ?? (Number(cycle.farmer?.organization?.docPricePerBird) || DOC_PRICE_PER_BIRD);
+
+        // Determine the reference date for price policy lookup
+        const priceDate = historyId
+            ? (cycle as typeof cycleHistory.$inferSelect).endDate  // ended cycle: use end date
+            : new Date();  // active cycle: use current date (latest policy)
+
+        const orgId = cycle.organizationId ?? cycle.farmer?.organization?.id ?? "";
+
+        // Look up price policy effective at priceDate (or use explicit overrides)
+        const policyPrices = await SaleMetricsService.getPriceForDate(orgId, priceDate, tx);
+        const orgFeedPrice = feedPriceOverride ?? policyPrices.feedPrice;
+        const docPriceUsed = docPriceOverride ?? policyPrices.docPrice;
 
         // Sort sales to find the latest one (Logic matches sales.ts)
         const sortedSales = [...sales].sort((a, b) => {
@@ -91,8 +98,8 @@ export class SaleMetricsService {
 
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
-        // Use per-cycle recovery price if provided, otherwise fallback to global constant
-        const basePrice = recoveryPrice ?? (Number(cycle.farmer?.organization?.baseSellPrice) || BASE_SELLING_PRICE);
+        // Use per-cycle recovery price if provided, otherwise fallback to policy price
+        const basePrice = recoveryPrice ?? policyPrices.basePrice;
 
         let netAdjustment = 0;
 
@@ -224,7 +231,7 @@ export class SaleMetricsService {
             netProfit: netProfit.toFixed(2).toString(),
             feedPriceUsed: orgFeedPrice.toString(),
             docPriceUsed: docPriceUsed.toString(),
-            recoveryPrice: recoveryPrice ? recoveryPrice.toString() : null,
+            recoveryPrice: (recoveryPrice ?? policyPrices.basePrice).toString(),
             lastRecalculatedAt: new Date(),
         }).onConflictDoUpdate({
             target: cycleId ? [saleMetrics.cycleId] : [saleMetrics.historyId],
@@ -240,10 +247,32 @@ export class SaleMetricsService {
                 medicineCost: totalMedicineCost.toString(),
                 totalRevenue: totalRevenue.toString(),
                 netProfit: netProfit.toString(),
-                recoveryPrice: recoveryPrice ? recoveryPrice.toString() : null,
+                feedPriceUsed: orgFeedPrice.toString(),
+                docPriceUsed: docPriceUsed.toString(),
+                recoveryPrice: (recoveryPrice ?? policyPrices.basePrice).toString(),
                 lastRecalculatedAt: new Date(),
             }
         });
+    }
+
+    static async getPriceForDate(
+        orgId: string,
+        date: Date,
+        tx?: any
+    ): Promise<{ feedPrice: number; docPrice: number; basePrice: number }> {
+        const dbConn = tx ?? db;
+        const policy = await dbConn.query.pricePolicies.findFirst({
+            where: and(
+                eq(pricePolicies.organizationId, orgId),
+                lte(pricePolicies.effectiveFrom, date)
+            ),
+            orderBy: [desc(pricePolicies.effectiveFrom)],
+        });
+        return {
+            feedPrice: Number(policy?.feedPricePerBag) || FEED_PRICE_PER_BAG,
+            docPrice:  Number(policy?.docPricePerBird) || DOC_PRICE_PER_BIRD,
+            basePrice: Number(policy?.baseSellPrice)   || BASE_SELLING_PRICE,
+        };
     }
 
     // Helper methods
