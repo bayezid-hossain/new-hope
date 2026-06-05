@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { db } from "@/db";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 
