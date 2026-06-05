@@ -10,27 +10,19 @@ async function main() {
         columns: { id: true, endDate: true, organizationId: true, cycleName: true }
     });
 
-    console.log(`Found ${allHistory.length} archived cycles to process.`);
+    console.log(`Found ${allHistory.length} archived cycles — running all in parallel...`);
 
-    let processed = 0;
-    let errors = 0;
+    const results = await Promise.allSettled(
+        allHistory.map(cycle => SaleMetricsService.recalculateForCycle(undefined, cycle.id))
+    );
 
-    for (const cycle of allHistory) {
-        try {
-            await SaleMetricsService.recalculateForCycle(undefined, cycle.id);
-            processed++;
-            if (processed % 10 === 0) {
-                console.log(`Processed ${processed}/${allHistory.length} cycles...`);
-            }
-        } catch (error) {
-            console.error(`Error processing cycle ${cycle.id} (${cycle.cycleName}):`, error);
-            errors++;
-        }
-    }
+    const errors = results.filter(r => r.status === "rejected");
+    errors.forEach((r) => {
+        const cycle = allHistory[results.indexOf(r)];
+        console.error(`Error processing cycle ${cycle?.id} (${cycle?.cycleName}):`, (r as PromiseRejectedResult).reason);
+    });
 
-    console.log("Fix complete!");
-    console.log(`Successfully processed: ${processed}`);
-    console.log(`Errors: ${errors}`);
+    console.log(`\nFix complete! Processed: ${results.length - errors.length}, Errors: ${errors.length}`);
     process.exit(0);
 }
 
