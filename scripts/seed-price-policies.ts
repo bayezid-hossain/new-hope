@@ -1,10 +1,13 @@
 import "dotenv/config";
 import { db } from "@/db";
-import { organization, pricePolicies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { pricePolicies } from "@/db/schema";
+import { and, eq, lte } from "drizzle-orm";
+
+const HISTORICAL_DATE = new Date("2000-01-01T00:00:00Z");
+const CURRENT_POLICY_DATE = new Date("2026-06-01T00:00:00Z"); // uses whatever is already in DB
 
 async function main() {
-    console.log("Seeding price_policies table...");
+    console.log("Seeding missing historical price policy...");
 
     const orgs = await db.query.organization.findMany({ columns: { id: true, name: true } });
     console.log(`Found ${orgs.length} organization(s).`);
@@ -13,40 +16,35 @@ async function main() {
     let skipped = 0;
 
     for (const org of orgs) {
-        const existing = await db.query.pricePolicies.findMany({
-            where: eq(pricePolicies.organizationId, org.id),
-            columns: { id: true, effectiveFrom: true },
+        // Check specifically if a historical policy (effectiveFrom <= 2000-01-02) exists
+        const hasHistorical = await db.query.pricePolicies.findFirst({
+            where: and(
+                eq(pricePolicies.organizationId, org.id),
+                lte(pricePolicies.effectiveFrom, new Date("2000-01-02T00:00:00Z"))
+            ),
+            columns: { id: true },
         });
 
-        if (existing.length > 0) {
-            console.log(`  [${org.name}] Already has ${existing.length} polic(ies) — skipping.`);
+        if (hasHistorical) {
+            console.log(`  [${org.name}] Historical policy already exists — skipping.`);
             skipped++;
             continue;
         }
 
-        // Historical policy: all cycles before 2026-06-05 used 3220/41.5/141
         await db.insert(pricePolicies).values({
             organizationId: org.id,
-            effectiveFrom: new Date("2000-01-01T00:00:00Z"),
+            effectiveFrom: HISTORICAL_DATE,
             feedPricePerBag: "3220",
             docPricePerBird: "41.5",
             baseSellPrice: "141",
         });
 
-        // Current policy: from 2026-06-05 onwards use 3325/41.5/145
-        await db.insert(pricePolicies).values({
-            organizationId: org.id,
-            effectiveFrom: new Date("2026-06-05T00:00:00Z"),
-            feedPricePerBag: "3325",
-            docPricePerBird: "41.5",
-            baseSellPrice: "145",
-        });
-
-        console.log(`  [${org.name}] Inserted 2 policies (3220/141 from 2000-01-01, 3325/145 from 2026-06-05).`);
+        console.log(`  [${org.name}] Inserted historical policy (3220/141 from 2000-01-01).`);
         inserted++;
     }
 
-    console.log(`\nDone. Seeded: ${inserted} org(s), skipped: ${skipped} org(s).`);
+    console.log(`\nDone. Inserted: ${inserted} org(s), skipped: ${skipped} org(s).`);
+    console.log("Now run: npx tsx scripts/fix-historical-sale-metrics.ts");
     process.exit(0);
 }
 
