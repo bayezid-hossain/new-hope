@@ -2506,6 +2506,8 @@ export const appendCycleContextToSales = async (
                 profit,
                 avgPrice: parseFloat(avgPrice.toFixed(2)),
                 recoveryPrice: recoveryPriceMap.get(groupKey) ?? null,
+                feedPriceUsed: feedPriceUsedMap.get(groupKey) ?? null,
+                docPriceUsed: docPriceUsedMap.get(groupKey) ?? null,
                 birdType: cycleOrHistory?.birdType,
                 createdAt: cycleOrHistory ? ((cycleOrHistory as any).startDate || (cycleOrHistory as any).createdAt) : null,
                 officialInputDate: cycleOrHistory?.officialInputDate ?? null
