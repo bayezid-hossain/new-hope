@@ -1,5 +1,7 @@
 import "dotenv/config";
 import { db } from "@/db";
+import { saleMetrics } from "@/db/schema";
+import { and, isNull } from "drizzle-orm";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 
 async function main() {
@@ -33,9 +35,15 @@ async function main() {
         console.error(`[active] ${c?.id} (${c?.name}):`, (r as PromiseRejectedResult).reason);
     });
 
+    // Delete orphaned sale_metrics rows (cycleId and historyId both NULL)
+    // These are left over from cycles that were deleted rather than archived
+    const deleted = await db.delete(saleMetrics)
+        .where(and(isNull(saleMetrics.cycleId), isNull(saleMetrics.historyId)));
+
     console.log(`\nDone.`);
     console.log(`  Ended  — OK: ${endedResults.length - endedErrors.length}, Errors: ${endedErrors.length}`);
     console.log(`  Active — OK: ${activeResults.length - activeErrors.length}, Errors: ${activeErrors.length}`);
+    console.log(`  Orphaned rows deleted: ${(deleted as any).rowCount ?? "unknown"}`);
     process.exit(0);
 }
 
