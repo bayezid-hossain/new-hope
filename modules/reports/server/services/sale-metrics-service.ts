@@ -86,14 +86,11 @@ export class SaleMetricsService {
 
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
-        // Always use latest sale date for price lookup — not archive date.
-        // cycleHistory.endDate is set to NOW() when archived, so cycles archived after
-        // a price change would incorrectly get the new policy. Use saleDate instead.
-        const priceDate = latestSale
-            ? new Date(latestSale.saleDate)
-            : (historyId
-                ? (cycle as typeof cycleHistory.$inferSelect).endDate
-                : cycle.createdAt);
+        // Ended cycles: use cycleHistory.endDate (the actual end date of the cycle).
+        // Active cycles: use the latest sale's saleDate, or cycle.createdAt if no sales yet.
+        const priceDate = historyId
+            ? (cycle as typeof cycleHistory.$inferSelect).endDate
+            : (latestSale ? new Date(latestSale.saleDate) : cycle.createdAt);
 
         const orgId = cycle.organizationId
             ?? cycle.farmer?.organizationId   // direct FK — doesn't require joined org object
@@ -194,7 +191,7 @@ export class SaleMetricsService {
         // Revert to using Cycle Age for EPI to match frontend (sales-history-card.tsx) if no sales
         const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
         const averageAge = Number(rawAverageAge.toFixed(2));
-        
+
         // Get rejected birds from the latest sale (matches how totalMortality is sourced)
         const latestSaleData = latestSale?.selectedReport || latestSale;
         const totalBirdsRejected = Number(latestSaleData?.birdsRejected) || 0;
@@ -284,8 +281,8 @@ export class SaleMetricsService {
         });
         return {
             feedPrice: Number(policy?.feedPricePerBag) || FEED_PRICE_PER_BAG,
-            docPrice:  Number(policy?.docPricePerBird) || DOC_PRICE_PER_BIRD,
-            basePrice: Number(policy?.baseSellPrice)   || BASE_SELLING_PRICE,
+            docPrice: Number(policy?.docPricePerBird) || DOC_PRICE_PER_BIRD,
+            basePrice: Number(policy?.baseSellPrice) || BASE_SELLING_PRICE,
         };
     }
 
