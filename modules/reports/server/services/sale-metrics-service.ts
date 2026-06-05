@@ -86,15 +86,19 @@ export class SaleMetricsService {
 
         const latestSale = sortedSales.length > 0 ? sortedSales[0] : null;
 
-        // Determine the reference date for price policy lookup.
-        // Use the date of the most recent sale so prices reflect when the sale activity occurred.
-        // Ended cycles: use cycleHistory.endDate (set at archive time, matches last sale).
-        // Active cycles: use the latest sale's saleDate, or cycle.createdAt if no sales yet.
-        const priceDate = historyId
-            ? (cycle as typeof cycleHistory.$inferSelect).endDate
-            : (latestSale ? new Date(latestSale.saleDate) : cycle.createdAt);
+        // Always use latest sale date for price lookup — not archive date.
+        // cycleHistory.endDate is set to NOW() when archived, so cycles archived after
+        // a price change would incorrectly get the new policy. Use saleDate instead.
+        const priceDate = latestSale
+            ? new Date(latestSale.saleDate)
+            : (historyId
+                ? (cycle as typeof cycleHistory.$inferSelect).endDate
+                : cycle.createdAt);
 
-        const orgId = cycle.organizationId ?? cycle.farmer?.organization?.id ?? "";
+        const orgId = cycle.organizationId
+            ?? cycle.farmer?.organizationId   // direct FK — doesn't require joined org object
+            ?? cycle.farmer?.organization?.id
+            ?? "";
 
         if (!orgId) {
             console.warn(`[recalculateForCycle] No orgId found for ${historyId ? `history ${historyId}` : `cycle ${cycleId}`} — price policy lookup will use defaults`);
