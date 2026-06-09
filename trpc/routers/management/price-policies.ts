@@ -133,6 +133,39 @@ export const managementPricePoliciesRouter = createTRPCRouter({
 
             return updated;
         }),
+
+    // Delete a price policy
+    delete: managementProcedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            if (ctx.membership?.accessLevel !== "EDIT") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You need edit access to manage price policies.",
+                });
+            }
+
+            const orgId = input.orgId;
+
+            const existing = await ctx.db.query.pricePolicies.findFirst({
+                where: and(
+                    eq(pricePolicies.id, input.id),
+                    eq(pricePolicies.organizationId, orgId),
+                ),
+            });
+
+            if (!existing) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Price policy not found",
+                });
+            }
+
+            await ctx.db.delete(pricePolicies).where(eq(pricePolicies.id, input.id));
+
+            // Re-sync org prices in case the deleted policy was the latest
+            await syncOrgPrices(ctx.db, orgId);
+        }),
 });
 
 /**
