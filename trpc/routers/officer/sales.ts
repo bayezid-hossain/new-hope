@@ -1172,6 +1172,10 @@ export const officerSalesRouter = createTRPCRouter({
                 throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
             }
 
+            // Look up price policy effective at sale date (same as recalculateForCycle)
+            const orgId = cycle.farmer?.organizationId ?? cycle.farmer?.organization?.id ?? "";
+            const policyPrices = await SaleMetricsService.getPriceForDate(orgId, input.saleDate);
+
             // Fetch previous sales to calculate cumulative stats
             const previousSales = await ctx.db.query.saleEvents.findMany({
                 where: historyIdToUse ? eq(saleEvents.historyId, historyIdToUse) : eq(saleEvents.cycleId, cycleIdToUse),
@@ -1223,7 +1227,7 @@ export const officerSalesRouter = createTRPCRouter({
             }
 
             // Calculate Metrics
-            const orgFeedPrice = input.feedPricePerBag ?? (Number(cycle.farmer?.organization?.feedPricePerBag) || FEED_PRICE_PER_BAG);
+            const orgFeedPrice = input.feedPricePerBag ?? policyPrices.feedPrice;
 
 
             // EPI Calculation needs age
@@ -1257,9 +1261,9 @@ export const officerSalesRouter = createTRPCRouter({
             // (Survival% * (AvgWeight / Age) * 100) / FCR? No that's huge.
             // (Survival% * AvgWeight / FCR / Age) * 100
 
-            const docPriceUsed = input.docPricePerBird ?? (Number(cycle.farmer?.organization?.docPricePerBird) || DOC_PRICE_PER_BIRD);
+            const docPriceUsed = input.docPricePerBird ?? policyPrices.docPrice;
 
-            const basePrice = input.recoveryPrice ?? (Number(cycle.farmer?.organization?.baseSellPrice) || BASE_SELLING_PRICE);
+            const basePrice = input.recoveryPrice ?? policyPrices.basePrice;
 
             const avgPrice = totalWeight > 0 ? totalRevenue / totalWeight : 0;
             const netAdjustment = (avgPrice - basePrice) / 2;
