@@ -127,6 +127,12 @@ export const saleOrdersRouter = createTRPCRouter({
             return { success: true };
         }),
 
+    deleteAll: proProcedure
+        .mutation(async ({ ctx }) => {
+            await ctx.db.delete(saleOrders).where(eq(saleOrders.officerId, ctx.user.id));
+            return { success: true };
+        }),
+
     update: proProcedure
         .input(z.object({
             id: z.string(),
