@@ -390,7 +390,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 .filter(p => p.matchedFarmerId && !p.stockAdded)
                 .map(p => ({
                     farmerId: p.matchedFarmerId!,
-                    amount: p.amount,
+                    feeds: [{ quantity: p.amount }],
                     note: `Bulk Import: ${p.matchedName || p.cleanName}`
                 })),
             driverName: driverName

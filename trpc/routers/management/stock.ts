@@ -69,7 +69,7 @@ export const managementStockRouter = createTRPCRouter({
                     MAX(driver_name) as "driverName",
                     MIN(created_at) as "createdAt"
                 FROM ${stockLogs}
-                WHERE type = 'RESTOCK' 
+                WHERE type = 'STOCK_ADDED'
                 AND reference_id IS NOT NULL
                 ${officerFilter}
                 ${searchCondition}
@@ -120,6 +120,41 @@ export const managementStockRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
+    // GET STOCK BREAKDOWN BY FEED TYPE
+    // Note: consumption (CYCLE_CLOSE logs) has no per-type breakdown, so it lands in `unspecified`
+    // along with any untyped/legacy log. byType + unspecified always reconciles to `total`.
+    getStockBreakdown: managementProcedure
+        .input(z.object({ farmerId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const f = await ctx.db.query.farmer.findFirst({
+                where: and(
+                    eq(farmer.id, input.farmerId),
+                    eq(farmer.organizationId, input.orgId)
+                )
+            });
+            if (!f) throw new TRPCError({ code: "NOT_FOUND" });
+            if (f.status === "deleted") throw new TRPCError({ code: "NOT_FOUND" });
+
+            const rows = await ctx.db.select({
+                feedType: stockLogs.feedType,
+                total: sql<string>`SUM(${stockLogs.amount})`
+            })
+                .from(stockLogs)
+                .where(eq(stockLogs.farmerId, input.farmerId))
+                .groupBy(stockLogs.feedType);
+
+            const byType: { feedType: string; amount: number }[] = [];
+            let unspecified = 0;
+            rows.forEach(r => {
+                const amt = Number(r.total);
+                if (r.feedType) byType.push({ feedType: r.feedType, amount: amt });
+                else unspecified += amt;
+            });
+            byType.sort((a, b) => a.feedType.localeCompare(b.feedType));
+
+            return { byType, unspecified, total: f.mainStock };
+        }),
+
     getBatchDetails: managementProcedure
         .input(z.object({ batchId: z.string() }))
         .query(async ({ ctx, input }) => {
@@ -129,6 +164,7 @@ export const managementStockRouter = createTRPCRouter({
                 note: stockLogs.note,
                 createdAt: stockLogs.createdAt,
                 driverName: stockLogs.driverName,
+                feedType: stockLogs.feedType,
                 farmerName: farmer.name,
                 farmerId: farmer.id
             })
@@ -149,7 +185,8 @@ export const managementStockRouter = createTRPCRouter({
             sourceFarmerId: z.string(),
             targetFarmerId: z.string(),
             amount: z.number().positive().max(1000, "Max transfer is 1000 bags"),
-            note: z.string().max(500).optional()
+            note: z.string().max(500).optional(),
+            feedType: z.string().trim().max(50).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             if (input.sourceFarmerId === input.targetFarmerId) {
@@ -209,6 +246,7 @@ export const managementStockRouter = createTRPCRouter({
                     type: "TRANSFER_OUT",
                     referenceId: transferId,
                     note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
+                    feedType: input.feedType || null,
                     balanceAfter: sourceNewBalance.toString(),
                 });
 
@@ -227,6 +265,7 @@ export const managementStockRouter = createTRPCRouter({
                     type: "TRANSFER_IN",
                     referenceId: transferId,
                     note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
+                    feedType: input.feedType || null,
                     balanceAfter: targetNewBalance.toString(),
                 });
 
@@ -251,7 +290,8 @@ export const managementStockRouter = createTRPCRouter({
         .input(z.object({
             farmerId: z.string(),
             amount: z.number().positive().max(2000, "Max addition is 2000 bags"),
-            note: z.string().max(500).optional()
+            note: z.string().max(500).optional(),
+            feedType: z.string().trim().max(50).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Access check: User must have EDIT permissions
@@ -283,6 +323,7 @@ export const managementStockRouter = createTRPCRouter({
                     amount: input.amount.toString(),
                     type: "STOCK_ADDED",
                     note: input.note || "Standard stock replenishment",
+                    feedType: input.feedType || null,
                     balanceAfter: newBalance.toString(),
                 });
 
@@ -305,7 +346,8 @@ export const managementStockRouter = createTRPCRouter({
         .input(z.object({
             farmerId: z.string(),
             amount: z.number().positive().max(1000, "Max deduction is 1000 bags"),
-            note: z.string().max(500).optional()
+            note: z.string().max(500).optional(),
+            feedType: z.string().trim().max(50).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Access check: User must have EDIT permissions
@@ -337,6 +379,7 @@ export const managementStockRouter = createTRPCRouter({
                     amount: (-input.amount).toString(),
                     type: "STOCK_DEDUCTED",
                     note: input.note || "Manual stock removal",
+                    feedType: input.feedType || null,
                     balanceAfter: newBalance.toString(),
                 });
 

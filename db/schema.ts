@@ -298,6 +298,8 @@ export const stockLogs = pgTable("stock_logs", {
   referenceId: varchar("reference_id"), // ID of the Cycle or Restock Event
   driverName: text("driver_name"), // Added for bulk imports
   note: text("note"),
+  feedType: text("feed_type"), // Freeform feed variety label (e.g. "B1", "B2"), nullable — matches feedOrderItems.feedType convention
+
   balanceAfter: decimal("balance_after"), // Running balance snapshot after this transaction
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
