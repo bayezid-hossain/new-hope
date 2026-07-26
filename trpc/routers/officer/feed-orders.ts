@@ -1,4 +1,5 @@
 import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
+import { roundedMainStock } from "@/db/stock-math";
 import { TRPCError } from "@trpc/server";
 import { format } from "date-fns";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -272,7 +273,7 @@ export const feedOrdersRouter = createTRPCRouter({
                 throw new TRPCError({ code: "BAD_REQUEST", message: "Order is already confirmed" });
             }
 
-            // Group quantities by farmer
+            // Group quantities by farmer (for the mainStock update + deleted-farmer guard)
             const farmerUpdates = new Map<string, number>();
             for (const item of order.items) {
                 const current = farmerUpdates.get(item.farmerId) || 0;
@@ -280,9 +281,15 @@ export const feedOrdersRouter = createTRPCRouter({
             }
 
             return await ctx.db.transaction(async (tx) => {
-                const logsToInsert: any[] = [];
+                // Fetch pre-update balances so we can build a running balance per feed line below
+                const farmerIds = Array.from(farmerUpdates.keys());
+                const farmersData = await tx.query.farmer.findMany({
+                    where: inArray(farmer.id, farmerIds),
+                    columns: { id: true, mainStock: true }
+                });
+                const runningBalance = new Map(farmersData.map(f => [f.id, f.mainStock]));
 
-                // Update each farmer's mainStock and prepare logs
+                // Update each farmer's mainStock
                 for (const [farmerId, quantity] of farmerUpdates.entries()) {
                     // Visibility Restriction: Block confirmation if farmer is deleted (for non-admins)
                     if (ctx.user.globalRole !== "ADMIN") {
@@ -294,27 +301,27 @@ export const feedOrdersRouter = createTRPCRouter({
 
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} + ${quantity}`,
+                            mainStock: roundedMainStock(quantity),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, farmerId));
+                }
 
-                    // Re-read updated balance
-                    const updatedFarmer = await tx.query.farmer.findFirst({
-                        where: eq(farmer.id, farmerId),
-                        columns: { mainStock: true }
-                    });
-
-                    logsToInsert.push({
-                        farmerId,
-                        amount: quantity.toString(),
+                // One stockLogs row per feed line (preserves each item's own feed type)
+                const logsToInsert = order.items.map(item => {
+                    const running = (runningBalance.get(item.farmerId) ?? 0) + item.quantity;
+                    runningBalance.set(item.farmerId, running);
+                    return {
+                        farmerId: item.farmerId,
+                        amount: item.quantity.toString(),
                         type: "STOCK_ADDED",
                         referenceId: input.id,
                         driverName: input.driverName || null,
+                        feedType: item.feedType || null,
                         note: `Feed Order #${input.id.substring(0, 8)} confirmed (Driver: ${input.driverName || 'N/A'})`,
-                        balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
-                    });
-                }
+                        balanceAfter: running.toString(),
+                    };
+                });
 
                 if (logsToInsert.length > 0) {
                     await tx.insert(stockLogs).values(logsToInsert);
@@ -364,7 +371,7 @@ export const feedOrdersRouter = createTRPCRouter({
                 for (const [farmerId, quantity] of farmerUpdates.entries()) {
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} - ${quantity}`,
+                            mainStock: roundedMainStock(sql`-(${quantity}::real)`),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, farmerId));

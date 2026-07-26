@@ -64,6 +64,13 @@
       "when": 1780643522270,
       "tag": "0008_elite_terrax",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785042544763,
+      "tag": "0009_cultured_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

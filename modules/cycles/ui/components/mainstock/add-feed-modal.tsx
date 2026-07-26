@@ -70,7 +70,7 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
   const onSubmit = (values: z.infer<typeof addStockSchema>) => {
     addStockMutation.mutate({
       farmerId: id,
-      amount: values.amount,
+      feeds: [{ quantity: values.amount }],
       note: values.note || undefined // clean up empty strings
     });
   };

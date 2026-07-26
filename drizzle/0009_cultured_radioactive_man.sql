@@ -1,0 +1,1 @@
+ALTER TABLE "stock_logs" ADD COLUMN "feed_type" text;

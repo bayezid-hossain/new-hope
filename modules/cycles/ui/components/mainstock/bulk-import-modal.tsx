@@ -231,7 +231,9 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const results: ParsedItem[] = (extractedData as any[]).map((item: any, index: number) => {
                 const nameCandidate = item.name.trim();
-                const totalAmount = item.amount;
+                const totalAmount = Array.isArray(item.feeds)
+                    ? item.feeds.reduce((s: number, f: any) => s + (Number(f.amount) || 0), 0)
+                    : (item.amount || 0);
                 const matchedId = item.matchedId;
                 const confidence = item.confidence || "LOW";
                 const location = item.location;
@@ -390,7 +392,7 @@ export function BulkImportModal({ open, onOpenChange, orgId }: BulkImportModalPr
                 .filter(p => p.matchedFarmerId && !p.stockAdded)
                 .map(p => ({
                     farmerId: p.matchedFarmerId!,
-                    amount: p.amount,
+                    feeds: [{ quantity: p.amount }],
                     note: `Bulk Import: ${p.matchedName || p.cleanName}`
                 })),
             driverName: driverName

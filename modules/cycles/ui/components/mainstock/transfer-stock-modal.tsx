@@ -116,7 +116,7 @@ export function TransferStockModal({
         transferMutation.mutate({
             sourceFarmerId,
             targetFarmerId: values.targetFarmerId,
-            amount: values.amount,
+            feeds: [{ quantity: values.amount }],
             note: values.note,
         });
     };
