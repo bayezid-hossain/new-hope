@@ -248,13 +248,19 @@ export const aiRouter = createTRPCRouter({
 
             const systemPrompt = `
             You are an intelligent data extraction and matching engine.
-            Goal: Extract farmer names and their TOTAL feed bag count.
-            
-            IMPORTANT: If a farmer appears multiple times in the text, SUM their amounts into a single entry with the TOTAL.
+            Goal: Extract farmer names and the feed bags they received, BROKEN DOWN BY FEED TYPE.
+
+            FEED TYPE RULES:
+            - Feed types are short codes/names like "B1", "B2", "Starter", "Grower", "Layer" etc, usually written right next to or near the bag count (e.g. "20 bags B1", "B2 - 10", "10 B1 + 5 B2").
+            - Each distinct type+quantity mentioned for a farmer is its own entry in "feeds".
+            - If NO feed type is mentioned for a quantity, still include it with "type": null.
+            - A farmer can have multiple feed lines with different types.
+
+            IMPORTANT: If a farmer appears multiple times in the text, merge into a single entry and SUM quantities that share the same type (keep different types as separate lines).
             CRITICAL: You must extract EVERY SINGLE farmer mentioned in the text. DO NOT stop after a few. DO NOT summarize. Process the entire text.
             If there are 50 farmers, return 50 entries.
-            Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation. 
-            Format: { "farmers": [{ "original_name": "string", "amount": number }] }
+            Return a valid STRICT JSON Object with a "farmers" key. Do not output any markdown formatting or explanation.
+            Format: { "farmers": [{ "original_name": "string", "feeds": [{ "type": string | null, "amount": number }] }] }
             `;
 
             try {
@@ -334,9 +340,18 @@ export const aiRouter = createTRPCRouter({
 
                     const { matchedId, matchedName, confidence, suggestions } = matchFarmer(originalName, candidates);
 
+                    const rawFeeds = Array.isArray(item.feeds) && item.feeds.length > 0
+                        ? item.feeds
+                        : [{ type: null, amount: item.amount }];
+
+                    const feeds = rawFeeds.map((f: any) => ({
+                        type: f.type ? String(f.type).trim() : null,
+                        amount: Number(f.amount) || 0
+                    })).filter((f: any) => f.amount > 0);
+
                     return {
                         name: originalName,
-                        amount: Number(item.amount) || 0,
+                        feeds,
                         matchedId,
                         matchedName,
                         confidence,
@@ -346,6 +361,16 @@ export const aiRouter = createTRPCRouter({
                     };
                 });
 
+                const mergeFeeds = (a: { type: string | null; amount: number }[], b: { type: string | null; amount: number }[]) => {
+                    const merged = a.map(f => ({ ...f }));
+                    for (const feed of b) {
+                        const existing = merged.find(f => (f.type || "").toLowerCase() === (feed.type || "").toLowerCase());
+                        if (existing) existing.amount += feed.amount;
+                        else merged.push({ ...feed });
+                    }
+                    return merged;
+                };
+
                 // Aggregation Logic: Merge duplicates based on matchedId or name
                 const aggregatedMap = new Map<string, typeof mappedData[0]>();
 
@@ -354,7 +379,7 @@ export const aiRouter = createTRPCRouter({
 
                     if (aggregatedMap.has(key)) {
                         const existing = aggregatedMap.get(key)!;
-                        existing.amount += item.amount;
+                        existing.feeds = mergeFeeds(existing.feeds, item.feeds);
 
                         // Always try to fill in missing metadata
                         existing.location = existing.location || item.location;

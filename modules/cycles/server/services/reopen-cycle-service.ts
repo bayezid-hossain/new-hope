@@ -1,6 +1,7 @@
-import { cycleHistory, cycleLogs, cycles, farmer, saleEvents, saleMetrics, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, saleEvents, saleMetrics } from "@/db/schema";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 import { eq, sql } from "drizzle-orm";
+import { restoreFeedByReference } from "./feed-stock-service";
 
 /**
  * Reopens an ended cycle from history by:
@@ -45,29 +46,18 @@ export const reopenCycleFromHistory = async (
         .set({ cycleId: newCycle.id, historyId: null })
         .where(eq(saleEvents.historyId, historyId));
 
-    // 5. Restore farmer stock (reverse the deduction made at cycle end)
-    const feedToRestore = history.finalIntake || 0;
-    if (feedToRestore > 0) {
+    // 5. Restore farmer stock — mirror the exact original per-type consumption rows (typed +
+    // any Unspecified-fallback pieces), rather than one lump untyped amount.
+    const { netAmount } = await restoreFeedByReference(
+        tx,
+        historyId,
+        "CYCLE_CONSUMPTION",
+        `Adjustment: Restored feed after reopening "${history.cycleName}"`
+    );
+    if (netAmount !== 0) {
         await tx.update(farmer).set({
-            mainStock: sql`${farmer.mainStock} + ${feedToRestore}`,
-            totalConsumed: sql`${farmer.totalConsumed} - ${feedToRestore}`,
-            updatedAt: new Date(),
+            totalConsumed: sql`${farmer.totalConsumed} - ${netAmount}`,
         }).where(eq(farmer.id, history.farmerId));
-
-        // Re-read updated balance
-        const updatedFarmer = await tx.query.farmer.findFirst({
-            where: eq(farmer.id, history.farmerId),
-            columns: { mainStock: true }
-        });
-
-        await tx.insert(stockLogs).values({
-            farmerId: history.farmerId,
-            amount: feedToRestore.toString(),
-            type: "ADJUSTMENT",
-            referenceId: newCycle.id,
-            note: `Adjustment: Added back ${feedToRestore} bags after reopening "${history.cycleName}"`,
-            balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
-        });
     }
 
     // 6. Log the reopen event

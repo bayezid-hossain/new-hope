@@ -104,7 +104,7 @@ export const EndCycleModal = ({
 
     endMutation.mutate({
       id: cycleId,
-      intake: stockValue
+      feeds: [{ quantity: stockValue }]
     });
   };
 

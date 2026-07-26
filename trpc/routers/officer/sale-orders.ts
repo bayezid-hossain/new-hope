@@ -126,4 +126,74 @@ export const saleOrdersRouter = createTRPCRouter({
 
             return { success: true };
         }),
+
+    deleteAll: proProcedure
+        .mutation(async ({ ctx }) => {
+            await ctx.db.delete(saleOrders).where(eq(saleOrders.officerId, ctx.user.id));
+            return { success: true };
+        }),
+
+    update: proProcedure
+        .input(z.object({
+            id: z.string(),
+            orderDate: z.date(),
+            branchName: z.string().min(1, "Branch name is required"),
+            items: z.array(z.object({
+                farmerId: z.string(),
+                totalWeight: z.number().positive("Total weight must be greater than 0"),
+                totalDoc: z.number().int().positive("DOC count must be greater than 0"),
+                avgWeight: z.number().positive("Average weight is required"),
+                age: z.number().int().positive("Age is required"),
+            })).min(1)
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const order = await ctx.db.query.saleOrders.findFirst({
+                where: and(
+                    eq(saleOrders.id, input.id),
+                    eq(saleOrders.officerId, ctx.user.id)
+                )
+            });
+
+            if (!order) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Order not found or you don't have permission to edit it" });
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                await tx.update(saleOrders)
+                    .set({
+                        orderDate: input.orderDate,
+                        branchName: input.branchName,
+                    })
+                    .where(eq(saleOrders.id, input.id));
+
+                await tx.delete(saleOrderItems).where(eq(saleOrderItems.saleOrderId, input.id));
+
+                const itemsToInsert = input.items.map(item => ({
+                    saleOrderId: input.id,
+                    farmerId: item.farmerId,
+                    totalWeight: item.totalWeight,
+                    totalDoc: item.totalDoc,
+                    avgWeight: item.avgWeight?.toString() || null,
+                    age: item.age,
+                }));
+
+                if (ctx.user.globalRole !== "ADMIN") {
+                    const farmers = await tx.query.farmer.findMany({
+                        where: and(
+                            inArray(farmer.id, input.items.map(i => i.farmerId)),
+                            eq(farmer.status, "deleted")
+                        )
+                    });
+                    if (farmers.length > 0) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot update order with deleted farmers: ${farmers.map(f => f.name).join(", ")}` });
+                    }
+                }
+
+                if (itemsToInsert.length > 0) {
+                    await tx.insert(saleOrderItems).values(itemsToInsert);
+                }
+
+                return { success: true };
+            });
+        }),
 });
