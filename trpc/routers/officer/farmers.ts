@@ -253,6 +253,7 @@ export const officerFarmersRouter = createTRPCRouter({
             name: z.string().min(2).max(100),
             orgId: z.string(),
             initialStock: z.number().min(0).max(1000, "Initial stock cannot exceed 1000 bags"),
+            initialStockFeedType: z.string().trim().max(50).optional(),
             location: z.string().max(200).optional().nullable(),
             mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().nullable()
         }))
@@ -306,6 +307,7 @@ export const officerFarmersRouter = createTRPCRouter({
                         farmerId: newFarmer.id,
                         amount: input.initialStock.toString(),
                         type: "STOCK_ADDED",
+                        feedType: input.initialStockFeedType?.trim() || null,
                         note: "Initial Stock Assignment",
                         balanceAfter: input.initialStock.toString(),
                     });
