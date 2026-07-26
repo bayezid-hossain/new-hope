@@ -872,7 +872,10 @@ export const officerStockRouter = createTRPCRouter({
             byType.sort((a, b) => a.feedType.localeCompare(b.feedType));
 
             // Portion of "unspecified" that's actually reassignable to a real feed type
-            // (untyped restocks only — consumption/adjustments are never per-type, so they stay unspecified forever)
+            // (untyped restocks only — consumption/adjustments are never per-type, so they stay unspecified forever).
+            // Capped at the net `unspecified` total: gross untyped restocks can exceed it once some of that
+            // inflow has since been consumed/transferred away (also untyped), and we must never let a
+            // reassigned type-bucket exceed what could plausibly still be in stock.
             const [reassignableRow] = await ctx.db.select({
                 total: sql<string>`COALESCE(SUM(${stockLogs.amount}), 0)`
             })
@@ -882,7 +885,7 @@ export const officerStockRouter = createTRPCRouter({
                     eq(stockLogs.type, "STOCK_ADDED"),
                     isNull(stockLogs.feedType)
                 ));
-            const reassignableUnspecified = Number(reassignableRow?.total ?? 0);
+            const reassignableUnspecified = Math.max(0, Math.min(Number(reassignableRow?.total ?? 0), unspecified));
 
             return { byType, unspecified, reassignableUnspecified, total: f.mainStock };
         }),
@@ -1082,8 +1085,19 @@ export const officerStockRouter = createTRPCRouter({
                     .filter(p => !correctedIds.has(p.id))
                     .map(p => ({ ...p, remaining: typeof p.amount === 'string' ? parseFloat(p.amount) : p.amount }));
 
+                // Cap at the net "unspecified" total: gross untyped restocks can exceed it once some of
+                // that inflow has since been consumed/transferred away (also untyped) — never let a
+                // reassignment create a type-bucket bigger than what could plausibly still be in stock.
+                const [netUnspecifiedRow] = await tx.select({
+                    total: sql<string>`COALESCE(SUM(${stockLogs.amount}), 0)`
+                })
+                    .from(stockLogs)
+                    .where(and(eq(stockLogs.farmerId, input.farmerId), isNull(stockLogs.feedType)));
+                const netUnspecified = Number(netUnspecifiedRow?.total ?? 0);
+
                 const totalRequested = input.allocations.reduce((s, a) => s + a.quantity, 0);
-                const totalAvailable = working.reduce((s, l) => s + l.remaining, 0);
+                const grossAvailable = working.reduce((s, l) => s + l.remaining, 0);
+                const totalAvailable = Math.max(0, Math.min(grossAvailable, netUnspecified));
                 if (totalRequested - totalAvailable > 0.01) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",

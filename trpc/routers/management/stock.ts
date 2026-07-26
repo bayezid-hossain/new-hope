@@ -161,7 +161,7 @@ export const managementStockRouter = createTRPCRouter({
                     eq(stockLogs.type, "STOCK_ADDED"),
                     isNull(stockLogs.feedType)
                 ));
-            const reassignableUnspecified = Number(reassignableRow?.total ?? 0);
+            const reassignableUnspecified = Math.max(0, Math.min(Number(reassignableRow?.total ?? 0), unspecified));
 
             return { byType, unspecified, reassignableUnspecified, total: f.mainStock };
         }),
