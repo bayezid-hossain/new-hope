@@ -1,32 +1,27 @@
-import { cycleHistory, cycleLogs, cycles, farmer, saleEvents, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, saleEvents } from "@/db/schema";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
+import { deductFeedByType, type FeedNeed } from "./feed-stock-service";
 
 export const endCycleLogic = async (
     tx: any,
     cycleId: string,
-    intake: number,
+    feeds: FeedNeed[],
     userId: string,
     userName: string,
     endDate?: Date,
     endAge?: number
 ) => {
+    const intake = feeds.reduce((s, f) => s + (f.quantity || 0), 0);
+
     const [activeCycle] = await tx.select().from(cycles).where(eq(cycles.id, cycleId));
     if (!activeCycle) throw new TRPCError({ code: "NOT_FOUND" });
 
-    // LOGIC CHECK: Ensure intake does not exceed farmer's stock
     const farmerData = await tx.query.farmer.findFirst({
         where: and(eq(farmer.id, activeCycle.farmerId), eq(farmer.status, "active"))
     });
     if (!farmerData) throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found or archived." });
-
-    if ((intake || 0) > farmerData.mainStock) {
-        throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Cannot consume ${intake} bags. Only ${farmerData.mainStock} bags available in stock.`
-        });
-    }
 
     const [history] = await tx.insert(cycleHistory).values({
         cycleName: activeCycle.name,
@@ -61,23 +56,17 @@ export const endCycleLogic = async (
         note: `Cycle Ended. Total Consumption: ${(intake || 0).toFixed(2)} bags.`
     });
 
-    await tx.update(farmer).set({
-        updatedAt: new Date(),
-        mainStock: sql`${farmer.mainStock} - ${intake || 0}`,
-        totalConsumed: sql`${farmer.totalConsumed} + ${intake || 0}`
-    }).where(eq(farmer.id, activeCycle.farmerId));
+    // Per-type deduction with Unspecified fallback — throws BAD_REQUEST if even that can't cover it
+    const { netAmount } = await deductFeedByType(tx, activeCycle.farmerId, feeds, {
+        logType: "CYCLE_CONSUMPTION",
+        referenceId: history.id,
+        note: `Cycle Consumption: Finished "${activeCycle.name}"`,
+    });
 
-    if (intake > 0) {
-        const newBalance = farmerData.mainStock - intake;
-
-        await tx.insert(stockLogs).values({
-            farmerId: activeCycle.farmerId,
-            amount: (-intake).toString(),
-            type: "CYCLE_CONSUMPTION",
-            referenceId: history.id,
-            note: `Cycle Consumption: Finished "${activeCycle.name}"`,
-            balanceAfter: newBalance.toString(),
-        });
+    if (netAmount !== 0) {
+        await tx.update(farmer).set({
+            totalConsumed: sql`${farmer.totalConsumed} - ${netAmount}`,
+        }).where(eq(farmer.id, activeCycle.farmerId));
     }
 
     await tx.delete(cycles).where(eq(cycles.id, cycleId));

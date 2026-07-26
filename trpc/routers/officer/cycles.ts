@@ -556,7 +556,10 @@ export const officerCyclesRouter = createTRPCRouter({
     end: officerProcedure
         .input(z.object({
             id: z.string(),
-            intake: z.number().nonnegative(),
+            feeds: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().nonnegative()
+            })).min(1).max(10),
         }))
         .mutation(async ({ input, ctx }) => {
             const [cycle] = await ctx.db.select().from(cycles).where(eq(cycles.id, input.id));
@@ -574,7 +577,7 @@ export const officerCyclesRouter = createTRPCRouter({
 
             return await ctx.db.transaction(async (tx) => {
                 const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                return await endCycleLogic(tx, input.id, input.intake, ctx.user.id, ctx.user.name);
+                return await endCycleLogic(tx, input.id, input.feeds, ctx.user.id, ctx.user.name);
             });
         }),
 
@@ -870,32 +873,19 @@ export const officerCyclesRouter = createTRPCRouter({
                 // User Request: "cycle reopen, should not all the reports be deleted?"
                 await tx.delete(saleEvents).where(eq(saleEvents.historyId, input.historyId));
 
-                // 5. Revert Feed Consumption from Stock (Add back)
-                const amountToRestore = historyRecord.finalIntake;
-
-                await tx.update(farmer)
-                    .set({
-                        mainStock: sql`${farmer.mainStock} + ${amountToRestore}`,
-                        totalConsumed: sql`${farmer.totalConsumed} - ${amountToRestore}`,
-                        updatedAt: new Date()
-                    })
-                    .where(eq(farmer.id, historyRecord.farmerId));
-
-                // 6. Log the Stock Correction
-                if (amountToRestore > 0) {
-                    // Re-read updated balance
-                    const updatedFarmer = await tx.query.farmer.findFirst({
-                        where: eq(farmer.id, historyRecord.farmerId),
-                        columns: { mainStock: true }
-                    });
-
-                    await tx.insert(stockLogs).values({
-                        farmerId: historyRecord.farmerId,
-                        amount: amountToRestore.toString(),
-                        type: "ADJUSTMENT",
-                        note: `Cycle Reopened: Added back ${amountToRestore} bags from "${historyRecord.cycleName}"`,
-                        balanceAfter: updatedFarmer?.mainStock?.toString() ?? null,
-                    });
+                // 5. Revert Feed Consumption from Stock — mirror the exact original per-type
+                // consumption rows (typed + any Unspecified-fallback pieces) instead of one lump amount.
+                const { restoreFeedByReference } = await import("@/modules/cycles/server/services/feed-stock-service");
+                const { netAmount } = await restoreFeedByReference(
+                    tx,
+                    input.historyId,
+                    "CYCLE_CONSUMPTION",
+                    `Cycle Reopened: Added back feed from "${historyRecord.cycleName}"`
+                );
+                if (netAmount !== 0) {
+                    await tx.update(farmer).set({
+                        totalConsumed: sql`${farmer.totalConsumed} - ${netAmount}`,
+                    }).where(eq(farmer.id, historyRecord.farmerId));
                 }
 
                 // 7. Delete History Record

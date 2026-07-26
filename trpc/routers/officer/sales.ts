@@ -1,5 +1,5 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
-import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports } from "@/db/schema";
 
 
 import { TRPCError } from "@trpc/server";
@@ -462,7 +462,6 @@ export const officerSalesRouter = createTRPCRouter({
                 // Update cycle: add any new mortality and increment birdsSold (rejected birds also leave the house)
                 // const newMortality calculated above
                 const newBirdsSold = cycle.birdsSold + input.birdsSold + (input.birdsRejected || 0);
-                const currentIntake = input.feedConsumed.reduce((sum, item) => sum + item.bags, 0);
 
                 await tx.update(cycles)
                     .set({
@@ -493,12 +492,12 @@ export const officerSalesRouter = createTRPCRouter({
 
                 if (newBirdsSold >= totalBirdsAfterMortality) {
                     // MANUAL OVERRIDE: For the last sale, we use the input feed as the TOTAL cycle consumption
-                    const manualTotalBags = currentIntake;
+                    const closingFeeds = input.feedConsumed.map(item => ({ type: item.type, quantity: item.bags }));
 
                     // Call shared end logic
                     const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
                     // If a specific saleDate is specified and we close the cycle because of this sale, the cycle effectively ended on that saleDate.
-                    const endResult = await endCycleLogic(tx, input.cycleId, manualTotalBags, ctx.user.id, ctx.user.name, input.saleDate, saleAgeToUse);
+                    const endResult = await endCycleLogic(tx, input.cycleId, closingFeeds, ctx.user.id, ctx.user.name, input.saleDate, saleAgeToUse);
 
                     // Move sale events to history
                     await tx.update(saleEvents)
@@ -914,8 +913,11 @@ export const officerSalesRouter = createTRPCRouter({
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
                         const remaining = (activeCycle.doc || 0) - newMortality - newBirdsSold;
                         if (remaining <= 0) {
+                            const autoCloseFeeds = input.feedConsumed && input.feedConsumed.length > 0
+                                ? input.feedConsumed.map(item => ({ type: item.type, quantity: item.bags }))
+                                : [{ type: undefined, quantity: activeCycle.intake || 0 }];
                             const { endCycleLogic } = await import("@/modules/cycles/server/services/cycle-service");
-                            const endResult = await endCycleLogic(tx, event.cycleId, activeCycle.intake || 0, ctx.user.id, ctx.user.name, input.saleDate, input.saleAge);
+                            const endResult = await endCycleLogic(tx, event.cycleId, autoCloseFeeds, ctx.user.id, ctx.user.name, input.saleDate, input.saleAge);
                             autoClosedHistoryId = endResult.historyId;
                         }
                     }
@@ -940,8 +942,6 @@ export const officerSalesRouter = createTRPCRouter({
                             ? input.feedConsumed.reduce((sum, item) => sum + (Number(item.bags) || 0), 0)
                             : historyRecord.finalIntake;
 
-                        const intakeDifference = adjustedIntake - (historyRecord.finalIntake || 0);
-
                         // Update the history record with all adjusted stats
                         await tx.update(cycleHistory)
                             .set({
@@ -953,35 +953,26 @@ export const officerSalesRouter = createTRPCRouter({
                             })
                             .where(eq(cycleHistory.id, event.historyId));
 
-                        // Adjust farmer's main stock if intake changed
-                        if (intakeDifference !== 0) {
-                            await tx.update(farmer).set({
-                                mainStock: sql`${farmer.mainStock} - ${intakeDifference}`,
-                                totalConsumed: sql`${farmer.totalConsumed} + ${intakeDifference}`,
-                                updatedAt: new Date(),
-                            }).where(eq(farmer.id, historyRecord.farmerId));
+                        // Adjust farmer's stock per feed type: diff old vs new consumption per type,
+                        // deduct increases (with Unspecified fallback + hard block), restore decreases.
+                        if (input.feedConsumed) {
+                            const oldFeeds = event.feedConsumed
+                                ? (JSON.parse(event.feedConsumed) as { type: string; bags: number }[]).map(f => ({ type: f.type, quantity: f.bags }))
+                                : [];
+                            const newFeeds = input.feedConsumed.map(f => ({ type: f.type, quantity: f.bags }));
 
-                            // Re-read updated balance
-                            const updatedFarmerData = await tx.query.farmer.findFirst({
-                                where: eq(farmer.id, historyRecord.farmerId),
-                                columns: { mainStock: true }
+                            const { adjustFeedByTypeDelta } = await import("@/modules/cycles/server/services/feed-stock-service");
+                            const { netAmount } = await adjustFeedByTypeDelta(tx, historyRecord.farmerId, oldFeeds, newFeeds, {
+                                logType: "ADJUSTMENT",
+                                referenceId: event.historyId,
+                                note: `Adjustment for ${historyRecord.cycleName}: consumption corrected.`,
                             });
 
-                            const [originalStockLog] = await tx.select().from(stockLogs).where(
-                                and(
-                                    eq(stockLogs.referenceId, event.historyId!),
-                                    eq(stockLogs.type, "CYCLE_CLOSE")
-                                )
-                            ).limit(1);
-
-                            await tx.insert(stockLogs).values({
-                                farmerId: historyRecord.farmerId,
-                                amount: (-intakeDifference).toString(),
-                                type: "ADJUSTMENT",
-                                referenceId: originalStockLog ? originalStockLog.id : report.id,
-                                note: `Adjustment for ${historyRecord.cycleName}: ${intakeDifference > 0 ? 'Increased' : 'Decreased'} final consumption by ${Math.abs(intakeDifference)} bags.`,
-                                balanceAfter: updatedFarmerData?.mainStock?.toString() ?? null,
-                            });
+                            if (netAmount !== 0) {
+                                await tx.update(farmer).set({
+                                    totalConsumed: sql`${farmer.totalConsumed} - ${netAmount}`,
+                                }).where(eq(farmer.id, historyRecord.farmerId));
+                            }
                         }
 
                         // Log the system adjustment
@@ -2032,9 +2023,10 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // UNIFIED FEED ADJUSTMENT LOGIC: ALWAYS checked on version change
-                const newIntake = report.feedConsumed
-                    ? (typeof report.feedConsumed === 'string' ? JSON.parse(report.feedConsumed) : report.feedConsumed).reduce((sum: number, item: any) => sum + (Number(item.bags) || 0), 0)
-                    : 0;
+                const newReportFeeds: { type: string; bags: number }[] = report.feedConsumed
+                    ? (typeof report.feedConsumed === 'string' ? JSON.parse(report.feedConsumed) : report.feedConsumed)
+                    : [];
+                const newIntake = newReportFeeds.reduce((sum: number, item: any) => sum + (Number(item.bags) || 0), 0);
 
                 if (event.historyId && event.history?.farmerId) {
                     const [historyRecord] = await tx.select().from(cycleHistory).where(eq(cycleHistory.id, event.historyId));
@@ -2051,33 +2043,26 @@ export const officerSalesRouter = createTRPCRouter({
                                 })
                                 .where(eq(cycleHistory.id, event.historyId));
 
-                            await tx.update(farmer).set({
-                                mainStock: sql`${farmer.mainStock} - ${intakeDifference}`,
-                                totalConsumed: sql`${farmer.totalConsumed} + ${intakeDifference}`,
-                                updatedAt: new Date(),
-                            }).where(eq(farmer.id, farmerIdToUpdate));
+                            // Adjust farmer's stock per feed type: diff the previously-selected version's
+                            // consumption against this version's, deducting increases (with Unspecified
+                            // fallback + hard block) and restoring decreases.
+                            const oldFeeds = event.feedConsumed
+                                ? (JSON.parse(event.feedConsumed) as { type: string; bags: number }[]).map(f => ({ type: f.type, quantity: f.bags }))
+                                : [];
+                            const newFeeds = newReportFeeds.map(f => ({ type: f.type, quantity: f.bags }));
 
-                            // Re-read updated balance
-                            const updatedFarmerData = await tx.query.farmer.findFirst({
-                                where: eq(farmer.id, farmerIdToUpdate),
-                                columns: { mainStock: true }
+                            const { adjustFeedByTypeDelta } = await import("@/modules/cycles/server/services/feed-stock-service");
+                            const { netAmount } = await adjustFeedByTypeDelta(tx, farmerIdToUpdate, oldFeeds, newFeeds, {
+                                logType: "ADJUSTMENT",
+                                referenceId: event.historyId,
+                                note: `Adjustment for ${cycleNameToLog}: consumption corrected via version switch.`,
                             });
 
-                            const [originalStockLog] = await tx.select().from(stockLogs).where(
-                                and(
-                                    eq(stockLogs.referenceId, event.historyId),
-                                    eq(stockLogs.type, "CYCLE_CLOSE")
-                                )
-                            ).limit(1);
-
-                            await tx.insert(stockLogs).values({
-                                farmerId: farmerIdToUpdate,
-                                amount: (-intakeDifference).toString(),
-                                type: "ADJUSTMENT",
-                                referenceId: originalStockLog ? originalStockLog.id : report.id,
-                                note: `Adjustment for ${cycleNameToLog}: ${intakeDifference > 0 ? 'Increased' : 'Decreased'} final consumption by ${Math.abs(intakeDifference)} bags.`,
-                                balanceAfter: updatedFarmerData?.mainStock?.toString() ?? null,
-                            });
+                            if (netAmount !== 0) {
+                                await tx.update(farmer).set({
+                                    totalConsumed: sql`${farmer.totalConsumed} - ${netAmount}`,
+                                }).where(eq(farmer.id, farmerIdToUpdate));
+                            }
                         }
                     }
                 }
