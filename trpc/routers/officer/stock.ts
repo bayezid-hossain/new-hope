@@ -1154,4 +1154,70 @@ export const officerStockRouter = createTRPCRouter({
                 return { success: true };
             });
         }),
+
+    // ADJUST FEED TYPE AMOUNT — directly correct a feed type's (or Unspecified's) running total to a
+    // new value. Writes a single ADJUSTMENT log for the delta, same as any other stock correction.
+    adjustFeedTypeAmount: protectedProcedure
+        .input(z.object({
+            farmerId: z.string(),
+            feedType: z.string().trim().max(50).optional(), // omitted = Unspecified bucket
+            newAmount: z.number().min(0).max(100000),
+            note: z.string().max(500).optional()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: and(
+                        eq(farmer.id, input.farmerId),
+                        ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
+                    )
+                });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
+
+                const type = input.feedType?.trim() || null;
+                const typeFilter = type ? eq(stockLogs.feedType, type) : isNull(stockLogs.feedType);
+
+                const [row] = await tx.select({
+                    total: sql<string>`COALESCE(SUM(${stockLogs.amount}), 0)`
+                })
+                    .from(stockLogs)
+                    .where(and(eq(stockLogs.farmerId, input.farmerId), typeFilter));
+                const currentAmount = Number(row?.total ?? 0);
+                const delta = input.newAmount - currentAmount;
+
+                if (Math.abs(delta) < 0.005) return { success: true, delta: 0 };
+
+                if (farmerData.mainStock + delta < -0.005) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: "This correction would push total main stock below zero." });
+                }
+
+                const newBalance = farmerData.mainStock + delta;
+
+                await tx.update(farmer)
+                    .set({ mainStock: sql`${farmer.mainStock} + ${delta}`, updatedAt: new Date() })
+                    .where(eq(farmer.id, input.farmerId));
+
+                await tx.insert(stockLogs).values({
+                    farmerId: input.farmerId,
+                    amount: delta.toString(),
+                    type: "ADJUSTMENT",
+                    feedType: type,
+                    note: input.note || `Corrected ${type ?? "Unspecified"} stock: ${currentAmount.toFixed(1)} → ${input.newAmount.toFixed(1)} bags`,
+                    balanceAfter: newBalance.toString(),
+                });
+
+                return { success: true, delta };
+            });
+        }),
 });
