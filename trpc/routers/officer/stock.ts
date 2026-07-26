@@ -25,13 +25,15 @@ export const officerStockRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
-    // ADD STOCK (Ledger Entry Added)
+    // ADD STOCK (Ledger Entry Added) — supports multiple feed-type lines in one restock
     addStock: protectedProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive().max(2000, "Max addition is 2000 bags"),
-            note: z.string().max(500).optional(),
-            feedType: z.string().trim().max(50).optional()
+            feeds: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().positive().max(2000, "Max addition is 2000 bags")
+            })).min(1).max(10),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Check ownership
@@ -44,26 +46,33 @@ export const officerStockRouter = createTRPCRouter({
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
+            const totalAmount = input.feeds.reduce((s, feed) => s + feed.quantity, 0);
+            const referenceId = input.feeds.length > 1 ? crypto.randomUUID() : undefined;
+
             return await ctx.db.transaction(async (tx) => {
                 // A. Update Farmer DB
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${input.amount}`,
+                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));
 
-                const newBalance = f.mainStock + input.amount;
-
-                // B. Add Ledger Entry
-                await tx.insert(stockLogs).values({
-                    farmerId: input.farmerId,
-                    amount: input.amount.toString(),
-                    type: "STOCK_ADDED",
-                    note: input.note || "Standard stock replenishment",
-                    feedType: input.feedType || null,
-                    balanceAfter: newBalance.toString(),
+                // B. Add Ledger Entries — one row per feed line, running balance
+                let running = f.mainStock;
+                const logsToInsert = input.feeds.map(feed => {
+                    running += feed.quantity;
+                    return {
+                        farmerId: input.farmerId,
+                        amount: feed.quantity.toString(),
+                        type: "STOCK_ADDED",
+                        referenceId,
+                        feedType: feed.type?.trim() || null,
+                        note: input.note || "Standard stock replenishment",
+                        balanceAfter: running.toString(),
+                    };
                 });
+                await tx.insert(stockLogs).values(logsToInsert);
 
                 // C. NOTIFICATION
                 try {
@@ -71,7 +80,7 @@ export const officerStockRouter = createTRPCRouter({
                     await NotificationService.sendToOrgManagers({
                         organizationId: f.organizationId,
                         title: "Stock Added",
-                        message: `Officer ${ctx.user.name} added ${input.amount} bags to ${f.name}.`,
+                        message: `Officer ${ctx.user.name} added ${totalAmount} bags to ${f.name}.`,
                         type: "SUCCESS",
                         link: `/management/farmers/${f.id}`
                     });
@@ -889,45 +898,121 @@ export const officerStockRouter = createTRPCRouter({
             return rows.map((r: any) => String(r.feed_type)) as string[];
         }),
 
-    // UPDATE FEED TYPE ON AN EXISTING LOG (retroactive label fix — no balance impact)
-    updateLogFeedType: protectedProcedure
+    // SPLIT / RELABEL FEED TYPE ON AN EXISTING LOG (retroactive fix — never changes farmer.mainStock)
+    // One split ({type, quantity}) is a simple in-place relabel. Multiple splits restructure the
+    // single log into N rows (e.g. 30 bags -> B1:20 + B2:10) preserving the exact same total and
+    // balance chain. Restricted to plain movement logs — ADJUSTMENT/CYCLE_CLOSE/CYCLE_CONSUMPTION
+    // are system-derived and can only be simply relabeled, not split.
+    splitLogFeedType: protectedProcedure
         .input(z.object({
             logId: z.string(),
-            feedType: z.string().trim().max(50).nullable()
+            splits: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().positive()
+            })).min(1).max(10)
         }))
         .mutation(async ({ ctx, input }) => {
-            const [log] = await ctx.db.select().from(stockLogs).where(eq(stockLogs.id, input.logId));
-            if (!log) throw new TRPCError({ code: "NOT_FOUND", message: "Log entry not found." });
-
-            const farmerData = await ctx.db.query.farmer.findFirst({
-                where: and(
-                    eq(farmer.id, log.farmerId!),
-                    ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
-                )
-            });
-            if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
-
-            if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
-                const membership = await ctx.db.query.member.findFirst({
+            const checkAccess = async (tx: any, farmerId: string) => {
+                const farmerData = await tx.query.farmer.findFirst({
                     where: and(
-                        eq(member.userId, ctx.user.id),
-                        eq(member.organizationId, farmerData.organizationId),
-                        eq(member.status, "ACTIVE")
+                        eq(farmer.id, farmerId),
+                        ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
                     )
                 });
-                if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
-            }
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
 
-            const value = input.feedType?.trim() || null;
-            await ctx.db.update(stockLogs).set({ feedType: value }).where(eq(stockLogs.id, input.logId));
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
+            };
 
-            // Keep transfer pairs symmetric — editing one leg updates the other
-            if ((log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId) {
-                await ctx.db.update(stockLogs)
-                    .set({ feedType: value })
-                    .where(and(eq(stockLogs.referenceId, log.referenceId), ne(stockLogs.id, input.logId)));
-            }
+            const SPLITTABLE_TYPES = ["STOCK_ADDED", "STOCK_DEDUCTED", "TRANSFER_IN", "TRANSFER_OUT"];
 
-            return { success: true };
+            return await ctx.db.transaction(async (tx) => {
+                const [log] = await tx.select().from(stockLogs).where(eq(stockLogs.id, input.logId));
+                if (!log) throw new TRPCError({ code: "NOT_FOUND", message: "Log entry not found." });
+                await checkAccess(tx, log.farmerId!);
+
+                // Simple relabel — safe on any log type, preserves the row's id
+                if (input.splits.length === 1) {
+                    const value = input.splits[0].type?.trim() || null;
+                    await tx.update(stockLogs).set({ feedType: value }).where(eq(stockLogs.id, input.logId));
+
+                    if ((log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId) {
+                        await tx.update(stockLogs)
+                            .set({ feedType: value })
+                            .where(and(eq(stockLogs.referenceId, log.referenceId), ne(stockLogs.id, input.logId)));
+                    }
+                    return { success: true };
+                }
+
+                // Multi-split — restructures the row(s), so restrict + guard more carefully
+                if (!SPLITTABLE_TYPES.includes(log.type)) {
+                    throw new TRPCError({ code: "BAD_REQUEST", message: "This type of entry cannot be split by feed type." });
+                }
+
+                const totalSplit = input.splits.reduce((s, f) => s + f.quantity, 0);
+                const originalAmount = typeof log.amount === 'string' ? parseFloat(log.amount) : log.amount;
+                if (Math.abs(totalSplit - Math.abs(originalAmount)) > 0.01) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Split total (${totalSplit}) must equal the original amount (${Math.abs(originalAmount)}).`
+                    });
+                }
+
+                const splitOneLog = async (target: typeof log) => {
+                    const [alreadyCorrected] = await tx.select().from(stockLogs)
+                        .where(and(eq(stockLogs.referenceId, target.id), eq(stockLogs.type, "ADJUSTMENT")));
+                    if (alreadyCorrected) {
+                        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot split a log that has already been corrected or reverted." });
+                    }
+
+                    const amount = typeof target.amount === 'string' ? parseFloat(target.amount) : target.amount;
+                    const sign = amount < 0 ? -1 : 1;
+                    const balanceAfter = typeof target.balanceAfter === 'string' ? parseFloat(target.balanceAfter) : (target.balanceAfter ?? 0);
+                    let running = balanceAfter - amount;
+
+                    const newRows = input.splits.map(s => {
+                        const lineAmount = sign * s.quantity;
+                        running += lineAmount;
+                        return {
+                            farmerId: target.farmerId,
+                            amount: lineAmount.toString(),
+                            type: target.type,
+                            referenceId: target.referenceId,
+                            driverName: target.driverName,
+                            feedType: s.type?.trim() || null,
+                            note: target.note,
+                            balanceAfter: running.toString(),
+                            createdAt: target.createdAt,
+                        };
+                    });
+
+                    await tx.delete(stockLogs).where(eq(stockLogs.id, target.id));
+                    await tx.insert(stockLogs).values(newRows);
+                };
+
+                await splitOneLog(log);
+
+                // Mirror the same split onto the paired transfer leg (same physical stock)
+                if ((log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId) {
+                    const pairedType = log.type === "TRANSFER_OUT" ? "TRANSFER_IN" : "TRANSFER_OUT";
+                    const [pairedLog] = await tx.select().from(stockLogs)
+                        .where(and(eq(stockLogs.referenceId, log.referenceId), eq(stockLogs.type, pairedType)));
+                    if (pairedLog) {
+                        await checkAccess(tx, pairedLog.farmerId!);
+                        await splitOneLog(pairedLog);
+                    }
+                }
+
+                return { success: true };
+            });
         }),
 });

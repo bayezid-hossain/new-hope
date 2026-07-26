@@ -289,9 +289,11 @@ export const managementStockRouter = createTRPCRouter({
     addStock: managementProcedure
         .input(z.object({
             farmerId: z.string(),
-            amount: z.number().positive().max(2000, "Max addition is 2000 bags"),
-            note: z.string().max(500).optional(),
-            feedType: z.string().trim().max(50).optional()
+            feeds: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().positive().max(2000, "Max addition is 2000 bags")
+            })).min(1).max(10),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // Access check: User must have EDIT permissions
@@ -308,31 +310,38 @@ export const managementStockRouter = createTRPCRouter({
             });
             if (!f) throw new TRPCError({ code: "NOT_FOUND" });
 
+            const totalAmount = input.feeds.reduce((s, feed) => s + feed.quantity, 0);
+            const referenceId = input.feeds.length > 1 ? crypto.randomUUID() : undefined;
+
             return await ctx.db.transaction(async (tx) => {
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${input.amount}`,
+                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));
 
-                const newBalance = f.mainStock + input.amount;
-
-                await tx.insert(stockLogs).values({
-                    farmerId: input.farmerId,
-                    amount: input.amount.toString(),
-                    type: "STOCK_ADDED",
-                    note: input.note || "Standard stock replenishment",
-                    feedType: input.feedType || null,
-                    balanceAfter: newBalance.toString(),
+                let running = f.mainStock;
+                const logsToInsert = input.feeds.map(feed => {
+                    running += feed.quantity;
+                    return {
+                        farmerId: input.farmerId,
+                        amount: feed.quantity.toString(),
+                        type: "STOCK_ADDED",
+                        referenceId,
+                        feedType: feed.type?.trim() || null,
+                        note: input.note || "Standard stock replenishment",
+                        balanceAfter: running.toString(),
+                    };
                 });
+                await tx.insert(stockLogs).values(logsToInsert);
 
                 try {
                     const { NotificationService } = await import("@/modules/notifications/server/notification-service");
                     await NotificationService.sendToOrgManagers({
                         organizationId: input.orgId,
                         title: "Stock Added",
-                        message: `Manager ${ctx.user.name} added ${input.amount} bags to ${f.name}.`,
+                        message: `Manager ${ctx.user.name} added ${totalAmount} bags to ${f.name}.`,
                         type: "SUCCESS",
                         link: `/management/farmers/${f.id}`
                     });
