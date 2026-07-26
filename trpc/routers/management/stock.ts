@@ -1,6 +1,6 @@
 import { farmer, stockLogs } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
@@ -152,7 +152,18 @@ export const managementStockRouter = createTRPCRouter({
             });
             byType.sort((a, b) => a.feedType.localeCompare(b.feedType));
 
-            return { byType, unspecified, total: f.mainStock };
+            const [reassignableRow] = await ctx.db.select({
+                total: sql<string>`COALESCE(SUM(${stockLogs.amount}), 0)`
+            })
+                .from(stockLogs)
+                .where(and(
+                    eq(stockLogs.farmerId, input.farmerId),
+                    eq(stockLogs.type, "STOCK_ADDED"),
+                    isNull(stockLogs.feedType)
+                ));
+            const reassignableUnspecified = Number(reassignableRow?.total ?? 0);
+
+            return { byType, unspecified, reassignableUnspecified, total: f.mainStock };
         }),
 
     getBatchDetails: managementProcedure

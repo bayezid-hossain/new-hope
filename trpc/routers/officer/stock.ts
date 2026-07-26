@@ -1,7 +1,7 @@
 import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
 import { createTRPCRouter, orgProcedure, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const officerStockRouter = createTRPCRouter({
@@ -871,7 +871,20 @@ export const officerStockRouter = createTRPCRouter({
             });
             byType.sort((a, b) => a.feedType.localeCompare(b.feedType));
 
-            return { byType, unspecified, total: f.mainStock };
+            // Portion of "unspecified" that's actually reassignable to a real feed type
+            // (untyped restocks only — consumption/adjustments are never per-type, so they stay unspecified forever)
+            const [reassignableRow] = await ctx.db.select({
+                total: sql<string>`COALESCE(SUM(${stockLogs.amount}), 0)`
+            })
+                .from(stockLogs)
+                .where(and(
+                    eq(stockLogs.farmerId, input.farmerId),
+                    eq(stockLogs.type, "STOCK_ADDED"),
+                    isNull(stockLogs.feedType)
+                ));
+            const reassignableUnspecified = Number(reassignableRow?.total ?? 0);
+
+            return { byType, unspecified, reassignableUnspecified, total: f.mainStock };
         }),
 
     // SUGGEST FEED TYPES (Autocomplete source — org-wide, pulls from both stock logs and feed orders)
@@ -1010,6 +1023,118 @@ export const officerStockRouter = createTRPCRouter({
                         await checkAccess(tx, pairedLog.farmerId!);
                         await splitOneLog(pairedLog);
                     }
+                }
+
+                return { success: true };
+            });
+        }),
+
+    // REASSIGN UNSPECIFIED FEED — move bags out of the "Unspecified" bucket into named feed types.
+    // Pulls only from untyped STOCK_ADDED logs (untyped restocks) oldest-first; a single log can be
+    // split across several allocations if it covers more than one. Never touches consumption/adjustment
+    // logs — those have no per-type breakdown and stay unspecified by design.
+    reassignUnspecifiedFeed: protectedProcedure
+        .input(z.object({
+            farmerId: z.string(),
+            allocations: z.array(z.object({
+                type: z.string().trim().min(1).max(50),
+                quantity: z.number().positive()
+            })).min(1).max(10)
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return await ctx.db.transaction(async (tx) => {
+                const farmerData = await tx.query.farmer.findFirst({
+                    where: and(
+                        eq(farmer.id, input.farmerId),
+                        ctx.user.globalRole !== "ADMIN" ? eq(farmer.status, "active") : undefined
+                    )
+                });
+                if (!farmerData) throw new TRPCError({ code: "NOT_FOUND" });
+
+                if (ctx.user.globalRole !== "ADMIN" && farmerData.officerId !== ctx.user.id) {
+                    const membership = await tx.query.member.findFirst({
+                        where: and(
+                            eq(member.userId, ctx.user.id),
+                            eq(member.organizationId, farmerData.organizationId),
+                            eq(member.status, "ACTIVE")
+                        )
+                    });
+                    if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+                }
+
+                // Pool of reassignable stock: untyped restocks not already corrected/reverted
+                const pool = await tx.select().from(stockLogs)
+                    .where(and(
+                        eq(stockLogs.farmerId, input.farmerId),
+                        eq(stockLogs.type, "STOCK_ADDED"),
+                        isNull(stockLogs.feedType)
+                    ))
+                    .orderBy(asc(stockLogs.createdAt));
+
+                const poolIds = pool.map(p => p.id);
+                const corrections = poolIds.length
+                    ? await tx.select({ referenceId: stockLogs.referenceId }).from(stockLogs)
+                        .where(and(eq(stockLogs.type, "ADJUSTMENT"), inArray(stockLogs.referenceId, poolIds)))
+                    : [];
+                const correctedIds = new Set(corrections.map(c => c.referenceId));
+
+                const working = pool
+                    .filter(p => !correctedIds.has(p.id))
+                    .map(p => ({ ...p, remaining: typeof p.amount === 'string' ? parseFloat(p.amount) : p.amount }));
+
+                const totalRequested = input.allocations.reduce((s, a) => s + a.quantity, 0);
+                const totalAvailable = working.reduce((s, l) => s + l.remaining, 0);
+                if (totalRequested - totalAvailable > 0.01) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: `Only ${totalAvailable.toFixed(1)} bags of unspecified restocked feed are available to reassign.`
+                    });
+                }
+
+                // Greedily consume oldest untyped logs first for each allocation
+                const pieces = new Map<string, { type: string; quantity: number }[]>();
+                for (const alloc of input.allocations) {
+                    let need = alloc.quantity;
+                    for (const log of working) {
+                        if (need <= 0.0001) break;
+                        if (log.remaining <= 0.0001) continue;
+                        const take = Math.min(log.remaining, need);
+                        if (!pieces.has(log.id)) pieces.set(log.id, []);
+                        pieces.get(log.id)!.push({ type: alloc.type, quantity: take });
+                        log.remaining -= take;
+                        need -= take;
+                    }
+                }
+
+                // Rewrite each touched log into its typed piece(s) + any leftover unspecified remainder
+                for (const log of working) {
+                    const consumedPieces = pieces.get(log.id);
+                    if (!consumedPieces) continue;
+
+                    const amount = typeof log.amount === 'string' ? parseFloat(log.amount) : log.amount;
+                    const balanceAfter = typeof log.balanceAfter === 'string' ? parseFloat(log.balanceAfter) : (log.balanceAfter ?? 0);
+                    let running = balanceAfter - amount;
+
+                    const splits = [...consumedPieces];
+                    if (log.remaining > 0.0001) splits.push({ type: undefined as any, quantity: log.remaining });
+
+                    const newRows = splits.map(s => {
+                        running += s.quantity;
+                        return {
+                            farmerId: log.farmerId,
+                            amount: s.quantity.toString(),
+                            type: log.type,
+                            referenceId: log.referenceId,
+                            driverName: log.driverName,
+                            feedType: s.type || null,
+                            note: log.note,
+                            balanceAfter: running.toString(),
+                            createdAt: log.createdAt,
+                        };
+                    });
+
+                    await tx.delete(stockLogs).where(eq(stockLogs.id, log.id));
+                    await tx.insert(stockLogs).values(newRows);
                 }
 
                 return { success: true };
