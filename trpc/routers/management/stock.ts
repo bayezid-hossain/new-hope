@@ -1,4 +1,5 @@
 import { farmer, stockLogs } from "@/db/schema";
+import { roundedMainStock } from "@/db/stock-math";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -255,7 +256,7 @@ export const managementStockRouter = createTRPCRouter({
                 // Add to Target — one row per feed line, exactly as sent
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
+                        mainStock: roundedMainStock(totalAmount),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
@@ -322,7 +323,7 @@ export const managementStockRouter = createTRPCRouter({
             return await ctx.db.transaction(async (tx) => {
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
+                        mainStock: roundedMainStock(totalAmount),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));
@@ -382,7 +383,7 @@ export const managementStockRouter = createTRPCRouter({
             return await ctx.db.transaction(async (tx) => {
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} - ${input.amount}`,
+                        mainStock: roundedMainStock(sql`-(${input.amount}::real)`),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));

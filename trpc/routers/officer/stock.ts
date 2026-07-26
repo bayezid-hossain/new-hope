@@ -1,4 +1,5 @@
 import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
+import { roundedMainStock } from "@/db/stock-math";
 import { createTRPCRouter, orgProcedure, proProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
@@ -53,7 +54,7 @@ export const officerStockRouter = createTRPCRouter({
                 // A. Update Farmer DB
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
+                        mainStock: roundedMainStock(totalAmount),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));
@@ -113,7 +114,7 @@ export const officerStockRouter = createTRPCRouter({
                 // A. Update Farmer DB (Subtract)
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} - ${input.amount}`,
+                        mainStock: roundedMainStock(sql`-(${input.amount}::real)`),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.farmerId));
@@ -190,7 +191,7 @@ export const officerStockRouter = createTRPCRouter({
                     const farmerTotal = item.feeds.reduce((s, f) => s + f.quantity, 0);
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} + ${farmerTotal}`,
+                            mainStock: roundedMainStock(farmerTotal),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, item.farmerId));
@@ -319,7 +320,7 @@ export const officerStockRouter = createTRPCRouter({
                 // "created" for a farmer that never had it before)
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
+                        mainStock: roundedMainStock(totalAmount),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
@@ -433,7 +434,7 @@ export const officerStockRouter = createTRPCRouter({
                 // 5. Update Farmer Stock
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${correctionAmount}`,
+                        mainStock: roundedMainStock(correctionAmount),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
@@ -535,7 +536,7 @@ export const officerStockRouter = createTRPCRouter({
                 // 4. Update Farmer Stock by Delta
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} + ${delta}`,
+                        mainStock: roundedMainStock(delta),
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, originalLog.farmerId!));
@@ -642,7 +643,7 @@ export const officerStockRouter = createTRPCRouter({
                     // A. Update Farmer Stock
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} + ${reverseAmount}`,
+                            mainStock: roundedMainStock(reverseAmount),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, log.farmerId!));
@@ -1206,7 +1207,7 @@ export const officerStockRouter = createTRPCRouter({
                 const newBalance = farmerData.mainStock + delta;
 
                 await tx.update(farmer)
-                    .set({ mainStock: sql`${farmer.mainStock} + ${delta}`, updatedAt: new Date() })
+                    .set({ mainStock: roundedMainStock(delta), updatedAt: new Date() })
                     .where(eq(farmer.id, input.farmerId));
 
                 await tx.insert(stockLogs).values({

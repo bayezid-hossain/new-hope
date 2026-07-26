@@ -1,4 +1,5 @@
 import { farmer, feedOrderItems, feedOrders, member, stockLogs } from "@/db/schema";
+import { roundedMainStock } from "@/db/stock-math";
 import { TRPCError } from "@trpc/server";
 import { format } from "date-fns";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -300,7 +301,7 @@ export const feedOrdersRouter = createTRPCRouter({
 
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} + ${quantity}`,
+                            mainStock: roundedMainStock(quantity),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, farmerId));
@@ -370,7 +371,7 @@ export const feedOrdersRouter = createTRPCRouter({
                 for (const [farmerId, quantity] of farmerUpdates.entries()) {
                     await tx.update(farmer)
                         .set({
-                            mainStock: sql`${farmer.mainStock} - ${quantity}`,
+                            mainStock: roundedMainStock(sql`-(${quantity}::real)`),
                             updatedAt: new Date()
                         })
                         .where(eq(farmer.id, farmerId));

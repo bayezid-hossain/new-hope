@@ -1,4 +1,5 @@
 import { farmer, stockLogs } from "@/db/schema";
+import { roundedMainStock } from "@/db/stock-math";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -101,7 +102,7 @@ const applyPlan = async (
     const netAmount = entries.reduce((s, [, amt]) => s + amt, 0);
 
     await tx.update(farmer).set({
-        mainStock: sql`${farmer.mainStock} + ${netAmount}`,
+        mainStock: roundedMainStock(netAmount),
         updatedAt: new Date(),
     }).where(eq(farmer.id, farmerId));
 
@@ -207,7 +208,7 @@ export const restoreFeedByReference = async (
 
     if (Math.abs(netAmount) > 0.0001) {
         await tx.update(farmer).set({
-            mainStock: sql`${farmer.mainStock} + ${netAmount}`,
+            mainStock: roundedMainStock(netAmount),
             updatedAt: new Date(),
         }).where(eq(farmer.id, farmerId));
         await tx.insert(stockLogs).values(rows);
