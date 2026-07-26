@@ -244,9 +244,11 @@ export const officerStockRouter = createTRPCRouter({
         .input(z.object({
             sourceFarmerId: z.string(),
             targetFarmerId: z.string(),
-            amount: z.number().positive().max(1000, "Max transfer is 1000 bags"),
-            note: z.string().max(500).optional(),
-            feedType: z.string().trim().max(50).optional()
+            feeds: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().positive().max(1000, "Max transfer is 1000 bags")
+            })).min(1).max(10),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Validate Input
@@ -295,56 +297,47 @@ export const officerStockRouter = createTRPCRouter({
                     throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to manage these farmers." });
                 }
 
-                // 3. Check Funds
-                if (sourceFarmer.mainStock < input.amount) {
-                    throw new TRPCError({
-                        code: "BAD_REQUEST",
-                        message: `Insufficient stock. ${sourceFarmer.name} has ${sourceFarmer.mainStock} bags.`,
-                    });
-                }
-
-                // 4. Execute Transfer (Source -> Target)
+                // 3. Execute Transfer (Source -> Target), per feed type
                 const transferId = crypto.randomUUID();
+                const totalAmount = input.feeds.reduce((s, f) => s + f.quantity, 0);
 
-                // A. Deduct from Source
+                // A. Deduct from Source per type — named type first, falls back to Unspecified for any
+                // shortfall, hard-blocks (BAD_REQUEST) if even that can't cover it.
+                const { deductFeedByType } = await import("@/modules/cycles/server/services/feed-stock-service");
+                await deductFeedByType(
+                    tx,
+                    input.sourceFarmerId,
+                    input.feeds.map(f => ({ type: f.type, quantity: f.quantity })),
+                    {
+                        logType: "TRANSFER_OUT",
+                        referenceId: transferId,
+                        note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
+                    }
+                );
+
+                // B. Add to Target — one row per feed line, exactly as sent (this is how a type can be
+                // "created" for a farmer that never had it before)
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} - ${input.amount}`,
-                        updatedAt: new Date()
-                    })
-                    .where(eq(farmer.id, input.sourceFarmerId));
-
-                const sourceNewBalance = sourceFarmer.mainStock - input.amount;
-
-                await tx.insert(stockLogs).values({
-                    farmerId: input.sourceFarmerId,
-                    amount: (-input.amount).toString(),
-                    type: "TRANSFER_OUT",
-                    referenceId: transferId,
-                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
-                    feedType: input.feedType || null,
-                    balanceAfter: sourceNewBalance.toString(),
-                });
-
-                // B. Add to Target
-                await tx.update(farmer)
-                    .set({
-                        mainStock: sql`${farmer.mainStock} + ${input.amount}`,
+                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
 
-                const targetNewBalance = targetFarmer.mainStock + input.amount;
-
-                await tx.insert(stockLogs).values({
-                    farmerId: input.targetFarmerId,
-                    amount: input.amount.toString(),
-                    type: "TRANSFER_IN",
-                    referenceId: transferId,
-                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
-                    feedType: input.feedType || null,
-                    balanceAfter: targetNewBalance.toString(),
+                let running = targetFarmer.mainStock;
+                const creditRows = input.feeds.map(f => {
+                    running += f.quantity;
+                    return {
+                        farmerId: input.targetFarmerId,
+                        amount: f.quantity.toString(),
+                        type: "TRANSFER_IN",
+                        referenceId: transferId,
+                        feedType: f.type?.trim() || null,
+                        note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
+                        balanceAfter: running.toString(),
+                    };
                 });
+                await tx.insert(stockLogs).values(creditRows);
 
                 // C. NOTIFICATION
                 try {
@@ -352,7 +345,7 @@ export const officerStockRouter = createTRPCRouter({
                     await NotificationService.sendToOrgManagers({
                         organizationId: sourceFarmer.organizationId,
                         title: "Stock Transfer",
-                        message: `Officer ${ctx.user.name} transferred ${input.amount} bags from ${sourceFarmer.name} to ${targetFarmer.name}.`,
+                        message: `Officer ${ctx.user.name} transferred ${totalAmount} bags from ${sourceFarmer.name} to ${targetFarmer.name}.`,
                         type: "INFO",
                         link: `/management/farmers/${targetFarmer.id}`
                     });
@@ -961,10 +954,17 @@ export const officerStockRouter = createTRPCRouter({
                     const value = input.splits[0].type?.trim() || null;
                     await tx.update(stockLogs).set({ feedType: value }).where(eq(stockLogs.id, input.logId));
 
+                    // Mirror onto the paired transfer leg — but only when it's unambiguous (exactly one
+                    // row on the other side shares this referenceId). Multi-line transfers share one
+                    // referenceId across several typed rows per side, so we can't safely guess which one
+                    // is "the pair" — leave those to be edited individually.
                     if ((log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId) {
-                        await tx.update(stockLogs)
-                            .set({ feedType: value })
-                            .where(and(eq(stockLogs.referenceId, log.referenceId), ne(stockLogs.id, input.logId)));
+                        const pairedType = log.type === "TRANSFER_OUT" ? "TRANSFER_IN" : "TRANSFER_OUT";
+                        const pairedLogs = await tx.select().from(stockLogs)
+                            .where(and(eq(stockLogs.referenceId, log.referenceId), eq(stockLogs.type, pairedType)));
+                        if (pairedLogs.length === 1) {
+                            await tx.update(stockLogs).set({ feedType: value }).where(eq(stockLogs.id, pairedLogs[0].id));
+                        }
                     }
                     return { success: true };
                 }
@@ -1017,14 +1017,15 @@ export const officerStockRouter = createTRPCRouter({
 
                 await splitOneLog(log);
 
-                // Mirror the same split onto the paired transfer leg (same physical stock)
+                // Mirror the same split onto the paired transfer leg (same physical stock) — only when
+                // unambiguous (see note above on single-relabel branch).
                 if ((log.type === "TRANSFER_OUT" || log.type === "TRANSFER_IN") && log.referenceId) {
                     const pairedType = log.type === "TRANSFER_OUT" ? "TRANSFER_IN" : "TRANSFER_OUT";
-                    const [pairedLog] = await tx.select().from(stockLogs)
+                    const pairedLogs = await tx.select().from(stockLogs)
                         .where(and(eq(stockLogs.referenceId, log.referenceId), eq(stockLogs.type, pairedType)));
-                    if (pairedLog) {
-                        await checkAccess(tx, pairedLog.farmerId!);
-                        await splitOneLog(pairedLog);
+                    if (pairedLogs.length === 1) {
+                        await checkAccess(tx, pairedLogs[0].farmerId!);
+                        await splitOneLog(pairedLogs[0]);
                     }
                 }
 

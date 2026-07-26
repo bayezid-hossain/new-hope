@@ -195,9 +195,11 @@ export const managementStockRouter = createTRPCRouter({
         .input(z.object({
             sourceFarmerId: z.string(),
             targetFarmerId: z.string(),
-            amount: z.number().positive().max(1000, "Max transfer is 1000 bags"),
-            note: z.string().max(500).optional(),
-            feedType: z.string().trim().max(50).optional()
+            feeds: z.array(z.object({
+                type: z.string().trim().max(50).optional(),
+                quantity: z.number().positive().max(1000, "Max transfer is 1000 bags")
+            })).min(1).max(10),
+            note: z.string().max(500).optional()
         }))
         .mutation(async ({ ctx, input }) => {
             if (input.sourceFarmerId === input.targetFarmerId) {
@@ -233,59 +235,52 @@ export const managementStockRouter = createTRPCRouter({
                     throw new TRPCError({ code: "NOT_FOUND", message: "One or both farmers not found or archived." });
                 }
 
-                if (Number(sourceFarmer.mainStock) < input.amount) {
-                    throw new TRPCError({
-                        code: "BAD_REQUEST",
-                        message: `Insufficient funds. Source has ${sourceFarmer.mainStock}, trying to send ${input.amount}.`
-                    });
-                }
-
                 const transferId = crypto.randomUUID();
+                const totalAmount = input.feeds.reduce((s, f) => s + f.quantity, 0);
 
+                // Deduct from Source per type — named type first, falls back to Unspecified for any
+                // shortfall, hard-blocks (BAD_REQUEST) if even that can't cover it.
+                const { deductFeedByType } = await import("@/modules/cycles/server/services/feed-stock-service");
+                await deductFeedByType(
+                    tx,
+                    input.sourceFarmerId,
+                    input.feeds.map(f => ({ type: f.type, quantity: f.quantity })),
+                    {
+                        logType: "TRANSFER_OUT",
+                        referenceId: transferId,
+                        note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
+                    }
+                );
+
+                // Add to Target — one row per feed line, exactly as sent
                 await tx.update(farmer)
                     .set({
-                        mainStock: sql`${farmer.mainStock} - ${input.amount}`,
-                        updatedAt: new Date()
-                    })
-                    .where(eq(farmer.id, input.sourceFarmerId));
-
-                const sourceNewBalance = Number(sourceFarmer.mainStock) - input.amount;
-
-                await tx.insert(stockLogs).values({
-                    farmerId: input.sourceFarmerId,
-                    amount: (-input.amount).toString(),
-                    type: "TRANSFER_OUT",
-                    referenceId: transferId,
-                    note: input.note ? `Transfer to ${targetFarmer.name}: ${input.note}` : `Stock transfer to ${targetFarmer.name}`,
-                    feedType: input.feedType || null,
-                    balanceAfter: sourceNewBalance.toString(),
-                });
-
-                await tx.update(farmer)
-                    .set({
-                        mainStock: sql`${farmer.mainStock} + ${input.amount}`,
+                        mainStock: sql`${farmer.mainStock} + ${totalAmount}`,
                         updatedAt: new Date()
                     })
                     .where(eq(farmer.id, input.targetFarmerId));
 
-                const targetNewBalance = Number(targetFarmer.mainStock) + input.amount;
-
-                await tx.insert(stockLogs).values({
-                    farmerId: input.targetFarmerId,
-                    amount: input.amount.toString(),
-                    type: "TRANSFER_IN",
-                    referenceId: transferId,
-                    note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
-                    feedType: input.feedType || null,
-                    balanceAfter: targetNewBalance.toString(),
+                let running = Number(targetFarmer.mainStock);
+                const creditRows = input.feeds.map(f => {
+                    running += f.quantity;
+                    return {
+                        farmerId: input.targetFarmerId,
+                        amount: f.quantity.toString(),
+                        type: "TRANSFER_IN",
+                        referenceId: transferId,
+                        feedType: f.type?.trim() || null,
+                        note: input.note ? `Received from ${sourceFarmer.name}: ${input.note}` : `Stock received from ${sourceFarmer.name}`,
+                        balanceAfter: running.toString(),
+                    };
                 });
+                await tx.insert(stockLogs).values(creditRows);
 
                 try {
                     const { NotificationService } = await import("@/modules/notifications/server/notification-service");
                     await NotificationService.sendToOrgManagers({
                         organizationId: input.orgId,
                         title: "Stock Transfer",
-                        message: `Manager ${ctx.user.name} transferred ${input.amount} bags from ${sourceFarmer.name} to ${targetFarmer.name}.`,
+                        message: `Manager ${ctx.user.name} transferred ${totalAmount} bags from ${sourceFarmer.name} to ${targetFarmer.name}.`,
                         type: "INFO",
                         link: `/management/farmers/${targetFarmer.id}`
                     });
