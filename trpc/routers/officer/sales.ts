@@ -953,9 +953,16 @@ export const officerSalesRouter = createTRPCRouter({
                             })
                             .where(eq(cycleHistory.id, event.historyId));
 
+                        // Does this adjustment leave birds alive? If so the cycle reopens below,
+                        // and reopenCycleFromHistory already fully reverses the ORIGINAL closing
+                        // consumption per type. Applying a delta on top of that here would double
+                        // count the stock change (and can spuriously fall back to Unspecified when
+                        // the delta's shortfall check runs before that reversal happens).
+                        const willReopen = (historyRecord.doc - newMortality - newBirdsSold) > 0;
+
                         // Adjust farmer's stock per feed type: diff old vs new consumption per type,
                         // deduct increases (with Unspecified fallback + hard block), restore decreases.
-                        if (input.feedConsumed) {
+                        if (input.feedConsumed && !willReopen) {
                             const oldFeeds = event.feedConsumed
                                 ? (JSON.parse(event.feedConsumed) as { type: string; bags: number }[]).map(f => ({ type: f.type, quantity: f.bags }))
                                 : [];
