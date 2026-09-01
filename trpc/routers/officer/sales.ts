@@ -63,11 +63,15 @@ const getCycleStats = (events: any[]) => {
         const currentWeight = weightMap.get(key) || 0;
         const currentBirdsSold = birdsSoldMap.get(key) || 0;
         const currentBirdDays = totalBirdDaysMap.get(key) || 0;
+        const currentRejected = rejectedMap.get(key) || 0;
 
         const selectedData = ev.selectedReport || ev;
         revenueMap.set(key, currentRevenue + (parseFloat(selectedData.totalAmount) || 0));
         weightMap.set(key, currentWeight + (parseFloat(selectedData.totalWeight) || 0));
         birdsSoldMap.set(key, currentBirdsSold + (selectedData.birdsSold || 0));
+        // Rejected birds are recorded per sale event, so the cycle total is the sum across
+        // events — never the latest event's value alone.
+        rejectedMap.set(key, currentRejected + (selectedData.birdsRejected || 0));
 
         // Use the explicitly locked sale age if available, otherwise fallback dynamically
         // Prefer report-level age (selectedReport.age) over raw event age
@@ -96,7 +100,7 @@ const getCycleStats = (events: any[]) => {
         ageMap.set(key, totalBirds > 0 ? Number((birdDays / totalBirds).toFixed(2)) : 0);
     });
     // //console.logageMap)
-    return { revenueMap, weightMap, birdsSoldMap, ageMap };
+    return { revenueMap, weightMap, birdsSoldMap, rejectedMap, ageMap };
 };
 
 const getCycleStatsWithMortality = (events: any[]) => {
@@ -1183,6 +1187,7 @@ export const officerSalesRouter = createTRPCRouter({
             // Aggregate data (Previous + Current Input)
             let totalWeight = input.totalWeight;
             let totalBirdsSold = input.birdsSold;
+            let previousBirdsRejected = 0;
             let totalRevenue = input.birdsSold > 0 ? (input.totalWeight * input.pricePerKg) : 0; // Actual amount
             // Process previous sales
             for (const sale of previousSales) {
@@ -1195,8 +1200,13 @@ export const officerSalesRouter = createTRPCRouter({
 
                 totalWeight += isNaN(w) ? 0 : w;
                 totalBirdsSold += s;
+                // Rejected birds are recorded per event and already left the house (they are
+                // added to cycles.birdsSold on create), so they must be accumulated across
+                // events — not read from the current input alone.
+                previousBirdsRejected += data.birdsRejected || 0;
                 totalRevenue += parseFloat(data.totalAmount);
             }
+            const cumulativeBirdsRejected = previousBirdsRejected + (input.birdsRejected || 0);
 
 
             const newMortality = cycle.mortality + input.mortalityChange;
@@ -1209,7 +1219,7 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Check if cycle would end
             const totalBirdsAfterMortality = cycle.doc - newMortality;
-            const isEnded = (totalBirdsSold + input.birdsRejected) >= totalBirdsAfterMortality;
+            const isEnded = (totalBirdsSold + cumulativeBirdsRejected) >= totalBirdsAfterMortality;
 
             let totalFeedBags = 0;
             if (isEnded) {
@@ -1238,8 +1248,8 @@ export const officerSalesRouter = createTRPCRouter({
             const totalBirds = (cycle.doc || 0);
             const birdsSoldTotal = totalBirdsSold;
             const mortalityTotal = newMortality;
-            // birdsRejected is like totalMortality — the latest input value IS the cycle total
-            const totalBirdsRejected = input.birdsRejected || 0;
+            // Rejected birds accumulate per sale event (see loop above)
+            const totalBirdsRejected = cumulativeBirdsRejected;
             const currentHouseBirds = Math.max(0, totalBirds - mortalityTotal - birdsSoldTotal - totalBirdsRejected);
             // Survival Rate for EPI is usually based on birds sold? Or total survival at end?
             // If cycle is ending, survival = (birdsSold / doc) * 100 ?
@@ -1350,6 +1360,7 @@ export const officerSalesRouter = createTRPCRouter({
                     profit: formulaProfit,
                     totalWeight,
                     cumulativeBirdsSold: totalBirdsSold,
+                    totalBirdsRejected,
                     age,
                     recoveryPrice: basePrice,
                     feedPriceUsed: orgFeedPrice,
@@ -1590,7 +1601,8 @@ export const officerSalesRouter = createTRPCRouter({
                 let running = 0;
                 for (let i = 0; i < sorted.length; i++) {
                     const ev = sorted[i];
-                    running += ev.birdsSold || 0;
+                    const evData = ev.reports?.find((r: any) => r.id === ev.selectedReportId) || ev;
+                    running += (evData.birdsSold || 0) + (evData.birdsRejected || 0);
                     perSaleCumulativeMap.set(ev.id, running);
 
                     if (i > 0) {
@@ -1652,6 +1664,7 @@ export const officerSalesRouter = createTRPCRouter({
                 let cumulativeWeight = 0;
                 let cumulativeRevenue = 0;
                 let cumulativeBirdsSold = 0;
+                let cumulativeBirdsRejected = 0;
                 let latestMortality = 0;
 
                 // Initialize overridden prices with current global values from saleMetrics
@@ -1695,6 +1708,7 @@ export const officerSalesRouter = createTRPCRouter({
                     cumulativeWeight += weight;
                     cumulativeRevenue += amount;
                     cumulativeBirdsSold += birds;
+                    cumulativeBirdsRejected += (selectedReport ? selectedReport.birdsRejected : evt.birdsRejected) || 0;
 
                     // 🔥 LATEST MORTALITY FROM SELECTED VERSION
                     latestMortality = Math.max(latestMortality, mortality);
@@ -1711,10 +1725,6 @@ export const officerSalesRouter = createTRPCRouter({
                 // Use latest values from selected reports
                 const mortality = latestMortality || (latestMortalityMap.get(groupKey) ?? (cycleOrHistory?.mortality || 0));
 
-                const latestEventInGroup = groupEvents.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-                const latestSelectedReport = latestEventInGroup?.reports?.find((r: any) => r.id === latestEventInGroup.selectedReportId);
-                const latestRejected = Number(latestSelectedReport ? latestSelectedReport.birdsRejected : latestEventInGroup?.birdsRejected) || 0;
-
                 // Calculate FCR/EPI using version-specific data
                 // Only calculate if this is the LATEST sale in the group (User Request)
                 const { fcr, epi } = calculateMetrics(
@@ -1724,7 +1734,7 @@ export const officerSalesRouter = createTRPCRouter({
                     feedConsumed,        // 🔥 RECALCULATED FEED
                     age,
                     isLatestInGroup && isEnded,      // Replaced isEnded
-                    latestRejected,   // 🔥 NEW: Pass latest rejected
+                    cumulativeBirdsRejected,   // 🔥 Total rejected across all sales of the cycle
                     cumulativeBirdsSold  // 🔥 Total birds sold (excluding rejected)
                 );
                 // Profit calculation (backend-only)
@@ -1758,7 +1768,7 @@ export const officerSalesRouter = createTRPCRouter({
                         epi,
                         revenue: formulaRevenue,
                         actualRevenue: cumulativeRevenue,
-                        totalBirdsRejected: latestRejected,
+                        totalBirdsRejected: cumulativeBirdsRejected,
                         totalWeight: cumulativeWeight,
                         cumulativeBirdsSold,
                         effectiveRate,
@@ -1864,7 +1874,10 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 const mortalityDiff = (report.totalMortality || 0) - (event.totalMortality || 0);
-                const birdsSoldDiff = (report.birdsSold || 0) - (event.birdsSold || 0);
+                // Rejected birds leave the house too, so a version with a different rejected
+                // count must move cycles.birdsSold by that delta as well.
+                const birdsSoldDiff = ((report.birdsSold || 0) - (event.birdsSold || 0))
+                    + ((report.birdsRejected || 0) - (event.birdsRejected || 0));
 
                 // Calculate Timeline Shift: (Old Implied Hatch Date) - (New Implied Hatch Date)
                 // This ensures that switching to a version where saleAge was changed ALSO moves the cycle timeline.
@@ -1884,6 +1897,7 @@ export const officerSalesRouter = createTRPCRouter({
                     .set({
                         selectedReportId: report.id,
                         birdsSold: report.birdsSold,
+                        birdsRejected: report.birdsRejected || 0,
                         totalMortality: report.totalMortality || 0,
                         totalWeight: report.totalWeight,
                         pricePerKg: report.pricePerKg,
@@ -2353,7 +2367,7 @@ export const appendCycleContextToSales = async (
         if (key && m.docPriceUsed) docPriceUsedMap.set(key, Number(m.docPriceUsed));
     }
 
-    const { revenueMap, weightMap, birdsSoldMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
+    const { revenueMap, weightMap, birdsSoldMap, rejectedMap, latestMortalityMap, ageMap } = getCycleStatsWithMortality(allCycleEvents);
 
     // Pre-calculate LATEST feed intake for each History Group from ALL related events
     const historyFeedMap = new Map<string, number>();
@@ -2456,12 +2470,10 @@ export const appendCycleContextToSales = async (
         const effectiveRate = Math.max(basePrice, basePrice + netAdjustment);
         const formulaRevenue = effectiveRate * cumulativeWeight;
 
-        const latestEventInGroup = groupedForCumulative[groupKey]?.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        const latestSelectedReport = latestEventInGroup?.reports?.find((r: any) => r.id === latestEventInGroup.selectedReportId);
-        const latestRejected = Number(latestSelectedReport ? latestSelectedReport.birdsRejected : latestEventInGroup?.birdsRejected) || 0;
+        const cumulativeBirdsRejected = rejectedMap.get(groupKey) || 0;
 
         // Calculate FCR/EPI
-        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded, latestRejected, cumulativeBirdsSold);
+        const { fcr, epi } = calculateMetrics(doc, mortality, cumulativeWeight, feedConsumed, age, isEnded, cumulativeBirdsRejected, cumulativeBirdsSold);
 
         // Profit calculation (backend-only)
         const feedPrice = feedPriceUsedMap.get(groupKey) ?? FEED_PRICE_PER_BAG;
@@ -2492,7 +2504,7 @@ export const appendCycleContextToSales = async (
                 epi,
                 revenue: formulaRevenue,
                 actualRevenue: cumulativeRevenue,
-                totalBirdsRejected: latestRejected,
+                totalBirdsRejected: cumulativeBirdsRejected,
                 totalWeight: cumulativeWeight,
                 cumulativeBirdsSold,
                 effectiveRate,

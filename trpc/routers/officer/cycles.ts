@@ -433,11 +433,10 @@ export const officerCyclesRouter = createTRPCRouter({
                         ))
                         .orderBy(desc(cycles.createdAt)),
                     ctx.db.select({
-                        total: saleEvents.birdsRejected
+                        // Rejected birds are per sale event, so the cycle total is the sum of all events
+                        total: sql<number>`COALESCE(SUM(${saleEvents.birdsRejected}), 0)`
                     }).from(saleEvents)
                         .where(eq(saleEvents.cycleId, activeCycle.id))
-                        .orderBy(desc(saleEvents.saleDate))
-                        .limit(1)
                 ]);
 
                 const combinedHistory = [
@@ -517,11 +516,10 @@ export const officerCyclesRouter = createTRPCRouter({
                     ))
                     .orderBy(desc(cycles.createdAt)),
                 ctx.db.select({
-                    total: saleEvents.birdsRejected
+                    // Rejected birds are per sale event, so the cycle total is the sum of all events
+                    total: sql<number>`COALESCE(SUM(${saleEvents.birdsRejected}), 0)`
                 }).from(saleEvents)
                     .where(eq(saleEvents.historyId, historyRecord.id))
-                    .orderBy(desc(saleEvents.saleDate))
-                    .limit(1)
             ]);
 
             const combinedHistory = [
