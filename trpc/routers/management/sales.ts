@@ -103,7 +103,7 @@ export const managementSalesRouter = createTRPCRouter({
                 }
             });
 
-            const items = await appendCycleContextToSales(ctx, events, undefined, input.limit);
+            const items = await appendCycleContextToSales(ctx, events);
             const last = pageSlice[pageSlice.length - 1];
 
             return {

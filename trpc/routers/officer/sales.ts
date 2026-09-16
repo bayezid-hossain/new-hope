@@ -2279,7 +2279,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            const items = await appendCycleContextToSales(ctx, events, undefined, input.limit);
+            const items = await appendCycleContextToSales(ctx, events);
             const last = pageSlice[pageSlice.length - 1];
 
             return {
@@ -2378,9 +2378,7 @@ export const officerSalesRouter = createTRPCRouter({
 
 export const appendCycleContextToSales = async (
     ctx: any,
-    events: any[],
-    search?: string,
-    limit: number = 20
+    events: any[]
 ) => {
     // Fetch cumulative data for these cycles to calculate correct metrics
     const cycleIds = [...new Set(events.map(e => e.cycleId).filter(Boolean))] as string[];
@@ -2572,14 +2570,5 @@ export const appendCycleContextToSales = async (
         };
     });
 
-    if (search) {
-        const searchLower = search.toLowerCase();
-        formattedEvents = formattedEvents.filter(e =>
-            e.farmerName.toLowerCase().includes(searchLower) ||
-            (e.location && e.location.toLowerCase().includes(searchLower)) ||
-            (e.party && e.party.toLowerCase().includes(searchLower))
-        );
-    }
-
-    return formattedEvents.slice(0, limit);
+    return formattedEvents;
 };
