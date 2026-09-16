@@ -26,7 +26,10 @@ export const updateCycleFeed = async (
     start.setHours(0, 0, 0, 0);
 
     const diffTime = now.getTime() - start.getTime();
-    const currentAge = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    // Floor is 0, not 1: DOC-order cycles are dated one day ahead of placement so the
+    // arrival day computes to 0. Cycles created any other way have createdAt <= today,
+    // so they still floor at 1 exactly as before.
+    const currentAge = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
 
     // //conosle.log(`[updateCycleFeed] currentAge: ${currentAge}, existingAge: ${cycle.age}`);
 

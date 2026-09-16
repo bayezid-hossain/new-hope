@@ -294,6 +294,12 @@ export const docOrdersRouter = createTRPCRouter({
                         throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot confirm order for deleted farmer: ${item.farmer.name}` });
                     }
 
+                    // The cycle is dated the day AFTER placement so that the arrival day
+                    // reads as day 0 and the first full day reads as day 1. The real
+                    // placement date is preserved in officialInputDate.
+                    const cycleStartDate = new Date(cycleDate);
+                    cycleStartDate.setDate(cycleStartDate.getDate() + 1);
+
                     // Create Cycle
                     const [newCycle] = await tx.insert(cycles).values({
                         name: item.farmer.name, // Cycle Name = Farmer Name
@@ -302,7 +308,8 @@ export const docOrdersRouter = createTRPCRouter({
                         doc: item.docCount,
                         age: 0,
                         birdType: item.birdType,
-                        createdAt: cycleDate,
+                        createdAt: cycleStartDate,
+                        officialInputDate: cycleDate,
                         status: "active"
                     }).returning();
 
@@ -311,7 +318,7 @@ export const docOrdersRouter = createTRPCRouter({
                         userId: ctx.user.id,
                         type: "SYSTEM",
                         valueChange: 0,
-                        note: `Cycle started from DOC Order. Birds: ${item.docCount}, Type: ${item.birdType}`
+                        note: `Cycle started from DOC Order. Birds: ${item.docCount}, Type: ${item.birdType}, Placed: ${cycleDate.toLocaleDateString()}`
                     });
 
                     // Initialize feed tracking
