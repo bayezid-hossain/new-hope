@@ -56,12 +56,15 @@ export const officerFarmersRouter = createTRPCRouter({
             orgId: z.string(),
             search: z.string().optional(),
             page: z.number().default(1),
+            // Page number used by useInfiniteQuery. Falls back to `page` for existing callers.
+            cursor: z.number().nullish(),
             pageSize: z.number().default(10),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const { orgId, search, page, pageSize } = input;
+            const { orgId, search, pageSize } = input;
+            const page = input.cursor ?? input.page;
             const officerFilter = eq(farmer.officerId, ctx.user.id);
             const statusFilter = eq(farmer.status, 'active');
 
@@ -142,7 +145,8 @@ export const officerFarmersRouter = createTRPCRouter({
                     };
                 }),
                 total: Number(total.count),
-                totalPages: Math.ceil(Number(total.count) / pageSize)
+                totalPages: Math.ceil(Number(total.count) / pageSize),
+                nextCursor: page * pageSize < Number(total.count) ? page + 1 : null
             };
         }),
 
