@@ -1,5 +1,5 @@
-import { saleEvents, saleReports } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { cycleHistory, cycles, farmer, saleEvents, saleReports } from "@/db/schema";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProProcedure } from "../../init";
 import { appendCycleContextToSales } from "../officer/sales";
@@ -8,16 +8,67 @@ export const managementSalesRouter = createTRPCRouter({
     getRecentSales: managementProProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
+            cursor: z.object({ saleDate: z.date(), id: z.string() }).nullish(),
             search: z.string().optional(),
             officerId: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const search = input.search?.trim();
+
+            const conditions: any[] = [
+                eq(farmer.organizationId, input.orgId),
+                ne(farmer.status, "deleted"),
+            ];
+
+            if (input.officerId) {
+                conditions.push(eq(saleEvents.createdBy, input.officerId));
+            }
+
+            if (input.cursor) {
+                conditions.push(
+                    sql`(${saleEvents.saleDate}, ${saleEvents.id}) < (${input.cursor.saleDate}, ${input.cursor.id})`
+                );
+            }
+
+            if (search) {
+                const pattern = `%${search}%`;
+                conditions.push(
+                    or(
+                        ilike(farmer.name, pattern),
+                        ilike(saleEvents.party, pattern),
+                        ilike(saleEvents.location, pattern)
+                    )!
+                );
+            }
+
+            // Step 1: pick the page's ids in SQL (filters + cursor + order live here).
+            // One extra row tells us whether another page exists.
+            const pageRows = await ctx.db
+                .select({ id: saleEvents.id, saleDate: saleEvents.saleDate })
+                .from(saleEvents)
+                .leftJoin(cycles, eq(saleEvents.cycleId, cycles.id))
+                .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
+                .innerJoin(
+                    farmer,
+                    eq(farmer.id, sql`coalesce(${cycles.farmerId}, ${cycleHistory.farmerId})`)
+                )
+                .where(and(...conditions))
+                .orderBy(desc(saleEvents.saleDate), desc(saleEvents.id))
+                .limit(input.limit + 1);
+
+            const hasMore = pageRows.length > input.limit;
+            const pageSlice = pageRows.slice(0, input.limit);
+
+            if (pageSlice.length === 0) {
+                return { items: [], nextCursor: null };
+            }
+
+            const pageIds = pageSlice.map(r => r.id);
+
+            // Step 2: hydrate the page with its relations.
             const events = await ctx.db.query.saleEvents.findMany({
-                where: input.officerId
-                    ? eq(saleEvents.createdBy, input.officerId)
-                    : undefined, // No officerId = show all sales in org
-                orderBy: desc(saleEvents.saleDate),
-                limit: input.search ? 200 : input.limit,
+                where: inArray(saleEvents.id, pageIds),
+                orderBy: [desc(saleEvents.saleDate), desc(saleEvents.id)],
                 with: {
                     cycle: { with: { farmer: true } },
                     history: { with: { farmer: true } },
@@ -52,16 +103,12 @@ export const managementSalesRouter = createTRPCRouter({
                 }
             });
 
-            // Filter by org: only include sales where the farmer belongs to this org
-            const orgId = input.orgId;
-            const orgFiltered = events.filter(e => {
-                const f = e.cycle?.farmer ?? e.history?.farmer;
-                if (!f) return false;
-                if (f.organizationId !== orgId) return false;
-                if (f.status === "deleted") return false;
-                return true;
-            });
+            const items = await appendCycleContextToSales(ctx, events, undefined, input.limit);
+            const last = pageSlice[pageSlice.length - 1];
 
-            return await appendCycleContextToSales(ctx, orgFiltered, input.search, input.limit);
+            return {
+                items,
+                nextCursor: hasMore ? { saleDate: last.saleDate, id: last.id } : null,
+            };
         }),
 });
