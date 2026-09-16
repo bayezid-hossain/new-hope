@@ -22,14 +22,23 @@ export const updateCycleFeed = async (
         return null;
     }
 
-    now.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
+    // Age is counted in Bangladesh calendar days (fixed UTC+6, no DST). Flooring in the
+    // server's timezone would be wrong here: placement dates are stored as Bangladesh
+    // midnight (18:00Z the previous day), and a UTC floor pulls them back onto the
+    // previous UTC day.
+    const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000;
+    const dhakaDayIndex = (d: Date) => Math.floor((d.getTime() + DHAKA_OFFSET_MS) / 86400000);
 
-    const diffTime = now.getTime() - start.getTime();
     // Floor is 0, not 1: DOC-order cycles are dated one day ahead of placement so the
     // arrival day computes to 0. Cycles created any other way have createdAt <= today,
     // so they still floor at 1 exactly as before.
-    const currentAge = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    const currentAge = Math.max(0, dhakaDayIndex(now) - dhakaDayIndex(start) + 1);
+
+    // NOTE: now/start are mutated below to server-midnight for the downstream feed
+    // "checkpoint" math (calculationStartDate default, diffTimeSinceCheckpoint), which
+    // is unrelated to age and stays on server-timezone flooring as before.
+    now.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
 
     // //conosle.log(`[updateCycleFeed] currentAge: ${currentAge}, existingAge: ${cycle.age}`);
 
