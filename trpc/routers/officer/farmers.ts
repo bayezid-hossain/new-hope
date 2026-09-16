@@ -57,7 +57,7 @@ export const officerFarmersRouter = createTRPCRouter({
             search: z.string().optional(),
             page: z.number().default(1),
             // Page number used by useInfiniteQuery. Falls back to `page` for existing callers.
-            cursor: z.number().nullish(),
+            cursor: z.number().int().min(1).nullish(),
             pageSize: z.number().default(10),
             sortBy: z.string().optional(),
             sortOrder: z.enum(["asc", "desc"]).optional(),
