@@ -190,7 +190,7 @@ export const SalesHistoryCard = ({
         )
     );
 
-    const salesEventsData = recent ? recentQuery.data : eventsQuery.data;
+    const salesEventsData = recent ? recentQuery.data?.items : eventsQuery.data;
     const isLoading = recent ? recentQuery.isLoading : eventsQuery.isLoading;
     const isFetching = recent ? recentQuery.isFetching : eventsQuery.isFetching;
 
@@ -397,7 +397,7 @@ export const SalesHistoryCard = ({
             });
     }, [salesEventsData, farmerId, groupByFarmer]);
 
-    const salesEvents = recent ? (recentQuery.data as SaleEvent[]) : (eventsQuery.data as SaleEvent[]);
+    const salesEvents = recent ? (recentQuery.data?.items as SaleEvent[]) : (eventsQuery.data as SaleEvent[]);
 
     // cycleContext comes from backend response directly — no frontend aggregation needed
 
