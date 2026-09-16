@@ -2226,7 +2226,7 @@ export const officerSalesRouter = createTRPCRouter({
                 .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
                 .innerJoin(
                     farmer,
-                    or(eq(farmer.id, cycles.farmerId), eq(farmer.id, cycleHistory.farmerId))!
+                    eq(farmer.id, sql`coalesce(${cycles.farmerId}, ${cycleHistory.farmerId})`)
                 )
                 .where(and(...conditions))
                 .orderBy(desc(saleEvents.saleDate), desc(saleEvents.id))
@@ -2279,7 +2279,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            const items = await appendCycleContextToSales(ctx, events);
+            const items = await appendCycleContextToSales(ctx, events, undefined, input.limit);
             const last = pageSlice[pageSlice.length - 1];
 
             return {
