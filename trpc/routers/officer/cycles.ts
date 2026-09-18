@@ -625,13 +625,16 @@ export const officerCyclesRouter = createTRPCRouter({
 
             if (input.date) {
                 const reqTime = new Date(input.date).getTime();
-                const cycleTime = new Date(current.createdAt).getTime();
+                // DOC-order cycles are dated the day after placement; officialInputDate holds
+                // the real arrival date, so arrival-day deaths must be loggable against it.
+                const cycleStart = current.officialInputDate ?? current.createdAt;
+                const cycleTime = new Date(cycleStart).getTime();
 
                 // Allow up to 24 hours buffer to handle timezone discrepancies between local midnight and UTC server time
                 if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
-                        message: `Mortality log date cannot be before cycle start date (${current.createdAt.toLocaleDateString()}).`
+                        message: `Mortality log date cannot be before cycle start date (${new Date(cycleStart).toLocaleDateString()}).`
                     });
                 }
             }
@@ -984,13 +987,14 @@ export const officerCyclesRouter = createTRPCRouter({
                 // Date Validation
                 if (input.newDate) {
                     const reqTime = new Date(input.newDate).getTime();
-                    const cycleTime = new Date(activeCycle.createdAt).getTime();
+                    const cycleStart = activeCycle.officialInputDate ?? activeCycle.createdAt;
+                    const cycleTime = new Date(cycleStart).getTime();
 
                     // Allow up to 24 hours buffer to handle timezone discrepancies between local midnight and UTC server time
                     if (reqTime < cycleTime - 24 * 60 * 60 * 1000) {
                         throw new TRPCError({
                             code: "BAD_REQUEST",
-                            message: `Mortality log date cannot be before cycle start date (${activeCycle.createdAt.toLocaleDateString()}).`
+                            message: `Mortality log date cannot be before cycle start date (${new Date(cycleStart).toLocaleDateString()}).`
                         });
                     }
                 }

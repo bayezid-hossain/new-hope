@@ -3,7 +3,7 @@ import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetric
 
 
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, like, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, like, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
@@ -2188,21 +2188,63 @@ export const officerSalesRouter = createTRPCRouter({
     getRecentSales: proProcedure
         .input(z.object({
             limit: z.number().min(1).max(100).default(20),
+            // Keyset cursor: the (saleDate, id) of the last row of the previous page.
+            cursor: z.object({ saleDate: z.date(), id: z.string() }).nullish(),
             search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            // Fetch sales created by the officer
-            // Note: If scale becomes an issue (thousands of sales), we need to add farmerId to saleEvents or use a more complex join.
-            // For now, fetching recent 100 or so and filtering is "okay" given standard officer limits,
-            // BUT for correct search we should probably select all matching the officer, then filter.
-            // Since Drizzle 'findMany' with 'where' on deep relations is tricky, we'll fetch a larger set if searching,
-            // or just rely on 'createdBy' index which should be fast.
+            const search = input.search?.trim();
 
+            const conditions: any[] = [
+                eq(saleEvents.createdBy, ctx.user.id),
+                ne(farmer.status, "deleted"),
+            ];
+
+            if (input.cursor) {
+                conditions.push(
+                    sql`(${saleEvents.saleDate}, ${saleEvents.id}) < (${input.cursor.saleDate}, ${input.cursor.id})`
+                );
+            }
+
+            if (search) {
+                const pattern = `%${search}%`;
+                conditions.push(
+                    or(
+                        ilike(farmer.name, pattern),
+                        ilike(saleEvents.party, pattern),
+                        ilike(saleEvents.location, pattern)
+                    )!
+                );
+            }
+
+            // Step 1: pick the page's ids in SQL (filters + cursor + order live here).
+            // Fetch one extra row to learn whether another page exists.
+            const pageRows = await ctx.db
+                .select({ id: saleEvents.id, saleDate: saleEvents.saleDate })
+                .from(saleEvents)
+                .leftJoin(cycles, eq(saleEvents.cycleId, cycles.id))
+                .leftJoin(cycleHistory, eq(saleEvents.historyId, cycleHistory.id))
+                .innerJoin(
+                    farmer,
+                    eq(farmer.id, sql`coalesce(${cycles.farmerId}, ${cycleHistory.farmerId})`)
+                )
+                .where(and(...conditions))
+                .orderBy(desc(saleEvents.saleDate), desc(saleEvents.id))
+                .limit(input.limit + 1);
+
+            const hasMore = pageRows.length > input.limit;
+            const pageSlice = pageRows.slice(0, input.limit);
+
+            if (pageSlice.length === 0) {
+                return { items: [], nextCursor: null };
+            }
+
+            const pageIds = pageSlice.map(r => r.id);
+
+            // Step 2: hydrate the page with its relations.
             const events = await ctx.db.query.saleEvents.findMany({
-                where: eq(saleEvents.createdBy, ctx.user.id),
-                orderBy: desc(saleEvents.saleDate),
-                // If searching, we might need to fetch more to find matches, but for safety let's cap at 200 then filter
-                limit: input.search ? 200 : input.limit,
+                where: inArray(saleEvents.id, pageIds),
+                orderBy: [desc(saleEvents.saleDate), desc(saleEvents.id)],
                 with: {
                     cycle: { with: { farmer: true } },
                     history: { with: { farmer: true } },
@@ -2225,6 +2267,9 @@ export const officerSalesRouter = createTRPCRouter({
                             party: true,
                             feedConsumed: true,
                             feedStock: true,
+                            feedPriceUsed: true,
+                            docPriceUsed: true,
+                            recoveryPrice: true,
                             age: true,
                             createdAt: true,
                             officialInputDate: true,
@@ -2234,13 +2279,13 @@ export const officerSalesRouter = createTRPCRouter({
                 }
             });
 
-            // Filter out deleted farmers
-            const filteredEvents = events.filter(e => {
-                const f = e.cycle?.farmer || e.history?.farmer;
-                return f?.status !== "deleted";
-            });
+            const items = await appendCycleContextToSales(ctx, events);
+            const last = pageSlice[pageSlice.length - 1];
 
-            return await appendCycleContextToSales(ctx, filteredEvents, input.search, input.limit);
+            return {
+                items,
+                nextCursor: hasMore ? { saleDate: last.saleDate, id: last.id } : null,
+            };
         }),
 
     delete: proProcedure
@@ -2333,9 +2378,7 @@ export const officerSalesRouter = createTRPCRouter({
 
 export const appendCycleContextToSales = async (
     ctx: any,
-    events: any[],
-    search?: string,
-    limit: number = 20
+    events: any[]
 ) => {
     // Fetch cumulative data for these cycles to calculate correct metrics
     const cycleIds = [...new Set(events.map(e => e.cycleId).filter(Boolean))] as string[];
@@ -2527,14 +2570,5 @@ export const appendCycleContextToSales = async (
         };
     });
 
-    if (search) {
-        const searchLower = search.toLowerCase();
-        formattedEvents = formattedEvents.filter(e =>
-            e.farmerName.toLowerCase().includes(searchLower) ||
-            (e.location && e.location.toLowerCase().includes(searchLower)) ||
-            (e.party && e.party.toLowerCase().includes(searchLower))
-        );
-    }
-
-    return formattedEvents.slice(0, limit);
+    return formattedEvents;
 };

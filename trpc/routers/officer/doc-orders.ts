@@ -294,6 +294,20 @@ export const docOrdersRouter = createTRPCRouter({
                         throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot confirm order for deleted farmer: ${item.farmer.name}` });
                     }
 
+                    // The cycle is dated the day AFTER placement so the arrival day reads as
+                    // day 0 and the first full day reads as day 1. The real placement date is
+                    // preserved in officialInputDate.
+                    //
+                    // Anchored at 12:00 UTC deliberately: age is computed by flooring
+                    // timestamps in the server's timezone (UTC), while placement dates arrive
+                    // as Bangladesh midnight — 18:00Z on the PREVIOUS UTC day. Noon sits far
+                    // from either boundary, so the shifted date floors onto the intended UTC
+                    // day whether the placement was recorded as Dhaka midnight or as an
+                    // arbitrary instant.
+                    const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000;
+                    const placementDhakaDay = Math.floor((cycleDate.getTime() + DHAKA_OFFSET_MS) / 86400000);
+                    const cycleStartDate = new Date((placementDhakaDay + 1) * 86400000 + 12 * 60 * 60 * 1000);
+
                     // Create Cycle
                     const [newCycle] = await tx.insert(cycles).values({
                         name: item.farmer.name, // Cycle Name = Farmer Name
@@ -302,7 +316,8 @@ export const docOrdersRouter = createTRPCRouter({
                         doc: item.docCount,
                         age: 0,
                         birdType: item.birdType,
-                        createdAt: cycleDate,
+                        createdAt: cycleStartDate,
+                        officialInputDate: cycleDate,
                         status: "active"
                     }).returning();
 
@@ -311,7 +326,7 @@ export const docOrdersRouter = createTRPCRouter({
                         userId: ctx.user.id,
                         type: "SYSTEM",
                         valueChange: 0,
-                        note: `Cycle started from DOC Order. Birds: ${item.docCount}, Type: ${item.birdType}`
+                        note: `Cycle started from DOC Order. Birds: ${item.docCount}, Type: ${item.birdType}, Placed: ${cycleDate.toLocaleDateString()}`
                     });
 
                     // Initialize feed tracking
