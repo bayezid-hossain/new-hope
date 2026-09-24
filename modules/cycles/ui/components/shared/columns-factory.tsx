@@ -94,8 +94,8 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                             }
                             setShowEditDoc(true);
                         }}
-                        disabled={cycle.birdsSold > 0}
-                        title={cycle.birdsSold > 0 ? "Cannot edit initial birds after sales have started" : ""}
+                        disabled={cycle.birdsOut > 0}
+                        title={cycle.birdsOut > 0 ? "Cannot edit initial birds after sales have started" : ""}
                     >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Initial Birds (DOC)
@@ -110,8 +110,8 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                             }
                             setShowEditAge(true);
                         }}
-                        disabled={cycle.birdsSold > 0}
-                        title={cycle.birdsSold > 0 ? "Cannot edit age after sales have started" : ""}
+                        disabled={cycle.birdsOut > 0}
+                        title={cycle.birdsOut > 0 ? "Cannot edit age after sales have started" : ""}
                     >
                         <CalendarDays className="mr-2 h-4 w-4" />
                         Edit Age
@@ -126,7 +126,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                             }
                             setShowCorrectMortality(true);
                         }}
-                        title={cycle.birdsSold > 0 ? "Cannot correct mortality after sales have started, you can update it in the next sale report or end the cycle" : ""}
+                        title={cycle.birdsOut > 0 ? "Cannot correct mortality after sales have started, you can update it in the next sale report or end the cycle" : ""}
                     >
                         <Wrench className="mr-2 h-4 w-4" />
                         Correct Total Mortality
@@ -154,7 +154,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 cycleAge={cycle.age || 0}
                 doc={cycle.doc}
                 mortality={cycle.mortality || 0}
-                birdsSold={cycle.birdsSold || 0}
+                birdsSold={cycle.birdsOut || 0}
                 intake={cycle.intake || 0}
                 open={showSellModal}
                 onOpenChange={setShowSellModal}
@@ -180,7 +180,7 @@ export const ActionsCell = ({ cycle, prefix }: { cycle: Farmer; prefix?: string 
                 intake={parseFloat(String(cycle.intake || 0))}
                 doc={cycle.doc}
                 mortality={cycle.mortality || 0}
-                birdsSold={cycle.birdsSold || 0}
+                birdsSold={cycle.birdsOut || 0}
                 startDate={cycle.createdAt}
                 open={showEndCycle}
                 prefix={prefix}
@@ -380,7 +380,7 @@ export const getCycleColumns = ({ prefix = "", enableActions = false }: ColumnsF
             cell: ({ row }) => {
                 const doc = parseInt(String(row.original.doc || 0));
                 const mortality = parseInt(String(row.original.mortality || 0));
-                const birdsSold = parseInt(String(row.original.birdsSold || 0));
+                const birdsSold = parseInt(String(row.original.birdsOut || 0));
                 const liveBirds = Math.max(0, doc - mortality - birdsSold);
 
                 return (
@@ -490,9 +490,11 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
             header: "Birds (Initial/Sold)",
             cell: ({ row }) => {
                 const doc = parseInt(String(row.original.doc || 0));
-                const sold = parseInt(String(row.original.birdsSold || 0));
+                const birdsOut = parseInt(String(row.original.birdsOut || 0));
+                const rejected = parseInt(String(row.original.birdsRejected || 0));
+                const sold = Math.max(0, birdsOut - rejected);
                 const mortality = parseInt(String(row.original.mortality || 0));
-                const remaining = Math.max(0, doc - mortality - sold);
+                const remaining = Math.max(0, doc - mortality - birdsOut);
 
                 return (
                     <div className="flex flex-col gap-0.5">
@@ -503,6 +505,11 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                             <span className="bg-primary/10 text-primary w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                 {sold.toLocaleString()} Sold
                             </span>
+                            {rejected > 0 && (
+                                <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
+                                    {rejected.toLocaleString()} Rejected
+                                </span>
+                            )}
                             {remaining > 0 && row.original.status !== 'archived' && (
                                 <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                     {remaining.toLocaleString()} Live

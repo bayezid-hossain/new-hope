@@ -223,7 +223,9 @@ export const cycles = pgTable("cycles", {
 
   // Data
   doc: integer("doc").notNull(), // Day Old Chicks count
-  birdsSold: integer("birds_sold").notNull().default(0),
+  // Every bird that left the house: sold AND rejected. Sold alone is birdsOut - birdsRejected.
+  birdsOut: integer("birds_out").notNull().default(0),
+  birdsRejected: integer("birds_rejected").notNull().default(0),
   intake: real("intake").notNull().default(0),
   mortality: integer("mortality").notNull().default(0),
   age: integer("age").notNull().default(0),
@@ -248,7 +250,9 @@ export const cycleHistory = pgTable("cycle_history", {
 
   // Snapshot of final stats
   doc: integer("doc").notNull(),
-  birdsSold: integer("birds_sold").notNull().default(0),
+  // Every bird that left the house: sold AND rejected.
+  birdsOut: integer("birds_out").notNull().default(0),
+  birdsRejected: integer("birds_rejected").notNull().default(0),
   finalIntake: real("final_intake").notNull(),
   mortality: integer("mortality").notNull(),
   age: integer("age").notNull(),
@@ -407,6 +411,7 @@ export const saleMetrics = pgTable("sale_metrics", {
 
   // Total birds (all sales combined)
   totalBirdsSold: integer("total_birds_sold").notNull(),
+  totalBirdsRejected: integer("total_birds_rejected").notNull().default(0),
   totalDoc: integer("total_doc").notNull(),
   totalMortality: integer("total_mortality").notNull(),
   averageAge: decimal("average_age", { precision: 5, scale: 2 }).notNull(),

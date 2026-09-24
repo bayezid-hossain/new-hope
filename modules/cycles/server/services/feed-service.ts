@@ -71,7 +71,7 @@ export const updateCycleFeed = async (
 
     // A. Living Population (Surviving + not yet sold)
     // We only calculate consumption for the period AFTER the last sale (or start date)
-    const liveBirds = Math.max(0, (cycle.doc || 0) - (cycle.mortality || 0) - (cycle.birdsSold || 0));
+    const liveBirds = Math.max(0, (cycle.doc || 0) - (cycle.mortality || 0) - (cycle.birdsOut || 0));
 
     // Calculate days to estimate
     const calcStart = new Date(calculationStartDate);
