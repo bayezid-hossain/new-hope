@@ -225,7 +225,12 @@ export class PerformanceAnalyticsService {
                     totalAge += age;
                     totalFeedBags += feedBags;
 
-                    const rejected = Number(latest.report_birds_rejected ?? latest.birds_rejected) || 0;
+                    // Rejected birds are recorded per sale, so the cycle total is the sum of
+                    // every sale — not just the last one.
+                    const rejected = cycle.sales.reduce(
+                        (sum, s) => sum + (Number((s as any).report_birds_rejected ?? (s as any).birds_rejected) || 0),
+                        0
+                    );
 
                     let survivalRate = 0;
                     if (houseBirds > 0) {
@@ -508,7 +513,12 @@ export class PerformanceAnalyticsService {
 
             // Survival Rate
             let survivalRate = 0;
-            const rejected = Number(latest.report_birds_rejected ?? latest.birds_rejected) || 0;
+            // Rejected birds are recorded per sale, so the cycle total is the sum of
+            // every sale — not just the last one.
+            const rejected = cycle.sales.reduce(
+                (sum, s) => sum + (Number((s as any).report_birds_rejected ?? (s as any).birds_rejected) || 0),
+                0
+            );
             if (houseBirds > 0) {
                 survivalRate =
                     ((houseBirds - mortality - rejected) / houseBirds) * 100;
