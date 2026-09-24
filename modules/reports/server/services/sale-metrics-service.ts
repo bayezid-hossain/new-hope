@@ -192,9 +192,12 @@ export class SaleMetricsService {
         const rawAverageAge = totalBirdsSold > 0 ? (totalBirdDays / totalBirdsSold) : (cycle.age || 0);
         const averageAge = Number(rawAverageAge.toFixed(2));
 
-        // Get rejected birds from the latest sale (matches how totalMortality is sourced)
-        const latestSaleData = latestSale?.selectedReport || latestSale;
-        const totalBirdsRejected = Number(latestSaleData?.birdsRejected) || 0;
+        // Rejected birds are recorded per sale, so the cycle total is the sum across every
+        // sale's selected version — never the latest sale's value alone.
+        const totalBirdsRejected = sales.reduce(
+            (sum: number, s: any) => sum + (Number((s.selectedReport ?? s).birdsRejected) || 0),
+            0
+        );
 
         // Calculate Average Weight using SURVIVORS (DOC - Mortality - Rejected) to match frontend logic
         // This accounts for missing birds/theft which reduces the effective average weight of the flock
@@ -229,6 +232,7 @@ export class SaleMetricsService {
             survivalRate: survivalRate.toString(),
             averageWeight: averageWeight.toString(),
             totalBirdsSold,
+            totalBirdsRejected,
             totalDoc: cycle.doc,
             totalMortality: cycle.mortality || 0,
             averageAge: averageAge.toString(),
@@ -249,6 +253,7 @@ export class SaleMetricsService {
                 survivalRate: survivalRate.toString(),
                 averageWeight: averageWeight.toString(),
                 totalBirdsSold,
+                totalBirdsRejected,
                 totalMortality: cycle.mortality || 0,
                 averageAge: averageAge.toString(),
                 feedCost: feedCost.toString(),

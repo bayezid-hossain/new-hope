@@ -838,7 +838,7 @@ FORMAT:
                 .innerJoin(cycles, and(
                     eq(cycles.farmerId, farmer.id),
                     eq(cycles.status, "active"),
-                    gt(sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsSold}, 0)`, 0)
+                    gt(sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsOut}, 0)`, 0)
                 ))
                 .where(and(
                     eq(farmer.organizationId, input.orgId),

@@ -86,15 +86,22 @@ export const generateReportText = (sale: SaleEvent, report: SaleReport | null, i
     const isEnded = sale.cycleContext?.isEnded || false;
     const doc = sale.cycleContext?.doc || sale.houseBirds || 0;
 
+    const birdsRejected = Number(report?.birdsRejected ?? (sale as any).birdsRejected ?? 0);
+    const previousSold = Number((sale as any).previousBirdsSold ?? 0);
+    const previousRejected = Number((sale as any).previousBirdsRejected ?? 0);
+    const saleAge = (sale as any).saleAge ?? sale.cycleContext?.age ?? "N/A";
+
     return `Date: ${format(new Date(sale.saleDate), "dd MMM yyyy")}
 
 Farmer: ${sale.farmerName || "N/A"}
-Location: ${sale.location}
-House bird : ${doc || 0}pcs
-Total Sold : ${birdsSold}pcs
+Location: ${sale.location || "N/A"}
+${(sale.cycleContext as any)?.birdType ? `\nBird Type: ${(sale.cycleContext as any)?.birdType}` : ""}
+${doc ? `House bird : ${doc}pcs` : ""}
+${previousSold > 0 ? `Previously Sold: ${previousSold}pcs\n` : ""}${previousRejected > 0 ? `Previously Rejected: ${previousRejected}pcs\n` : ""}Today's Sale : ${birdsSold}pcs${birdsRejected > 0 ? `\nRejected : ${birdsRejected}pcs` : ""}
 Total Mortality: ${totalMortality} pcs
 ${(!isEnded || !isLatest) ? `\nRemaining Birds: ${sale.remainingBirds ?? 0} pcs` : ""}
 
+Age: ${saleAge} days
 Weight: ${totalWeight} kg
 Avg. Weight: ${avgWeight} kg
 ${isEnded && isLatest ? `
@@ -108,10 +115,7 @@ Cash: ${parseFloat(cashReceived || "0").toLocaleString()} tk
 
 Feed: ${feedTotal} bags
 ${feedBreakdown}
-
-Stock:
-${stockBreakdown}
-
+${stockBreakdown ? `\nStock:\n${stockBreakdown}\n` : ""}
 Medicine: ${medicineCost ? parseFloat(medicineCost).toLocaleString() : 0} tk
 ${!isEnded || !isLatest ? "\n--- Sale not complete ---" : ""}`;
 };

@@ -80,19 +80,19 @@ export const officerRouter = createTRPCRouter({
                 doc: cycles.doc,
                 mortality: cycles.mortality,
                 intake: cycles.intake,
-                birdsSold: cycles.birdsSold,
+                birdsOut: cycles.birdsOut,
             })
                 .from(cycles)
                 .where(and(
                     eq(cycles.organizationId, orgId),
                     eq(cycles.status, "active"),
-                    sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsSold}, 0) > 0`,
+                    sql`${cycles.doc} - ${cycles.mortality} - COALESCE(${cycles.birdsOut}, 0) > 0`,
                     sql`${cycles.farmerId} IN ${farmerIds}`
                 ));
 
             const totalActiveConsumption = activeCycles.reduce((sum, c) => sum + (c.intake || 0), 0);
-            const totalBirdsSold = activeCycles.reduce((sum, c) => sum + (c.birdsSold || 0), 0);
-            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality - (c.birdsSold || 0)), 0);
+            const totalBirdsSold = activeCycles.reduce((sum, c) => sum + (c.birdsOut || 0), 0);
+            const totalBirds = activeCycles.reduce((sum, c) => sum + (c.doc - c.mortality - (c.birdsOut || 0)), 0);
             const totalDoc = activeCycles.reduce((sum, c) => sum + c.doc, 0);
             const totalMortality = activeCycles.reduce((sum, c) => sum + c.mortality, 0);
 

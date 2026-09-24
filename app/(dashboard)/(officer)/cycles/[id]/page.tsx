@@ -50,7 +50,7 @@ interface NormalizedCycle {
     id: string;
     name: string;
     doc: number;
-    birdsSold: number;
+    birdsOut: number;
     mortality: number;
     age: number;
     intake: number;
@@ -66,7 +66,7 @@ interface ActiveCycle {
     farmerId: string;
     organizationId: string;
     doc: number;
-    birdsSold: number;
+    birdsOut: number;
     mortality: number;
     age: number;
     intake: number;
@@ -83,7 +83,7 @@ interface HistoryRecord {
     farmerId: string;
     organizationId: string | null;
     doc: number;
-    birdsSold: number;
+    birdsOut: number;
     mortality: number;
     age: number;
     finalIntake: number;
@@ -323,7 +323,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
             id: rawData.id,
             name: (rawData as any).farmer?.name || (isActive ? (rawData as ActiveCycle).name : (rawData as HistoryRecord).cycleName),
             doc: rawData.doc || 0,
-            birdsSold: rawData.birdsSold || 0,
+            birdsOut: rawData.birdsOut || 0,
             mortality: rawData.mortality || 0,
             age: rawData.age || 0,
             intake: isActive ? ((rawData as ActiveCycle).intake || 0) : ((rawData as HistoryRecord).finalIntake || 0),
@@ -346,7 +346,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
 
     const { cycle, logs, history, farmerContext } = normalized;
 
-    const liveBirds = Math.max(0, cycle.doc - cycle.mortality - cycle.birdsSold);
+    const liveBirds = Math.max(0, cycle.doc - cycle.mortality - cycle.birdsOut);
     const totalSurvivors = Math.max(0, cycle.doc - cycle.mortality);
     const survivalRate = cycle.doc > 0
         ? ((totalSurvivors / cycle.doc) * 100).toFixed(2)
@@ -432,7 +432,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                         // Ensure all required fields from Farmer type are present or mocked safely
                                         age: cycle.age,
                                         doc: cycle.doc,
-                                        birdsSold: cycle.birdsSold,
+                                        birdsOut: cycle.birdsOut,
                                         mortality: cycle.mortality,
                                         intake: cycle.intake
                                     } as unknown as Farmer}
@@ -442,7 +442,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                                     history={{
                                         ...cycle,
                                         cycleName: cycle.name,
-                                        birdsSold: cycle.birdsSold,
+                                        birdsOut: cycle.birdsOut,
                                         finalIntake: cycle.intake,
                                         farmerId: farmerContext.id,
                                         organizationId: farmerContext.organizationId,
@@ -483,9 +483,9 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             <div className="flex justify-between items-center">
                                 <span className="text-xs sm:text-sm text-muted-foreground pt-1.5 self-start">Birds Status</span>
                                 <div className="text-right">
-                                    {cycle.birdsSold > 0 && (
+                                    {cycle.birdsOut > 0 && (
                                         <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mb-0.5">
-                                            {cycle.birdsSold.toLocaleString()} Sold
+                                            {cycle.birdsOut.toLocaleString()} Sold
                                         </div>
                                     )}
                                     <div className="font-bold text-lg sm:text-xl text-foreground -mb-1">{liveBirds.toLocaleString()}</div>
@@ -497,7 +497,7 @@ const CycleDetailsContent = ({ id }: { id: string }) => {
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Birds Sold</span>
-                                <span className="font-medium text-sm sm:text-base text-foreground">{cycle.birdsSold} birds</span>
+                                <span className="font-medium text-sm sm:text-base text-foreground">{cycle.birdsOut} birds</span>
                             </div>
                             <Separator className="bg-border/50" />
                             <div className="flex justify-between items-center">

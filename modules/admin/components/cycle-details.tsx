@@ -76,7 +76,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
             intake: type === 'active' ? (cycle as any).intake : (cycle as any).finalIntake,
             createdAt: (cycle as any).createdAt,
             farmerName: farmerContext.name,
-            birdsSold: (cycle as any).birdsSold || 0,
+            birdsOut: (cycle as any).birdsOut || 0,
             status: type === 'active' ? 'active' : (cycle as any).status,
             birdType: (cycle as any).birdType,
         };
@@ -196,7 +196,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     <CardContent>
                         <div className="flex flex-col">
                             <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-bold text-primary">{(normalizedCycle.doc - normalizedCycle.mortality - normalizedCycle.birdsSold).toLocaleString()}</span>
+                                <span className="text-3xl font-bold text-primary">{(normalizedCycle.doc - normalizedCycle.mortality - normalizedCycle.birdsOut).toLocaleString()}</span>
                                 <Bird className="h-4 w-4 text-muted-foreground/30" />
                             </div>
                             <span className="text-[10px] text-muted-foreground">of {normalizedCycle.doc.toLocaleString()} DOC</span>
@@ -209,7 +209,7 @@ export const CycleDetails = ({ cycleId, isAdmin, isManagement }: CycleDetailsPro
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.birdsSold.toLocaleString()}</span>
+                            <span className="text-3xl font-bold text-foreground">{normalizedCycle.birdsOut.toLocaleString()}</span>
                             <ShoppingCart className="h-4 w-4 text-muted-foreground/30" />
                         </div>
                     </CardContent>

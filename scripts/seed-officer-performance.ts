@@ -139,7 +139,7 @@ async function main() {
             farmerId: randomFarmer.id,
             organizationId: org.id,
             doc: data.doc,
-            birdsSold: data.sold,
+            birdsOut: data.sold,
             finalIntake: feedBags,
             mortality: data.mortality,
             age: data.age,

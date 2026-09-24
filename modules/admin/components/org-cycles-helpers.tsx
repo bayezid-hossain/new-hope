@@ -12,6 +12,9 @@ export type CycleItem = {
     farmerId: string;
     organizationId: string | null;
     doc: number;
+    birdsOut: number;
+    birdsRejected: number;
+    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
     birdsSold: number;
     age: number;
     intake: string | number | null;

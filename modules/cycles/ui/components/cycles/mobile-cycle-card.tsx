@@ -30,8 +30,10 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
     const intakeValue = parseFloat(cycle.intake || cycle.finalIntake || "0");
     const docValue = Number(cycle.doc || 0);
     const mortalityValue = Number(cycle.mortality || 0);
-    const soldValue = Number(cycle.birdsSold || 0);
-    const liveBirdsValue = Math.max(0, docValue - mortalityValue - soldValue);
+    const birdsOutValue = Number(cycle.birdsOut ?? cycle.birdsSold ?? 0);
+    const rejectedValue = Number(cycle.birdsRejected || 0);
+    const soldValue = Math.max(0, birdsOutValue - rejectedValue);
+    const liveBirdsValue = Math.max(0, docValue - mortalityValue - birdsOutValue);
     const mainStockValue = Number(cycle.farmerMainStock ?? 0);
     const problematicFeed = Number(cycle.farmerProblematicFeed ?? 0);
     const isActive = cycle.status === 'active';
@@ -83,6 +85,7 @@ export const MobileCycleCard = ({ cycle, prefix, currentId, variant = "elevated"
                             <Badge variant="outline" className="text-[8px] h-3.5 bg-background border-primary text-primary font-bold uppercase tracking-wider px-1">Current</Badge>
                         )}
                         {soldValue > 0 && <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter">{soldValue} SOLD</Badge>}
+                        {rejectedValue > 0 && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter">{rejectedValue} REJECTED</Badge>}
                         {cycle.birdType && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter">{cycle.birdType}</Badge>}
                         {cycle.status === 'deleted' && <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 font-bold text-[8px] h-3.5 px-1 uppercase leading-none">DELETED BY OFFICER</Badge>}
                     </div>

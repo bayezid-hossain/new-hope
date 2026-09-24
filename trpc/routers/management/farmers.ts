@@ -406,7 +406,12 @@ export const managementFarmersRouter = createTRPCRouter({
                     lastCycleEndDate: historyData[0]?.endDate || null,
                 },
                 activeCycles: {
-                    items: activeCyclesData.map(c => ({ ...c, farmerName: farmerData.name }))
+                    items: activeCyclesData.map(c => ({
+                        ...c,
+                        farmerName: farmerData.name,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: c.birdsOut,
+                    }))
                 },
                 history: {
                     items: historyData.map(h => ({
@@ -417,7 +422,9 @@ export const managementFarmersRouter = createTRPCRouter({
                         createdAt: h.startDate,
                         updatedAt: h.endDate,
                         intake: h.finalIntake,
-                        status: h.status
+                        status: h.status,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: h.birdsOut,
                     }))
                 },
                 stockLogs: stockLogsData
