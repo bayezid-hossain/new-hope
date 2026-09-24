@@ -213,7 +213,7 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                             label="initial"
                                                                             valueColor="text-foreground"
                                                                         />
-                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">live: {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
+                                                                        <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5">live: {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsOut || 0)).toLocaleString()}</span>
                                                                     </>
                                                                 ) : (
                                                                     <MetricRow
@@ -226,8 +226,11 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                             </div>
                                                             <div className="flex flex-col gap-1">
                                                                 <StatusBadge status={cycle.status} />
-                                                                {cycle.birdsSold > 0 && (
-                                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                                {cycle.birdsOut > 0 && (
+                                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsOut - (cycle.birdsRejected || 0)} Sold</Badge>
+                                                                )}
+                                                                {(cycle.birdsRejected || 0) > 0 && (
+                                                                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsRejected} Rejected</Badge>
                                                                 )}
                                                                 {cycle.birdType && (
                                                                     <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[8px] h-3.5 px-1.5 uppercase tracking-wider w-fit">{cycle.birdType}</Badge>
@@ -318,12 +321,15 @@ export const OrgCyclesList = ({ orgId, isAdmin, isManagement, useOfficerRouter, 
                                                                 label="initial"
                                                                 valueColor="text-foreground"
                                                             />
-                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">live {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsSold || 0)).toLocaleString()}</span>
+                                                            <span className="text-[8px] text-muted-foreground ml-4.5 -mt-0.5 font-medium">live {(Number(cycle.doc || 0) - Number(cycle.mortality || 0) - Number(cycle.birdsOut || 0)).toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex flex-col gap-1">
                                                             <MetricRow icon={Wheat} value={Number(cycle.intake || 0).toFixed(1)} label="bags" valueColor="text-primary" />
-                                                            {cycle.birdsSold > 0 && (
-                                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsSold} Sold</Badge>
+                                                            {cycle.birdsOut > 0 && (
+                                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsOut - (cycle.birdsRejected || 0)} Sold</Badge>
+                                                            )}
+                                                            {(cycle.birdsRejected || 0) > 0 && (
+                                                                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 font-bold text-[8px] h-3.5 px-1 uppercase tracking-tighter w-fit">{cycle.birdsRejected} Rejected</Badge>
                                                             )}
                                                             {cycle.birdType && (
                                                                 <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-[8px] h-3.5 px-1.5 uppercase tracking-wider w-fit">{cycle.birdType}</Badge>

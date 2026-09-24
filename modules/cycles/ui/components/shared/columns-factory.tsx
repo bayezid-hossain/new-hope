@@ -490,9 +490,11 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
             header: "Birds (Initial/Sold)",
             cell: ({ row }) => {
                 const doc = parseInt(String(row.original.doc || 0));
-                const sold = parseInt(String(row.original.birdsOut || 0));
+                const birdsOut = parseInt(String(row.original.birdsOut || 0));
+                const rejected = parseInt(String(row.original.birdsRejected || 0));
+                const sold = Math.max(0, birdsOut - rejected);
                 const mortality = parseInt(String(row.original.mortality || 0));
-                const remaining = Math.max(0, doc - mortality - sold);
+                const remaining = Math.max(0, doc - mortality - birdsOut);
 
                 return (
                     <div className="flex flex-col gap-0.5">
@@ -503,6 +505,11 @@ export const getHistoryColumns = ({ prefix = "", currentId, enableActions = fals
                             <span className="bg-primary/10 text-primary w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                 {sold.toLocaleString()} Sold
                             </span>
+                            {rejected > 0 && (
+                                <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
+                                    {rejected.toLocaleString()} Rejected
+                                </span>
+                            )}
                             {remaining > 0 && row.original.status !== 'archived' && (
                                 <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit rounded px-1 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold">
                                     {remaining.toLocaleString()} Live
