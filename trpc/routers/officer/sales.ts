@@ -1582,6 +1582,10 @@ export const officerSalesRouter = createTRPCRouter({
             // Compute per-sale cumulative birds sold (for remainingBirds)
             // Group events by cycle/history, sort chronologically, accumulate
             const perSaleCumulativeMap = new Map<string, number>();
+            // Sold / rejected that left the house BEFORE each sale (needed to split
+            // "previously sold" from "previously rejected" in report text).
+            const previousSoldMap = new Map<string, number>();
+            const previousRejectedMap = new Map<string, number>();
             const groupedForCumulative: Record<string, typeof events> = {};
             for (const ev of events) {
                 const gk = ev.cycleId || ev.historyId || "unknown";
@@ -1599,9 +1603,15 @@ export const officerSalesRouter = createTRPCRouter({
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
                 let running = 0;
+                let runningSold = 0;
+                let runningRejected = 0;
                 for (let i = 0; i < sorted.length; i++) {
                     const ev = sorted[i];
                     const evData = ev.reports?.find((r: any) => r.id === ev.selectedReportId) || ev;
+                    previousSoldMap.set(ev.id, runningSold);
+                    previousRejectedMap.set(ev.id, runningRejected);
+                    runningSold += evData.birdsSold || 0;
+                    runningRejected += evData.birdsRejected || 0;
                     running += (evData.birdsSold || 0) + (evData.birdsRejected || 0);
                     perSaleCumulativeMap.set(ev.id, running);
 
@@ -1785,6 +1795,8 @@ export const officerSalesRouter = createTRPCRouter({
                         officialInputDate: cycleOrHistory?.officialInputDate ?? null
                     },
                     remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
+                    previousBirdsSold: previousSoldMap.get(e.id) ?? 0,
+                    previousBirdsRejected: previousRejectedMap.get(e.id) ?? 0,
                     previousSaleDate: previousSaleDateMap.get(e.id) ?? null,
                     previousSaleId: previousSaleIdMap.get(e.id) ?? null,
                     nextSaleId: nextSaleIdMap.get(e.id) ?? null,
@@ -2437,6 +2449,10 @@ export const appendCycleContextToSales = async (
 
     // Compute per-sale cumulative birds sold (for remainingBirds)
     const perSaleCumulativeMap = new Map<string, number>();
+    // Sold / rejected that left the house BEFORE each sale (needed to split
+    // "previously sold" from "previously rejected" in report text).
+    const previousSoldMap = new Map<string, number>();
+    const previousRejectedMap = new Map<string, number>();
     const groupedForCumulative: Record<string, typeof allCycleEvents> = {};
     for (const ev of allCycleEvents) {
         const gk = ev.cycleId || ev.historyId || "unknown";
@@ -2454,9 +2470,15 @@ export const appendCycleContextToSales = async (
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
         let running = 0;
+        let runningSold = 0;
+        let runningRejected = 0;
         for (let i = 0; i < sorted.length; i++) {
             const ev = sorted[i];
             const data = ev.selectedReport || ev;
+            previousSoldMap.set(ev.id, runningSold);
+            previousRejectedMap.set(ev.id, runningRejected);
+            runningSold += data.birdsSold || 0;
+            runningRejected += data.birdsRejected || 0;
             running += (data.birdsSold || 0) + (data.birdsRejected || 0);
             perSaleCumulativeMap.set(ev.id, running);
 
@@ -2564,6 +2586,8 @@ export const appendCycleContextToSales = async (
                 officialInputDate: cycleOrHistory?.officialInputDate ?? null
             },
             remainingBirds: doc - (e.totalMortality ?? 0) - (perSaleCumulativeMap.get(e.id) ?? e.birdsSold ?? 0),
+            previousBirdsSold: previousSoldMap.get(e.id) ?? 0,
+            previousBirdsRejected: previousRejectedMap.get(e.id) ?? 0,
             previousSaleDate: previousSaleDateMap.get(e.id) ?? null,
             previousSaleId: previousSaleIdMap.get(e.id) ?? null,
             nextSaleId: nextSaleIdMap.get(e.id) ?? null,

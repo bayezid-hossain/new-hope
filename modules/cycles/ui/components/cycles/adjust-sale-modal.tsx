@@ -236,10 +236,23 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
     const cumulativeWeight = saleEvent.cycleContext?.totalWeight || 0;
     const cumulativeBirdsSold = saleEvent.cycleContext?.cumulativeBirdsSold || 0;
 
+    // Birds that left the house in OTHER (earlier) sales: sold AND rejected both leave.
+    // Backend sends the per-sale split; fall back to cumulative sold when it's missing.
+    const birdsGoneInOtherSales = (() => {
+        const prevSold = Number((saleEvent as any).previousBirdsSold);
+        const prevRejected = Number((saleEvent as any).previousBirdsRejected);
+        if (Number.isFinite(prevSold) && Number.isFinite(prevRejected)) {
+            return Math.max(prevSold + prevRejected, 0);
+        }
+        const cumulative = saleEvent.cycleContext?.cumulativeBirdsSold || saleEvent.birdsSold || 0;
+        return Math.max(cumulative - (saleEvent.birdsSold || 0), 0);
+    })();
+
     const remainingBirdsAfterAdjustment = Math.max(0,
         (saleEvent.cycleContext?.doc || saleEvent.houseBirds || 0) - // Use cycle DOC (from context or houseBirds)
-        ((saleEvent.cycleContext?.cumulativeBirdsSold || saleEvent.birdsSold) - saleEvent.birdsSold) - // Birds sold in OTHER transactions
+        birdsGoneInOtherSales - // Birds sold AND rejected in OTHER transactions
         wBirdsSold - // Birds sold in THIS transaction (new value)
+        (saleEvent.birdsRejected || 0) - // Birds rejected in THIS transaction (not editable here)
         wMortality // Total cycle mortality (new value)
     );
     const avgWeight = (isLatest && cumulativeWeight > 0 && cumulativeBirdsSold > 0)
