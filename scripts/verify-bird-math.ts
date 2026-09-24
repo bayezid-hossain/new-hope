@@ -85,6 +85,42 @@ async function main() {
         }
     }
 
+    const colResult: any = await db.execute(sql`
+        WITH rejected AS (
+            SELECT
+                e.cycle_id,
+                SUM(COALESCE(r.birds_rejected, e.birds_rejected)) AS rejected
+            FROM sale_events e
+            LEFT JOIN sale_reports r ON r.id = e.selected_report_id
+            WHERE e.cycle_id IS NOT NULL
+            GROUP BY e.cycle_id
+        )
+        SELECT c.name, f.name AS farmer_name, c.doc, c.mortality,
+               c.birds_out, c.birds_rejected, COALESCE(rj.rejected, 0) AS expected_rejected
+        FROM cycles c
+        LEFT JOIN farmer f ON f.id = c.farmer_id
+        LEFT JOIN rejected rj ON rj.cycle_id = c.id
+    `);
+    const colRows: any[] = Array.isArray(colResult) ? colResult : colResult.rows;
+
+    let colFailed = 0;
+    for (const c of colRows) {
+        const stored = Number(c.birds_rejected) || 0;
+        const expected = Number(c.expected_rejected) || 0;
+        const remaining = (Number(c.doc) || 0) - (Number(c.mortality) || 0) - (Number(c.birds_out) || 0);
+
+        if (stored !== expected) {
+            colFailed++;
+            console.log(`REJECTED MISMATCH  ${c.farmer_name ?? "?"} / ${c.name}  stored=${stored} expected=${expected}`);
+        }
+        if (remaining < 0) {
+            colFailed++;
+            console.log(`NEGATIVE REMAINING ${c.farmer_name ?? "?"} / ${c.name}  doc=${c.doc} mortality=${c.mortality} out=${c.birds_out}`);
+        }
+    }
+    console.log(`cycle columns: ${colRows.length - colFailed}/${colRows.length} correct, ${colFailed} wrong`);
+    failed += colFailed;
+
     console.log(
         `\nsurvival rate: fetched=${fetched}, checked=${checked}, ${checked - failed}/${checked} correct, ` +
         `${failed} wrong, ${skipped} skipped (no doc), ${nullSurvival} null survival`
