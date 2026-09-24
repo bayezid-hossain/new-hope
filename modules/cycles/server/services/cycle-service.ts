@@ -28,7 +28,8 @@ export const endCycleLogic = async (
         farmerId: activeCycle.farmerId,
         organizationId: activeCycle.organizationId,
         doc: activeCycle.doc,
-        birdsSold: activeCycle.birdsSold, // Note: caller must ensure this is up to date if modifying before call
+        birdsOut: activeCycle.birdsOut, // Note: caller must ensure this is up to date if modifying before call
+        birdsRejected: activeCycle.birdsRejected,
         finalIntake: intake || 0,
         mortality: activeCycle.mortality,
         age: endAge ?? activeCycle.age,

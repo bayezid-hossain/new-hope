@@ -96,7 +96,10 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerProblematicFeed: d.farmerProblematicFeed,
                     farmerUpdatedAt: d.farmerUpdatedAt,
                     mainStockUpdatedAt: stockDatesMap.get(d.cycle.farmerId),
-                    birdsSold: d.cycle.birdsSold,
+                    birdsOut: d.cycle.birdsOut,
+                    birdsRejected: d.cycle.birdsRejected,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: d.cycle.birdsOut,
                     birdType: d.cycle.birdType,
                     officialInputDate: d.cycle.officialInputDate,
                     endDate: null as Date | null
@@ -157,7 +160,10 @@ export const officerCyclesRouter = createTRPCRouter({
                     farmerLocation: d.farmerLocation,
                     farmerMobile: d.farmerMobile,
                     farmerMainStock: d.farmerMainStock,
-                    birdsSold: d.history.birdsSold,
+                    birdsOut: d.history.birdsOut,
+                    birdsRejected: d.history.birdsRejected,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: d.history.birdsOut,
                     birdType: d.history.birdType,
                     officialInputDate: d.history.officialInputDate,
                     endDate: d.history.endDate
@@ -462,6 +468,8 @@ export const officerCyclesRouter = createTRPCRouter({
                         organizationId: activeCycle.organizationId || null,
                         birdType: activeCycle.birdType,
                         totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: activeCycle.birdsOut,
                     },
                     logs,
                     history: combinedHistory,
@@ -544,6 +552,8 @@ export const officerCyclesRouter = createTRPCRouter({
                     updatedAt: historyRecord.endDate,
                     birdType: historyRecord.birdType,
                     totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: historyRecord.birdsOut,
                 },
                 logs,
                 history: combinedHistory,
@@ -615,7 +625,7 @@ export const officerCyclesRouter = createTRPCRouter({
             }
 
             // LOGIC CHECK: New mortality + existing mortality + birds sold should not exceed DOC
-            const totalAccounted = current.mortality + input.amount + (current.birdsSold || 0);
+            const totalAccounted = current.mortality + input.amount + (current.birdsOut || 0);
             if (totalAccounted > current.doc) {
                 throw new TRPCError({
                     code: "BAD_REQUEST",
@@ -848,7 +858,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 }
 
                 // 2. Move back to Cycles (Active)
-                // RESET: When reopening, we reset birdsSold because we delete all sales reports.
+                // RESET: When reopening, we reset birdsOut/birdsRejected because we delete all sales reports.
                 const [restoredCycle] = await tx.insert(cycles).values({
                     id: crypto.randomUUID(),
                     name: historyRecord.cycleName,
@@ -857,7 +867,8 @@ export const officerCyclesRouter = createTRPCRouter({
                     doc: historyRecord.doc,
                     age: historyRecord.age,
                     mortality: historyRecord.mortality, // Note: caller must ensure double-counting is avoided if sale mortality was synced
-                    birdsSold: 0, // RESET birds sold
+                    birdsOut: 0, // RESET birds out
+                    birdsRejected: 0,
                     intake: historyRecord.finalIntake,
                     status: "active",
                     birdType: historyRecord.birdType,
@@ -1260,7 +1271,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
-                if (cycle.birdsSold > 0) {
+                if (cycle.birdsOut > 0) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
                         message: "Cannot edit initial birds after sales have started."
@@ -1360,7 +1371,7 @@ export const officerCyclesRouter = createTRPCRouter({
                 }
 
                 // 3. VALIDATION: Cannot edit age if it conflicts with existing sales
-                if (cycle.birdsSold > 0) {
+                if (cycle.birdsOut > 0) {
                     const [maxSaleEvent] = await tx
                         .select({ maxAge: saleEvents.age })
                         .from(saleEvents)
@@ -1590,7 +1601,7 @@ export const officerCyclesRouter = createTRPCRouter({
                     if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
                 }
 
-                if (cycle.birdsSold > 0) {
+                if (cycle.birdsOut > 0) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
                         message: "Cannot correct mortality after sales have started."

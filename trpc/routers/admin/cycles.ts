@@ -87,7 +87,10 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerId: d.cycle.farmerId,
                     organizationId: d.cycle.organizationId || null,
                     doc: d.cycle.doc,
-                    birdsSold: d.cycle.birdsSold,
+                    birdsOut: d.cycle.birdsOut,
+                    birdsRejected: d.cycle.birdsRejected,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: d.cycle.birdsOut,
                     age: d.cycle.age,
                     intake: d.cycle.intake,
                     mortality: d.cycle.mortality,
@@ -161,6 +164,8 @@ export const adminCyclesRouter = createTRPCRouter({
                         organizationId: activeCycle.organizationId || null,
                         birdType: activeCycle.birdType,
                         totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: activeCycle.birdsOut,
                     },
                     logs,
                     history: combinedHistory,
@@ -213,13 +218,14 @@ export const adminCyclesRouter = createTRPCRouter({
                 type: 'history' as const,
                 data: {
                     ...historyRecord,
-                    birdsSold: historyRecord.birdsSold,
                     name: historyRecord.cycleName,
                     intake: historyRecord.finalIntake,
                     createdAt: historyRecord.startDate,
                     updatedAt: historyRecord.endDate,
                     birdType: historyRecord.birdType,
                     totalBirdsRejected: Number(rejectedResult[0]?.total) || 0,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: historyRecord.birdsOut,
                 },
                 logs,
                 history: combinedHistory,
@@ -276,7 +282,10 @@ export const adminCyclesRouter = createTRPCRouter({
                     farmerId: d.history.farmerId,
                     organizationId: d.history.organizationId || null,
                     doc: d.history.doc,
-                    birdsSold: d.history.birdsSold,
+                    birdsOut: d.history.birdsOut,
+                    birdsRejected: d.history.birdsRejected,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: d.history.birdsOut,
                     age: d.history.age,
                     intake: d.history.finalIntake,
                     mortality: d.history.mortality,

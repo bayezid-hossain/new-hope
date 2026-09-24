@@ -299,7 +299,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // RE-VALIDATE BIRD COUNT INSIDE LOCK
-                const currentRemaining = lockedCycle.doc - lockedCycle.mortality - lockedCycle.birdsSold;
+                const currentRemaining = lockedCycle.doc - lockedCycle.mortality - lockedCycle.birdsOut;
                 const effectiveRemaining = currentRemaining - (input.mortalityChange < 0 ? input.mortalityChange : 0);
                 const totalOutgoing = input.birdsSold + (input.birdsRejected || 0);
 
@@ -311,7 +311,7 @@ export const officerSalesRouter = createTRPCRouter({
                 }
 
                 // Final safety check: Total birds accounted for cannot exceed initial intake
-                const totalAccounted = (lockedCycle.birdsSold + input.birdsSold + (input.birdsRejected || 0)) + (lockedCycle.mortality + input.mortalityChange);
+                const totalAccounted = (lockedCycle.birdsOut + input.birdsSold + (input.birdsRejected || 0)) + (lockedCycle.mortality + input.mortalityChange);
                 if (totalAccounted > lockedCycle.doc) {
                     throw new TRPCError({
                         code: "BAD_REQUEST",
@@ -463,14 +463,14 @@ export const officerSalesRouter = createTRPCRouter({
                     .set({ selectedReportId: firstReport.id })
                     .where(eq(saleEvents.id, saleEvent.id));
 
-                // Update cycle: add any new mortality and increment birdsSold (rejected birds also leave the house)
+                // Update cycle: add any new mortality and increment birdsOut (rejected birds also leave the house)
                 // const newMortality calculated above
-                const newBirdsSold = cycle.birdsSold + input.birdsSold + (input.birdsRejected || 0);
+                const newBirdsOut = cycle.birdsOut + input.birdsSold + (input.birdsRejected || 0);
 
                 await tx.update(cycles)
                     .set({
                         mortality: newMortality,
-                        birdsSold: newBirdsSold,
+                        birdsOut: newBirdsOut,
                         // intake: currentIntake, // We no longer hard-override here, let updateCycleFeed handle the truth
                         updatedAt: new Date()
                     })
@@ -494,7 +494,7 @@ export const officerSalesRouter = createTRPCRouter({
                 let cycleEnded = false;
                 let historyId: string | undefined = undefined;
 
-                if (newBirdsSold >= totalBirdsAfterMortality) {
+                if (newBirdsOut >= totalBirdsAfterMortality) {
                     // MANUAL OVERRIDE: For the last sale, we use the input feed as the TOTAL cycle consumption
                     const closingFeeds = input.feedConsumed.map(item => ({ type: item.type, quantity: item.bags }));
 
@@ -519,8 +519,8 @@ export const officerSalesRouter = createTRPCRouter({
                     userId: ctx.user.id,
                     type: "SALES",
                     valueChange: input.birdsSold,
-                    newValue: newBirdsSold,
-                    previousValue: cycle.birdsSold,
+                    newValue: newBirdsOut,
+                    previousValue: cycle.birdsOut,
                     note: `Sale recorded: ${input.birdsSold} birds at ৳${input.pricePerKg}/kg. Location: ${input.location}${cycleEnded ? " (Cycle Completed)" : ""}`,
                     createdAt: input.saleDate || new Date()
                 });
@@ -859,20 +859,20 @@ export const officerSalesRouter = createTRPCRouter({
 
                     if (activeCycle) {
                         const newMortality = activeCycle.mortality + mortalityDifference;
-                        const newBirdsSold = activeCycle.birdsSold + birdsSoldDifference;
+                        const newBirdsOut = activeCycle.birdsOut + birdsSoldDifference;
 
                         // LOOPHOLE FIX: Population Safety Check
-                        if (newMortality + newBirdsSold > activeCycle.doc) {
+                        if (newMortality + newBirdsOut > activeCycle.doc) {
                             throw new TRPCError({
                                 code: "BAD_REQUEST",
-                                message: `Adjustment rejected. Total dead/sold (${newMortality + newBirdsSold}) would exceed initial birds (${activeCycle.doc}).`
+                                message: `Adjustment rejected. Total dead/sold (${newMortality + newBirdsOut}) would exceed initial birds (${activeCycle.doc}).`
                             });
                         }
 
                         await tx.update(cycles)
                             .set({
                                 mortality: newMortality,
-                                birdsSold: newBirdsSold,
+                                birdsOut: newBirdsOut,
                                 updatedAt: new Date()
                             })
                             .where(eq(cycles.id, event.cycleId));
@@ -915,7 +915,7 @@ export const officerSalesRouter = createTRPCRouter({
                         }
 
                         // LOOPHOLE FIX: Auto-Close if adjustment clears the population
-                        const remaining = (activeCycle.doc || 0) - newMortality - newBirdsSold;
+                        const remaining = (activeCycle.doc || 0) - newMortality - newBirdsOut;
                         if (remaining <= 0) {
                             const autoCloseFeeds = input.feedConsumed && input.feedConsumed.length > 0
                                 ? input.feedConsumed.map(item => ({ type: item.type, quantity: item.bags }))
@@ -931,13 +931,13 @@ export const officerSalesRouter = createTRPCRouter({
 
                     if (historyRecord) {
                         const newMortality = historyRecord.mortality + mortalityDifference;
-                        const newBirdsSold = historyRecord.birdsSold + birdsSoldDifference;
+                        const newBirdsOut = historyRecord.birdsOut + birdsSoldDifference;
 
                         // Population Safety Check
-                        if (newMortality + newBirdsSold > historyRecord.doc) {
+                        if (newMortality + newBirdsOut > historyRecord.doc) {
                             throw new TRPCError({
                                 code: "BAD_REQUEST",
-                                message: `Adjustment rejected. Total dead/sold (${newMortality + newBirdsSold}) would exceed initial birds (${historyRecord.doc}).`
+                                message: `Adjustment rejected. Total dead/sold (${newMortality + newBirdsOut}) would exceed initial birds (${historyRecord.doc}).`
                             });
                         }
 
@@ -950,7 +950,7 @@ export const officerSalesRouter = createTRPCRouter({
                         await tx.update(cycleHistory)
                             .set({
                                 mortality: newMortality,
-                                birdsSold: newBirdsSold,
+                                birdsOut: newBirdsOut,
                                 finalIntake: adjustedIntake,
                                 ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
                                 ...(input.saleDate ? { endDate: input.saleDate } : {}),
@@ -962,7 +962,7 @@ export const officerSalesRouter = createTRPCRouter({
                         // consumption per type. Applying a delta on top of that here would double
                         // count the stock change (and can spuriously fall back to Unspecified when
                         // the delta's shortfall check runs before that reversal happens).
-                        const willReopen = (historyRecord.doc - newMortality - newBirdsSold) > 0;
+                        const willReopen = (historyRecord.doc - newMortality - newBirdsOut) > 0;
 
                         // Adjust farmer's stock per feed type: diff old vs new consumption per type,
                         // deduct increases (with Unspecified fallback + hard block), restore decreases.
@@ -1010,7 +1010,7 @@ export const officerSalesRouter = createTRPCRouter({
                         }
 
                         // Check if birds remain after adjustment → reopen cycle
-                        const remaining = historyRecord.doc - newMortality - newBirdsSold;
+                        const remaining = historyRecord.doc - newMortality - newBirdsOut;
                         if (remaining > 0) {
                             const { reopenCycleFromHistory } = await import("@/modules/cycles/server/services/reopen-cycle-service");
                             const reopened = await reopenCycleFromHistory(tx, event.historyId, ctx.user.id);
@@ -1959,7 +1959,7 @@ export const officerSalesRouter = createTRPCRouter({
                             await tx.update(cycles)
                                 .set({
                                     mortality: sql`${cycles.mortality} + ${mortalityDiff}`,
-                                    birdsSold: sql`${cycles.birdsSold} + ${birdsSoldDiff}`,
+                                    birdsOut: sql`${cycles.birdsOut} + ${birdsSoldDiff}`,
                                     updatedAt: new Date(),
                                     ...(effectiveShift !== 0 ? {
                                         age: sql`${cycles.age} + ${effectiveShift}`,
@@ -2008,7 +2008,7 @@ export const officerSalesRouter = createTRPCRouter({
                         await tx.update(cycleHistory)
                             .set({
                                 mortality: sql`${cycleHistory.mortality} + ${mortalityDiff}`,
-                                birdsSold: sql`${cycleHistory.birdsSold} + ${birdsSoldDiff}`,
+                                birdsOut: sql`${cycleHistory.birdsOut} + ${birdsSoldDiff}`,
                                 // updatedAt: new Date(),
                                 age: report.age || cycleHistory.age,
                                 endDate: report.saleDate || report.createdAt,
@@ -2361,7 +2361,8 @@ export const officerSalesRouter = createTRPCRouter({
                     // Revert active cycle
                     await tx.update(cycles)
                         .set({
-                            birdsSold: 0,
+                            birdsOut: 0,
+                            birdsRejected: 0,
                             mortality: sql`${cycles.mortality} - ${mortalityCount}`,
                             status: "active" // Ensure it's active if it was accidentally closed
                         })
