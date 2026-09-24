@@ -41,6 +41,7 @@ export interface FarmerProductionRecord {
     farmerId: string;
     farmerName: string;
     doc: number;
+    rejected: number;
     survivalRate: number;
     averageWeight: number;
     fcr: number;
@@ -594,6 +595,7 @@ export class PerformanceAnalyticsService {
                 averageWeight: saleMetrics.averageWeight,
                 averageAge: saleMetrics.averageAge,
                 totalDoc: saleMetrics.totalDoc,
+                totalBirdsRejected: saleMetrics.totalBirdsRejected,
                 netProfit: saleMetrics.netProfit,
             })
             .from(cycleHistory)
@@ -612,6 +614,7 @@ export class PerformanceAnalyticsService {
             farmerId: string;
             farmerName: string;
             doc: number;
+            rejected: number;
             profit: number;
             survivalRate: number;
             averageWeight: number;
@@ -626,6 +629,7 @@ export class PerformanceAnalyticsService {
                 farmerId: cycle.farmerId,
                 farmerName: cycle.farmerName,
                 doc: 0,
+                rejected: 0,
                 survivalRate: 0,
                 averageWeight: 0,
                 fcr: 0,
@@ -637,6 +641,7 @@ export class PerformanceAnalyticsService {
 
             // Sum DOC and profit, average the rest
             existing.doc += Number(cycle.totalDoc);
+            existing.rejected += Number(cycle.totalBirdsRejected) || 0;
             existing.profit += Number(cycle.netProfit);
             existing.survivalRate += Number(cycle.survivalRate);
             existing.averageWeight += Number(cycle.averageWeight);
@@ -653,6 +658,7 @@ export class PerformanceAnalyticsService {
             farmerId: f.farmerId,
             farmerName: f.farmerName,
             doc: f.doc,
+            rejected: f.rejected,
             survivalRate: f._cycleCount > 0 ? f.survivalRate / f._cycleCount : 0,
             averageWeight: f._cycleCount > 0 ? f.averageWeight / f._cycleCount : 0,
             fcr: f._cycleCount > 0 ? f.fcr / f._cycleCount : 0,
