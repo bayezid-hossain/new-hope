@@ -11,7 +11,8 @@
     "db:studio": "drizzle-kit studio",
     "db:reset": "tsx scripts/reset-db.ts",
     "db:backup": "node scripts/db-backup.js",
-    "db:restore": "node scripts/db-restore.js"
+    "db:restore": "node scripts/db-restore.js",
+    "verify:birds": "tsx scripts/verify-bird-math.ts"
   },
   "dependencies": {
     "@better-auth/expo": "^1.4.18",

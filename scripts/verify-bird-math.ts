@@ -1,0 +1,75 @@
+import "dotenv/config";
+import { sql } from "drizzle-orm";
+import { db } from "../db";
+
+type Row = {
+    label: string;
+    farmer_name: string | null;
+    doc: number;
+    mortality: number;
+    rejected: string | number;
+    stored_survival: string | number;
+};
+
+async function main() {
+    const result: any = await db.execute(sql`
+        WITH rejected AS (
+            SELECT
+                e.cycle_id,
+                e.history_id,
+                SUM(COALESCE(r.birds_rejected, e.birds_rejected)) AS rejected
+            FROM sale_events e
+            LEFT JOIN sale_reports r ON r.id = e.selected_report_id
+            GROUP BY e.cycle_id, e.history_id
+        )
+        SELECT
+            COALESCE(c.name, h.cycle_name) AS label,
+            f.name AS farmer_name,
+            COALESCE(c.doc, h.doc) AS doc,
+            COALESCE(c.mortality, h.mortality) AS mortality,
+            COALESCE(rj.rejected, 0) AS rejected,
+            m.survival_rate AS stored_survival
+        FROM sale_metrics m
+        LEFT JOIN cycles c ON c.id = m.cycle_id
+        LEFT JOIN cycle_history h ON h.id = m.history_id
+        LEFT JOIN farmer f ON f.id = COALESCE(c.farmer_id, h.farmer_id)
+        LEFT JOIN rejected rj
+               ON (m.cycle_id IS NOT NULL AND rj.cycle_id = m.cycle_id)
+               OR (m.history_id IS NOT NULL AND rj.history_id = m.history_id)
+    `);
+
+    const rows: Row[] = Array.isArray(result) ? result : result.rows;
+
+    let checked = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+        const doc = Number(row.doc) || 0;
+        if (doc <= 0) continue;
+
+        const mortality = Number(row.mortality) || 0;
+        const rejected = Number(row.rejected) || 0;
+        const expected = ((doc - mortality - rejected) / doc) * 100;
+        const stored = Number(row.stored_survival) || 0;
+
+        checked++;
+
+        if (Math.abs(expected - stored) > 0.01) {
+            failed++;
+            console.log(
+                `MISMATCH  ${row.farmer_name ?? "?"} / ${row.label ?? "?"}  ` +
+                `doc=${doc} mortality=${mortality} rejected=${rejected}  ` +
+                `stored=${stored.toFixed(2)}%  expected=${expected.toFixed(2)}%  ` +
+                `delta=${(stored - expected).toFixed(2)}`
+            );
+        }
+    }
+
+    console.log(`\nsurvival rate: ${checked - failed}/${checked} correct, ${failed} wrong`);
+    process.exit(failed > 0 ? 1 : 0);
+}
+
+main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});
