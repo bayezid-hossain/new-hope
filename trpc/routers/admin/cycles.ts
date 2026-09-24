@@ -148,9 +148,16 @@ export const adminCyclesRouter = createTRPCRouter({
                         finalIntake: c.intake,
                         startDate: c.createdAt,
                         endDate: null,
-                        status: 'active' as const
+                        status: 'active' as const,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: c.birdsOut,
                     })),
-                    ...history.map(h => ({ ...h, status: h.status as any }))
+                    ...history.map(h => ({
+                        ...h,
+                        status: h.status as any,
+                        /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                        birdsSold: h.birdsOut,
+                    }))
                 ];
 
                 return {
@@ -209,9 +216,16 @@ export const adminCyclesRouter = createTRPCRouter({
                     finalIntake: c.intake,
                     startDate: c.createdAt,
                     endDate: null,
-                    status: 'active' as const
+                    status: 'active' as const,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: c.birdsOut,
                 })),
-                ...otherHistory.map(h => ({ ...h, status: h.status as any }))
+                ...otherHistory.map(h => ({
+                    ...h,
+                    status: h.status as any,
+                    /** @deprecated Means birdsOut (sold + rejected). Kept for app versions <= 1.0.59. */
+                    birdsSold: h.birdsOut,
+                }))
             ];
 
             return {
