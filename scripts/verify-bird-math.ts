@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 
 type Row = {
+    metrics_id: string;
     label: string;
     farmer_name: string | null;
     doc: number;
@@ -23,6 +24,7 @@ async function main() {
             GROUP BY e.cycle_id, e.history_id
         )
         SELECT
+            m.id AS metrics_id,
             COALESCE(c.name, h.cycle_name) AS label,
             f.name AS farmer_name,
             COALESCE(c.doc, h.doc) AS doc,
@@ -52,7 +54,7 @@ async function main() {
         const doc = Number(row.doc) || 0;
         if (doc <= 0) {
             skipped++;
-            console.log(`SKIPPED (no doc): ${label}`);
+            console.log(`SKIPPED (no doc): sale_metrics id=${row.metrics_id}`);
             continue;
         }
 
@@ -61,7 +63,7 @@ async function main() {
         // 0.00% survival cycle, which is indistinguishable from a real one.
         if (row.stored_survival === null || row.stored_survival === undefined) {
             nullSurvival++;
-            console.log(`NULL stored_survival: ${label}`);
+            console.log(`NULL stored_survival: sale_metrics id=${row.metrics_id} ${label}`);
             continue;
         }
 
