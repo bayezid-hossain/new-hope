@@ -466,11 +466,13 @@ export const officerSalesRouter = createTRPCRouter({
                 // Update cycle: add any new mortality and increment birdsOut (rejected birds also leave the house)
                 // const newMortality calculated above
                 const newBirdsOut = cycle.birdsOut + input.birdsSold + (input.birdsRejected || 0);
+                const newBirdsRejected = cycle.birdsRejected + (input.birdsRejected || 0);
 
                 await tx.update(cycles)
                     .set({
                         mortality: newMortality,
                         birdsOut: newBirdsOut,
+                        birdsRejected: newBirdsRejected,
                         // intake: currentIntake, // We no longer hard-override here, let updateCycleFeed handle the truth
                         updatedAt: new Date()
                     })
@@ -860,6 +862,8 @@ export const officerSalesRouter = createTRPCRouter({
                     if (activeCycle) {
                         const newMortality = activeCycle.mortality + mortalityDifference;
                         const newBirdsOut = activeCycle.birdsOut + birdsSoldDifference;
+                        const birdsRejectedDifference = (input.birdsRejected || 0) - previousBirdsRejected;
+                        const newBirdsRejected = Math.max(0, activeCycle.birdsRejected + birdsRejectedDifference);
 
                         // LOOPHOLE FIX: Population Safety Check
                         if (newMortality + newBirdsOut > activeCycle.doc) {
@@ -873,6 +877,7 @@ export const officerSalesRouter = createTRPCRouter({
                             .set({
                                 mortality: newMortality,
                                 birdsOut: newBirdsOut,
+                                birdsRejected: newBirdsRejected,
                                 updatedAt: new Date()
                             })
                             .where(eq(cycles.id, event.cycleId));
@@ -932,6 +937,8 @@ export const officerSalesRouter = createTRPCRouter({
                     if (historyRecord) {
                         const newMortality = historyRecord.mortality + mortalityDifference;
                         const newBirdsOut = historyRecord.birdsOut + birdsSoldDifference;
+                        const birdsRejectedDifference = (input.birdsRejected || 0) - previousBirdsRejected;
+                        const newBirdsRejected = Math.max(0, historyRecord.birdsRejected + birdsRejectedDifference);
 
                         // Population Safety Check
                         if (newMortality + newBirdsOut > historyRecord.doc) {
@@ -951,6 +958,7 @@ export const officerSalesRouter = createTRPCRouter({
                             .set({
                                 mortality: newMortality,
                                 birdsOut: newBirdsOut,
+                                birdsRejected: newBirdsRejected,
                                 finalIntake: adjustedIntake,
                                 ...(input.saleAge !== undefined ? { age: input.saleAge } : {}),
                                 ...(input.saleDate ? { endDate: input.saleDate } : {}),
@@ -1890,6 +1898,7 @@ export const officerSalesRouter = createTRPCRouter({
                 // count must move cycles.birdsSold by that delta as well.
                 const birdsSoldDiff = ((report.birdsSold || 0) - (event.birdsSold || 0))
                     + ((report.birdsRejected || 0) - (event.birdsRejected || 0));
+                const birdsRejectedDiff = (report.birdsRejected || 0) - (event.birdsRejected || 0);
 
                 // Calculate Timeline Shift: (Old Implied Hatch Date) - (New Implied Hatch Date)
                 // This ensures that switching to a version where saleAge was changed ALSO moves the cycle timeline.
@@ -1960,6 +1969,7 @@ export const officerSalesRouter = createTRPCRouter({
                                 .set({
                                     mortality: sql`${cycles.mortality} + ${mortalityDiff}`,
                                     birdsOut: sql`${cycles.birdsOut} + ${birdsSoldDiff}`,
+                                    birdsRejected: sql`GREATEST(${cycles.birdsRejected} + ${birdsRejectedDiff}, 0)`,
                                     updatedAt: new Date(),
                                     ...(effectiveShift !== 0 ? {
                                         age: sql`${cycles.age} + ${effectiveShift}`,
@@ -2009,6 +2019,7 @@ export const officerSalesRouter = createTRPCRouter({
                             .set({
                                 mortality: sql`${cycleHistory.mortality} + ${mortalityDiff}`,
                                 birdsOut: sql`${cycleHistory.birdsOut} + ${birdsSoldDiff}`,
+                                birdsRejected: sql`GREATEST(${cycleHistory.birdsRejected} + ${birdsRejectedDiff}, 0)`,
                                 // updatedAt: new Date(),
                                 age: report.age || cycleHistory.age,
                                 endDate: report.saleDate || report.createdAt,
