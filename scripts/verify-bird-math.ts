@@ -39,13 +39,31 @@ async function main() {
     `);
 
     const rows: Row[] = Array.isArray(result) ? result : result.rows;
+    const fetched = rows.length;
 
     let checked = 0;
     let failed = 0;
+    let skipped = 0;
+    let nullSurvival = 0;
 
     for (const row of rows) {
+        const label = row.farmer_name ?? row.label ?? "?";
+
         const doc = Number(row.doc) || 0;
-        if (doc <= 0) continue;
+        if (doc <= 0) {
+            skipped++;
+            console.log(`SKIPPED (no doc): ${label}`);
+            continue;
+        }
+
+        // survival_rate is NOT NULL in the schema today, but guard defensively:
+        // Number(null) || 0 would silently render a missing value as an honest
+        // 0.00% survival cycle, which is indistinguishable from a real one.
+        if (row.stored_survival === null || row.stored_survival === undefined) {
+            nullSurvival++;
+            console.log(`NULL stored_survival: ${label}`);
+            continue;
+        }
 
         const mortality = Number(row.mortality) || 0;
         const rejected = Number(row.rejected) || 0;
@@ -65,7 +83,16 @@ async function main() {
         }
     }
 
-    console.log(`\nsurvival rate: ${checked - failed}/${checked} correct, ${failed} wrong`);
+    console.log(
+        `\nsurvival rate: fetched=${fetched}, checked=${checked}, ${checked - failed}/${checked} correct, ` +
+        `${failed} wrong, ${skipped} skipped (no doc), ${nullSurvival} null survival`
+    );
+
+    // Skipped/null rows are a separate, known data-hygiene issue (orphaned
+    // sale_metrics rows with no cycle_id/history_id, or a currently-impossible
+    // NULL survival_rate) — surfacing them here is a free side effect, but
+    // this script's job is only the bird-math invariant, so only an actual
+    // mismatch fails the run.
     process.exit(failed > 0 ? 1 : 0);
 }
 
