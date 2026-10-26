@@ -6,6 +6,7 @@ import { createTRPCRouter, protectedProcedure } from "../../init";
 import { officerCyclesRouter } from "./cycles";
 import { docOrdersRouter } from "./doc-orders";
 import { officerFarmersRouter } from "./farmers";
+import { officerFarmerVisitsRouter } from "./farmer-visits";
 import { feedOrdersRouter } from "./feed-orders";
 import { officerReportsRouter } from "./monthly-doc-placement-report";
 import { performanceReportsRouter } from "./performance-reports";
@@ -16,6 +17,7 @@ import { officerStockRouter } from "./stock";
 export const officerRouter = createTRPCRouter({
     cycles: officerCyclesRouter,
     farmers: officerFarmersRouter,
+    farmerVisits: officerFarmerVisitsRouter,
     feedOrders: feedOrdersRouter,
     docOrders: docOrdersRouter,
     saleOrders: saleOrdersRouter,
