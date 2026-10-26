@@ -1,10 +1,12 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   decimal,
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   real,
@@ -14,6 +16,7 @@ import {
   uniqueIndex,
   varchar
 } from "drizzle-orm/pg-core";
+import type { FeedLine } from "@/modules/farmer-visits/lib/calc";
 
 // =========================================================
 // 1. ENUMS
@@ -290,6 +293,54 @@ export const cycleLogs = pgTable("cycle_logs", {
 }, (t) => [
   index("idx_logs_cycle_id").on(t.cycleId),
   index("idx_logs_history_id").on(t.historyId),
+]);
+
+// Global standard growth table (Ross), days 0..40. Seeded by scripts/seed-standard-values.ts.
+export const standardValues = pgTable("standard_values", {
+  day: integer("day").primaryKey(),
+  dailyFeedG: integer("daily_feed_g").notNull(),
+  bodyWeightG: integer("body_weight_g").notNull(),
+  fcr: decimal("fcr", { precision: 6, scale: 3 }),
+});
+
+// Farmer visit reports. Like cycle_logs, a report belongs to EITHER an active cycle OR a
+// history record: endCycleLogic and the reopen paths move it between the two.
+export const farmerVisitReports = pgTable("farmer_visit_reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  farmerId: text("farmer_id").notNull().references(() => farmer.id, { onDelete: "cascade" }),
+  cycleId: text("cycle_id").references(() => cycles.id, { onDelete: "cascade" }),
+  historyId: text("history_id").references(() => cycleHistory.id, { onDelete: "cascade" }),
+  createdBy: text("created_by").notNull().references(() => user.id),
+
+  visitDate: date("visit_date", { mode: "string" }).notNull(),
+  cycleName: text("cycle_name").notNull(),
+  age: integer("age").notNull(),
+  docCount: integer("doc_count").notNull(),
+  strain: text("strain"),
+
+  todayMortality: integer("today_mortality").notNull().default(0),
+  totalMortality: integer("total_mortality").notNull().default(0),
+
+  avgWeightG: integer("avg_weight_g").notNull().default(0),
+  stdWeightG: integer("std_weight_g"),
+  stdFcr: decimal("std_fcr", { precision: 6, scale: 3 }),
+  avgFcr: decimal("avg_fcr", { precision: 6, scale: 3 }).notNull().default("0"),
+
+  feedLines: jsonb("feed_lines").$type<FeedLine[]>().notNull().default([]),
+
+  litter: text("litter").notNull().default(""),
+  disease: text("disease").notNull().default(""),
+  medicine: text("medicine").notNull().default(""),
+  suggestions: text("suggestions").notNull().default(""),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  unique("uq_visit_cycle_date").on(t.cycleId, t.visitDate),
+  index("idx_visit_org_date").on(t.organizationId, t.visitDate),
+  index("idx_visit_farmer_id").on(t.farmerId),
+  index("idx_visit_history_id").on(t.historyId),
 ]);
 
 // db/schema.ts
