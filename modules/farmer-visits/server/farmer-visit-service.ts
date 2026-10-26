@@ -59,6 +59,8 @@ export async function getPrefill(db: Db, scope: Scope, input: { cycleId: string;
             mortality: cycle.mortality,
             strain: cycle.birdType,
             startDate: (cycle.officialInputDate ?? cycle.createdAt) as Date,
+            // Age is counted from createdAt (what updateCycleFeed and "Correct age" use), not officialInputDate.
+            ageStartDate: cycle.createdAt as Date,
         },
         farmer: { id: cycle.farmerId, name: farmerName, location: farmerLocation },
         existing: existing ?? null,
