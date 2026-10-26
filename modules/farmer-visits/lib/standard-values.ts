@@ -6,12 +6,12 @@ export type StandardRow = {
 };
 
 // Days 0..35 are the supplied Ross table. Days 36..40 are EXTRAPOLATED from the last
-// six days of that table (+100..104 g/day weight, +6 g/day feed, +0.018 FCR/day).
+// six days of that table (+100..104 g/day weight, +7 g/day feed, +0.018 FCR/day).
 const DAILY_FEED_G = [
     0, 13, 17, 21, 23, 27, 31, 35, 39, 44, 48, 54, 58, 64, 68, 75, 81, 87, 93, 98,
     105, 111, 117, 123, 130, 134, 141, 148, 152, 158, 163, 169, 174, 180, 182, 189,
     // extrapolated 36..40
-    195, 201, 207, 213, 219,
+    196, 203, 210, 217, 224,
 ];
 
 const BODY_WEIGHT_G = [
