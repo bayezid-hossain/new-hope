@@ -1,7 +1,7 @@
 import { cycleLogs, cycles, farmer, farmerVisitReports, standardValues } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { calcAvgFcr, calcLiveBirds, clampStdDay, sumFeed, validateVisitDate } from "../lib/calc";
 import type { ListInput, SaveInput } from "./schemas";
 
@@ -192,6 +192,9 @@ export async function listReports(db: Db, scope: Scope, input: ListInput) {
                 input.search ? ilike(farmer.name, `%${input.search}%`) : undefined,
                 input.dateFrom ? gte(farmerVisitReports.visitDate, input.dateFrom) : undefined,
                 input.dateTo ? lte(farmerVisitReports.visitDate, input.dateTo) : undefined,
+                input.cycleRef
+                    ? or(eq(farmerVisitReports.cycleId, input.cycleRef), eq(farmerVisitReports.historyId, input.cycleRef))
+                    : undefined,
             ),
         )
         .orderBy(...orderBy)
@@ -205,6 +208,24 @@ export async function listReports(db: Db, scope: Scope, input: ListInput) {
         farmerLocation: r.farmerLocation as string | null,
     }));
     return { items, nextCursor: hasMore ? input.cursor + 1 : null };
+}
+
+export async function cycleSummary(db: Db, scope: Scope, input: { cycleRef: string }) {
+    const [row] = await db
+        .select({
+            count: sql<number>`count(*)::int`,
+            lastVisitDate: sql<string | null>`max(${farmerVisitReports.visitDate})`,
+        })
+        .from(farmerVisitReports)
+        .innerJoin(farmer, eq(farmerVisitReports.farmerId, farmer.id))
+        .where(
+            and(
+                eq(farmerVisitReports.organizationId, scope.orgId),
+                scope.officerId ? eq(farmer.officerId, scope.officerId) : undefined,
+                or(eq(farmerVisitReports.cycleId, input.cycleRef), eq(farmerVisitReports.historyId, input.cycleRef)),
+            ),
+        );
+    return { count: (row?.count ?? 0) as number, lastVisitDate: (row?.lastVisitDate ?? null) as string | null };
 }
 
 async function findScopedReport(db: Db, scope: Scope, id: string) {
