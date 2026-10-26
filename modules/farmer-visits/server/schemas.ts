@@ -38,6 +38,8 @@ export const listInputSchema = z.object({
     search: z.string().optional(),
     dateFrom: isoDate.optional(),
     dateTo: isoDate.optional(),
+    // Matches a report's cycle_id OR history_id (reports move to history when a cycle ends).
+    cycleRef: z.string().optional(),
     sort: z.enum(["date", "farmer"]).default("date"),
     order: z.enum(["asc", "desc"]).default("desc"),
     cursor: z.number().int().min(1).default(1), // page number
@@ -45,6 +47,7 @@ export const listInputSchema = z.object({
 });
 
 export const prefillInputSchema = z.object({ cycleId: z.string(), date: isoDate });
+export const cycleSummaryInputSchema = z.object({ cycleRef: z.string() });
 export const idInputSchema = z.object({ id: z.string() });
 export const standardInputSchema = z.object({ age: z.number().int().min(0).max(200) });
 

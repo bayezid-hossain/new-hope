@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import {
-    deleteReport, getPrefill, getReport, getStandard, listReports, saveReport, type Scope,
+    cycleSummary, deleteReport, getPrefill, getReport, getStandard, listReports, saveReport, type Scope,
 } from "@/modules/farmer-visits/server/farmer-visit-service";
 import {
-    idInputSchema, listInputSchema, prefillInputSchema, saveInputSchema, standardInputSchema,
+    cycleSummaryInputSchema, idInputSchema, listInputSchema, prefillInputSchema, saveInputSchema, standardInputSchema,
 } from "@/modules/farmer-visits/server/schemas";
 import { createTRPCRouter, managementProProcedure } from "../../init";
 
@@ -29,6 +29,10 @@ export const managementFarmerVisitsRouter = createTRPCRouter({
     getPrefill: managementProProcedure
         .input(prefillInputSchema)
         .query(({ ctx, input }) => getPrefill(ctx.db, scopeOf(input.orgId), input)),
+
+    cycleSummary: managementProProcedure
+        .input(cycleSummaryInputSchema)
+        .query(({ ctx, input }) => cycleSummary(ctx.db, scopeOf(input.orgId), input)),
 
     getStandard: managementProProcedure
         .input(standardInputSchema)
