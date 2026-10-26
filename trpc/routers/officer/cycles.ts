@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, member, saleEvents, saleMetrics, saleReports, stockLogs } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, farmerVisitReports, member, saleEvents, saleMetrics, saleReports, stockLogs } from "@/db/schema";
 import { updateCycleFeed } from "@/modules/cycles/server/services/feed-service";
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, ne, sql } from "drizzle-orm";
@@ -894,6 +894,11 @@ export const officerCyclesRouter = createTRPCRouter({
                 await tx.update(cycleLogs)
                     .set({ cycleId: restoredCycle.id, historyId: null })
                     .where(eq(cycleLogs.historyId, input.historyId));
+
+                // 3b. Re-link farmer visit reports
+                await tx.update(farmerVisitReports)
+                    .set({ cycleId: restoredCycle.id, historyId: null })
+                    .where(eq(farmerVisitReports.historyId, input.historyId));
 
                 // 4. CLEANUP: Delete all Sale Events and Reports
                 // User Request: "cycle reopen, should not all the reports be deleted?"

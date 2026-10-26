@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, saleEvents } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, farmerVisitReports, saleEvents } from "@/db/schema";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
@@ -48,6 +48,11 @@ export const endCycleLogic = async (
     await tx.update(saleEvents)
         .set({ historyId: history.id, cycleId: null })
         .where(eq(saleEvents.cycleId, activeCycle.id));
+
+    // LINK FARMER VISIT REPORTS TO HISTORY (otherwise deleting the cycle row cascades them away)
+    await tx.update(farmerVisitReports)
+        .set({ historyId: history.id, cycleId: null })
+        .where(eq(farmerVisitReports.cycleId, activeCycle.id));
 
     await tx.insert(cycleLogs).values({
         historyId: history.id,

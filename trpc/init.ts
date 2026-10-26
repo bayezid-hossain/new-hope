@@ -208,3 +208,29 @@ export const managementProProcedure = managementProcedure.use(async ({ ctx, next
 
   return next({ ctx });
 });
+
+/**
+ * Org Pro Procedure
+ * Org membership (any mode) plus Pro gating, for officer-side Pro features
+ */
+export const orgProProcedure = orgProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.globalRole === "ADMIN") {
+    return next({ ctx });
+  }
+
+  if (!ctx.user.isPro) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This is a Pro feature. Please request access."
+    });
+  }
+
+  if (ctx.user.proExpiresAt && ctx.user.proExpiresAt < new Date()) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Your Pro subscription has expired. Please renew to continue using Pro features."
+    });
+  }
+
+  return next({ ctx });
+});
