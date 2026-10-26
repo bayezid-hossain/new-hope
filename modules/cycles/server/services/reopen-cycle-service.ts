@@ -1,4 +1,4 @@
-import { cycleHistory, cycleLogs, cycles, farmer, saleEvents, saleMetrics } from "@/db/schema";
+import { cycleHistory, cycleLogs, cycles, farmer, farmerVisitReports, saleEvents, saleMetrics } from "@/db/schema";
 import { SaleMetricsService } from "@/modules/reports/server/services/sale-metrics-service";
 import { eq, sql } from "drizzle-orm";
 import { restoreFeedByReference } from "./feed-stock-service";
@@ -46,6 +46,11 @@ export const reopenCycleFromHistory = async (
     await tx.update(saleEvents)
         .set({ cycleId: newCycle.id, historyId: null })
         .where(eq(saleEvents.historyId, historyId));
+
+    // 4b. Migrate farmer visit reports: historyId → cycleId
+    await tx.update(farmerVisitReports)
+        .set({ cycleId: newCycle.id, historyId: null })
+        .where(eq(farmerVisitReports.historyId, historyId));
 
     // 5. Restore farmer stock — mirror the exact original per-type consumption rows (typed +
     // any Unspecified-fallback pieces), rather than one lump untyped amount.
