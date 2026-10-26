@@ -119,6 +119,45 @@ async function main() {
         }
     }
     console.log(`cycle columns: ${colRows.length - colFailed}/${colRows.length} correct, ${colFailed} wrong`);
+
+    // sale_metrics.total_birds_rejected is what the Production Report displays. A row the
+    // backfill never reached keeps its default 0 while its survival_rate can still look
+    // correct — that happens whenever a cycle's rejects were all in its final sale, because
+    // the old buggy "latest sale only" maths agreed with the truth for exactly those cycles.
+    // So this needs its own check; survival rate alone does not prove the backfill finished.
+    const tbrResult: any = await db.execute(sql`
+        WITH rejected AS (
+            SELECT e.cycle_id, e.history_id,
+                   SUM(COALESCE(rp.birds_rejected, e.birds_rejected)) AS rejected
+            FROM sale_events e
+            LEFT JOIN sale_reports rp ON rp.id = e.selected_report_id
+            GROUP BY e.cycle_id, e.history_id
+        )
+        SELECT m.id AS metrics_id,
+               COALESCE(c.name, h.cycle_name) AS label,
+               m.total_birds_rejected AS stored,
+               COALESCE(rj.rejected, 0) AS expected
+        FROM sale_metrics m
+        LEFT JOIN cycles c ON c.id = m.cycle_id
+        LEFT JOIN cycle_history h ON h.id = m.history_id
+        LEFT JOIN rejected rj
+               ON (m.cycle_id IS NOT NULL AND rj.cycle_id = m.cycle_id)
+               OR (m.history_id IS NOT NULL AND rj.history_id = m.history_id)
+        WHERE m.cycle_id IS NOT NULL OR m.history_id IS NOT NULL
+    `);
+    const tbrRows: any[] = Array.isArray(tbrResult) ? tbrResult : tbrResult.rows;
+
+    let tbrFailed = 0;
+    for (const t of tbrRows) {
+        const stored = Number(t.stored) || 0;
+        const expected = Number(t.expected) || 0;
+        if (stored !== expected) {
+            tbrFailed++;
+            console.log(`STORED REJECTED MISMATCH  ${t.label ?? "?"}  sale_metrics id=${t.metrics_id}  stored=${stored} expected=${expected}`);
+        }
+    }
+    console.log(`stored rejected totals: ${tbrRows.length - tbrFailed}/${tbrRows.length} correct, ${tbrFailed} wrong`);
+    failed += tbrFailed;
     failed += colFailed;
 
     console.log(
