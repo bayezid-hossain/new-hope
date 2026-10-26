@@ -176,8 +176,8 @@ export async function listReports(db: Db, scope: Scope, input: ListInput) {
     const dir = input.order === "asc" ? asc : desc;
     const orderBy =
         input.sort === "farmer"
-            ? [dir(farmer.name), desc(farmerVisitReports.visitDate)]
-            : [dir(farmerVisitReports.visitDate), asc(farmer.name)];
+            ? [dir(farmer.name), desc(farmerVisitReports.visitDate), asc(farmerVisitReports.id)]
+            : [dir(farmerVisitReports.visitDate), asc(farmer.name), asc(farmerVisitReports.id)];
 
     const rows = await db
         .select({ report: farmerVisitReports, farmerName: farmer.name, farmerLocation: farmer.location })
