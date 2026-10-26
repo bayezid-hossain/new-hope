@@ -5,7 +5,7 @@ import {
 import {
     idInputSchema, listInputSchema, prefillInputSchema, saveInputSchema, standardInputSchema,
 } from "@/modules/farmer-visits/server/schemas";
-import { createTRPCRouter, managementProcedure } from "../../init";
+import { createTRPCRouter, managementProProcedure } from "../../init";
 
 const scopeOf = (orgId: string): Scope => ({ orgId });
 
@@ -18,30 +18,30 @@ const assertCanEdit = (ctx: { user: { globalRole: string | null }; membership?: 
 };
 
 export const managementFarmerVisitsRouter = createTRPCRouter({
-    list: managementProcedure
+    list: managementProProcedure
         .input(listInputSchema)
         .query(({ ctx, input }) => listReports(ctx.db, scopeOf(input.orgId), input)),
 
-    get: managementProcedure
+    get: managementProProcedure
         .input(idInputSchema)
         .query(({ ctx, input }) => getReport(ctx.db, scopeOf(input.orgId), input.id)),
 
-    getPrefill: managementProcedure
+    getPrefill: managementProProcedure
         .input(prefillInputSchema)
         .query(({ ctx, input }) => getPrefill(ctx.db, scopeOf(input.orgId), input)),
 
-    getStandard: managementProcedure
+    getStandard: managementProProcedure
         .input(standardInputSchema)
         .query(({ ctx, input }) => getStandard(ctx.db, input.age)),
 
-    save: managementProcedure
+    save: managementProProcedure
         .input(saveInputSchema)
         .mutation(({ ctx, input }) => {
             assertCanEdit(ctx as any);
             return saveReport(ctx.db, scopeOf(input.orgId), { id: ctx.user.id, name: ctx.user.name }, input);
         }),
 
-    delete: managementProcedure
+    delete: managementProProcedure
         .input(idInputSchema)
         .mutation(({ ctx, input }) => {
             assertCanEdit(ctx as any);
