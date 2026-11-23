@@ -79,6 +79,8 @@ export const session = pgTable("session", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  // better-auth organization plugin field (required by its schema validation since 1.7)
+  activeOrganizationId: text("active_organization_id"),
 });
 
 export const account = pgTable("account", {
@@ -112,6 +114,10 @@ export const twoFactor = pgTable("two_factor", {
   backupCodes: text("backup_codes").notNull(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   enabled: boolean("enabled").notNull().default(false),
+  // better-auth >= 1.7 two-factor plugin fields
+  verified: boolean("verified").default(true),
+  failedVerificationCount: integer("failed_verification_count").default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
 });
 
 
@@ -126,10 +132,30 @@ export const organization = pgTable("organization", {
   docPricePerBird: decimal("doc_price_per_bird").default("41.5"),
   baseSellPrice: decimal("base_sell_price").default("145"),
   slug: text("slug").unique().notNull(), // for URLs like /app/my-farm
+  // better-auth organization plugin fields (required by its schema validation since 1.7)
+  logo: text("logo"),
+  metadata: text("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// better-auth organization plugin invitation table. The app's own join flow uses
+// `member.status`; this table exists because better-auth >= 1.7 validates that every
+// table its plugins can write is present in the Drizzle schema.
+export const invitation = pgTable("invitation", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role"),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  inviterId: text("inviter_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+}, (t) => [
+  index("idx_invitation_org_id").on(t.organizationId),
+  index("idx_invitation_email").on(t.email),
+]);
 
 export const member = pgTable("member", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
