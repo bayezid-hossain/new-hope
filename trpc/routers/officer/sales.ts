@@ -1379,6 +1379,69 @@ export const officerSalesRouter = createTRPCRouter({
         }),
 
     // Get sale events for a cycle or farmer
+    // Effective prices (officer's own, else org default, else constants) for the sale forms' placeholders
+    getPriceDefaults: proProcedure
+        .input(z.object({
+            cycleId: z.string().optional(),
+            historyId: z.string().optional(),
+            date: z.string().datetime().optional(), // the sale date, defaults to now
+        }))
+        .query(async ({ ctx, input }) => {
+            let farmerData: any = null;
+            if (input.cycleId) {
+                const found = await ctx.db.query.cycles.findFirst({
+                    where: eq(cycles.id, input.cycleId),
+                    with: { farmer: { with: { organization: true } } },
+                });
+                farmerData = found?.farmer ?? null;
+            }
+            if (!farmerData && input.historyId) {
+                const found = await ctx.db.query.cycleHistory.findFirst({
+                    where: eq(cycleHistory.id, input.historyId),
+                    with: { farmer: { with: { organization: true } } },
+                });
+                farmerData = found?.farmer ?? null;
+            }
+
+            if (!farmerData) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Cycle not found" });
+            }
+
+            // Permission Check (same as previewSale)
+            const isOfficer = farmerData.officerId === ctx.user.id;
+
+            let isAuthorizedManager = false;
+            if (ctx.user.globalRole === "ADMIN") {
+                isAuthorizedManager = true;
+            } else {
+                const membership = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, ctx.user.id),
+                        eq(member.organizationId, farmerData.organizationId)
+                    )
+                });
+                if (membership && ((membership.role === "MANAGER" && membership.activeMode == "MANAGEMENT") || membership.role === "OWNER")) {
+                    isAuthorizedManager = true;
+                }
+            }
+
+            if (!isOfficer && !isAuthorizedManager) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to sell from this cycle" });
+            }
+
+            // Visibility Restriction: Non-admins don't see deleted farmers' data
+            if (ctx.user.globalRole !== "ADMIN" && farmerData.status === "deleted") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Farmer not found" });
+            }
+
+            const orgId = farmerData.organizationId ?? farmerData.organization?.id ?? "";
+            return SaleMetricsService.getPriceForDate(
+                orgId,
+                farmerData.officerId ?? null,
+                input.date ? new Date(input.date) : new Date()
+            ); // { feedPrice, docPrice, basePrice }
+        }),
+
     getSaleEvents: proProcedure
         .input(z.object({
             cycleId: z.string().optional(),
