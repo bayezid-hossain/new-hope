@@ -192,6 +192,18 @@ export const managementStockRouter = createTRPCRouter({
             return ms;
         }),
 
+    // TRANSFER SUMMARY (everything needed to write the transfer message)
+    getTransferSummary: managementProcedure
+        .input(z.object({ referenceId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const { getTransferSummary } = await import("@/modules/stock/server/transfer-summary-service");
+            return await getTransferSummary(
+                ctx.db,
+                { orgId: input.orgId, isAdmin: ctx.user.globalRole === "ADMIN" },
+                input.referenceId,
+            );
+        }),
+
     transferStock: managementProcedure
         .input(z.object({
             sourceFarmerId: z.string(),

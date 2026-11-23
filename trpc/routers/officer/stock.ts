@@ -26,6 +26,18 @@ export const officerStockRouter = createTRPCRouter({
                 .orderBy(desc(stockLogs.createdAt));
         }),
 
+    // TRANSFER SUMMARY (everything needed to write the transfer message)
+    getTransferSummary: protectedProcedure
+        .input(z.object({ referenceId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const { getTransferSummary } = await import("@/modules/stock/server/transfer-summary-service");
+            return await getTransferSummary(
+                ctx.db,
+                { officerId: ctx.user.id, isAdmin: ctx.user.globalRole === "ADMIN" },
+                input.referenceId,
+            );
+        }),
+
     // ADD STOCK (Ledger Entry Added) — supports multiple feed-type lines in one restock
     addStock: protectedProcedure
         .input(z.object({
