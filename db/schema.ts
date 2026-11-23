@@ -161,6 +161,7 @@ export const member = pgTable("member", {
 export const pricePolicies = pgTable("price_policies", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  officerId: text("officer_id").references(() => user.id, { onDelete: "cascade" }),
   effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
   feedPricePerBag: decimal("feed_price_per_bag").notNull(),
   docPricePerBird: decimal("doc_price_per_bird").notNull(),
@@ -169,7 +170,9 @@ export const pricePolicies = pgTable("price_policies", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("idx_price_policies_org_id").on(t.organizationId),
-  unique("unique_price_policies_org_effective").on(t.organizationId, t.effectiveFrom),
+  uniqueIndex("uq_price_policies_org_default_effective").on(t.organizationId, t.effectiveFrom).where(sql`${t.officerId} IS NULL`),
+  uniqueIndex("uq_price_policies_org_officer_effective").on(t.organizationId, t.officerId, t.effectiveFrom).where(sql`${t.officerId} IS NOT NULL`),
+  index("idx_price_policies_officer_id").on(t.officerId),
 ]);
 
 export const farmer = pgTable("farmer", {
@@ -510,6 +513,7 @@ export const memberRelations = relations(member, ({ one }) => ({
 
 export const pricePoliciesRelations = relations(pricePolicies, ({ one }) => ({
   organization: one(organization, { fields: [pricePolicies.organizationId], references: [organization.id] }),
+  officer: one(user, { fields: [pricePolicies.officerId], references: [user.id] }),
 }));
 
 export const farmerRelations = relations(farmer, ({ one, many }) => ({

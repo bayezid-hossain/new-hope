@@ -16,6 +16,8 @@ import type { PricePolicyFormValues } from "./price-policy-form";
 export type PricePolicy = {
     id: string;
     organizationId: string;
+    officerId?: string | null;
+    officerName?: string | null;
     effectiveFrom: Date | string;
     feedPricePerBag: string;
     docPricePerBird: string;
@@ -69,6 +71,7 @@ export function PricePolicyTable({ policies, onEdit }: PricePolicyTableProps) {
         <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead>Applies to</TableHead>
                     <TableHead>Effective From</TableHead>
                     <TableHead>Feed Price / Bag (৳)</TableHead>
                     <TableHead>DOC Price / Bird (৳)</TableHead>
@@ -88,6 +91,7 @@ export function PricePolicyTable({ policies, onEdit }: PricePolicyTableProps) {
                                     : undefined
                             }
                         >
+                            <TableCell className="text-muted-foreground">{policy.officerName ?? "Org default"}</TableCell>
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
                                     {formatDate(policy.effectiveFrom)}

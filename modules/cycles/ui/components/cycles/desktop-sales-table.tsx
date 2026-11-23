@@ -190,8 +190,8 @@ const DesktopSaleRow = ({
                             const formulaRevenue = sale.cycleContext.revenue || parseFloat(displayTotalAmount);
                             const totalFeedBags = sale.cycleContext.feedConsumed ?? 0;
                             const doc = sale.cycleContext.doc || sale.houseBirds || 0;
-                            const feedCost = totalFeedBags * FEED_PRICE_PER_BAG;
-                            const docCost = doc * DOC_PRICE_PER_BIRD;
+                            const feedCost = totalFeedBags * Number(sale.cycleContext.feedPriceUsed ?? FEED_PRICE_PER_BAG);
+                            const docCost = doc * Number(sale.cycleContext.docPriceUsed ?? DOC_PRICE_PER_BIRD);
                             const profit = formulaRevenue - (feedCost + docCost);
                             return `৳${profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
                         })()
