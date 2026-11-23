@@ -33,8 +33,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
-    targetFarmerId: z.string({ required_error: "Please select a target farmer." }),
-    amount: z.coerce.number().positive("Amount must be positive"),
+    targetFarmerId: z.string({ error: (issue) => (issue.input === undefined ? "Please select a target farmer." : undefined) }),
+    amount: z.coerce.number<number>().positive("Amount must be positive"),
     note: z.string().optional(),
 });
 
@@ -61,7 +61,7 @@ export function TransferStockModal({
     const [comboboxOpen, setComboboxOpen] = useState(false);
 
     // Form Setup
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             amount: 0,

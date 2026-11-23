@@ -32,7 +32,8 @@ import { z } from "zod";
 const formSchema = z.object({
   amount: z.number().min(1, "Must be at least 1"),
   date: z.date({
-    required_error: "A date of death is required.",
+    // zod 4: `error` replaces `required_error`; keep the default message for non-missing inputs
+    error: (issue) => (issue.input === undefined ? "A date of death is required." : undefined),
   }),
 });
 

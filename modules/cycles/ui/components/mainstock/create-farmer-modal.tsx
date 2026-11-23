@@ -23,13 +23,14 @@ import { z } from "zod";
 // --- Schema Definition ---
 const createFarmerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  initialStock: z.coerce.number().min(0).default(0).optional(),
+  initialStock: z.coerce.number<number>().min(0).default(0).optional(),
   location: z.string().max(200).optional(),
   mobile: z.string().regex(/^(?:\+?88)?01[3-9]\d{8}$/, "Invalid mobile number").optional().or(z.literal(""))
 });
 
 // 2. Explicitly define the type
 type CreateFarmerFormValues = z.infer<typeof createFarmerSchema>;
+type CreateFarmerFormInput = z.input<typeof createFarmerSchema>;
 
 interface CreateFarmerModalProps {
   open: boolean;
@@ -42,7 +43,7 @@ export const CreateFarmerModal = ({ open, onOpenChange }: CreateFarmerModalProps
   const { orgId } = useCurrentOrg();
 
   // 3. Pass the type to useForm generically
-  const form = useForm<CreateFarmerFormValues>({
+  const form = useForm<CreateFarmerFormInput, unknown, CreateFarmerFormValues>({
     resolver: zodResolver(createFarmerSchema),
     defaultValues: {
       name: "",
