@@ -1,23 +1,33 @@
-import { pricePolicies, organization } from "@/db/schema";
+import { member, organization, pricePolicies, user } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, managementProcedure } from "../../init";
 
 export const managementPricePoliciesRouter = createTRPCRouter({
 
     // List all price policies for the user's org, sorted newest-first
-    list: managementProcedure.query(async ({ ctx, input }) => {
-        return await ctx.db
-            .select()
-            .from(pricePolicies)
-            .where(eq(pricePolicies.organizationId, input.orgId))
-            .orderBy(desc(pricePolicies.effectiveFrom));
-    }),
+    // officerId: a user id, "default" (org default only), or omitted (everything)
+    list: managementProcedure
+        .input(z.object({ officerId: z.string().optional() }))
+        .query(async ({ ctx, input }) => {
+            const scope =
+                input.officerId === "default" ? isNull(pricePolicies.officerId)
+                : input.officerId ? eq(pricePolicies.officerId, input.officerId)
+                : undefined;
+            const rows = await ctx.db
+                .select({ policy: pricePolicies, officerName: user.name })
+                .from(pricePolicies)
+                .leftJoin(user, eq(pricePolicies.officerId, user.id))
+                .where(and(eq(pricePolicies.organizationId, input.orgId), scope))
+                .orderBy(desc(pricePolicies.effectiveFrom));
+            return rows.map((r) => ({ ...r.policy, officerName: r.officerName }));
+        }),
 
     // Create a new price policy
     create: managementProcedure
         .input(z.object({
+            officerId: z.string().optional(), // omitted = org default
             effectiveFrom: z.string().datetime(),
             feedPricePerBag: z.number().positive(),
             docPricePerBird: z.number().positive(),
@@ -33,12 +43,33 @@ export const managementPricePoliciesRouter = createTRPCRouter({
 
             const orgId = input.orgId;
 
+            if (input.officerId) {
+                const officerMember = await ctx.db.query.member.findFirst({
+                    where: and(
+                        eq(member.userId, input.officerId),
+                        eq(member.organizationId, orgId),
+                        eq(member.status, "ACTIVE"),
+                    ),
+                });
+                if (!officerMember) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "That officer is not an active member of this organization.",
+                    });
+                }
+            }
+
+            const scopeConflictMessage = input.officerId
+                ? "This officer already has a price policy for this exact date and time. Choose a different effective date."
+                : "A price policy already exists for this exact date and time. Choose a different effective date.";
+
             let created;
             try {
                 [created] = await ctx.db
                     .insert(pricePolicies)
                     .values({
                         organizationId: orgId,
+                        officerId: input.officerId ?? null,
                         effectiveFrom: new Date(input.effectiveFrom),
                         feedPricePerBag: String(input.feedPricePerBag),
                         docPricePerBird: String(input.docPricePerBird),
@@ -49,14 +80,14 @@ export const managementPricePoliciesRouter = createTRPCRouter({
                 if (err?.code === "23505") {
                     throw new TRPCError({
                         code: "CONFLICT",
-                        message: "A price policy already exists for this exact date and time. Choose a different effective date.",
+                        message: scopeConflictMessage,
                     });
                 }
                 throw err;
             }
 
-            // Sync org prices with the latest policy
-            await syncOrgPrices(ctx.db, orgId);
+            // Sync org prices with the latest org default policy (officer policies never affect the org row)
+            if (!input.officerId) await syncOrgPrices(ctx.db, orgId);
 
             return created;
         }),
@@ -111,6 +142,10 @@ export const managementPricePoliciesRouter = createTRPCRouter({
                 updateValues.baseSellPrice = String(input.baseSellPrice);
             }
 
+            const scopeConflictMessage = existing.officerId
+                ? "This officer already has a price policy for this exact date and time. Choose a different effective date."
+                : "A price policy already exists for this exact date and time. Choose a different effective date.";
+
             let updated;
             try {
                 [updated] = await ctx.db
@@ -122,14 +157,14 @@ export const managementPricePoliciesRouter = createTRPCRouter({
                 if (err?.code === "23505") {
                     throw new TRPCError({
                         code: "CONFLICT",
-                        message: "A price policy already exists for this exact date and time. Choose a different effective date.",
+                        message: scopeConflictMessage,
                     });
                 }
                 throw err;
             }
 
-            // Sync org prices with the latest policy
-            await syncOrgPrices(ctx.db, orgId);
+            // Sync org prices with the latest org default policy (officer policies never affect the org row)
+            if (!existing.officerId) await syncOrgPrices(ctx.db, orgId);
 
             return updated;
         }),
@@ -163,19 +198,19 @@ export const managementPricePoliciesRouter = createTRPCRouter({
 
             await ctx.db.delete(pricePolicies).where(eq(pricePolicies.id, input.id));
 
-            // Re-sync org prices in case the deleted policy was the latest
-            await syncOrgPrices(ctx.db, orgId);
+            // Re-sync org prices in case the deleted org default was the latest
+            if (!existing.officerId) await syncOrgPrices(ctx.db, orgId);
         }),
 });
 
 /**
- * Syncs organization price fields to match the most recent (by effectiveFrom) price policy.
+ * Syncs organization price fields to match the most recent (by effectiveFrom) org default price policy (officerId IS NULL).
  */
 async function syncOrgPrices(db: typeof import("@/db").db, orgId: string) {
     const [latest] = await db
         .select()
         .from(pricePolicies)
-        .where(eq(pricePolicies.organizationId, orgId))
+        .where(and(eq(pricePolicies.organizationId, orgId), isNull(pricePolicies.officerId)))
         .orderBy(desc(pricePolicies.effectiveFrom))
         .limit(1);
 
