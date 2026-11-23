@@ -1184,7 +1184,7 @@ export const officerSalesRouter = createTRPCRouter({
 
             // Look up price policy effective at sale date (same as recalculateForCycle)
             const orgId = cycle.farmer?.organizationId ?? cycle.farmer?.organization?.id ?? "";
-            const policyPrices = await SaleMetricsService.getPriceForDate(orgId, input.saleDate ?? new Date());
+            const policyPrices = await SaleMetricsService.getPriceForDate(orgId, cycle.farmer?.officerId ?? null, input.saleDate ?? new Date());
 
             // Fetch previous sales to calculate cumulative stats
             const previousSales = await ctx.db.query.saleEvents.findMany({

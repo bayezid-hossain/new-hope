@@ -1,7 +1,8 @@
 import { BASE_SELLING_PRICE, DOC_PRICE_PER_BIRD, FEED_PRICE_PER_BAG } from "@/constants";
 import { db } from "@/db";
 import { cycleHistory, cycles, pricePolicies, saleEvents, saleMetrics } from "@/db/schema";
-import { and, desc, eq, lte } from "drizzle-orm";
+import { pickPolicy } from "@/modules/pricing/lib/pick-policy";
+import { and, eq, isNull, lte, or } from "drizzle-orm";
 
 export class SaleMetricsService {
     /**
@@ -102,7 +103,7 @@ export class SaleMetricsService {
         }
 
         // Look up price policy effective at priceDate (or use explicit overrides)
-        const policyPrices = await SaleMetricsService.getPriceForDate(orgId, priceDate, tx);
+        const policyPrices = await SaleMetricsService.getPriceForDate(orgId, cycle.farmer?.officerId ?? null, priceDate, tx);
         const orgFeedPrice = feedPriceOverride ?? policyPrices.feedPrice;
         const docPriceUsed = docPriceOverride ?? policyPrices.docPrice;
 
@@ -270,6 +271,7 @@ export class SaleMetricsService {
 
     static async getPriceForDate(
         orgId: string,
+        officerId: string | null,
         date: Date,
         tx?: any
     ): Promise<{ feedPrice: number; docPrice: number; basePrice: number }> {
@@ -277,13 +279,17 @@ export class SaleMetricsService {
             console.warn("[getPriceForDate] orgId is empty — falling back to default constants");
         }
         const dbConn = tx ?? db;
-        const policy = await dbConn.query.pricePolicies.findFirst({
+        // Candidates: the officer's own policies and the org defaults. pickPolicy chooses between them.
+        const rows = await dbConn.query.pricePolicies.findMany({
             where: and(
                 eq(pricePolicies.organizationId, orgId),
-                lte(pricePolicies.effectiveFrom, date)
+                lte(pricePolicies.effectiveFrom, date),
+                officerId
+                    ? or(eq(pricePolicies.officerId, officerId), isNull(pricePolicies.officerId))
+                    : isNull(pricePolicies.officerId),
             ),
-            orderBy: [desc(pricePolicies.effectiveFrom)],
         });
+        const policy = pickPolicy(rows, officerId, date);
         return {
             feedPrice: Number(policy?.feedPricePerBag) || FEED_PRICE_PER_BAG,
             docPrice: Number(policy?.docPricePerBird) || DOC_PRICE_PER_BIRD,
