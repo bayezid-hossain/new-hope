@@ -21,7 +21,7 @@ import { z } from "zod";
 
 // Schema: Amount + Optional Note
 const addStockSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be positive"),
+  amount: z.coerce.number<number>().positive("Amount must be positive"),
   note: z.string().optional(),
 });
 
@@ -35,7 +35,7 @@ export const AddFeedModal = ({ id, open, onOpenChange }: AddFeedModalProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient(); // <--- Standard Query Client
   const { orgId } = useCurrentOrg(); // <--- Get Current Org ID
-  const form = useForm<z.infer<typeof addStockSchema>>({
+  const form = useForm<z.input<typeof addStockSchema>, unknown, z.output<typeof addStockSchema>>({
     resolver: zodResolver(addStockSchema),
     defaultValues: {
       amount: 0,

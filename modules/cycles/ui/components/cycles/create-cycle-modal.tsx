@@ -46,12 +46,13 @@ import { z } from "zod";
 const createCycleSchema = z.object({
   farmerId: z.string().min(1, "You must select a farmer from the list"),
   farmerName: z.string().min(1, "Farmer name is required"), // Display only
-  doc: z.coerce.number().min(1, "Must have at least 1 bird"),
-  age: z.coerce.number().min(0).default(1).optional(),
+  doc: z.coerce.number<number>().min(1, "Must have at least 1 bird"),
+  age: z.coerce.number<number>().min(0).default(1).optional(),
   birdType: z.string().max(50, "Max 50 characters").optional(),
 });
 
 type FormValues = z.infer<typeof createCycleSchema>;
+type FormInput = z.input<typeof createCycleSchema>;
 
 // Define a type for the farmer suggestion (adjust based on your actual API return)
 type FarmerSuggestion = {
@@ -80,7 +81,7 @@ export const CreateCycleModal = ({ open, onOpenChange, preSelectedFarmer }: Crea
 
   const [comboboxOpen, setComboboxOpen] = useState(false);
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(createCycleSchema),
     defaultValues: {
       farmerId: preSelectedFarmer?.id || "",

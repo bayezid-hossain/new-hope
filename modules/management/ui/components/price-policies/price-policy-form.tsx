@@ -22,17 +22,18 @@ import { z } from "zod";
 const formSchema = z.object({
     effectiveFrom: z.string().min(1, "Effective date is required"),
     feedPricePerBag: z.coerce
-        .number({ invalid_type_error: "Must be a number" })
+        .number<number>({ error: "Must be a number" })
         .positive("Must be a positive number"),
     docPricePerBird: z.coerce
-        .number({ invalid_type_error: "Must be a number" })
+        .number<number>({ error: "Must be a number" })
         .positive("Must be a positive number"),
     baseSellPrice: z.coerce
-        .number({ invalid_type_error: "Must be a number" })
+        .number<number>({ error: "Must be a number" })
         .positive("Must be a positive number"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+type FormInput = z.input<typeof formSchema>;
 
 export type PricePolicyFormValues = {
     id?: string;
@@ -75,7 +76,7 @@ export function PricePolicyForm({
         initialValues?.effectiveFrom != null &&
         isPastDate(initialValues.effectiveFrom);
 
-    const form = useForm<FormValues>({
+    const form = useForm<FormInput, unknown, FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             effectiveFrom: initialValues?.effectiveFrom

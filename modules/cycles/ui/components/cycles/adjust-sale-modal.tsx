@@ -38,14 +38,14 @@ import { FarmerInfoHeader, FeedFieldArray, SaleMetricsBar } from "./sale-form-se
 import { ensureB1B2 } from "./sale-form-utils";
 
 const adjustSaleSchema = z.object({
-    birdsSold: z.coerce.number().int().positive("Must be at least 1 bird"),
-    totalMortality: z.coerce.number().int().min(0, "Cannot be negative"),
-    totalWeight: z.coerce.number().positive("Weight must be positive"),
-    pricePerKg: z.coerce.number().positive("Price must be positive"),
+    birdsSold: z.coerce.number<number>().int().positive("Must be at least 1 bird"),
+    totalMortality: z.coerce.number<number>().int().min(0, "Cannot be negative"),
+    totalWeight: z.coerce.number<number>().positive("Weight must be positive"),
+    pricePerKg: z.coerce.number<number>().positive("Price must be positive"),
 
-    cashReceived: z.coerce.number().min(0, "Cannot be negative"),
-    depositReceived: z.coerce.number().min(0, "Cannot be negative"),
-    medicineCost: z.coerce.number().min(0, "Cannot be negative"),
+    cashReceived: z.coerce.number<number>().min(0, "Cannot be negative"),
+    depositReceived: z.coerce.number<number>().min(0, "Cannot be negative"),
+    medicineCost: z.coerce.number<number>().min(0, "Cannot be negative"),
 
     feedConsumed: z.array(feedItemSchema).min(1, "At least one feed entry required"),
     feedStock: z.array(feedItemSchema),
@@ -54,9 +54,9 @@ const adjustSaleSchema = z.object({
     party: z.string().optional(),
     farmerMobile: z.string().optional(),
     adjustmentNote: z.string().min(0, "Please provide a more detailed reason for this adjustment"),
-    recoveryPrice: z.coerce.number().positive().optional(),
-    feedPricePerBag: z.coerce.number().positive().optional(),
-    docPricePerBird: z.coerce.number().positive().optional(),
+    recoveryPrice: z.coerce.number<number>().positive().optional(),
+    feedPricePerBag: z.coerce.number<number>().positive().optional(),
+    docPricePerBird: z.coerce.number<number>().positive().optional(),
 });
 
 interface AdjustSaleModalProps {
@@ -113,7 +113,7 @@ export const AdjustSaleModal = ({ isOpen, onClose, saleEvent, latestReport }: Ad
         docPricePerBird: saleEvent.cycleContext?.docPriceUsed ? Number(saleEvent.cycleContext.docPriceUsed) : undefined,
     };
 
-    const form = useForm<z.infer<typeof adjustSaleSchema>>({
+    const form = useForm<z.input<typeof adjustSaleSchema>, unknown, z.output<typeof adjustSaleSchema>>({
         resolver: zodResolver(adjustSaleSchema),
         defaultValues,
     });

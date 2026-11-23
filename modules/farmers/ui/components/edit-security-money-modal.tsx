@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
-    amount: z.coerce.number().min(0, "Amount must be positive"),
+    amount: z.coerce.number<number>().min(0, "Amount must be positive"),
     reason: z.string().optional()
 });
 
@@ -40,7 +40,7 @@ export function EditSecurityMoneyModal({
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             amount: currentAmount,
